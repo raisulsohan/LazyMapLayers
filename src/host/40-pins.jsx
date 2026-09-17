@@ -21,8 +21,14 @@ LML.pins.addEffect = function (layer, matchName, name, value) {
     return effect;
 };
 
-LML.pins.setExpression = function (prop, code, errors, label) {
+/**
+ * Sets an expression and reports its error. Reading the error makes After Effects evaluate the
+ * expression, which costs several milliseconds: callers that set the same generated expression on
+ * many layers pass check = false after the first one.
+ */
+LML.pins.setExpression = function (prop, code, errors, label, check) {
     prop.expression = code;
+    if (check === false) return;
     var problem = "";
     try {
         problem = prop.expressionError;

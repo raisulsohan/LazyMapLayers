@@ -11,8 +11,11 @@ import {
   checkRegionSize,
   compactNumber,
   confirmToolSheet,
+  LABEL_DENSITIES,
+  labelDensity,
   labelLanguage,
   mb,
+  removeLabels,
   regionSheet,
   regions,
   runAutoLabels,
@@ -256,8 +259,21 @@ export function LabelsSheetView(): JSX.Element | null {
         </label>
       </div>
       <div class="sheet-row">
+        <label class="num-field grow" title="The most important names come first: countries, capitals, large cities">
+          <span>How many</span>
+          <select data-id="label-density" value={labelDensity.value} onChange={(e) => (labelDensity.value = (e.target as HTMLSelectElement).value as keyof typeof LABEL_DENSITIES)}>
+            {(Object.keys(LABEL_DENSITIES) as (keyof typeof LABEL_DENSITIES)[]).map((key) => (
+              <option key={key} value={key}>
+                {LABEL_DENSITIES[key].label}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      <div class="sheet-row">
         <button
           class="primary"
+          data-id="place-labels"
           disabled={busy.value}
           onClick={() => {
             labelsSheetOpen.value = false;
@@ -266,7 +282,10 @@ export function LabelsSheetView(): JSX.Element | null {
         >
           Place labels
         </button>
-        <button onClick={() => (labelsSheetOpen.value = false)}>Cancel</button>
+        <button disabled={busy.value} onClick={() => void removeLabels()} title="Removes every label Auto labels made for this map, in one undo step">
+          Remove labels
+        </button>
+        <button onClick={() => (labelsSheetOpen.value = false)}>Close</button>
       </div>
     </div>
   );
