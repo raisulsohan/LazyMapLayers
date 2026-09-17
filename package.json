@@ -30,7 +30,7 @@
     "@turf/helpers": "^7.4.0",
     "@turf/union": "^7.4.0",
     "fflate": "^0.8.3",
-    "maplibre-gl": "^6.10.0",
+    "maplibre-gl": "6.10.0",
     "papaparse": "^5.7.0",
     "pmtiles": "^4.5.0",
     "polylabel": "^2.1.0",

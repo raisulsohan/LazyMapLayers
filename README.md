@@ -45,8 +45,13 @@ built to be free **and** to give better final frames.
 - **Camera maths.** Our camera equals MapLibre's projection to within 0.00000003 px.
 - **Map comp creation from the panel.** Tagged comps, camera controls and view keyframes, all
   undoable.
-- **Render map.** The panel renders the basemap for every frame of the map comp and imports it as an
-  image sequence, at preview or full resolution.
+- **Render queue.** The panel renders the basemap for every frame of the map comp at its exact
+  camera and imports it as an image sequence. Only frames that changed are drawn again, renders can
+  be cancelled and resumed, and previews become After Effects proxies.
+- **Final quality.** Up to 4× supersampling, motion blur that matches After Effects' shutter, and a
+  10-second 4K move in about 30 seconds on a mid-range GPU.
+- **Passes and mattes.** Land, water, boundaries, roads and 3D buildings as separate footage, plus
+  land and water mattes, for grading and effects in After Effects.
 - **Pins.** 2D pins follow the animated camera. In After Effects' own render they sit on the exact
   pixel the renderer draws (worst error 0.006 px at 1080p and 4K).
 - **Matched 3D camera.** One click adds an After Effects camera that matches the map, so 3D layers

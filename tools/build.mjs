@@ -1,6 +1,6 @@
 // Builds the extension into dist/:
 //   dist/CSXS/manifest.xml
-//   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, maplibre-gl.css}
+//   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
 //   dist/data/natural-earth.pmtiles
 //
@@ -57,6 +57,18 @@ async function main() {
     outfile: path.join(dist, "panel", "maplibre-worker.js"),
     bundle: true,
     format: "esm",
+    target,
+    minify: !dev,
+    legalComments: "inline",
+    logLevel: "warning"
+  });
+
+  await esbuild.build({
+    entryPoints: [path.join(root, "src", "panel", "render", "encodeWorker.ts")],
+    outfile: path.join(dist, "panel", "encode-worker.js"),
+    bundle: true,
+    format: "iife",
+    platform: "browser",
     target,
     minify: !dev,
     legalComments: "inline",

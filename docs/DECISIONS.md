@@ -67,3 +67,60 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   - Size: 24 MB, gzip-compressed MVT, built in about 9 s.
 - **Consequences.** Natural Earth 1:10m has no more detail to give past about zoom 6. Detail beyond
   that comes from regional OpenStreetMap downloads (Phase 4).
+
+## D7 — Content-keyed render cache with hard-linked sequences (2026-09-17)
+
+- **Context.** After Effects caches footage frames by file path, so a re-render into the same
+  folder can show stale frames. Rendering every frame of every pass again after a small keyframe
+  change wastes minutes at 4K.
+- **Decision.**
+  - Every pass image of every frame gets a 64-bit content key (`src/core/render/frameKey.ts`,
+    `plan.ts`). The key covers the renderer version, style, data archive (path, size, modified
+    time), output size, supersampling and the camera of every motion blur sample.
+  - Images live once in `<renders>/<map>/cache/<pass>/<key>.png`, written to a temporary name and
+    renamed.
+  - Each render builds a new sequence folder of hard links to the cache (copies when linking fails)
+    and swaps it into the footage. The two newest folders per pass stay, so Undo in After Effects
+    still finds the previous footage.
+- **Consequences.** Held shots render once, unchanged re-renders take under a second, a keyframe
+  change redraws only the frames it affects, and a cancelled render resumes from the cache. Old
+  cache files are not removed automatically yet.
+
+## D8 — Passes from layer groups, hidden per draw (2026-09-17)
+
+- **Context.** Passes need the same tiles and camera as the basemap. Changing layer visibility or
+  switching styles in MapLibre reloads tiles, which is far too slow per frame.
+- **Decision.**
+  - Every style layer names a group in `metadata["lml:group"]`: background, land, water,
+    boundaries, roads, buildings, labels or overlay.
+  - The renderer overrides `isHidden()` on MapLibre's style layer objects, so the painter skips the
+    layers outside the current group while the tile buckets stay untouched.
+  - Passes are composed in workers from these group draws (`src/core/render/passes.ts`). Ground
+    passes are held out by buildings; the land and water mattes add up to exactly one.
+  - Frames are box-filtered on the GPU when supersampling, and only output-size pixels are read
+    back.
+- **Consequences.** A pass costs one extra draw and read at the same camera. `isHidden` is internal
+  to MapLibre, so upgrades of `maplibre-gl` must re-run R1 (its GPU, pass and determinism checks
+  catch a break).
+- **Not included.** A label pass (renderer labels are not frame-stable; labels are AE layers, see
+  S6), a terrain shading pass (no terrain yet, Phase 3) and a selected-region matte (needs the
+  feature browser, Phase 4).
+
+## D9 — Previews are After Effects proxies (2026-09-17)
+
+- **Decision.** A final render is the footage's main source. A preview becomes the main source only
+  while no final render exists; otherwise it becomes the footage's proxy and is switched on. A
+  later final render keeps a proxy whose camera animation matches (same stamp) but switches it
+  off, and removes a proxy that shows a different move.
+- **Consequences.** Designers work with fast half-resolution frames, and the After Effects render
+  queue's "Use No Proxies" setting always gets the final frames.
+
+## D10 — Level-of-detail pops: fade what the style can, measure the rest (2026-09-17)
+
+- **Context.** Vector tiles change content between zoom levels: minor roads and small buildings
+  appear when the camera crosses a whole zoom, and pitched views use lower levels in the distance.
+- **Decision.** Styles fade in features that start at a zoom (buildings fade in and rise between
+  zoom 12 and 13). R1 and R2 measure pops on every test render.
+- **Later.** A renderer cross-fade between tile levels (drawing near a level change with the lower
+  level too and blending by zoom) would remove the remaining small steps. It needs a per-pixel
+  blend for pitched views, so it waits for Phase 3's camera work.

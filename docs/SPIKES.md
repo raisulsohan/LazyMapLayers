@@ -1,8 +1,45 @@
-# Phase 0 spike results
+# Spike and in-AE test results
 
 Machine: Windows 11, After Effects 2026 (26.5x89), CEP 12.0.1 (Chromium 99.0.4844.84), NVIDIA GeForce
 RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mjs`), which starts After
-Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits.
+Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
+only runs with `-- --only R2`.
+
+## R1 — Phase 2 renderer in After Effects: PASS 15/15 (2026-09-17)
+
+`src/panel/renderTests.ts`. A 1920×1080, 4-second map comp over Paris (OpenStreetMap region, 3D
+buildings) holds a view for 1 s, moves to a pitched view by 3.5 s and holds it. Every render goes
+through the real render job (`src/panel/render/renderJob.ts`) and import (`LML.api.importPasses`).
+
+| Check | Result |
+|---|---|
+| Holds render once | 100 frames, 64 drawn (26 + 12 held frames collapse into 2) |
+| First render, all 8 passes, 2× supersampling | 206–245 ms per drawn frame, 13.5 s in total |
+| One layer and one footage item per pass | 8 and 8; passes stacked in order, only the basemap switched on |
+| Data credit | "© OpenStreetMap contributors" text layer added to the scene |
+| Land and water mattes | cover every pixel exactly once (0 errors) |
+| Colour passes | roads 25 %, buildings 57 %, land 96 %, water 5 % of the frame |
+| Ground passes rebuild the basemap | 99.4 % of building-free pixels within 3 per channel |
+| Pops in the base sequence | none |
+| Unchanged re-render | 0 frames drawn, 0.4 s |
+| Keyframe change at 3.5 s | 63 frames drawn (exactly the frames whose camera changed), 37 reused |
+| Preview after a final render | becomes the footage's After Effects proxy, switched on |
+| Final render with the same move | keeps the proxy, switches it off |
+| Motion blur, 8 samples | moving frames change (mean difference 8.4), held frames identical and reused; 306 ms per frame |
+| Cancel after 15 frames, render again | cancelled cleanly; the resumed render drew 49 of 64 |
+| GPU box filter against the CPU reference | worst channel difference 1 (rounding) |
+
+## R2 — 10-second 4K move: PASS (2026-09-17)
+
+- **Move.** 3840×2160, 25 fps, 250 frames over Paris: zoom 12.2 (flat) to zoom 15.4 (bearing 40°,
+  pitch 60°) by 6 s, then an orbit to bearing 100°, pitch 65° by 10 s, with easy ease.
+- **Speed.** 2× supersampling (a 7680×4320 canvas): **125 ms per frame**, 31 s for the whole move,
+  including camera sampling, encoding in workers and import.
+- **Pops.** None. The frame-to-frame change curve is smooth (largest change 17.4 of 255).
+- **Keyframe change.** Changing only the 10 s keyframe redrew 99 frames and reused 151: exactly the
+  frames after 6 s.
+- **Known.** Small steps in the change curve remain where tiles switch zoom level (new minor roads
+  and small buildings appear). They are below the pop threshold; smoothing them is noted in D10.
 
 ## S3 — Complex scripts in AE text layers: PASS (2026-09-17)
 
@@ -28,6 +65,9 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
 - **Measuring glitch.** In one of five runs, the first Bengali layer measured 0 × 0 even though it
   rendered correctly in the saved frame. The label engine must retry a zero-size measurement of
   non-empty text (`tools/ae/spikes.jsx` retries 20 times, 50 ms apart).
+  - Seen again in a full run on 2026-09-17 despite the retries: a 1-second retry window is not
+    enough every time. The label engine (Phase 6) needs a longer, event-driven wait, or a fallback
+    that measures after the first render.
 - **Consequence for labels.** Measure label text in AE, then do collision and placement in core. It
   is cheap enough to measure every candidate. Create layers only for labels that survive placement,
   and batch the creation behind a progress bar.
@@ -74,17 +114,17 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   dev builds only). It clicks through the UI like a user:
   1. Picks the downloaded "paris" basemap.
   2. Frames Paris in the preview.
-  3. Clicks **New map**.
-  4. Opens **Download this area…**, types "Paris" and checks the existing-region warning and the
+  3. Opens **Download this area…**, types "Paris" and checks the existing-region warning and the
      per-zoom tile estimates (no download).
-  5. Clicks **New map**.
-  6. Drops three pins, then the same three places as 3D pins (this adds the 3D camera).
-  7. Clicks **Render preview**.
+  4. Clicks **New map**.
+  5. Drops three pins, then the same three places as 3D pins (this adds the 3D camera).
+  6. Clicks **Render preview**, then opens the render settings (⚙), picks 2× supersampling with a
+     Roads pass and a Water Matte, and clicks **Render**. Both jobs go through the render queue.
 - Screenshots of each step, an AE-rendered frame, and a second frame with only the 3D pins are
   saved to `.cache/ui/`.
-- **Result.** A 10-second, 250-frame map rendered at half resolution in 51 ms per frame and was
-  imported. AE's own frame shows the 3D Paris basemap with the pins on the Arc de Triomphe, Louvre
-  and Eiffel Tower.
+- **Result.** Both queue jobs finish. The map does not move, so each 250-frame render draws one
+  frame and reuses it 249 times (1.1 s and 2.1 s). AE's own frame shows the Paris basemap with the
+  pins on the Arc de Triomphe, Louvre and Eiffel Tower, and the OpenStreetMap credit in the corner.
 
 ## E1 — End to end in After Effects' own render: PASS 20/20 (2026-09-17)
 
@@ -102,6 +142,8 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
 - **Result.** 20 of 20 checks hit. The AE layer rig and the renderer agree inside a real AE render.
 - **With the 3D camera (C1).** The five landmarks are added again as 3D pins under the matched
   camera. 40 of 40 checks hit, 20 of them 3D pins.
+- **Phase 2.** E1 now renders through the render job with 2× supersampling and GPU box filtering,
+  and still hits 40 of 40.
 
 ## P1 — Pins in After Effects against the camera maths: PASS (2026-09-17)
 
@@ -177,6 +219,9 @@ encode (zlib level 1, opaque) and a write to disk.
   frame in between. Symbol placement and fade state depend on which frames were drawn before, not
   only on the clock.
 - **S6b, labels off.** 0 bytes differed: the frame is identical.
+- **Phase 2.** The renderer now runs with no fades (`fadeDuration: 0`) and no style transitions. With
+  labels on, 5,714 bytes still differ (placement depends on earlier frames); without labels frames
+  stay identical.
 - **Decision.** Final-render labels stay out of the renderer. They are AE text layers placed by our
   own engine (Phase 6), or a label pass that engine draws. Basemap passes are deterministic, so
   re-rendering a single frame is safe.

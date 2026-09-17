@@ -1,8 +1,12 @@
 // "Midnight City" — first style for OpenStreetMap regions in the Protomaps basemap schema (v4):
 // layers earth, water, landcover, landuse, roads, buildings, boundaries, places, pois.
-// Colours are placeholders for Phase 7's curated style set.
+// Colours are placeholders for Phase 7's curated style set. Every layer names its render pass group
+// in metadata "lml:group" (see core/render/passes.ts).
 
 import type { StyleSpecification } from "maplibre-gl";
+import type { LayerGroup } from "../../core/render/passes.ts";
+
+const group = (name: LayerGroup) => ({ "lml:group": name });
 
 export const OSM_SOURCE = "osm";
 
@@ -23,11 +27,12 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
     },
     light: { anchor: "viewport", color: "#ffffff", intensity: 0.35, position: [1.2, 210, 30] },
     layers: [
-      { id: "background", type: "background", paint: { "background-color": "#0a1726" } },
-      { id: "earth", type: "fill", source: OSM_SOURCE, "source-layer": "earth", paint: { "fill-color": "#17222e" } },
+      { id: "background", type: "background", metadata: group("background"), paint: { "background-color": "#0a1726" } },
+      { id: "earth", type: "fill", metadata: group("land"), source: OSM_SOURCE, "source-layer": "earth", paint: { "fill-color": "#17222e" } },
       {
         id: "landcover",
         type: "fill",
+        metadata: group("land"),
         source: OSM_SOURCE,
         "source-layer": "landcover",
         paint: { "fill-color": "#1a2a2b", "fill-opacity": 0.6 }
@@ -35,6 +40,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "parks",
         type: "fill",
+        metadata: group("land"),
         source: OSM_SOURCE,
         "source-layer": "landuse",
         filter: kindIs("park", "garden", "grass", "forest", "wood", "meadow", "nature_reserve", "cemetery", "golf_course", "playground"),
@@ -43,15 +49,17 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "urban-areas",
         type: "fill",
+        metadata: group("land"),
         source: OSM_SOURCE,
         "source-layer": "landuse",
         filter: kindIs("pedestrian", "school", "university", "college", "hospital", "industrial", "commercial", "railway"),
         paint: { "fill-color": "#1c2733" }
       },
-      { id: "water", type: "fill", source: OSM_SOURCE, "source-layer": "water", paint: { "fill-color": "#0a1726" } },
+      { id: "water", type: "fill", metadata: group("water"), source: OSM_SOURCE, "source-layer": "water", paint: { "fill-color": "#0a1726" } },
       {
         id: "boundaries",
         type: "line",
+        metadata: group("boundaries"),
         source: OSM_SOURCE,
         "source-layer": "boundaries",
         paint: { "line-color": "#56697c", "line-width": 1, "line-dasharray": [3, 2] }
@@ -59,6 +67,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "roads-minor",
         type: "line",
+        metadata: group("roads"),
         source: OSM_SOURCE,
         "source-layer": "roads",
         filter: kindIs("minor_road", "path"),
@@ -71,6 +80,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "rail",
         type: "line",
+        metadata: group("roads"),
         source: OSM_SOURCE,
         "source-layer": "roads",
         filter: kindIs("rail"),
@@ -79,6 +89,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "roads-major",
         type: "line",
+        metadata: group("roads"),
         source: OSM_SOURCE,
         "source-layer": "roads",
         filter: kindIs("major_road"),
@@ -91,6 +102,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
       {
         id: "roads-highway",
         type: "line",
+        metadata: group("roads"),
         source: OSM_SOURCE,
         "source-layer": "roads",
         filter: kindIs("highway"),
@@ -105,25 +117,28 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
         ? {
             id: "buildings",
             type: "fill-extrusion",
+            metadata: group("buildings"),
             source: OSM_SOURCE,
             "source-layer": "buildings",
-            minzoom: 13,
+            minzoom: 12,
             filter: kindIs("building", "building_part"),
+            // Buildings fade in and rise between zoom 12 and 13 instead of popping in.
             paint: {
               "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "height"], 8], 0, "#223245", 60, "#3a5570", 300, "#7fb7e6"],
-              "fill-extrusion-height": ["coalesce", ["get", "height"], 8],
-              "fill-extrusion-base": ["coalesce", ["get", "min_height"], 0],
-              "fill-extrusion-opacity": 0.92
+              "fill-extrusion-height": ["interpolate", ["linear"], ["zoom"], 12, 0, 13, ["coalesce", ["get", "height"], 8]],
+              "fill-extrusion-base": ["interpolate", ["linear"], ["zoom"], 12, 0, 13, ["coalesce", ["get", "min_height"], 0]],
+              "fill-extrusion-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.6, 0.92]
             }
           }
         : {
             id: "buildings",
             type: "fill",
+            metadata: group("buildings"),
             source: OSM_SOURCE,
             "source-layer": "buildings",
-            minzoom: 13,
+            minzoom: 12,
             filter: kindIs("building", "building_part"),
-            paint: { "fill-color": "#223245" }
+            paint: { "fill-color": "#223245", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.6, 1] }
           }
     ]
   };
@@ -132,6 +147,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
     style.layers.push({
       id: "place-labels",
       type: "symbol",
+      metadata: group("labels"),
       source: OSM_SOURCE,
       "source-layer": "places",
       filter: kindIs("locality", "macrohood", "neighbourhood"),

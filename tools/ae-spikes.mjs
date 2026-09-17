@@ -146,9 +146,21 @@ async function runUiScenario() {
     await idle();
   }
   await click("Render preview");
-  await idle();
+  await sleep(500);
+  await shot("03a-rendering");
+  await panel.evaluate(`window.lmlDebug.queueIdle()`);
+  // Final render with two passes, set through the render settings sheet.
+  await click("⚙");
+  await sleep(300);
+  await panel.evaluate(`window.lmlDebug.setRenderSettings({ supersample: 2, passes: ["base", "roads", "waterMatte"] }).then(() => true)`);
+  await sleep(500);
+  await shot("03b-render-settings");
+  await click("Render");
+  await panel.evaluate(`window.lmlDebug.queueIdle()`);
   await sleep(1500);
   await shot("03-after-render");
+  const queue = await panel.evaluate(`window.lmlDebug.queue.jobs.map((j) => ({ status: j.status, summary: j.summary, error: j.error }))`);
+  console.log(`U1 render queue: ${JSON.stringify(queue)}`);
   const frame = path.join(out, "04-ae-frame.png").split(String.fromCharCode(92)).join("/");
   await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(`(function(){ var c = app.project.activeItem; c.time = 0; c.saveFrameToPng(0, new File("${frame}")); return c.name; })()`)}, resolve))`);
   for (let i = 0; i < 60 && !fs.existsSync(frame); i++) await sleep(250);
