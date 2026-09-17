@@ -208,3 +208,23 @@ test("a wide region hands its detail lines over to the city region inside it", a
   assert.equal(tiers.tokyo.fadeOut, null);
   assert.equal(tiers.paris.fadeOut, null, "Paris is not inside the Tokyo region");
 });
+
+test("imagery colours the land and water passes while the land polygons keep the mattes exact", () => {
+  assert.deepEqual(rendersFor(["base"], false, true), ["base"]);
+  assert.deepEqual(rendersFor(["landMatte"], false, true), ["land", "landShapes", "waterShapes"]);
+  assert.deepEqual(rendersFor(["water"], true, true), ["land", "landShapes", "waterFill", "waterShapes", "buildings"]);
+  assert.deepEqual(rendersFor(["roads"], false, true), ["roads"], "line passes need no land shapes");
+  assert.ok(groupVisibleIn("land", "imagery", { labels: false }) && groupVisibleIn("waterFill", "imagery", { labels: false }) && groupVisibleIn("base", "imagery", { labels: false }));
+  assert.ok(!groupVisibleIn("landShapes", "imagery", { labels: false }) && groupVisibleIn("landShapes", "land", { labels: false }));
+
+  // Four pixels: land, land under a lake, sea, sea. A satellite picture covers all four.
+  const px = (r: number, g: number, b: number, a: number) => [r, g, b, a];
+  const picture = new Uint8Array([...px(90, 120, 60, 255), ...px(20, 60, 110, 255), ...px(10, 40, 90, 255), ...px(12, 42, 92, 255)]);
+  const landShapes = new Uint8Array([...px(40, 50, 40, 255), ...px(40, 50, 40, 255), ...px(0, 0, 0, 0), ...px(0, 0, 0, 0)]);
+  const waterShapes = new Uint8Array([...px(0, 0, 0, 0), ...px(5, 20, 40, 255), ...px(0, 0, 0, 0), ...px(0, 0, 0, 0)]);
+  const out = composePasses({ land: picture, landShapes, waterFill: picture, waterShapes }, ["land", "water", "landMatte", "waterMatte"], 4);
+  assert.deepEqual(Array.from(out.land!), [...px(90, 120, 60, 255), ...px(0, 0, 0, 0), ...px(0, 0, 0, 0), ...px(0, 0, 0, 0)], "the picture, cut to the land");
+  assert.deepEqual(Array.from(out.water!), [...px(0, 0, 0, 0), ...px(20, 60, 110, 255), ...px(10, 40, 90, 255), ...px(12, 42, 92, 255)], "the picture, cut to the water");
+  assert.deepEqual([0, 1, 2, 3].map((p) => out.landMatte![p * 4 + 3]), [255, 0, 0, 0]);
+  assert.deepEqual([0, 1, 2, 3].map((p) => out.waterMatte![p * 4 + 3]), [0, 255, 255, 255]);
+});

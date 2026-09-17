@@ -22,7 +22,9 @@ import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
 import { runShotTests } from "./shotTests.ts";
-import { runThemeTests } from "./themeTests.ts";
+import { runSatelliteTest, runThemeTests } from "./themeTests.ts";
+import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
+import { extensionRoot } from "./cep.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -231,12 +233,38 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     }
   }
 
+  // IMG1: builds the imagery packs from the sources in .cache/imagery (development machines only).
+  if (only && (only.includes("IMG1") || only.includes("IMG1R"))) {
+    try {
+      const repo = path().join(fs().realpathSync(extensionRoot()), "..");
+      const cache = path().join(repo, ".cache", "imagery");
+      const started = performance.now();
+      // IMG1R rebuilds the relief only.
+      const satellite = only.includes("IMG1") ? await buildBlueMarble(path().join(cache, "blue-marble-pieces"), 4, 4, (line) => log(`IMG1 satellite: ${line}`, "muted")) : { file: "", bytes: 0, tiles: 0 };
+      const relief = await buildRelief(path().join(cache, "sr", "SR_HR.tif"), (line) => log(`IMG1 relief: ${line}`, "muted"));
+      results.IMG1_imagery = { passed: true, satellite, relief, seconds: (performance.now() - started) / 1000 };
+      log(`IMG1 imagery packs: satellite ${(satellite.bytes / 1048576).toFixed(1)} MB, relief ${(relief.bytes / 1048576).toFixed(1)} MB (flat grey ${relief.flat}) in ${((performance.now() - started) / 1000).toFixed(0)} s`, "ok");
+    } catch (error) {
+      results.IMG1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`IMG1 failed: ${results.IMG1_error}`, "fail");
+    }
+  }
+
   if (only && only.includes("TH1")) {
     try {
       results.TH1_themes = await runThemeTests(log);
     } catch (error) {
       results.TH1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`TH1 failed: ${results.TH1_error}`, "fail");
+    }
+  }
+
+  if (wants("SAT1")) {
+    try {
+      results.SAT1_satellite = await runSatelliteTest(log);
+    } catch (error) {
+      results.SAT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SAT1 failed: ${results.SAT1_error}`, "fail");
     }
   }
 

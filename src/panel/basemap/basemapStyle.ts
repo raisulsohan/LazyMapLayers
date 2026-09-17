@@ -12,7 +12,8 @@ import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { extensionRoot, fs, path } from "../cep.ts";
 import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
-import { naturalEarthStyle } from "./naturalEarthStyle.ts";
+import { naturalEarthStyle, type WorldImagery } from "./naturalEarthStyle.ts";
+import { hasImagery, imageryPath } from "../imagery/packs.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
@@ -38,6 +39,8 @@ export type BasemapStyleOptions = {
   viewport?: { width: number; height: number };
   /** The map's look (core/style/themes.ts); the default theme when missing or unknown. */
   theme?: string | null;
+  /** Shaded relief over the land (needs the relief pack; ignored by satellite looks). */
+  relief?: boolean;
 };
 
 /**
@@ -150,7 +153,10 @@ export function bordersGradient(percent: number, color: string): unknown {
 
 export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOptions): StyleSpecification {
   const theme = themeById(options.theme);
-  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme });
+  const imagery: WorldImagery = {};
+  if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
+  if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
+  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery });
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
   let style = world;
   const regions = regionNames(basemap);

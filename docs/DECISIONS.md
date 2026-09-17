@@ -262,3 +262,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Next, in this order.** Satellite and relief imagery from public-domain sources (NASA Blue Marble,
   Natural Earth shaded relief; downloads need Sohan's permission), highlighting countries and regions
   as a render pass, names in the render without waiting (faster Auto labels), then data import.
+
+## D19 — Imagery packs: NASA Blue Marble and Natural Earth relief (2026-09-18)
+
+- **Sources** (both public domain, downloaded with Sohan's permission):
+  - NASA Blue Marble Next Generation with topography and bathymetry, December, 21600 x 10800
+    (`world.topo.bathy.200412.3x21600x10800.jpg`, 28.5 MB, eoimages.gsfc.nasa.gov).
+  - Natural Earth 1:10m shaded relief, `SR_HR.zip` (42.3 MB, naciscdn.org).
+- **Decision.**
+  - Packs are PMTiles archives of 512-pixel WebP tiles, zoom 0 to 5 (the sources are about as wide as
+    the world at zoom 5), in the user's data folder under `imagery/`. They are optional and not part
+    of the installer: satellite 21 MB, relief 50 MB.
+  - The builder runs in the panel (`src/panel/imagery/buildImagery.ts`, test id IMG1): Chromium decodes
+    and encodes WebP, core code reprojects from equirectangular to Web Mercator through a mip pyramid
+    (`src/core/imagery/equirect.ts`), our PMTiles writer stores the tiles. The 21600-pixel JPEG is split
+    into 16 PNG pieces first (`tools/split-image.ps1`), because Chromium canvases end at 16384 pixels.
+  - Relief is an overlay, not a picture: shadows are black and highlights white with an alpha that
+    grows with the distance from the flat grey, so it works over any look. Faint shading is dropped and
+    the alpha has 32 steps, which halves the archive (the alpha channel is stored without loss).
+  - A new layer group "imagery" is drawn in the base, land and water renders. Where a style has
+    imagery, one more render ("landShapes", the land polygons alone) gives the mattes their shape, so
+    land and water mattes still cover every pixel exactly once (SAT1).
+  - Raster layers never cross-fade (`raster-fade-duration: 0`), so frames stay deterministic.
+- **Limits.** Satellite detail ends at about zoom 5.5; closer shots show the picture softened until a
+  downloaded city region takes over. A sharper pack needs NASA's 86400-pixel tiles (about 250 MB to
+  download) and is left for later.
+- **Next.** Publish the packs as release assets and add an in-panel download, so other users get them.

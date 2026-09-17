@@ -23,8 +23,9 @@ export type RenderJobSpec = {
   quality: RenderQuality;
   settings: RenderSettings;
   basemap: BasemapSource;
-  /** The map's look (core/style/themes.ts). */
+  /** The map's look (core/style/themes.ts) and whether shaded relief lies over the land. */
   theme?: string | null;
+  relief?: boolean;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -129,8 +130,9 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
+  const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
   // On the globe, space around the planet is transparent.
   const opaqueBackground = info.projection !== "globe" && style.layers.some(
@@ -193,7 +195,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       await renderer.init();
       for (const item of work) {
         if (signal?.aborted || writeError) break;
-        const renders = rendersFor(item.passes, hasBuildings);
+        const renders = rendersFor(item.passes, hasBuildings, hasImagery);
         const samples = isStill(cameras[item.frame]) ? [cameras[item.frame][0]] : cameras[item.frame];
         const timeMs = (item.frame * 1000) / info.frameRate;
         const images: Partial<Record<RenderId, Uint8Array>> = {};

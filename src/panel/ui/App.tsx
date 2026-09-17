@@ -32,9 +32,12 @@ import {
   selected,
   startStore,
   tab,
+  themeId,
   tool,
   view
 } from "../store.ts";
+import { themeById } from "../../core/style/themes.ts";
+import { hasImagery } from "../imagery/packs.ts";
 import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
@@ -228,7 +231,7 @@ export function App(): JSX.Element {
             />
           </div>
           <div class="credit" title="Where the map data comes from. Rendering an OpenStreetMap region adds a credit layer to your scene.">
-            {basemap.value.kind === "world" ? "Natural Earth" : "© OpenStreetMap contributors · Natural Earth"}
+            {[basemap.value.kind === "world" ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, "Natural Earth"].filter(Boolean).join(" · ")}
           </div>
           {v && (
             <div class="view-readout" title="Latitude, longitude · zoom · bearing · pitch of the frame">
