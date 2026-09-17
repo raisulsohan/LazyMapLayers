@@ -44,6 +44,24 @@
   pick the province under it instead of the country. Neighbouring provinces share exactly the same
   border, so two of them never show a gap. A country's outlines are read only when first needed
   (Bangladesh: 15 KB).
+- **More files: KMZ, CSV and shapefiles.** The import button also reads KMZ (Google Earth), zipped
+  shapefiles (a .prj inside is honoured, so projected data lands in the right place) and lone .shp
+  files, and CSV or TSV tables. A table's columns are found by their headings (lat, latitude, lon,
+  lng, x, y, one "position" column, name, time), in any order, with semicolons and decimal commas
+  too; without headings it is read as latitude, longitude, name. Named rows become places and the
+  journey through them in row order; a long table without names (a flight log, a GPS export) becomes
+  a track.
+- **Recorded pace.** Tracks that carry times (GPX, flight logs as CSV) can draw on the way they were
+  recorded: fast where the recording was fast, slow where it was slow, squeezed into the duration
+  you choose. Stops longer than 2 % of the moving time are shortened, so a lunch break does not
+  freeze the animation. Trim Paths and the traveller get the same few linear keys (the turning
+  points of the pace, 80 at most), so they stay together and can be retimed by hand.
+- **Long legs bend with the globe.** A line between far places (a CSV of cities, a two-point KML
+  path) follows the great circle in pieces of 2 degrees, like a flight route, and draws correctly
+  on the globe. Outlines of areas stay straight, as their fills are.
+- The file listed in the Import sheet is drawn over the preview (lines and places), so you see a
+  track before you draw it. It is a guide in the panel only and never renders.
+- Fixed: a GPS track that repeats a position (standing still) lost all of its times on import.
 - Fixed: over a downloaded region a highlight lost its outline when zoomed in and sat under the
   region's land in the preview. Highlights now stay whole at every zoom, above the region, and a
   province or custom area always draws above a highlighted country.

@@ -11,6 +11,8 @@ import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
+import type { Imported } from "../core/data/importLines.ts";
+import { simplifyLine } from "../core/geo/simplify.ts";
 import type { Areas, Highlight } from "../core/style/highlights.ts";
 import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
 import { COUNTRY_HIT_LAYER } from "./basemap/naturalEarthStyle.ts";
@@ -52,10 +54,51 @@ function sizeFactor(): number {
   return Math.max(1, Math.min(8, Math.round((1 / Math.max(0.01, scale)) * 4) / 4));
 }
 
+/** The imported file the Import sheet lists, drawn over the preview only (never rendered). */
+let importOverlay: GeoJSON.FeatureCollection | null = null;
+const IMPORT_SOURCE = "lml-import";
+
+/** Shows an imported file's lines and places in the preview, or clears them (null). */
+export function setPreviewImport(data: Pick<Imported, "lines" | "places"> | null): void {
+  const next: GeoJSON.FeatureCollection | null = data && {
+    type: "FeatureCollection",
+    features: [
+      // Light enough to redraw while the view moves: the longest lines, thinned.
+      ...data.lines.slice(0, 60).map((line) => ({
+        type: "Feature" as const,
+        properties: {},
+        geometry: { type: "LineString" as const, coordinates: simplifyLine(line.points, 1500).map((p) => [p.lng, p.lat]) }
+      })),
+      ...data.places.slice(0, 500).map((place) => ({ type: "Feature" as const, properties: {}, geometry: { type: "Point" as const, coordinates: [place.lng, place.lat] } }))
+    ]
+  };
+  if (!next && !importOverlay) return;
+  importOverlay = next;
+  setPreviewStyle(shown.source, shown.projection, shown.look);
+}
+
+function withImportOverlay(style: StyleSpecification): StyleSpecification {
+  if (!importOverlay) return style;
+  // Sized for the panel, whatever the scale of the preview box.
+  const k = 1 / Math.max(0.05, scale);
+  const overlay = { "lml:group": "overlay" };
+  return {
+    ...style,
+    sources: { ...style.sources, [IMPORT_SOURCE]: { type: "geojson", data: importOverlay, tolerance: 0.2 } },
+    layers: [
+      ...style.layers,
+      { id: "lml-import-casing", type: "line", metadata: overlay, source: IMPORT_SOURCE, filter: ["==", ["geometry-type"], "LineString"], layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#0b1621", "line-opacity": 0.7, "line-width": 4.5 * k } },
+      { id: "lml-import-line", type: "line", metadata: overlay, source: IMPORT_SOURCE, filter: ["==", ["geometry-type"], "LineString"], layout: { "line-join": "round", "line-cap": "round" }, paint: { "line-color": "#ffc740", "line-width": 2.2 * k } },
+      { id: "lml-import-places", type: "circle", metadata: overlay, source: IMPORT_SOURCE, filter: ["==", ["geometry-type"], "Point"], paint: { "circle-radius": 3.2 * k, "circle-color": "#ffffff", "circle-stroke-color": "#0b1621", "circle-stroke-width": 1.4 * k } }
+    ]
+  };
+}
+
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
-  if (!isInCep()) return BLANK_STYLE;
+  if (!isInCep()) return withImportOverlay(BLANK_STYLE);
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  const style = scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  return withImportOverlay(style);
 }
 
 let styledFactor = 1;
@@ -66,7 +109,7 @@ function restyleSoon(): void {
   if (restyleTimer) clearTimeout(restyleTimer);
   restyleTimer = setTimeout(() => {
     restyleTimer = null;
-    if (map && sizeFactor() !== styledFactor) setPreviewStyle(shown.source, shown.projection, shown.look);
+    if (map && (sizeFactor() !== styledFactor || importOverlay)) setPreviewStyle(shown.source, shown.projection, shown.look);
   }, 250);
 }
 

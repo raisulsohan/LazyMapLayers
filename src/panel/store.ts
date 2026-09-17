@@ -2,7 +2,7 @@
 // these functions; every talk with After Effects happens here. Nothing polls After Effects: maps are
 // read when the panel gets the focus and after the panel's own actions.
 
-import { computed, signal } from "@preact/signals";
+import { computed, effect, signal } from "@preact/signals";
 import type { View } from "../core/camera/camera.ts";
 import { fitBounds, fitPoints } from "../core/camera/fit.ts";
 import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
@@ -26,7 +26,7 @@ import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
-import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewStyle, showCompView } from "./preview.ts";
+import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 
@@ -461,7 +461,7 @@ export function fitLine(points: { lat: number; lng: number }[]): void {
 }
 
 /** Draws an imported line as a route layer from the current time, with or without a traveller. */
-export const drawImportedLine = (line: ImportedLine, seconds: number, traveller: boolean) =>
+export const drawImportedLine = (line: ImportedLine, seconds: number, traveller: boolean, recordedPace = false) =>
   run("draw route", async () => {
     const list = await readMaps();
     const entry = list.find((m) => m.mapId === selectedId.value);
@@ -471,9 +471,11 @@ export const drawImportedLine = (line: ImportedLine, seconds: number, traveller:
     }
     const start = currentMapFrame(entry);
     const frames = Math.max(1, Math.round(seconds * entry.frameRate));
-    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller });
+    const pace = recordedPace && line.times ? { points: line.points, times: line.times, leaves: line.leaves } : undefined;
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace });
     const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
-    log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
+    const paced = pace ? ` at its recorded pace (${made.keys} keys, long stops shortened)` : "";
+    log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
   });
 
 export const pinImportedPlaces = (places: ImportedPlace[]) =>
@@ -756,8 +758,11 @@ export function startStore(): () => void {
   });
   const onFocus = () => void refreshMaps();
   window.addEventListener("focus", onFocus);
+  // The file listed in the Import sheet is drawn over the preview while the sheet is open.
+  const stopImportOverlay = effect(() => setPreviewImport(importSheetOpen.value ? imported.value : null));
   return () => {
     stopQueue();
+    stopImportOverlay();
     window.removeEventListener("focus", onFocus);
   };
 }

@@ -192,6 +192,20 @@ async function runUiScenario() {
   const highlighted = await panel.evaluate("window.lmlDebug.store.highlights.value.map((h) => h.name)");
   console.log(`U1 highlights: ${JSON.stringify(highlighted)}`);
   await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
+  // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
+  const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];
+  // Slow for the first third of the rows, fast after it.
+  for (let i = 0; i <= 60; i++) flight.push(`${1760000000 + (i < 20 ? i * 240 : 4800 + (i - 20) * 60)},,LML1,"${(48.86 + i * 0.02).toFixed(4)},${(2.35 + i * 0.12).toFixed(4)}",35000`);
+  await panel.evaluate(`window.lmlDebug.store.importPicked(new File([${JSON.stringify(flight.join("\n"))}], "flight-log.csv")).then(() => true)`);
+  await idle();
+  await click("recorded-pace");
+  await sleep(300);
+  await shot("07b-import");
+  await click("import-arrow-0");
+  await idle();
+  const importLog = await panel.evaluate(`window.lmlDebug.log().slice(-3)`);
+  console.log(`U1 import: ${JSON.stringify(importLog)}`);
+  await click("import-close");
   // Shots: three views, an opened move, playback in the preview, then Apply.
   for (const view of [
     { center: { lat: 48.8626, lng: 2.3222 }, zoom: 12.4, bearing: 0, pitch: 0 },

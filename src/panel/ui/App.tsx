@@ -91,7 +91,7 @@ function ToolRow(): JSX.Element {
       <IconButton
         icon="import"
         id="tool-import"
-        title="Import a GPX, KML or GeoJSON file: draw its lines as routes, run an arrow or the camera along them, pin its places"
+        title="Import a GPX, KML, KMZ, GeoJSON, CSV or zipped shapefile: draw its lines as routes, run an arrow or the camera along them, pin its places, highlight its areas"
         disabled={busy.value}
         active={importSheetOpen.value}
         onClick={() => {

@@ -374,3 +374,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Limits.** Natural Earth has first-level units only (Bangladesh: divisions; France: departments).
   Districts and other second-level units need per-country data (geoBoundaries) and come as a download,
   not in the bundle.
+
+## D25 — Recorded pace as baked keys, and what a table of rows means (2026-09-18)
+
+- **Recorded pace is baked, not an expression.** `paceKeys` (core) turns a track's times into
+  [frame, percent] keys for Trim Paths End and the traveller's Progress. An expression could keep the
+  timing exact under any camera, but it would project the whole line once more on every frame for the
+  trim alone; keys cost nothing at render time and can be retimed by hand. Percent counts along the
+  prepared line on the flat map, which is what Trim Paths measures in a view from straight above; in
+  tilted views the pace shifts slightly, and the traveller still rides the tip because both
+  properties get identical keys. Pace keys are linear (`linearKeys` in the host), even-pace keys keep
+  their ease.
+- **Few keys.** The pace curve is thinned with Douglas–Peucker (0.3 % tolerance, growing until at most
+  80 keys remain), rounded to whole frames and forced to never run backwards.
+- **Stops.** A stretch slower than 15 % of the moving speed is a stop; a stop longer than 2 % of the
+  moving time is cut to that length. A position repeated in the file is one point with an arrival
+  (`times`) and a departure (`leaves`), so waiting survives the removal of repeated points.
+- **One preparation for every route line.** `prepareRouteLine` thins a line to the expression budget
+  (300 points) and cuts legs longer than 2 degrees: along the great circle for open lines, straight on
+  the flat map for outlines of areas. It returns the distance along the original line for each point,
+  which is what ties recorded times to the thinned line.
+- **Tables.** Parsing is papaparse's; meaning is core's (`importTable`): headings first, then a guess
+  from the first row that holds coordinates. A guessed name column must differ from row to row. More
+  than 25 rows without names is a track, not places. At most 50,000 rows.
+- **Zip files.** KMZ and zipped shapefiles are unpacked with fflate (only .kml, .shp, .dbf, .prj and
+  .cpg entries); shapefiles are parsed with shpjs's `parseShp`/`parseDbf` directly, because its own
+  unzip needs a browser feature that After Effects' Chromium 99 lacks.
