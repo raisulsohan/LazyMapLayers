@@ -167,11 +167,11 @@ input {
 .hint {
   position: absolute;
   right: 8px;
-  bottom: 8px;
+  top: 8px;
   padding: 3px 7px;
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.45);
-  color: var(--muted);
+  background: rgba(0, 0, 0, 0.65);
+  color: #b5b5b5;
   font-size: 11px;
   pointer-events: none;
 }
@@ -223,4 +223,15 @@ input {
   padding-left: 8px;
   line-height: 20px;
   font-size: 11px;
+}
+
+.warning {
+  color: var(--bad);
+}
+
+button.danger {
+  background: #b3261e;
+  border-color: #b3261e;
+  color: #fff;
+  font-weight: 600;
 }

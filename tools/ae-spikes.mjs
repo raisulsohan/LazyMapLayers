@@ -125,6 +125,15 @@ async function runUiScenario() {
   await panel.evaluate(`(window.lmlDebug.map().jumpTo({ center: [2.3222, 48.8626], zoom: 13.2, pitch: 45, bearing: 20 }), true)`);
   await sleep(2500);
   await shot("02-paris-preview");
+  // Region sheet: an existing name must warn and the zoom options must show tile estimates (no network).
+  await click("Download this area…");
+  await sleep(300);
+  await panel.evaluate(`(() => { const i = document.querySelector(".sheet input"); i.value = "Paris"; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("blur")); return true; })()`);
+  await sleep(300);
+  const sheet = await panel.evaluate(`({ name: document.querySelector(".sheet input").value, warning: [...document.querySelectorAll(".sheet .warning")].map((w) => w.textContent), options: [...document.querySelectorAll(".sheet select option")].map((o) => o.textContent), selected: document.querySelector(".sheet select").value })`);
+  console.log(`U1 region sheet: ${JSON.stringify(sheet)}`);
+  await shot("02b-region-sheet");
+  await click("Cancel");
   await click("New map");
   await idle();
   for (const [lat, lng] of [[48.85837, 2.294481], [48.873792, 2.295028], [48.860611, 2.337644]]) {
