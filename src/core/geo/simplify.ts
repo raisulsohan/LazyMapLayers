@@ -72,6 +72,34 @@ export function simplifyLine(line: LngLat[], maxPoints: number): LngLat[] {
   return Array.from({ length: maxPoints }, (_, i) => continuous[Math.round(i * step)]);
 }
 
+/**
+ * Polygons ([polygon][ring][lng, lat]) within a budget of points: the largest rings keep most of the
+ * budget, rings too small to matter are dropped, and coordinates are rounded to about a metre.
+ */
+export function simplifyPolygons(polygons: number[][][][], maxPoints: number): number[][][][] {
+  const rings: { polygon: number; ring: number; points: number[][] }[] = [];
+  polygons.forEach((polygon, p) => polygon.forEach((points, r) => points.length >= 4 && rings.push({ polygon: p, ring: r, points })));
+  const total = rings.reduce((n, r) => n + r.points.length, 0);
+  if (!total) return [];
+  const round = (v: number) => Math.round(v * 1e5) / 1e5;
+  const out: number[][][][] = polygons.map(() => []);
+  for (const entry of rings) {
+    const share = Math.floor((maxPoints * entry.points.length) / total);
+    // An outer ring always stays; holes and islands that would get fewer than 6 points go.
+    if (share < 6 && !(entry.ring === 0 && rings.length === 1)) {
+      if (entry.ring === 0 && entry.points.length / total < 0.02) continue;
+      if (entry.ring > 0) continue;
+    }
+    const light = simplifyLine(entry.points.map(([lng, lat]) => ({ lng, lat })), Math.max(6, share)).map((q) => [round(q.lng), round(q.lat)]);
+    const first = light[0];
+    const last = light[light.length - 1];
+    if (first[0] !== last[0] || first[1] !== last[1]) light.push([first[0], first[1]]);
+    if (light.length >= 4) (out[entry.polygon][entry.ring] = light);
+  }
+  // Holes whose outer ring went, and empty polygons, go too; rings are re-packed.
+  return out.map((polygon) => (polygon[0] ? polygon.filter(Boolean) : [])).filter((polygon) => polygon.length > 0);
+}
+
 /** Length of a line in kilometres along the ground (haversine per segment). */
 export function lineLengthKm(line: LngLat[]): number {
   const R = 6371.0088;

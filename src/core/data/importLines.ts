@@ -16,7 +16,10 @@ export type ImportedLine = {
 
 export type ImportedPlace = { name: string; lat: number; lng: number };
 
-export type Imported = { lines: ImportedLine[]; places: ImportedPlace[]; skipped: number };
+/** A filled shape: GeoJSON MultiPolygon coordinates ([polygon][ring][lng, lat]) and its size. */
+export type ImportedArea = { name: string; polygons: number[][][][]; points: number; bbox: [number, number, number, number] };
+
+export type Imported = { lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number };
 
 type Position = number[];
 
@@ -58,7 +61,7 @@ function timesOf(properties: Record<string, unknown> | null | undefined, count: 
 }
 
 export function importGeoJson(data: unknown, fileName = "Import"): Imported {
-  const result: Imported = { lines: [], places: [], skipped: 0 };
+  const result: Imported = { lines: [], places: [], areas: [], skipped: 0 };
   const base = fileName.replace(/\.[^.]+$/, "") || "Import";
   const features: { geometry: unknown; properties?: Record<string, unknown> | null }[] = [];
   const collect = (node: unknown): void => {
@@ -78,6 +81,33 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
     }
     const rawCount = Array.isArray(coordinates) ? coordinates.length : 0;
     result.lines.push({ name, points, closed, lengthKm: lineLengthKm(points), times: points.length === rawCount ? timesOf(properties, rawCount, part) : undefined });
+  };
+
+  const addArea = (polygons: unknown, name: string) => {
+    const clean: number[][][][] = [];
+    let points = 0;
+    let west = Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let north = -Infinity;
+    for (const polygon of Array.isArray(polygons) ? polygons : []) {
+      const rings: number[][][] = [];
+      for (const ring of Array.isArray(polygon) ? polygon : []) {
+        const ringPoints = (Array.isArray(ring) ? ring : []).filter(validPosition).map((p) => [p[0], p[1]]);
+        if (ringPoints.length < 4) continue;
+        rings.push(ringPoints);
+        points += ringPoints.length;
+        if (rings.length === 1)
+          for (const [lng, lat] of ringPoints) {
+            west = Math.min(west, lng);
+            east = Math.max(east, lng);
+            south = Math.min(south, lat);
+            north = Math.max(north, lat);
+          }
+      }
+      if (rings.length) clean.push(rings);
+    }
+    if (clean.length) result.areas.push({ name, polygons: clean, points, bbox: [west, south, east, north] });
   };
 
   const addGeometry = (geometry: unknown, name: string, properties: Record<string, unknown> | null | undefined): void => {
@@ -103,9 +133,11 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
         break;
       case "Polygon":
         addLine((c ?? [])[0], name, true, null, 0);
+        addArea([c], name);
         break;
       case "MultiPolygon":
         (c ?? []).forEach((polygon, i) => addLine((polygon as unknown[])[0], (c ?? []).length > 1 ? `${name} (${i + 1})` : name, true, null, 0));
+        addArea(c, name);
         break;
       case "GeometryCollection":
         (g.geometries ?? []).forEach((inner) => addGeometry(inner, name, properties));
@@ -118,5 +150,6 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
   features.forEach((feature, i) => addGeometry(feature.geometry, nameOf(feature.properties, features.length > 1 ? `${base} ${i + 1}` : base), feature.properties));
   // The longest lines first: they are what people usually came for.
   result.lines.sort((a, b) => b.lengthKm - a.lengthKm);
+  result.areas.sort((a, b) => a.name.localeCompare(b.name));
   return result;
 }

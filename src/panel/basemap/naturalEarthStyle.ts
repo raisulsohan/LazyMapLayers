@@ -4,7 +4,7 @@
 
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
-import type { Highlight } from "../../core/style/highlights.ts";
+import { areaIdOf, isAreaCode, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
 const group = (name: LayerGroup) => ({ "lml:group": name });
@@ -21,12 +21,13 @@ export type WorldImagery = {
 /** An invisible layer of country shapes that the preview asks "which country is under the click?". */
 export const COUNTRY_HIT_LAYER = "country-hit";
 
+export const AREAS_SOURCE = "lml-areas";
 export const SATELLITE_SOURCE = "lml-satellite";
 export const RELIEF_SOURCE = "lml-relief";
 
 export function naturalEarthStyle(
   pmtilesUrl: string,
-  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; countryHits?: boolean } = {}
+  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; areas?: Areas; countryHits?: boolean } = {}
 ): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
@@ -150,10 +151,18 @@ export function naturalEarthStyle(
 
   // Highlighted countries: a fill, a soft glow and an outline, all in the "highlight" group, which is
   // rendered as its own pass and left out of the base pass.
+  // Countries come from the world tiles; custom areas from a GeoJSON source holding their polygons.
+  const areaFeatures = (options.highlights ?? [])
+    .filter((h) => isAreaCode(h.code) && options.areas?.[areaIdOf(h.code)])
+    .map((h) => ({ type: "Feature" as const, properties: { id: areaIdOf(h.code) }, geometry: { type: "MultiPolygon" as const, coordinates: options.areas![areaIdOf(h.code)] } }));
+  if (areaFeatures.length) sources[AREAS_SOURCE] = { type: "geojson", data: { type: "FeatureCollection", features: areaFeatures }, tolerance: 0.2 };
   for (const [i, h] of (options.highlights ?? []).entries()) {
-    const only = ["==", ["get", "adm0_a3"], h.code] as unknown as boolean;
+    const custom = isAreaCode(h.code);
+    if (custom && !options.areas?.[areaIdOf(h.code)]) continue;
+    const only = (custom ? ["==", ["get", "id"], areaIdOf(h.code)] : ["==", ["get", "adm0_a3"], h.code]) as unknown as boolean;
+    const from = custom ? { source: AREAS_SOURCE } : { source, "source-layer": "countries" };
     if (h.fill > 0) {
-      layers.push({ id: `highlight-fill-${i}`, type: "fill", metadata: group("highlight"), source, "source-layer": "countries", filter: only, paint: { "fill-color": h.color, "fill-opacity": h.fill, "fill-antialias": true } } as LayerSpecification);
+      layers.push({ id: `highlight-fill-${i}`, type: "fill", metadata: group("highlight"), ...from, filter: only, paint: { "fill-color": h.color, "fill-opacity": h.fill, "fill-antialias": true } } as LayerSpecification);
     }
     if (h.outline > 0) {
       layers.push(
@@ -161,8 +170,7 @@ export function naturalEarthStyle(
           id: `highlight-glow-${i}`,
           type: "line",
           metadata: group("highlight"),
-          source,
-          "source-layer": "countries",
+          ...from,
           filter: only,
           layout: { "line-join": "round", "line-cap": "round" },
           paint: { "line-color": h.color, "line-opacity": 0.4, "line-width": h.outline * 4, "line-blur": h.outline * 3 }
@@ -171,8 +179,7 @@ export function naturalEarthStyle(
           id: `highlight-line-${i}`,
           type: "line",
           metadata: group("highlight"),
-          source,
-          "source-layer": "countries",
+          ...from,
           filter: only,
           layout: { "line-join": "round", "line-cap": "round" },
           paint: { "line-color": h.color, "line-width": h.outline }

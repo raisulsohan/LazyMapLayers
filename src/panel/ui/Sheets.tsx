@@ -29,7 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
-import { changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId } from "../store.ts";
+import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
 
@@ -174,6 +174,29 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
         </div>
       ))}
       {data.lines.length > lines.length && <div class="muted small">…and {data.lines.length - lines.length} shorter lines.</div>}
+      {data.areas.length > 0 && <div class="section-title">Areas</div>}
+      {data.areas.slice(0, 40).map((area, i) => {
+        const on = highlights.value.some((h) => h.code === areaCode(area));
+        return (
+          <div key={`area-${i}`} class="sheet-row import-row">
+            <span class="grow" title={`${area.points} points`}>
+              {area.name}
+            </span>
+            <button class="small-button" title="Frame this area in the preview" onClick={() => fitLine(area.polygons.flatMap((polygon) => polygon[0].map(([lng, lat]) => ({ lng, lat }))))}>
+              Fit
+            </button>
+            <button
+              class={`small-button ${on ? "active" : ""}`}
+              disabled={busy.value}
+              title="Highlights this area: it renders on the Highlight layer above the basemap, like highlighted countries. Click again to remove it."
+              onClick={() => toggleAreaHighlight(area)}
+            >
+              {on ? "Highlighted" : "Highlight"}
+            </button>
+          </div>
+        );
+      })}
+      {data.areas.length > 40 && <div class="muted small">…and {data.areas.length - 40} more areas.</div>}
       <div class="sheet-row">
         <label class="num-field" title="How long a route takes to draw on, and a camera move along it">
           <span>Duration</span>
@@ -205,7 +228,7 @@ export function HighlightSheetView(): JSX.Element | null {
   return (
     <div class="sheet" data-id="highlight-sheet">
       <div class="sheet-title">Highlight countries</div>
-      <div class="muted small">Click a country on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
+      <div class="muted small">Click a country on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Provinces, districts or any shape of your own: import a KML or GeoJSON file and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />

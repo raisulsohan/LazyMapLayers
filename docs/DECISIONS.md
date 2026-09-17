@@ -344,3 +344,14 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   line (at most 160 points) inside the shot list.
 - **Not yet.** KMZ, CSV and Shapefile import; timing a traveller by the GPS times; areas as filled
   shapes; lines as a render pass for very long tracks.
+
+## D23 — Custom highlight areas travel with the project (2026-09-18)
+
+- **Decision.** A highlight's code is a country code or "area:<id>". Polygons of custom areas (imported
+  KML or GeoJSON) are thinned to 600 points (`simplifyPolygons`, which keeps the large rings and holes
+  and drops specks) and stored on their own line of the map layer's comment (`LML-AREAS:`), like the
+  shot list, so the tag that every refresh reads stays small. The renderer draws them from a GeoJSON
+  source in the same "highlight" group as countries. A map holds at most 40 areas; HL1 stores and
+  reads back about 200 KB.
+- **Next.** Built-in provinces need Natural Earth's admin-1 polygons (a 14 MB download, with Sohan's
+  permission); districts need per-country boundary data (geoBoundaries).

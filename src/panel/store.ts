@@ -5,14 +5,16 @@
 import { computed, signal } from "@preact/signals";
 import type { View } from "../core/camera/camera.ts";
 import { fitBounds, fitPoints } from "../core/camera/fit.ts";
-import type { ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
+import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
+import { simplifyPolygons } from "../core/geo/simplify.ts";
+import { keyOf } from "../core/render/frameKey.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
 import { NAME_LANGUAGES, type NameLanguage } from "../core/labels/language.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
-import { normaliseHighlights, toggleHighlight, type Highlight } from "../core/style/highlights.ts";
+import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
@@ -86,12 +88,14 @@ export const themeId = signal<string>(DEFAULT_THEME_ID);
 /** Shaded relief over the land (needs the relief imagery pack). */
 export const reliefOn = signal(false);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
-export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; skipped: number } | null>(null);
+export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
 
 /** Highlighted countries of the selected map. */
 export const highlights = signal<Highlight[]>([]);
-const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value });
+/** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
+export const areas = signal<Areas>({});
+const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -181,6 +185,18 @@ function showMap(entry: MapEntry): void {
   themeId.value = themeById(entry.theme).id;
   reliefOn.value = !!entry.relief;
   highlights.value = normaliseHighlights(entry.highlights);
+  areas.value = {};
+  // The polygons of custom areas are read separately: they can be large, and most maps have none.
+  if (highlights.value.some((h) => h.code.startsWith(AREA_PREFIX))) {
+    const mapId = entry.mapId;
+    callHost<Areas>("getAreas", { mapId })
+      .then((stored) => {
+        if (selectedId.value !== mapId) return;
+        areas.value = normaliseAreas(stored, highlights.value);
+        setPreviewStyle(basemap.value, projection.value, look());
+      })
+      .catch((error) => fail("reading highlighted areas", error));
+  }
   setCompSize(entry.width, entry.height);
   setPreviewStyle(source, projection.value, look());
   showCompView(entry.view);
@@ -264,7 +280,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -430,7 +446,7 @@ export const importPicked = (file: File) =>
     const first = result.lines[0];
     if (first) fitLine(first.points);
     else if (result.places.length) showCompView(fitPoints(result.places, compSize(), { padding: 0.15, maxZoom: 12 + Math.log2(compSize().height / 1080) }), true);
-    log(`${file.name}: ${result.lines.length} ${result.lines.length === 1 ? "line" : "lines"}, ${result.places.length} ${result.places.length === 1 ? "place" : "places"}${result.skipped ? `, ${result.skipped} skipped` : ""}`, "ok");
+    log(`${file.name}: ${result.lines.length} ${result.lines.length === 1 ? "line" : "lines"}, ${result.areas.length} ${result.areas.length === 1 ? "area" : "areas"}, ${result.places.length} ${result.places.length === 1 ? "place" : "places"}${result.skipped ? `, ${result.skipped} skipped` : ""}`, "ok");
   });
 
 /** Frames a line in the preview, at the current bearing and pitch. */
@@ -491,16 +507,38 @@ export const changeTheme = (next: string) =>
   });
 
 /** Replaces the map's highlights: the preview shows them at once, the next render draws their pass. */
-export async function setHighlights(next: Highlight[]): Promise<void> {
+export async function setHighlights(next: Highlight[], nextAreas: Areas = areas.value): Promise<void> {
   highlights.value = normaliseHighlights(next);
+  // Geometry of areas that are no longer highlighted goes with them.
+  areas.value = normaliseAreas(nextAreas, highlights.value);
   setPreviewStyle(basemap.value, projection.value, look());
   if (!selectedId.value) return;
   try {
-    await callHost("setMapSettings", { mapId: selectedId.value, highlights: highlights.value });
+    await callHost("setMapSettings", { mapId: selectedId.value, highlights: highlights.value, areas: areas.value });
     maps.value = maps.value.map((m) => (m.mapId === selectedId.value ? { ...m, highlights: highlights.value } : m));
   } catch (error) {
     fail("saving highlights", error);
   }
+}
+
+/** The highlight code an imported area gets: the same area always gets the same code. */
+export const areaCode = (area: ImportedArea) => `${AREA_PREFIX}${keyOf([area.name, area.points, area.bbox]).slice(0, 12)}`;
+
+/** Highlights an imported area (or removes it again). Its polygons are thinned and saved with the map. */
+export function toggleAreaHighlight(area: ImportedArea): void {
+  const code = areaCode(area);
+  const had = highlights.value.some((h) => h.code === code);
+  if (!had && Object.keys(areas.value).length >= MAX_AREAS) {
+    log(`a map can highlight up to ${MAX_AREAS} custom areas`, "muted");
+    return;
+  }
+  const geometry = simplifyPolygons(area.polygons, AREA_MAX_POINTS);
+  if (!had && !geometry.length) {
+    log(`"${area.name}" has no usable outline`, "fail");
+    return;
+  }
+  void setHighlights(toggleHighlight(highlights.value, code, area.name), had ? areas.value : { ...areas.value, [code.slice(AREA_PREFIX.length)]: geometry });
+  log(had ? `${area.name} is no longer highlighted` : `${area.name} highlighted: render to get it on the Highlight layer above the basemap`, "ok");
 }
 
 export function toggleCountryHighlight(code: string, name: string): void {
@@ -592,7 +630,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value }, entry.mapCompName);
   tab.value = "render";
 }
 

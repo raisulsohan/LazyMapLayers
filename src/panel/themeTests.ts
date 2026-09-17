@@ -3,12 +3,16 @@
 // theme's style does not load or draws an empty frame.
 
 import { project, type View } from "../core/camera/camera.ts";
+import { importGeoJson } from "../core/data/importLines.ts";
+import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { decodePng } from "../core/image/pngDecode.ts";
+import { keyOf } from "../core/render/frameKey.ts";
+import { AREA_MAX_POINTS } from "../core/style/highlights.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { THEMES } from "../core/style/themes.ts";
 import { basemapStyle, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
-import { callHost, evalScript, fs, path } from "./cep.ts";
+import { callHost, callHostWithJobFile, evalScript, fs, path } from "./cep.ts";
 import { hasImagery } from "./imagery/packs.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
@@ -178,6 +182,35 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   const none = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [] });
   const withoutHighlight = await layers();
   if (none.passes.join(",") !== "base" || withoutHighlight.map((l) => l.pass).join(",") !== "base") problems.push(`after removing the highlight: passes ${none.passes.join(",")}, layers ${JSON.stringify(withoutHighlight)}`);
+
+  // Custom areas: a polygon with a hole, imported as GeoJSON, thinned, highlighted and stored with the map.
+  const ring = (cx: number, cy: number, r: number, n: number) => Array.from({ length: n + 1 }, (_, i) => [cx + r * Math.cos((2 * Math.PI * (i % n)) / n), cy + r * Math.sin((2 * Math.PI * (i % n)) / n)]);
+  const importedArea = importGeoJson({ type: "Feature", properties: { name: "Bay zone" }, geometry: { type: "Polygon", coordinates: [ring(88, 16, 2.5, 3000), ring(88, 16, 1, 800)] } }, "zone.geojson").areas[0];
+  const geometry = simplifyPolygons(importedArea.polygons, AREA_MAX_POINTS);
+  const areaHighlights = [{ code: "area:bayzone01", name: "Bay zone", color: "#5fd38d", fill: 0.6, outline: 2 }];
+  const withArea = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: areaHighlights, areas: { bayzone01: geometry } });
+  const areaPass = read(withArea, "highlight");
+  const inRing = at(areaPass, { lat: 16, lng: 89.8 });
+  const inHole = at(areaPass, { lat: 16, lng: 88 });
+  const outsideArea = at(areaPass, { lat: 16, lng: 92 });
+  if (inRing[3] < 120 || inRing[1] < 180 || inRing[0] > 140) problems.push(`inside the custom area the highlight pass is ${inRing}`);
+  if (inHole[3] !== 0 || outsideArea[3] !== 0) problems.push(`the area's hole is ${inHole}, outside it ${outsideArea}`);
+  const areaPoints = geometry.reduce((n, polygon) => n + polygon.reduce((m, r) => m + r.length, 0), 0);
+  if (areaPoints > AREA_MAX_POINTS + 40 || geometry[0].length !== 2) problems.push(`the thinned area has ${areaPoints} points in ${geometry[0]?.length} rings`);
+
+  // Twenty such areas (about 200 KB) must survive being stored with the map, next to a readable tag.
+  const many: Record<string, number[][][][]> = {};
+  const manyHighlights = Array.from({ length: 20 }, (_, i) => ({ code: `area:bulk${String(i).padStart(4, "0")}`, name: `Area ${i}`, color: "#36b3ff", fill: 0.4, outline: 2 }));
+  manyHighlights.forEach((h, i) => (many[h.code.slice(5)] = simplifyPolygons([[ring(70 + i, 10, 0.4, 2000)]], AREA_MAX_POINTS)));
+  await callHostWithJobFile("setMapSettings", { mapId: map.id, highlights: manyHighlights, areas: many });
+  const storedAreas = await callHost<Record<string, number[][][][]>>("getAreas", { mapId: map.id });
+  const bytes = JSON.stringify(many).length;
+  if (keyOf(storedAreas) !== keyOf(many)) problems.push(`${bytes} bytes of areas did not survive being stored with the map`);
+  const listed = (await callHost<{ mapId: string; highlights: unknown[] }[]>("listMaps")).find((m) => m.mapId === map.id);
+  if (!listed || listed.highlights.length !== 20) problems.push(`the map's tag lists ${listed?.highlights.length} highlights next to the stored areas`);
+  await callHost("setMapSettings", { mapId: map.id, highlights: [], areas: {} });
+  if (Object.keys(await callHost<Record<string, unknown>>("getAreas", { mapId: map.id })).length) problems.push("areas stay stored after the last one was removed");
+  log(`HL1 custom areas: ${areaPoints} points after thinning, ${(bytes / 1024).toFixed(0)} KB of areas stored with the map`, "muted");
 
   // A picture of the result for people: two highlights over the satellite look (when it is installed).
   try {

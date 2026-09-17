@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { composePasses, groupVisibleIn, isPassId, rendersFor } from "../../src/core/render/passes.ts";
-import { DEFAULT_HIGHLIGHT, HIGHLIGHT_COLORS, normaliseHighlights, toggleHighlight } from "../../src/core/style/highlights.ts";
+import { DEFAULT_HIGHLIGHT, HIGHLIGHT_COLORS, normaliseAreas, normaliseHighlights, toggleHighlight } from "../../src/core/style/highlights.ts";
 
 test("highlights toggle, take fresh colours and keep the last style", () => {
   let list = toggleHighlight([], "BGD", "Bangladesh");
@@ -21,6 +21,15 @@ test("stored highlights are repaired", () => {
     { code: "DEU", name: "DEU", color: DEFAULT_HIGHLIGHT.color, fill: DEFAULT_HIGHLIGHT.fill, outline: DEFAULT_HIGHLIGHT.outline }
   ]);
   assert.deepEqual(normaliseHighlights("nope"), []);
+});
+
+test("custom areas: codes are accepted and only geometry still in use is kept", () => {
+  const list = normaliseHighlights([{ code: "area:ab12cd", name: "Dhaka Division" }, { code: "area:!!", name: "bad" }, { code: "BGD" }]);
+  assert.deepEqual(list.map((h) => h.code), ["area:ab12cd", "BGD"]);
+  const ring = [[90, 23], [91, 23], [91, 24], [90, 23]];
+  const areas = normaliseAreas({ ab12cd: [[ring, [[1, 2]]]], gone: [[ring]], broken: "x" }, list);
+  assert.deepEqual(areas, { ab12cd: [[ring]] });
+  assert.deepEqual(normaliseAreas(null, list), {});
 });
 
 test("the highlight pass is its own render, outside the base pass and the user's pass list", () => {
