@@ -4,6 +4,7 @@
 import { buildPlaceIndex, type PlaceIndex, type PlaceRecord } from "../../core/search/placeSearch.ts";
 import { worldOverlayPath } from "../basemap/basemapStyle.ts";
 import { fs } from "../cep.ts";
+import { provinceRecords } from "./admin1.ts";
 
 export type WorldLabel = PlaceRecord & { minZoom: number; maxZoom?: number };
 
@@ -17,6 +18,6 @@ export function loadWorldLabels(): { countries: WorldLabel[]; places: WorldLabel
 
 /** The search index (built on first use, about 50 ms). */
 export function placeIndex(): PlaceIndex {
-  if (!index) index = buildPlaceIndex(loadWorldLabels());
+  if (!index) index = buildPlaceIndex({ ...loadWorldLabels(), provinces: provinceRecords() });
   return index;
 }

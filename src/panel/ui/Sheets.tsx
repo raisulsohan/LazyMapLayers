@@ -29,6 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
+import { highlightLevel } from "../store.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
@@ -227,8 +228,16 @@ export function HighlightSheetView(): JSX.Element | null {
   const first = list[0];
   return (
     <div class="sheet" data-id="highlight-sheet">
-      <div class="sheet-title">Highlight countries</div>
-      <div class="muted small">Click a country on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Provinces, districts or any shape of your own: import a KML or GeoJSON file and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
+      <div class="sheet-title">Highlight</div>
+      <div class="chips">
+        <button class={`chip ${highlightLevel.value === "country" ? "on" : ""}`} data-id="level-country" onClick={() => (highlightLevel.value = "country")} title="A click on the map picks the whole country">
+          Countries
+        </button>
+        <button class={`chip ${highlightLevel.value === "province" ? "on" : ""}`} data-id="level-province" onClick={() => (highlightLevel.value = "province")} title="A click on the map picks the province, state or division under it">
+          Provinces
+        </button>
+      </div>
+      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML or GeoJSON file and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />

@@ -355,3 +355,22 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   reads back about 200 KB.
 - **Next.** Built-in provinces need Natural Earth's admin-1 polygons (a 14 MB download, with Sohan's
   permission); districts need per-country boundary data (geoBoundaries).
+
+## D24 — Built-in provinces as small per-country files (2026-09-18)
+
+- **Decision.** Natural Earth's 1:10m admin-1 polygons (public domain) are prepared once by
+  `tools/prepare-admin1.ts` into an index (`data/admin1-index.json`, 2.7 MB: id, country, names in
+  26 languages, type, label point, bounds) and one file of polygons per country
+  (`data/admin1/<ADM0>.json`, 7.4 MB in all). The panel reads the index with the first search and a
+  country's file with the first click or highlight in that country, so nothing is paid at start-up.
+- **Shared borders.** All provinces of a country are simplified together as one topology (about 110
+  points per province on average), so neighbours keep identical borders after thinning.
+- **No new machinery.** A highlighted province is a custom area (D23): code `area:<adm1 id>`, polygons
+  thinned to 600 points and stored with the map, drawn from the same GeoJSON source. A click finds the
+  country from the rendered world tiles, then the province by point-in-polygon in core
+  (`pointInPolygons`). Search ranks provinces between countries and places of the same name.
+- **Highlights and regions.** Highlight layers are kept out of the world-to-region hand-over (no fade,
+  no maximum zoom) and are ordered above region layers; areas draw after countries.
+- **Limits.** Natural Earth has first-level units only (Bangladesh: divisions; France: departments).
+  Districts and other second-level units need per-country data (geoBoundaries) and come as a download,
+  not in the bundle.

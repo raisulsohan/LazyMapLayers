@@ -177,6 +177,15 @@ async function runUiScenario() {
   console.log(`U1 country under the centre: ${JSON.stringify(country)}`);
   if (country) await panel.evaluate(`(window.lmlDebug.store.toggleCountryHighlight(${JSON.stringify(country.code)}, ${JSON.stringify(country.name)}), true)`);
   await sleep(1200);
+  // A province from the search list, through its highlight button.
+  await click("level-province");
+  await type(`[data-id="search"]`, "Gironde");
+  await sleep(900);
+  const provinceRows = await panel.evaluate(`[...document.querySelectorAll(".search-result")].map((n) => n.querySelector(".search-name").textContent + " | " + n.querySelector(".search-detail").textContent)`);
+  console.log(`U1 province search: ${JSON.stringify(provinceRows)}`);
+  await click("highlight-fra5295");
+  await idle();
+  await type(`[data-id="search"]`, "", true);
   await showView({ center: { lat: 46.5, lng: 2.5 }, zoom: 5.2, bearing: 0, pitch: 0 });
   await sleep(2500);
   await shot("07a-highlight");

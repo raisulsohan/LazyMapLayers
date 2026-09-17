@@ -207,6 +207,7 @@ function stage() {
     "panel/maplibre-worker.js", "panel/encode-worker.js",
     "host/lazymaplayers.jsx",
     "data/natural-earth.pmtiles", "data/borders.geojson", "data/labels.json",
+    "data/admin1-index.json", "data/admin1/BGD.json",
   ]) {
     if (!existsSync(join(staging, needed))) fail(`${needed} is missing from the build.`);
   }

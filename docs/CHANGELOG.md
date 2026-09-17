@@ -38,6 +38,15 @@
   a shape of your own) are listed as areas: **Highlight** puts one on the same Highlight layer as the
   countries, holes included. The outline is thinned to 600 points and saved inside the project, so the
   file is not needed again.
+- **Provinces, states and divisions built in.** 4,589 provinces of 251 countries (Natural Earth) are
+  part of the panel: search finds them by name in 26 languages and frames them, the highlight button
+  next to a result highlights one, and in the Highlight tool **Provinces** makes a click on the map
+  pick the province under it instead of the country. Neighbouring provinces share exactly the same
+  border, so two of them never show a gap. A country's outlines are read only when first needed
+  (Bangladesh: 15 KB).
+- Fixed: over a downloaded region a highlight lost its outline when zoomed in and sat under the
+  region's land in the preview. Highlights now stay whole at every zoom, above the region, and a
+  province or custom area always draws above a highlighted country.
 - **Auto labels without waiting.** Names arrive in After Effects eight at a time with a progress count
   and a **Cancel** button, so it never blocks for more than about a second (the world flight's 140
   names: 14 seconds in all instead of 49 in one frozen call). **How many** picks Few, Normal or Many

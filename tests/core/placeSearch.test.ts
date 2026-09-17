@@ -65,3 +65,30 @@ test("a view gets a name: the country from far, the nearest large place from nea
 test("place zooms shrink with the population", () => {
   assert.ok(zoomForPlace(10e6) < zoomForPlace(3e5) && zoomForPlace(3e5) < zoomForPlace(1000));
 });
+
+test("provinces are found by any of their names and rank between countries and small places", () => {
+  const withProvinces = buildPlaceIndex({
+    countries: [record({ id: "c:BGD", kind: "country", country: "BGD", rank: 2, population: 17e7, names: { en: "Bangladesh" } })],
+    provinces: [
+      record({ id: "province:bgd1806", kind: "province", country: "BGD", region: "Division", lat: 23.9, lng: 90.3, rank: 4, bbox: [89.3, 22.9, 91.2, 25.2], names: { en: "Dhaka", bn: "ঢাকা বিভাগ" } }),
+      record({ id: "province:usa3521", kind: "province", country: "USA", region: "State", rank: 4, names: { en: "California" } })
+    ],
+    places: [
+      record({ id: "p:dhaka", country: "BGD", capital: true, rank: 0, population: 2e7, names: { en: "Dhaka", bn: "ঢাকা" } }),
+      record({ id: "p:california-md", country: "USA", rank: 8, population: 12000, names: { en: "California" } })
+    ]
+  });
+  const dhaka = searchPlaces(withProvinces, "dhaka");
+  assert.deepEqual(
+    dhaka.map((r) => r.id),
+    ["p:dhaka", "province:bgd1806"]
+  );
+  assert.equal(dhaka[1].kind, "province");
+  assert.equal(dhaka[1].adm1, "bgd1806");
+  assert.equal(dhaka[1].code, "BGD");
+  assert.equal(dhaka[1].detail, "Division, Bangladesh");
+  assert.deepEqual(dhaka[1].bbox, { west: 89.3, south: 22.9, east: 91.2, north: 25.2 });
+  assert.equal(dhaka[0].adm1, undefined);
+  assert.equal(searchPlaces(withProvinces, "california")[0].id, "province:usa3521");
+  assert.equal(searchPlaces(withProvinces, "ঢাকা বিভাগ")[0].id, "province:bgd1806");
+});

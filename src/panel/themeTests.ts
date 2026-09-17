@@ -12,7 +12,10 @@ import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../
 import { THEMES } from "../core/style/themes.ts";
 import { basemapStyle, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
+import { searchPlaces } from "../core/search/placeSearch.ts";
 import { callHost, callHostWithJobFile, evalScript, fs, path } from "./cep.ts";
+import { provinceAt, provincesOf } from "./data/admin1.ts";
+import { placeIndex } from "./data/worldLabels.ts";
 import { hasImagery } from "./imagery/packs.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
@@ -212,7 +215,57 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   if (Object.keys(await callHost<Record<string, unknown>>("getAreas", { mapId: map.id })).length) problems.push("areas stay stored after the last one was removed");
   log(`HL1 custom areas: ${areaPoints} points after thinning, ${(bytes / 1024).toFixed(0)} KB of areas stored with the map`, "muted");
 
-  // A picture of the result for people: two highlights over the satellite look (when it is installed).
+  // Built-in provinces: found by search, picked by a click position, drawn through the area machinery.
+  const searchStarted = performance.now();
+  const found = searchPlaces(placeIndex(), "Sylhet").find((r) => r.kind === "province");
+  const searchMs = performance.now() - searchStarted;
+  if (!found || found.code !== "BGD" || !found.adm1 || !found.bbox) problems.push(`searching "Sylhet" gave no province of Bangladesh: ${JSON.stringify(found)}`);
+  if (!searchPlaces(placeIndex(), "California").some((r) => r.kind === "province" && r.code === "USA")) problems.push("California is not found as a province");
+  const sylhetCity = { lat: 24.9, lng: 91.87 };
+  const picked = provinceAt("BGD", sylhetCity);
+  if (!picked || picked.id !== found?.adm1) problems.push(`the province at Sylhet is ${picked?.name} (${picked?.id}), the search result is ${found?.adm1}`);
+  if (provinceAt("BGD", bay)) problems.push("a point in the sea belongs to a province");
+  if (provincesOf("BGD").length < 6 || provincesOf("ZZZ").length) problems.push(`Bangladesh has ${provincesOf("BGD").length} provinces, an unknown country ${provincesOf("ZZZ").length}`);
+  if (picked) {
+    const provinceGeometry = simplifyPolygons(picked.polygons, AREA_MAX_POINTS);
+    const withProvince = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [{ code: `area:${picked.id}`, name: picked.name, color: "#ff5fa2", fill: 0.6, outline: 2 }], areas: { [picked.id]: provinceGeometry } });
+    const provincePass = read(withProvince, "highlight");
+    const inProvince = at(provincePass, sylhetCity);
+    if (inProvince[3] < 120 || inProvince[0] < 200) problems.push(`inside the highlighted province the pass is ${inProvince}`);
+    if (at(provincePass, dhaka)[3] !== 0 || at(provincePass, delhi)[3] !== 0) problems.push(`the province highlight reaches Dhaka ${at(provincePass, dhaka)} or Delhi ${at(provincePass, delhi)}`);
+    log(`HL1 provinces: ${picked.name} found and picked, first search with provinces ${searchMs.toFixed(0)} ms`, "muted");
+  }
+
+  // Over a downloaded region a highlight stays whole: its outline must not fade out with the world's lines.
+  if (fs().existsSync(regionArchivePath("paris"))) {
+    const paris = provincesOf("FRA").find((p) => p.name === "Paris");
+    if (!paris) problems.push("Paris is not among the provinces of France");
+    else {
+      // Close in, centred on the westernmost point of the outline, far past the zoom where the world's lines end.
+      const west = paris.polygons[0][0].reduce((p, q) => (q[0] < p[0] ? q : p));
+      const parisView: View = { center: { lat: west[1], lng: west[0] }, zoom: 13, bearing: 0, pitch: 0 };
+      const parisMap = await createMapComp({ name: "HL1 region", ...size, duration: 1, frameRate: 25, view: parisView, newScene: true });
+      const overRegion = await runRenderJob({
+        mapId: parisMap.id,
+        quality: "final",
+        settings,
+        basemap: { kind: "region", name: "paris" },
+        highlights: [{ code: `area:${paris.id}`, name: paris.name, color: "#ff5fa2", fill: 0.5, outline: 4 }],
+        areas: { [paris.id]: simplifyPolygons(paris.polygons, AREA_MAX_POINTS) }
+      });
+      const rgba = read(overRegion, "highlight");
+      let solid = 0;
+      let soft = 0;
+      for (let i = 3; i < rgba.length; i += 4) {
+        if (rgba[i] > 240) solid++;
+        else if (rgba[i] > 100 && rgba[i] < 160) soft++;
+      }
+      if (solid < 1200 || soft < 30000) problems.push(`over the Paris region the highlight has ${solid} outline and ${soft} fill pixels`);
+      log(`HL1 over a region: ${solid} outline pixels, ${soft} fill pixels`, "muted");
+    }
+  }
+
+  // A picture of the result for people: two countries and a province over the satellite look (when it is installed).
   try {
     const sample = await runRenderJob({
       mapId: map.id,
@@ -222,8 +275,10 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
       theme: hasImagery("blue-marble") ? "satellite" : "midnight",
       highlights: [
         { code: "BGD", name: "Bangladesh", color: "#ff9d2e", fill: 0.45, outline: 3 },
-        { code: "NPL", name: "Nepal", color: "#36b3ff", fill: 0.45, outline: 3 }
-      ]
+        { code: "NPL", name: "Nepal", color: "#36b3ff", fill: 0.45, outline: 3 },
+        ...(picked ? [{ code: `area:${picked.id}`, name: picked.name, color: "#ff5fa2", fill: 0.6, outline: 2 }] : [])
+      ],
+      areas: picked ? { [picked.id]: simplifyPolygons(picked.polygons, AREA_MAX_POINTS) } : {}
     });
     const sheet = document.createElement("canvas");
     sheet.width = size.width;

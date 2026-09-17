@@ -5,7 +5,7 @@ import type { Bbox } from "../tiles/tileMath.ts";
 
 export type PlaceRecord = {
   id: string;
-  kind: "country" | "place";
+  kind: "country" | "province" | "place";
   lat: number;
   lng: number;
   country: string;
@@ -20,7 +20,7 @@ export type PlaceRecord = {
 
 export type SearchResult = {
   id: string;
-  kind: "country" | "place" | "coordinates";
+  kind: "country" | "province" | "place" | "coordinates";
   /** English (or first available) name. */
   name: string;
   /** The name that matched, when it differs from `name` (for example the local spelling). */
@@ -29,6 +29,8 @@ export type SearchResult = {
   detail: string;
   /** The country's three-letter Natural Earth code (adm0_a3): of the country itself, or of a place's country. */
   code?: string;
+  /** A province's id in the bundled province data. */
+  adm1?: string;
   lat: number;
   lng: number;
   bbox?: Bbox;
@@ -60,8 +62,8 @@ export type PlaceIndex = {
   countryNames: Map<string, string>;
 };
 
-export function buildPlaceIndex(data: { countries: PlaceRecord[]; places: PlaceRecord[] }): PlaceIndex {
-  const records = [...data.countries, ...data.places];
+export function buildPlaceIndex(data: { countries: PlaceRecord[]; places: PlaceRecord[]; provinces?: PlaceRecord[] }): PlaceIndex {
+  const records = [...data.countries, ...(data.provinces ?? []), ...data.places];
   const countryNames = new Map<string, string>();
   for (const c of data.countries) if (!countryNames.has(c.country)) countryNames.set(c.country, c.names.en ?? Object.values(c.names)[0] ?? c.country);
   return { records, folded: records.map((r) => Object.values(r.names).map(fold)), countryNames };
@@ -79,6 +81,7 @@ function toResult(index: PlaceIndex, record: PlaceRecord, matched?: string): Sea
     name,
     matched: matched && fold(matched) !== fold(name) ? matched : undefined,
     detail: record.kind === "country" ? "Country" : [record.region, country].filter((part) => part && part !== name).join(", "),
+    adm1: record.kind === "province" ? record.id.replace(/^province:/, "") : undefined,
     code: record.country || undefined,
     lat: record.lat,
     lng: record.lng,
@@ -112,7 +115,8 @@ export function searchPlaces(index: PlaceIndex, query: string, limit = 8): Searc
     }
     if (!best) continue;
     const record = index.records[i];
-    const weight = best * 100 + (record.kind === "country" ? 30 : 0) + (record.capital ? 8 : 0) + Math.min(20, Math.log10(record.population + 1) * 2.5) - record.rank;
+    const kindWeight = record.kind === "country" ? 30 : record.kind === "province" ? 14 : 0;
+    const weight = best * 100 + kindWeight + (record.capital ? 8 : 0) + Math.min(20, Math.log10(record.population + 1) * 2.5) - record.rank;
     scored.push({ score: weight, record, matched: Object.values(record.names)[bestName] });
   }
   scored.sort((a, b) => b.score - a.score);

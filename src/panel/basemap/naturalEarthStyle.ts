@@ -156,7 +156,9 @@ export function naturalEarthStyle(
     .filter((h) => isAreaCode(h.code) && options.areas?.[areaIdOf(h.code)])
     .map((h) => ({ type: "Feature" as const, properties: { id: areaIdOf(h.code) }, geometry: { type: "MultiPolygon" as const, coordinates: options.areas![areaIdOf(h.code)] } }));
   if (areaFeatures.length) sources[AREAS_SOURCE] = { type: "geojson", data: { type: "FeatureCollection", features: areaFeatures }, tolerance: 0.2 };
-  for (const [i, h] of (options.highlights ?? []).entries()) {
+  // Countries first: a province or a custom area usually lies inside one and must stay visible on it.
+  const ordered = [...(options.highlights ?? []).entries()].sort((a, b) => Number(isAreaCode(a[1].code)) - Number(isAreaCode(b[1].code)));
+  for (const [i, h] of ordered) {
     const custom = isAreaCode(h.code);
     if (custom && !options.areas?.[areaIdOf(h.code)]) continue;
     const only = (custom ? ["==", ["get", "id"], areaIdOf(h.code)] : ["==", ["get", "adm0_a3"], h.code]) as unknown as boolean;
