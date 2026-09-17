@@ -5,6 +5,27 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
+## G1 — Globe projection against MapLibre: PASS (2026-09-17)
+
+- `src/core/camera/globe.ts` projects points for MapLibre's globe projection: a vertical-perspective
+  globe up to zoom 11, mixed in clip space with Mercator between zoom 11 and 12 (as MapLibre's
+  shaders do), and flat Mercator from zoom 12. Points can sit above the ground, and points behind the
+  planet are reported hidden.
+- **CPU.** 287 random globe views (zoom 1 to 11, any bearing, pitch up to 60°) against
+  `map.project()`: worst error 0.00000000009 px.
+- **GPU.** 58 renders of a red dot, half of them in the transition zooms, where `map.project()` does
+  not mix like the shaders: the dot centre found in the pixels is within 0.2 px of the core
+  projection (centroid noise).
+
+## G2 — Pins on a globe map in After Effects' own render: PASS (2026-09-17)
+
+- A 1280×720 globe map turns from the Atlantic to Europe, then flies down to Paris through the
+  transition (zoom 11.5) and ends at zoom 12.6, pitched 50°. Seven pins (Paris, London, Cairo, New
+  York, Tokyo, São Paulo, Versailles) use the shared projection expression
+  (`src/core/ae/projectionExpression.ts`).
+- At 8 times, every shown pin (19) sits on the red dot the renderer drew, and every pin hidden behind
+  the planet (7) has no dot under it. No expression errors.
+
 ## R1 — Phase 2 renderer in After Effects: PASS 15/15 (2026-09-17)
 
 `src/panel/renderTests.ts`. A 1920×1080, 4-second map comp over Paris (OpenStreetMap region, 3D

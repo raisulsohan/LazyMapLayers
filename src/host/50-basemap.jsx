@@ -42,6 +42,7 @@ LML.basemap.renderInfo = function (args) {
         shutterAngle: scene.shutterAngle,
         shutterPhase: scene.shutterPhase,
         animated: LML.map.isViewAnimated(mapLayer),
+        projection: LML.map.projectionOf(mapLayer),
         projectFolder: app.project.file ? app.project.file.parent.fsName : null
     };
 };

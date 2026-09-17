@@ -17,6 +17,7 @@ import { runAlignment } from "./alignment.ts";
 import { runEndToEnd } from "./endToEnd.ts";
 import { runCameraAlignment } from "./cameraAlignment.ts";
 import { runRenderTests } from "./renderTests.ts";
+import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -160,6 +161,24 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.P1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`P1 failed: ${results.P1_error}`, "fail");
+    }
+  }
+
+  if (wants("G1")) {
+    try {
+      results.G1_globe = await runGlobeTests(log);
+    } catch (error) {
+      results.G1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`G1 failed: ${results.G1_error}`, "fail");
+    }
+  }
+
+  if (wants("G2")) {
+    try {
+      results.G2_globePins = await runGlobeEndToEnd(log);
+    } catch (error) {
+      results.G2_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`G2 failed: ${results.G2_error}`, "fail");
     }
   }
 

@@ -41,6 +41,7 @@ LML.camera.mapLayerWarnings = function (mapLayer) {
     var near = function (a, b) {
         return Math.abs(a - b) < 0.01;
     };
+    if (LML.map.projectionOf(mapLayer) === "globe") warnings.push("The map uses the globe projection; the 3D camera matches it only from zoom 12, where the globe becomes a flat map.");
     if (mapLayer.threeDLayer) warnings.push("The map layer is a 3D layer; keep it 2D so the camera does not move it.");
     if (!near(position[0], scene.width / 2) || !near(position[1], scene.height / 2) || !near(anchor[0], source.width / 2) || !near(anchor[1], source.height / 2)) {
         warnings.push("The map layer is not centred in the scene; the 3D camera only matches a centred map.");

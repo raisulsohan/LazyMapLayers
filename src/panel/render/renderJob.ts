@@ -12,6 +12,8 @@ import { callHost, callHostWithJobFile, fs } from "../cep.ts";
 import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "../basemap/maplibreSetup.ts";
 import { naturalEarthStyle } from "../basemap/naturalEarthStyle.ts";
 import { protomapsStyle } from "../basemap/protomapsStyle.ts";
+import { withProjection } from "../basemap/projection.ts";
+import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
 import { FrameRenderer, GROUP_METADATA_KEY, layerGroup } from "./frameRenderer.ts";
 import { RenderStore } from "./renderStore.ts";
@@ -72,16 +74,19 @@ type RenderInfo = {
   shutterAngle: number;
   shutterPhase: number;
   animated: boolean;
+  projection: MapProjection;
   projectFolder: string | null;
 };
 
 const OSM_CREDIT = "© OpenStreetMap contributors";
 
-export function basemapStyle(basemap: BasemapSource, options: { labels: boolean; markers?: Marker[] }): StyleSpecification {
-  const style =
+export function basemapStyle(basemap: BasemapSource, options: { labels: boolean; markers?: Marker[]; projection?: MapProjection }): StyleSpecification {
+  const style = withProjection(
     basemap.kind === "region"
       ? protomapsStyle(registerLocalArchive(basemap.name, regionArchivePath(basemap.name)), { labels: options.labels })
-      : naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels });
+      : naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels }),
+    options.projection ?? "mercator"
+  );
   if (options.markers?.length) {
     style.sources["lml-markers"] = {
       type: "geojson",
@@ -152,10 +157,11 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
-  const opaqueBackground = style.layers.some(
+  // On the globe, space around the planet is transparent.
+  const opaqueBackground = info.projection !== "globe" && style.layers.some(
     (l) => l.type === "background" && (l.paint?.["background-opacity"] ?? 1) === 1 && !(l.layout?.visibility === "none") && !l.minzoom && !l.maxzoom
   );
   const opaquePasses: PassId[] = opaqueBackground ? ["base"] : [];
