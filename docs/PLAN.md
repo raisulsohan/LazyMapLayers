@@ -320,7 +320,7 @@ Rendered at 1080p and 4K. This is the first "wow" release (0.1).
 | Phase | Status |
 |---|---|
 | 0 — Foundation and spikes | DONE 2026-09-17: spikes S1–S6 and host smoke H1 pass in AE 2026 (docs/SPIKES.md) |
-| 1 — Camera core and rig | IN PROGRESS: 2D pins aligned (P1 0.006 px, E1 20/20), usable panel UI (U1); matched 3D camera still to do |
+| 1 — Camera core and rig | DONE 2026-09-17: 2D pins (P1 0.006 px at 1080p and 4K), matched 3D camera and 3D pins (C1 0.004 px), AE render check (E1 40/40), usable panel UI (U1) |
 | 2 — Frame renderer and passes | NOT STARTED |
 | Milestone A — World flight demo | NOT STARTED |
 | 3 — Cinematic camera | NOT STARTED |

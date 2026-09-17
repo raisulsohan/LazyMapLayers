@@ -35,13 +35,17 @@ LML.pins.setExpression = function (prop, code, errors, label) {
 LML.pins.addPin = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var scene = mapLayer.containingComp;
+    if (args.threeD && !LML.camera.hasGroundFrame(mapLayer)) {
+        throw LML.util.error("NO_3D_CAMERA", "Add the 3D camera to this map before adding 3D pins");
+    }
     var style = args.style || {};
     var radius = style.radius || 14;
     var color = style.color || [0.21, 0.7, 1];
 
     var layer = scene.layers.addShape();
-    layer.name = args.name ? "Pin: " + args.name : "Pin";
+    layer.name = (args.threeD ? "3D Pin" : "Pin") + (args.name ? ": " + args.name : "");
     layer.moveBefore(mapLayer);
+    if (args.threeD) layer.threeDLayer = true;
 
     var group = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
     group.name = "Marker";
@@ -60,13 +64,20 @@ LML.pins.addPin = function (args) {
     mapLink.property(1).setValue(mapLayer.index);
     LML.pins.addEffect(layer, "ADBE Slider Control", "Latitude", args.lat);
     LML.pins.addEffect(layer, "ADBE Slider Control", "Longitude", args.lng);
+    var transform = layer.property("ADBE Transform Group");
+    var errors = [];
+    if (args.threeD) {
+        // On the ground plane the camera already scales and rotates the pin with the map.
+        LML.pins.addEffect(layer, "ADBE Slider Control", "Altitude (m)", args.altitude || 0);
+        LML.pins.setExpression(transform.property("ADBE Position"), args.expressions.position, errors, "position");
+        LML.tag.write(layer, { kind: "pin", v: 1, mapId: args.mapId, threeD: true });
+        return { layerIndex: layer.index, name: layer.name, sceneCompId: scene.id, expressionErrors: errors };
+    }
     LML.pins.addEffect(layer, "ADBE Checkbox Control", "Scale with Map", args.scaleWithMap ? 1 : 0);
     LML.pins.addEffect(layer, "ADBE Checkbox Control", "Rotate with Map", args.rotateWithMap ? 1 : 0);
     var view = LML.map.readViewAtTime(mapLayer, scene.time);
     LML.pins.addEffect(layer, "ADBE Slider Control", "Reference Zoom", view.zoom);
 
-    var transform = layer.property("ADBE Transform Group");
-    var errors = [];
     LML.pins.setExpression(transform.property("ADBE Position"), args.expressions.position, errors, "position");
     LML.pins.setExpression(transform.property("ADBE Scale"), args.expressions.scale, errors, "scale");
     LML.pins.setExpression(transform.property("ADBE Rotate Z"), args.expressions.rotation, errors, "rotation");
