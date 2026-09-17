@@ -417,3 +417,28 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   older ones and areas above countries. Passes of equal rank import in the order the panel sent,
   because ExtendScript's sort is not stable. Sequence folders and cached images of highlights that
   are gone are deleted once After Effects no longer uses them.
+
+## D27 — Districts as a download per country from geoBoundaries (2026-09-18)
+
+- **Source.** geoBoundaries' open release (gbOpen): second-level boundaries (ADM2) of nearly every
+  country, each under an open licence that allows commercial use with credit (CC BY, ODbL, public
+  domain, national open licences). The humanitarian and authoritative releases are not used: parts of
+  them forbid commercial use. Districts are too many and change too often for the bundle (hard rule 1
+  is about licences; size is why they are a download).
+- **Flow.** Nothing goes online by itself. With Districts switched on, a click on a country without an
+  installed set asks the geoBoundaries API for that country's metadata (a few kilobytes) and the
+  file's size (a HEAD request); the sheet shows source, licence and size next to a Download button.
+  The simplified GeoJSON is downloaded through Node's https (`src/panel/net.ts`, also used for
+  regions), thinned together (`simplifyTogether`, the code the province tool uses, 160 points per unit
+  on average) and written to `<user data>/boundaries/<ISO>-ADM2.json`; `manifest.json` keeps source,
+  licence and each unit's name, label point, bounds and province (from the bundled province data, so
+  search can tell fifty Washington counties apart). Bangladesh: 0.4 s from click to installed.
+- **Ids.** `gb<iso><last 14 characters of geoBoundaries' shapeID>`: unique within a set and within the
+  24 characters of a highlight code. The prefix says where a highlighted shape came from, so the
+  render job can extend the data credit layer ("Boundaries: geoBoundaries"), which the user may
+  delete like the OpenStreetMap credit.
+- **Country codes.** geoBoundaries uses ISO 3166-1 alpha-3; the world tiles carry Natural Earth's
+  adm0_a3 and iso_a3 (-99 for France and Norway), so `isoOfCountry` prefers iso_a3 and falls back to
+  adm0_a3 with four known differences (Kosovo, South Sudan, Palestine, Western Sahara).
+- **Tests.** DS1 goes online, so it runs only when named (`npm run ae:spikes -- --only DS1`); the unit
+  tests cover the thinning (shared borders stay identical), ids, search records and codes.

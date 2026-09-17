@@ -5,7 +5,7 @@ import { useRef, useState } from "preact/hooks";
 import { searchPlaces, type SearchResult } from "../../core/search/placeSearch.ts";
 import { isInCep } from "../cep.ts";
 import { placeIndex } from "../data/worldLabels.ts";
-import { addPinAt, fail, goToResult, highlights, selected, toggleCountryHighlight, toggleProvinceById } from "../store.ts";
+import { addPinAt, fail, goToResult, highlights, selected, toggleCountryHighlight, toggleDistrictById, toggleProvinceById } from "../store.ts";
 import { Icon, IconButton } from "./icons.tsx";
 
 export function SearchBar() {
@@ -75,7 +75,7 @@ export function SearchBar() {
           {results.length === 0 && <div class="search-empty">No place with that name in the offline list. Try the English or the local spelling.</div>}
           {results.map((r, i) => (
             <div key={r.id} class={`search-result ${i === active ? "active" : ""}`} onMouseDown={() => choose(r)} onMouseEnter={() => setActive(i)}>
-              <Icon name={r.kind === "country" ? "globe" : r.kind === "province" ? "borders" : r.kind === "coordinates" ? "target" : "pin"} size={13} />
+              <Icon name={r.kind === "country" ? "globe" : r.kind === "province" || r.kind === "district" ? "borders" : r.kind === "coordinates" ? "target" : "pin"} size={13} />
               <span class="search-name">
                 {r.name}
                 {r.matched && <span class="muted"> · {r.matched}</span>}
@@ -95,6 +95,24 @@ export function SearchBar() {
                     active={highlights.value.some((h) => h.code === r.code)}
                     title="Highlight this country (again to remove)"
                     onClick={() => toggleCountryHighlight(r.code!, r.name)}
+                  />
+                </span>
+              )}
+              {r.kind === "district" && r.adm1 && r.code && (
+                <span
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                >
+                  <IconButton
+                    icon="highlight"
+                    size={12}
+                    class="flat"
+                    id={`highlight-${r.adm1}`}
+                    active={highlights.value.some((h) => h.code === `area:${r.adm1}`)}
+                    title="Highlight this district (again to remove)"
+                    onClick={() => toggleDistrictById(r.code!, r.adm1!)}
                   />
                 </span>
               )}

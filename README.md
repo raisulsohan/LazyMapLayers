@@ -127,11 +127,15 @@ docs/          plan, decisions, spike results, changelog, release steps
 - **[NASA Blue Marble Next Generation](https://visibleearth.nasa.gov/collection/1484/blue-marble)**
   (public domain; NASA Earth Observatory) for the optional satellite imagery pack, and Natural Earth's
   shaded relief for the optional relief pack.
+- **[geoBoundaries](https://www.geoboundaries.org)** (open release; each country's boundaries under
+  their own open licence, shown in the panel before a download) for district boundaries, which are
+  downloaded per country when you ask for them. Runfola, D. et al. (2020), geoBoundaries: A global
+  database of political administrative boundaries, PLoS ONE 15(4).
 - **[MapLibre GL JS](https://maplibre.org)** (BSD-3-Clause), **[PMTiles](https://github.com/protomaps/PMTiles)**
   (BSD-3-Clause), and the other open-source packages listed in `package.json`.
 
 LazyMapLayers is an independent project. It is not affiliated with or endorsed by Adobe, Protomaps,
-OpenStreetMap or NASA.
+OpenStreetMap, NASA or geoBoundaries.
 
 ## License
 

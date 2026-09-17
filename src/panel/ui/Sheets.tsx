@@ -29,7 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
-import { changeHighlightLayers, highlightLayers, highlightLevel } from "../store.ts";
+import { changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet } from "../store.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
@@ -228,6 +228,47 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
   );
 }
 
+const megabytes = (bytes: number) => (bytes >= 1048576 ? `${(bytes / 1048576).toFixed(1)} MB` : `${Math.max(1, Math.round(bytes / 1024))} KB`);
+
+/** Districts come per country as a download: what is installed, and the offer for the country just clicked. */
+function DistrictSets(): JSX.Element {
+  const sets = listDistrictSets();
+  const prompt = districtPrompt.value;
+  return (
+    <div class="district-sets" data-id="district-sets">
+      {sets.length === 0 && !prompt && <div class="muted small">Districts are downloaded per country, once. Click a country on the map to see what is available for it.</div>}
+      {sets.map((set) => (
+        <div key={set.iso} class="sheet-row import-row">
+          <span class="grow" title={`${set.source} · ${set.license} · through geoBoundaries, downloaded ${set.downloaded}`}>
+            {set.countryName} <span class="muted">· {set.units.length} {set.unit} boundaries</span>
+          </span>
+          <button class="small-button" title="Removes this country's district boundaries from this computer (highlights already on maps keep their shapes)" onClick={() => removeDistrictSet(set.iso)}>
+            ✕
+          </button>
+        </div>
+      ))}
+      {prompt && prompt.state === "looking" && <div class="muted small">Asking geoBoundaries about {prompt.country.name}…</div>}
+      {prompt && prompt.state === "none" && <div class="muted small">geoBoundaries has no district boundaries for {prompt.country.name}. Import a KML, GeoJSON or shapefile instead.</div>}
+      {prompt && prompt.state === "failed" && <div class="warning small">Could not reach geoBoundaries ({prompt.message}). Check the internet connection and click the country again.</div>}
+      {prompt && prompt.state === "offer" && prompt.offer && (
+        <div class="sheet-row import-row">
+          <span class="grow" title={`${prompt.offer.source || "geoBoundaries"} · ${prompt.offer.license || "open licence"}`}>
+            {prompt.country.name} <span class="muted">· {prompt.offer.count} {prompt.offer.unit} boundaries</span>
+          </span>
+          <button class="small-button" data-id="district-download" disabled={busy.value} title="Downloads this country's boundaries from geoBoundaries (open data) and keeps them on this computer" onClick={() => void downloadDistricts()}>
+            Download{prompt.offer.sizeBytes ? ` ${megabytes(prompt.offer.sizeBytes)}` : ""}
+          </button>
+        </div>
+      )}
+      {prompt && prompt.state === "offer" && prompt.offer && (
+        <div class="muted small">
+          From geoBoundaries (open data): {prompt.offer.source || "national sources"}. {prompt.offer.license || "Open licence"}.
+        </div>
+      )}
+    </div>
+  );
+}
+
 /** The highlighted countries: colour, fill and outline; shown while the highlight tool is on. */
 export function HighlightSheetView(): JSX.Element | null {
   if (tool.value !== "highlight") return null;
@@ -243,8 +284,12 @@ export function HighlightSheetView(): JSX.Element | null {
         <button class={`chip ${highlightLevel.value === "province" ? "on" : ""}`} data-id="level-province" onClick={() => (highlightLevel.value = "province")} title="A click on the map picks the province, state or division under it">
           Provinces
         </button>
+        <button class={`chip ${highlightLevel.value === "district" ? "on" : ""}`} data-id="level-district" onClick={() => (highlightLevel.value = "district")} title="A click on the map picks the district, county or department under it. A country's districts are downloaded once, when you ask for them.">
+          Districts
+        </button>
       </div>
-      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get every highlight as its own layer above the basemap: fade them in one after another, colour them or add a glow in After Effects.</div>
+      {highlightLevel.value === "district" && <DistrictSets />}
+      <div class="muted small">Click a country, province or district on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get every highlight as its own layer above the basemap: fade them in one after another, colour them or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />

@@ -662,6 +662,10 @@ select.compact {
   gap: 4px;
 }
 
+.import-row button {
+  flex: 0 0 auto;
+}
+
 .import-row .grow {
   min-width: 0;
   overflow: hidden;

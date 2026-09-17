@@ -21,6 +21,7 @@ import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
 import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
+import { runDistrictTest } from "./districtTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
@@ -266,6 +267,16 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB1 failed: ${results.LB1_error}`, "fail");
+    }
+  }
+
+  // DS1 goes online (geoBoundaries), so it runs only when asked for by name.
+  if (only && only.includes("DS1")) {
+    try {
+      results.DS1_districts = await runDistrictTest(log);
+    } catch (error) {
+      results.DS1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`DS1 failed: ${results.DS1_error}`, "fail");
     }
   }
 

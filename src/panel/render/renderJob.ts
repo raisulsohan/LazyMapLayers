@@ -3,6 +3,7 @@
 // and import them into After Effects in one undo step.
 
 import type { AnimatedView } from "../../core/render/plan.ts";
+import { BOUNDARY_ID_PREFIX } from "../../core/data/boundarySet.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
 import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor, type HighlightPassId, type PassId, type RenderId } from "../../core/render/passes.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
@@ -86,6 +87,7 @@ export type RenderInfo = {
 };
 
 const OSM_CREDIT = "© OpenStreetMap contributors";
+const BOUNDARIES_CREDIT = "Boundaries: geoBoundaries";
 
 function archivesOf(basemap: BasemapSource): string[] {
   return [naturalEarthArchivePath(), ...regionNames(basemap).map((name) => regionArchivePath(name))];
@@ -289,7 +291,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
-    attribution: regionNames(spec.basemap).length ? OSM_CREDIT : null,
+    attribution: [regionNames(spec.basemap).length ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });
