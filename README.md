@@ -100,7 +100,7 @@ npm run verify                          # unit tests, typecheck, build, ExtendSc
 npm run install:dev                     # link dist/ into the CEP extensions folder
 npm run ae:spikes                       # optional: run the in-AE test suite (starts After Effects)
 node tools/extract-region.ts --name paris --bbox 2.2,48.8,2.48,48.92 --max-zoom 15
-node tools/package-zxp.mjs              # release: build, sign and zip (see the script header)
+node tools/package-zxp.mjs              # release: build, sign and zip (see docs/RELEASING.md)
 ```
 
 Project layout:
@@ -113,7 +113,7 @@ src/panel/     panel UI, CEP bridge, MapLibre renderer
 src/host/      ExtendScript (ES3), concatenated into dist/host/lazymaplayers.jsx
 tools/         build, data preparation, region download, AE test automation
 tests/         unit tests (node --test)
-docs/          plan, decisions, spike results, changelog
+docs/          plan, decisions, spike results, changelog, release steps
 ```
 
 ## Data and credits
