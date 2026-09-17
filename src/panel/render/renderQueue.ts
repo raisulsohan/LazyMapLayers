@@ -47,9 +47,10 @@ export class RenderQueue {
     if (!isInCep()) return;
     try {
       const saved = JSON.parse(fs().readFileSync(queueFile(), "utf8")) as QueueJob[];
-      this.jobs = saved.map((job) =>
-        job.status === "queued" || job.status === "running" ? { ...job, status: "interrupted", progress: null, error: "stopped when the panel closed" } : job
-      );
+      // Finished renders of earlier sessions are history, not work: only jobs that can still resume come back.
+      this.jobs = saved
+        .filter((job) => job.status !== "done")
+        .map((job) => (job.status === "queued" || job.status === "running" ? { ...job, status: "interrupted", progress: null, error: "stopped when the panel closed" } : job));
     } catch {
       this.jobs = [];
     }

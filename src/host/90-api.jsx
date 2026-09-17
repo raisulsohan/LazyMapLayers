@@ -11,6 +11,13 @@ LML.api.ping = function () {
     };
 };
 
+/** The comp a new map would go into (the active comp, unless it is a map comp itself), or null. */
+LML.api.activeComp = function () {
+    var active = app.project.activeItem;
+    if (!(active instanceof CompItem) || LML.tag.is(active, "mapComp")) return null;
+    return { name: active.name, width: active.width, height: active.height, frameRate: active.frameRate, duration: active.duration };
+};
+
 LML.api.createMapComp = function (args) {
     return LML.withUndo("Create map comp", function () {
         return LML.map.createMapComp(args);
@@ -194,6 +201,9 @@ LML.api.listMaps = function () {
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,
             time: comp.time,
+            duration: comp.duration,
+            layerStart: layer.startTime,
+            hasShots: String(layer.comment).indexOf(LML.tag.EXTRA_PREFIX + LML.shots.KEY + ":") > 0,
             frameRate: comp.frameRate,
             width: layer.source ? layer.source.width : comp.width,
             height: layer.source ? layer.source.height : comp.height,
@@ -202,6 +212,41 @@ LML.api.listMaps = function () {
         });
     }
     return out;
+};
+
+/**
+ * Makes the map long enough for its camera: the map comp, its layer and the scene comp grow to
+ * args.duration seconds (nothing is ever shortened). Rendered frames cover the new time after the
+ * next render.
+ */
+LML.api.extendDuration = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    return LML.withUndo("Extend map duration", function () {
+        var scene = layer.containingComp;
+        var mapComp = layer.source;
+        var needed = args.duration;
+        var mapNeeded = needed - layer.startTime;
+        if (mapComp && mapComp.duration < mapNeeded) mapComp.duration = mapNeeded;
+        if (scene.duration < needed) scene.duration = needed;
+        if (layer.outPoint < needed) {
+            var wasLocked = layer.locked;
+            layer.locked = false;
+            layer.outPoint = Math.min(scene.duration, layer.startTime + (mapComp ? mapComp.duration : needed));
+            layer.locked = wasLocked;
+        }
+        return { sceneDuration: scene.duration, mapDuration: mapComp ? mapComp.duration : null };
+    });
+};
+
+/** Renames the map comp (links are effect based, so nothing breaks). args: { mapId, name } */
+LML.api.renameMap = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    return LML.withUndo("Rename map", function () {
+        var name = String(args.name || "").replace(/^\s+|\s+$/g, "");
+        if (!name) throw LML.util.error("BAD_ARGUMENT", "A map needs a name");
+        if (layer.source && layer.source.name !== name) layer.source.name = LML.map.uniqueCompName(name);
+        return { name: layer.source ? layer.source.name : layer.name };
+    });
 };
 
 /** A flight or any baked camera move: one key per frame, replacing keys in its time range. */

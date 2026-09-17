@@ -5,24 +5,11 @@ import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
-import { callHost, callHostWithJobFile, fs } from "../cep.ts";
-import { worldOverlayPath } from "../basemap/basemapStyle.ts";
+import { callHost, callHostWithJobFile } from "../cep.ts";
+import { loadWorldLabels, type WorldLabel } from "../data/worldLabels.ts";
 import { readCameras, type RenderInfo } from "../render/renderJob.ts";
 
-type LabelRecord = {
-  id: string;
-  kind: "country" | "place";
-  lat: number;
-  lng: number;
-  country: string;
-  region?: string;
-  capital?: boolean;
-  rank: number;
-  minZoom: number;
-  maxZoom?: number;
-  population: number;
-  names: LabelNames;
-};
+type LabelRecord = WorldLabel & { names: LabelNames };
 
 export type AutoLabelOptions = {
   language?: LabelLanguageMode;
@@ -47,12 +34,7 @@ type TextStyle = { size: number; color: number[]; haloColor: number[]; haloWidth
 const RTL: Script[] = ["arabic", "hebrew"];
 const UPPERCASE: Script[] = ["latin", "cyrillic", "greek"];
 
-let records: { countries: LabelRecord[]; places: LabelRecord[] } | null = null;
-
-function loadRecords() {
-  if (!records) records = JSON.parse(fs().readFileSync(worldOverlayPath("labels.json"), "utf8"));
-  return records!;
-}
+const loadRecords = () => loadWorldLabels() as { countries: LabelRecord[]; places: LabelRecord[] };
 
 let measureContext: CanvasRenderingContext2D | null = null;
 

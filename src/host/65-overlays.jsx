@@ -39,7 +39,8 @@ LML.overlays.linkToMap = function (layer, mapLayer) {
 };
 
 /**
- * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity? }, trimKeys?, opacityKeys?, glow? }
+ * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity? }, trimKeys?, opacityKeys?, glow?, data? }
+ * data (small, such as a route's two ends) is kept in the layer's tag.
  */
 LML.overlays.addPath = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
@@ -77,7 +78,9 @@ LML.overlays.addPath = function (args) {
         }
     }
     layer.moveBefore(mapLayer);
-    LML.tag.write(layer, { kind: args.kind, v: 1, mapId: args.mapId, name: args.name });
+    var pathTag = { kind: args.kind, v: 1, mapId: args.mapId, name: args.name };
+    if (args.data) pathTag.data = args.data;
+    LML.tag.write(layer, pathTag);
     return { name: layer.name, index: layer.index, expressionErrors: errors };
 };
 
@@ -142,4 +145,18 @@ LML.overlays.addText = function (args) {
 LML.overlays.removeKind = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     return { removed: LML.labels.removeTagged(mapLayer.containingComp, args.mapId, args.kind) };
+};
+
+/** The tagged layers of a kind for a map, with the small data kept in their tags (top layer first). */
+LML.api.listOverlays = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var out = [];
+    for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.mapId !== args.mapId || tag.kind !== args.kind) continue;
+        out.push({ name: layer.name, index: layer.index, data: tag.data || null });
+    }
+    return out;
 };

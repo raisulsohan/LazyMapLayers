@@ -105,36 +105,54 @@ async function runUiScenario() {
   fs.mkdirSync(out, { recursive: true });
   const panel = await connectPanel();
   const shot = async (name) => fs.writeFileSync(path.join(out, `${name}.png`), await panel.screenshot());
-  const click = (text) =>
-    panel.evaluate(`(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (!b) throw new Error("no button " + ${JSON.stringify(text)}); b.click(); return true; })()`);
+  // Controls carry data-id attributes, so the test does not depend on their wording.
+  const control = (id) => `document.querySelector(${JSON.stringify(`[data-id="${id}"]`)})`;
+  const click = (id) =>
+    panel.evaluate(`(() => { const b = ${control(id)}; if (!b) throw new Error("no control ${id}"); if (b.disabled) throw new Error("control ${id} is disabled"); b.click(); return true; })()`);
+  const type = (selector, text, blur = false) =>
+    panel.evaluate(`(() => { const i = document.querySelector(${JSON.stringify(selector)}); i.value = ${JSON.stringify(text)}; i.dispatchEvent(new Event("input", { bubbles: true })); ${blur ? 'i.dispatchEvent(new Event("blur"));' : "i.focus();"} return true; })()`);
   const idle = async (timeoutMs = 180000) => {
     const started = Date.now();
-    await sleep(500);
+    await sleep(400);
     while (Date.now() - started < timeoutMs) {
-      const free = await panel.evaluate(`!![...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "New map" && !b.disabled)`);
-      if (free) return;
-      await sleep(500);
+      if (!(await panel.evaluate("window.lmlDebug.busy()"))) return;
+      await sleep(400);
     }
     throw new Error("panel stayed busy");
   };
-  const logText = () => panel.evaluate(`document.querySelector(".log").innerText`);
+  const showView = (view) => panel.evaluate(`(window.lmlDebug.showCompView(${JSON.stringify(view)}), true)`);
   await sleep(5000);
   await shot("01-start");
-  await panel.evaluate(`(() => { const s = [...document.querySelectorAll("select")][1]; s.value = "region:paris"; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value; })()`);
+  await panel.evaluate(`(() => { const s = ${control("basemap")}; s.value = "region:paris"; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value; })()`);
   await idle();
-  await panel.evaluate(`(window.lmlDebug.map().jumpTo({ center: [2.3222, 48.8626], zoom: 13.2, pitch: 45, bearing: 20 }), true)`);
+  await showView({ center: { lat: 48.8626, lng: 2.3222 }, zoom: 13.2, bearing: 20, pitch: 45 });
   await sleep(2500);
   await shot("02-paris-preview");
+  // Offline search: the Bengali spelling must find Paris.
+  await type(`[data-id="search"]`, "প্যারিস");
+  await sleep(700);
+  const results = await panel.evaluate(`[...document.querySelectorAll(".search-result .search-name")].map((n) => n.textContent)`);
+  console.log(`U1 search: ${JSON.stringify(results)}`);
+  await shot("02a-search");
+  await type(`[data-id="search"]`, "", true);
   // Region sheet: an existing name must warn and the zoom options must show tile estimates (no network).
-  await click("Download this area…");
+  await click("download-area");
   await sleep(300);
-  await panel.evaluate(`(() => { const i = document.querySelector(".sheet input"); i.value = "Paris"; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("blur")); return true; })()`);
+  await type(`[data-id="region-sheet"] input`, "Paris", true);
   await sleep(300);
-  const sheet = await panel.evaluate(`({ name: document.querySelector(".sheet input").value, warning: [...document.querySelectorAll(".sheet .warning")].map((w) => w.textContent), options: [...document.querySelectorAll(".sheet select option")].map((o) => o.textContent), selected: document.querySelector(".sheet select").value })`);
+  const sheet = await panel.evaluate(
+    `(() => { const s = ${control("region-sheet")}; return { name: s.querySelector("input").value, warning: [...s.querySelectorAll(".warning")].map((w) => w.textContent), options: [...s.querySelectorAll("select option")].map((o) => o.textContent), selected: s.querySelector("select").value }; })()`
+  );
   console.log(`U1 region sheet: ${JSON.stringify(sheet)}`);
   await shot("02b-region-sheet");
-  await click("Cancel");
-  await click("New map");
+  await panel.evaluate(`(() => { [...${control("region-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Cancel").click(); return true; })()`);
+  // New map: the screen proposes a name from the place in the preview.
+  await click("new-map-header");
+  await sleep(800);
+  const proposed = await panel.evaluate(`${control("new-map-name")}.value`);
+  console.log(`U1 proposed map name: ${proposed}`);
+  await shot("02c-new-map");
+  await click("create-map");
   await idle();
   for (const [lat, lng] of [[48.85837, 2.294481], [48.873792, 2.295028], [48.860611, 2.337644]]) {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}).then(() => true)`);
@@ -145,17 +163,41 @@ async function runUiScenario() {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}, true).then(() => true)`);
     await idle();
   }
-  await click("Render preview");
+  // Shots: three views, an opened move, playback in the preview, then Apply.
+  for (const view of [
+    { center: { lat: 48.8626, lng: 2.3222 }, zoom: 12.4, bearing: 0, pitch: 0 },
+    { center: { lat: 48.8584, lng: 2.2945 }, zoom: 15.2, bearing: 30, pitch: 55 },
+    { center: { lat: 48.8606, lng: 2.3376 }, zoom: 15.6, bearing: -20, pitch: 50 }
+  ]) {
+    await showView(view);
+    await sleep(1500);
+    await click("shot-add");
+    await sleep(700);
+  }
+  await click("move-2");
+  await sleep(300);
+  await shot("06-shots");
+  await click("shot-play");
+  await sleep(2500);
+  await shot("06a-shots-playing");
+  await click("shot-play");
+  await click("shot-apply");
+  await idle();
+  await sleep(500);
+  await shot("06b-shots-applied");
+  const shots = await panel.evaluate(
+    `(() => { const s = window.lmlDebug.shots; return { state: s.hostState.value, needsApply: s.needsApply.value, names: s.shotList.value.shots.map((x) => x.name), thumbs: Object.keys(s.thumbs.value).length, end: s.endTime.value }; })()`
+  );
+  console.log(`U1 shots: ${JSON.stringify(shots)}`);
+  await click("render-preview");
   await sleep(500);
   await shot("03a-rendering");
   await panel.evaluate(`window.lmlDebug.queueIdle()`);
-  // Final render with two passes, set through the render settings sheet.
-  await click("⚙");
-  await sleep(300);
+  // Final render with two passes, set through the render settings.
   await panel.evaluate(`window.lmlDebug.setRenderSettings({ supersample: 2, passes: ["base", "roads", "waterMatte"] }).then(() => true)`);
   await sleep(500);
   await shot("03b-render-settings");
-  await click("Render");
+  await click("render");
   await panel.evaluate(`window.lmlDebug.queueIdle()`);
   await sleep(1500);
   await shot("03-after-render");
@@ -169,7 +211,7 @@ async function runUiScenario() {
   const hide2d = `(function(){ var c = app.project.activeItem; for (var i = 1; i <= c.numLayers; i++) { var t = LML.tag.read(c.layer(i)); if (t && t.kind === "pin" && !t.threeD) c.layer(i).enabled = false; } c.saveFrameToPng(0, new File("${frame3d}")); return "1"; })()`;
   await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(hide2d)}, resolve))`);
   for (let i = 0; i < 60 && !fs.existsSync(frame3d); i++) await sleep(250);
-  console.log(["UI log:", await logText()].join(String.fromCharCode(10)));
+  console.log(["UI log:", (await panel.evaluate("window.lmlDebug.log()")).join(String.fromCharCode(10))].join(String.fromCharCode(10)));
   panel.close();
 }
 

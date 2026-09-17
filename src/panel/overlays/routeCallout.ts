@@ -37,6 +37,8 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
         type: "path",
         kind: "route",
         name,
+        // The two ends, so a camera move can follow this route later.
+        data: { from: [from.lng, from.lat], to: [to.lng, to.lat] },
         pathExpression: routePathExpression(route.map((p) => [p.lat, p.lng, p.altitude])),
         stroke: { color: options.color ?? [1, 0.78, 0.25], width: (options.width ?? 4) * scale },
         trimKeys: [

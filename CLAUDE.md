@@ -65,7 +65,8 @@ Bundle id: `com.sohan.LazyMapLayers`.
 ## Commands
 
 ```
-npm test          # core unit tests (node --test)
+npm test                  # core unit tests (node --test)
+npm run verify            # tests, typecheck, dev build, ES3 host check, ES3 expression check
+npm run ae:spikes -- --only SH1   # in-AE tests (ask Sohan first); --ui drives the panel (U1)
+node tools/serve-panel.mjs        # the panel's interface in a normal browser, without After Effects
 ```
-
-More commands are added as the build lands (see `docs/PLAN.md` Phase 0).
