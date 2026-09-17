@@ -1,12 +1,17 @@
 // The preview map shows exactly the frame that renders. Its box has the comp's size in CSS pixels and is
 // scaled down to fit the panel, with the pixel ratio lowered by the same factor: MapLibre works at the
-// comp's own zoom (same tiles, same label and line sizes, same fades as the final frames) while the
-// GPU only draws as many pixels as the panel shows. MapLibre corrects mouse positions for the scale.
+// comp's own zoom (same framing, tiles and fades as the final frames) while the GPU only draws as many
+// pixels as the panel shows. MapLibre corrects mouse positions for the scale.
+//
+// Scaled down, labels and lines would be a fraction of their size and unreadable, so by default the
+// preview's text and line sizes are scaled up by the same factor ("readable"). The exact look, with
+// sizes as they render, is one click away.
 
 import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
+import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
 import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { ensureMaplibreWorker, regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { fs, isInCep } from "./cep.ts";
@@ -24,6 +29,8 @@ let map: maplibregl.Map | null = null;
 let wrap: HTMLElement | null = null;
 let box: HTMLElement | null = null;
 let comp = { ...DEFAULT_COMP };
+/** Scale of the comp-sized box inside the panel (1 = full size). */
+let scale = 1;
 let observer: ResizeObserver | null = null;
 /** Event data that marks a move started from the panel's own controls (the zoom strip) as the user's. */
 const BY_USER = { lmlByUser: true };
@@ -31,10 +38,41 @@ const BY_USER = { lmlByUser: true };
 /** A plain style for running the panel in a normal browser (development only). */
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
+/** What the preview shows now, so the style can be rebuilt when the panel is resized. */
+let shown: { source: BasemapSource; projection: MapProjection } = { source: { kind: "world" }, projection: "mercator" };
+/** False shows sizes exactly as they render (tiny in a small panel). */
+let readable = true;
+
+/** Sizes are scaled up by the inverse of the preview's scale (in steps, so resizing rarely restyles). */
+function sizeFactor(): number {
+  if (!readable) return 1;
+  return Math.max(1, Math.min(8, Math.round((1 / Math.max(0.01, scale)) * 4) / 4));
+}
+
 export function previewStyle(source: BasemapSource, projection: MapProjection): StyleSpecification {
   if (!isInCep()) return BLANK_STYLE;
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  return basemapStyle(usable, { labels: true, projection, viewport: comp });
+  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp }), sizeFactor());
+}
+
+let styledFactor = 1;
+let restyleTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** Rebuilds the style when the size factor changed (after the panel was resized). */
+function restyleSoon(): void {
+  if (restyleTimer) clearTimeout(restyleTimer);
+  restyleTimer = setTimeout(() => {
+    restyleTimer = null;
+    if (map && sizeFactor() !== styledFactor) setPreviewStyle(shown.source, shown.projection);
+  }, 250);
+}
+
+export const previewReadable = () => readable;
+
+export function setPreviewReadable(value: boolean): void {
+  if (readable === value) return;
+  readable = value;
+  setPreviewStyle(shown.source, shown.projection);
 }
 
 function toCompView(m: maplibregl.Map): View {
@@ -42,8 +80,6 @@ function toCompView(m: maplibregl.Map): View {
   return { center: { lng: c.lng, lat: c.lat }, zoom: m.getZoom(), bearing: m.getBearing(), pitch: m.getPitch() };
 }
 
-/** Scale of the comp-sized box inside the panel (1 = full size). */
-let scale = 1;
 
 function layout(): void {
   if (!wrap || !box) return;
@@ -67,6 +103,7 @@ function layout(): void {
     scale = next;
     // Draw only the pixels the panel shows (at most twice the comp's own resolution).
     map.setPixelRatio(Math.min(2, scale * (window.devicePixelRatio || 1)));
+    restyleSoon();
   }
 }
 
@@ -78,7 +115,7 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
     ensureMaplibreWorker();
     map = new maplibregl.Map({
       container: boxNode,
-      style: previewStyle({ kind: "world" }, "mercator"),
+      style: previewStyle(shown.source, shown.projection),
       center: [10, 25],
       zoom: 1.2,
       minZoom: -2,
@@ -132,6 +169,8 @@ export function setCompSize(width: number, height: number): void {
 export const compSize = () => comp;
 
 export function setPreviewStyle(source: BasemapSource, projection: MapProjection): void {
+  shown = { source, projection };
+  styledFactor = sizeFactor();
   map?.setStyle(previewStyle(source, projection));
 }
 

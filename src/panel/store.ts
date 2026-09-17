@@ -85,6 +85,8 @@ export const jobs = signal<QueueJob[]>([]);
 export const flightSeconds = signal(6);
 export const labelLanguage = signal("local+en");
 export const liveLink = signal(false);
+/** Preview names and lines at their rendered size instead of enlarged to stay readable. */
+export const exactLook = signal(false);
 export const hostInfo = signal<string>("");
 /** The name of the last search result the user went to, used to name new maps and shots. */
 export const lastPlaceName = signal<string | null>(null);

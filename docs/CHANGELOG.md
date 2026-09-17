@@ -15,8 +15,9 @@
     longer when the shots need it. Still holds get two keys instead of one per frame. Keys changed by
     hand are noticed before they are replaced.
   - The list is saved inside the project, on the map layer.
-- **The preview is the frame.** The preview has the comp's shape and shows exactly what renders: the
-  same framing, detail, label and line sizes, at any comp size.
+- **The preview is the frame.** The preview has the comp's shape and frames exactly what renders, at
+  any comp size. Names and lines are enlarged to stay readable in a small panel; the frame button on
+  the map shows them at the size they render instead.
 - **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
   A country is framed whole; a city at a zoom that suits its size.
 - **Automatic names.** New maps and shots are named after the place they show ("Paris Map").
