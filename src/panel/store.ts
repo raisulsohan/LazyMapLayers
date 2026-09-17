@@ -45,6 +45,7 @@ export type MapEntry = {
   render: Partial<RenderSettings> | null;
   /** The map's look (core/style/themes.ts). */
   theme: string | null;
+  relief: boolean;
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
   expressionEngine: string | null;
@@ -78,6 +79,9 @@ export const regions = signal<RegionInfo[]>([]);
 export const basemap = signal<BasemapSource>({ kind: "world" });
 export const projection = signal<MapProjection>("mercator");
 export const themeId = signal<string>(DEFAULT_THEME_ID);
+/** Shaded relief over the land (needs the relief imagery pack). */
+export const reliefOn = signal(false);
+const look = () => ({ theme: themeId.value, relief: reliefOn.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -161,8 +165,9 @@ function showMap(entry: MapEntry): void {
   basemap.value = source;
   projection.value = entry.projection ?? "mercator";
   themeId.value = themeById(entry.theme).id;
+  reliefOn.value = !!entry.relief;
   setCompSize(entry.width, entry.height);
-  setPreviewStyle(source, projection.value, themeId.value);
+  setPreviewStyle(source, projection.value, look());
   showCompView(entry.view);
 }
 
@@ -244,7 +249,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -405,9 +410,19 @@ export const changeBasemap = (key: string) =>
 export const changeTheme = (next: string) =>
   run("look", async () => {
     themeId.value = themeById(next).id;
-    setPreviewStyle(basemap.value, projection.value, themeId.value);
+    setPreviewStyle(basemap.value, projection.value, look());
     if (selectedId.value) {
       await callHost("setMapSettings", { mapId: selectedId.value, theme: themeId.value });
+      await readMaps();
+    }
+  });
+
+export const changeRelief = (on: boolean) =>
+  run("relief", async () => {
+    reliefOn.value = on;
+    setPreviewStyle(basemap.value, projection.value, look());
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, relief: on });
       await readMaps();
     }
   });
@@ -465,7 +480,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value }, entry.mapCompName);
   tab.value = "render";
 }
 

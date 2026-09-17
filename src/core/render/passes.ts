@@ -17,12 +17,12 @@
 // building covers. Laying a roads pass with a glow over the base pass then never glows through a
 // building.
 
-export type LayerGroup = "background" | "land" | "water" | "boundaries" | "roads" | "buildings" | "labels" | "overlay";
+export type LayerGroup = "background" | "imagery" | "land" | "water" | "boundaries" | "roads" | "buildings" | "labels" | "overlay";
 
 export const PASS_IDS = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte"] as const;
 export type PassId = (typeof PASS_IDS)[number];
 
-export type RenderId = "base" | "land" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings";
+export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings";
 
 export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" }> = {
   base: { label: "Base", kind: "color" },
@@ -36,9 +36,12 @@ export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" 
 };
 
 /** Groups drawn by each render. The base render draws every group except labels unless asked. */
+// Imagery (satellite pictures, shaded relief) covers land and sea alike, so it colours the land and
+// water passes, while "landShapes" (the land polygons alone) says where the land is.
 const RENDER_GROUPS: Record<Exclude<RenderId, "base">, LayerGroup[]> = {
-  land: ["land"],
-  waterFill: ["background", "water"],
+  land: ["land", "imagery"],
+  landShapes: ["land"],
+  waterFill: ["background", "imagery", "water"],
   waterShapes: ["water"],
   boundaries: ["boundaries"],
   roads: ["roads"],
@@ -55,8 +58,11 @@ export function groupVisibleIn(render: RenderId, group: LayerGroup, options: { l
   return RENDER_GROUPS[render].includes(group);
 }
 
-/** Renders needed to compose the given passes. `hasBuildings` adds the holdout render. */
-export function rendersFor(passes: readonly PassId[], hasBuildings: boolean): RenderId[] {
+/**
+ * Renders needed to compose the given passes. `hasBuildings` adds the holdout render, `hasImagery`
+ * the land shapes (without imagery the land render itself has the land's shape).
+ */
+export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, hasImagery = false): RenderId[] {
   const needed = new Set<RenderId>();
   const holdout = hasBuildings;
   for (const pass of passes) {
@@ -86,7 +92,8 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean): Re
         break;
     }
   }
-  const order: RenderId[] = ["base", "land", "waterFill", "waterShapes", "boundaries", "roads", "buildings"];
+  if (hasImagery && (needed.has("land") || needed.has("waterFill"))) needed.add("landShapes");
+  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings"];
   return order.filter((r) => needed.has(r));
 }
 
@@ -136,7 +143,7 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
   let landCoverage: Uint8Array | null = null;
   const landCoverageOf = () => {
     if (!landCoverage) {
-      const land = need("land");
+      const land = renders.landShapes ?? need("land");
       const water = need("waterShapes");
       landCoverage = new Uint8Array(pixelCount);
       for (let p = 0; p < pixelCount; p++) landCoverage[p] = mul(land[p * 4 + 3], 255 - water[p * 4 + 3]);
@@ -152,7 +159,9 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
         break;
       case "land": {
         const water = need("waterShapes");
-        out.land = scaled(need("land"), (p) => mul(255 - water[p * 4 + 3], holdoutAt(p)));
+        const shapes = renders.landShapes;
+        // With imagery in the land render, the land polygons cut it to the land's shape.
+        out.land = shapes ? scaled(need("land"), (p) => mul(mul(shapes[p * 4 + 3], 255 - water[p * 4 + 3]), holdoutAt(p))) : scaled(need("land"), (p) => mul(255 - water[p * 4 + 3], holdoutAt(p)));
         break;
       }
       case "water": {

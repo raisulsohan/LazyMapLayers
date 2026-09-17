@@ -25,7 +25,8 @@ import {
 import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
-import { changeTheme, themeId } from "../store.ts";
+import { hasImagery } from "../imagery/packs.ts";
+import { changeRelief, changeTheme, reliefOn, themeId } from "../store.ts";
 
 export const labelsSheetOpen = signal(false);
 export const lookSheetOpen = signal(false);
@@ -50,17 +51,31 @@ function ThemeSwatch(props: { theme: Theme }): JSX.Element {
 /** The map's look: six themes that colour the world map, regions, the globe's haze and new labels. */
 export function LookSheetView(): JSX.Element | null {
   if (!lookSheetOpen.value) return null;
+  const satellitePack = hasImagery("blue-marble");
+  const reliefPack = hasImagery("relief");
+  const current = THEMES.find((t) => t.id === themeId.value);
   return (
     <div class="sheet" data-id="look-sheet">
       <div class="sheet-title">Look</div>
       <div class="theme-grid">
         {THEMES.map((t) => (
-          <button key={t.id} class={`theme-card ${themeId.value === t.id ? "on" : ""}`} data-id={`theme-${t.id}`} disabled={busy.value} title={t.hint} onClick={() => void changeTheme(t.id)}>
+          <button
+            key={t.id}
+            class={`theme-card ${themeId.value === t.id ? "on" : ""}`}
+            data-id={`theme-${t.id}`}
+            disabled={busy.value || (!!t.satellite && !satellitePack)}
+            title={t.satellite && !satellitePack ? "Needs the satellite imagery pack, which is not installed yet" : t.hint}
+            onClick={() => void changeTheme(t.id)}
+          >
             <ThemeSwatch theme={t} />
             <span>{t.label}</span>
           </button>
         ))}
       </div>
+      <label class="check" title={reliefPack ? "Mountains and valleys as soft shadows over the land (Natural Earth shaded relief)" : "Needs the shaded relief pack, which is not installed yet"}>
+        <input type="checkbox" checked={reliefOn.value && !current?.satellite} disabled={busy.value || !reliefPack || !!current?.satellite} onChange={(e) => void changeRelief((e.target as HTMLInputElement).checked)} />
+        Shaded relief {current?.satellite ? "(the satellite picture has its own)" : ""}
+      </label>
       <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels made from now on match it.</div>
     </div>
   );

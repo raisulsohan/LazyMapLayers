@@ -122,11 +122,14 @@ docs/          plan, decisions, spike results, changelog, release steps
 - **[OpenStreetMap](https://www.openstreetmap.org/copyright)** data (ODbL), through the
   [Protomaps](https://protomaps.com) basemap builds. Maps that show OSM data must credit
   "© OpenStreetMap contributors".
+- **[NASA Blue Marble Next Generation](https://visibleearth.nasa.gov/collection/1484/blue-marble)**
+  (public domain; NASA Earth Observatory) for the optional satellite imagery pack, and Natural Earth's
+  shaded relief for the optional relief pack.
 - **[MapLibre GL JS](https://maplibre.org)** (BSD-3-Clause), **[PMTiles](https://github.com/protomaps/PMTiles)**
   (BSD-3-Clause), and the other open-source packages listed in `package.json`.
 
-LazyMapLayers is an independent project. It is not affiliated with or endorsed by Adobe, Protomaps or
-OpenStreetMap.
+LazyMapLayers is an independent project. It is not affiliated with or endorsed by Adobe, Protomaps,
+OpenStreetMap or NASA.
 
 ## License
 

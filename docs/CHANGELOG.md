@@ -23,6 +23,12 @@
   Mono (neutral greys for grading) and Paper. One palette colours the world map, downloaded city
   regions, the globe's haze, animated borders and the labels made by Auto labels (dark text on light
   maps).
+- **Satellite and relief.** Two optional imagery packs in the data folder, both from public-domain
+  sources: **Satellite** (NASA Blue Marble, a seventh look; best for continents and countries, zoom 0
+  to 5) and **Shaded relief** (Natural Earth; a checkbox in the Look sheet that lays mountains and
+  valleys over the land of any other look). With imagery, the Land and Water passes carry the picture
+  and the mattes still follow the land's outline exactly. The packs are built on the development
+  machine for now; downloading them from inside the panel comes next.
 - **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
   A country is framed whole; a city at a zoom that suits its size.
 - **Automatic names.** New maps and shots are named after the place they show ("Paris Map").

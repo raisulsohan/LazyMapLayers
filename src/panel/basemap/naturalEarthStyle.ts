@@ -10,10 +10,23 @@ const group = (name: LayerGroup) => ({ "lml:group": name });
 
 export const NATURAL_EARTH_SOURCE = "natural-earth";
 
-export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolean; theme?: Theme } = {}): StyleSpecification {
+export type WorldImagery = {
+  /** pmtiles:// URL of the satellite pack, used by satellite themes. */
+  satelliteUrl?: string;
+  /** pmtiles:// URL of the shaded relief overlay, drawn over the land of the other themes. */
+  reliefUrl?: string;
+};
+
+export const SATELLITE_SOURCE = "lml-satellite";
+export const RELIEF_SOURCE = "lml-relief";
+
+export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery } = {}): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
   const source = NATURAL_EARTH_SOURCE;
+  const satelliteUrl = t.satellite ? options.imagery?.satelliteUrl : undefined;
+  const reliefUrl = t.satellite ? undefined : options.imagery?.reliefUrl;
+  const sources: StyleSpecification["sources"] = { [source]: { type: "vector", url: pmtilesUrl, attribution: "Made with Natural Earth" } };
 
   const layers: LayerSpecification[] = [
     { id: "ocean", type: "background", metadata: group("background"), paint: { "background-color": t.ocean } },
@@ -38,6 +51,31 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
     } as LayerSpecification);
   }
 
+  if (satelliteUrl) {
+    // The picture covers land and sea; the land fill stays underneath, so mattes know where land is.
+    sources[SATELLITE_SOURCE] = { type: "raster", url: satelliteUrl, tileSize: 512, attribution: "NASA Earth Observatory (Blue Marble)" };
+    layers.push({
+      id: "satellite",
+      type: "raster",
+      metadata: group("imagery"),
+      source: SATELLITE_SOURCE,
+      // No cross-fade between tile levels: frames must not depend on what was drawn before.
+      paint: { "raster-opacity": 1, "raster-fade-duration": 0, "raster-resampling": "linear" }
+    });
+  }
+
+  if (reliefUrl) {
+    // Shadows and highlights with alpha, over the land's flat colour.
+    sources[RELIEF_SOURCE] = { type: "raster", url: reliefUrl, tileSize: 512, attribution: "Made with Natural Earth" };
+    layers.push({
+      id: "relief",
+      type: "raster",
+      metadata: group("imagery"),
+      source: RELIEF_SOURCE,
+      paint: { "raster-opacity": t.dark ? 0.6 : 0.42, "raster-brightness-max": t.dark ? 0.45 : 1, "raster-fade-duration": 0, "raster-resampling": "linear" }
+    });
+  }
+
   if (t.coastGlow) {
     // A soft band along the coast gives the land depth. It belongs to the boundaries pass with the
     // coastline itself, so the land and water mattes stay exact.
@@ -57,7 +95,8 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
     });
   }
 
-  layers.push(
+  // The satellite picture shows its own lakes and rivers.
+  if (!satelliteUrl) layers.push(
     { id: "lakes", type: "fill", metadata: group("water"), source, "source-layer": "lakes", paint: { "fill-color": t.ocean } },
     {
       id: "rivers",
@@ -68,7 +107,10 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       minzoom: 3,
       layout: { "line-join": "round", "line-cap": "round" },
       paint: { "line-color": t.river, "line-width": ["interpolate", ["exponential", 1.6], ["zoom"], 3, 0.5, 8, 2] }
-    },
+    }
+  );
+
+  layers.push(
     {
       id: "admin1",
       type: "line",
@@ -76,7 +118,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       source,
       "source-layer": "admin1_lines",
       minzoom: 4,
-      paint: { "line-color": t.admin1, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 9, 1.4], "line-dasharray": [2, 2] }
+      paint: { "line-color": t.admin1, "line-opacity": satelliteUrl ? 0.55 : 1, "line-width": ["interpolate", ["linear"], ["zoom"], 4, 0.5, 9, 1.4], "line-dasharray": [2, 2] }
     },
     {
       id: "coastline",
@@ -85,7 +127,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       source,
       "source-layer": "coastline",
       layout: { "line-join": "round" },
-      paint: { "line-color": t.coast, "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 0, 0.6, 8, 2.2] }
+      paint: { "line-color": t.coast, "line-opacity": satelliteUrl ? 0.35 : 1, "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 0, 0.6, 8, 2.2] }
     },
     {
       id: "boundaries",
@@ -95,7 +137,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       source,
       "source-layer": "boundaries",
       layout: { "line-join": "round" },
-      paint: { "line-color": t.border, "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 1, 0.6, 8, 2.4] }
+      paint: { "line-color": t.border, "line-opacity": satelliteUrl ? 0.8 : 1, "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 1, 0.6, 8, 2.4] }
     }
   );
 
@@ -141,7 +183,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
     version: 8,
     name: `LazyMapLayers ${t.label}`,
     projection: { type: "mercator" },
-    sources: { [source]: { type: "vector", url: pmtilesUrl, attribution: "Made with Natural Earth" } },
+    sources,
     // Lit from the upper left; regions replace this with their own light.
     light: { anchor: "viewport", color: "#ffffff", intensity: 0.35, position: [1.2, 210, 30] },
     metadata: { "lml:theme": t.id },

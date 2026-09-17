@@ -35,6 +35,8 @@ export type Theme = {
   textCountry: string;
   halo: string;
   sky: { sky: string; horizon: string; fog: string };
+  /** The land and sea come from satellite imagery (an optional pack) instead of flat colours. */
+  satellite?: boolean;
 };
 
 const theme = (t: Theme): Theme => t;
@@ -67,6 +69,35 @@ export const THEMES: Theme[] = [
     textCountry: "#c9d6e2",
     halo: "#07111f",
     sky: { sky: "#16324f", horizon: "#4f8fc4", fog: "#07111f" }
+  }),
+  theme({
+    id: "satellite",
+    label: "Satellite",
+    hint: "NASA Blue Marble imagery: best for shots of continents and countries (it softens closer than a large city region)",
+    dark: true,
+    satellite: true,
+    ocean: "#0a1c30",
+    land: "#2b3527",
+    landcover: "#2e3c2b",
+    park: "#31492f",
+    urban: "#3b3b37",
+    river: "#0f2a45",
+    coast: "#b9d6ea",
+    coastGlow: "",
+    border: "#ffffff",
+    admin1: "#d5dde4",
+    countryFills: null,
+    roadMinor: "#4b4b45",
+    roadMajor: "#8c8b7b",
+    highway: "#ffd27a",
+    rail: "#5b5b56",
+    buildingLow: "#4a4a46",
+    buildingMid: "#6b6b63",
+    buildingHigh: "#cfcfc2",
+    text: "#ffffff",
+    textCountry: "#f3f3f3",
+    halo: "#0a0f14",
+    sky: { sky: "#0d2440", horizon: "#5f9bd1", fog: "#0a1c30" }
   }),
   theme({
     id: "daylight",
@@ -209,6 +240,9 @@ export const THEMES: Theme[] = [
     sky: { sky: "#cdbf9f", horizon: "#efe5cb", fog: "#f0e6cc" }
   })
 ];
+
+/** Looks that need the satellite imagery pack; without it they fall back to their flat colours. */
+export const SATELLITE_THEME_ID = "satellite";
 
 export const DEFAULT_THEME_ID = "midnight";
 
