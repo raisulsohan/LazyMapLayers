@@ -190,3 +190,21 @@ test("regions fade in once the frame is about as large as the region", async () 
   const uhd = regionFadeZooms({ west: 2.2, south: 48.8, east: 2.48, north: 48.92 }, { width: 3840, height: 2160 });
   assert.ok(Math.abs(uhd.to - paris.to - 1) < 1e-9, "a 4K frame covers the same area one zoom level later");
 });
+
+test("a wide region hands its detail lines over to the city region inside it", async () => {
+  const { regionTiers } = await import("../../src/core/tiles/regionFade.ts");
+  const hd = { width: 1920, height: 1080 };
+  const tiers = regionTiers(
+    [
+      { name: "tokyo-wide", bounds: { west: 139, south: 35.1, east: 140.5, north: 36.2 }, maxZoom: 12 },
+      { name: "tokyo", bounds: { west: 139.66, south: 35.61, east: 139.84, north: 35.73 }, maxZoom: 15 },
+      { name: "paris", bounds: { west: 2.2, south: 48.8, east: 2.48, north: 48.92 }, maxZoom: 15 }
+    ],
+    hd
+  );
+  assert.ok(Math.abs(tiers["tokyo-wide"].fadeIn.to - 9.81) < 0.01, `tokyo-wide fades in until ${tiers["tokyo-wide"].fadeIn.to}`);
+  assert.ok(tiers.tokyo.fadeIn.to > 12.5, `tokyo fades in until ${tiers.tokyo.fadeIn.to}`);
+  assert.deepEqual(tiers["tokyo-wide"].fadeOut, tiers.tokyo.fadeIn);
+  assert.equal(tiers.tokyo.fadeOut, null);
+  assert.equal(tiers.paris.fadeOut, null, "Paris is not inside the Tokyo region");
+});

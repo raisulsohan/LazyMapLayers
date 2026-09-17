@@ -159,4 +159,11 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   zoom 12. OSM outlines tagged building=no are not drawn, so buildings made of parts (such as the
   Eiffel Tower) show their real shape.
 - **Consequences.** Small regions leave a stretch of world-map-only zooms during a descent. Wider,
-  lower-detail regions around a city fill that stretch (to be supported as tiers).
+  lower-detail regions around a city fill that stretch.
+- **Tiers (added the same day).** When a detailed region lies inside a wider one with fewer zoom
+  levels (for example Tokyo to zoom 15 inside Kanto to zoom 12), the wider region's roads, borders,
+  buildings and labels fade out while the detailed one fades in; its land stays to fill the far
+  field (`regionTiers` in `src/core/tiles/regionFade.ts`).
+- **Water (revised).** Wedges also appear in zoom-12 water polygons, so region water polygons wait
+  for zoom 13 and regions without zoom-13 tiles never draw them. Rivers and canals are drawn as lines
+  from the line features in the same tiles, at every zoom.

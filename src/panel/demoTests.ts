@@ -10,7 +10,7 @@ import { runRenderJob } from "./render/renderJob.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
 
 export async function runDemoTest(log: SpikeLog, options: { width: number; height: number } = { width: 1920, height: 1080 }): Promise<Record<string, unknown>> {
-  const regions = ["paris", "tokyo"].filter((name) => fs().existsSync(regionArchivePath(name)));
+  const regions = ["paris-wide", "paris", "tokyo-wide", "tokyo"].filter((name) => fs().existsSync(regionArchivePath(name)));
   const hasTokyo = regions.includes("tokyo");
   const started = performance.now();
   const steps: string[] = [];
