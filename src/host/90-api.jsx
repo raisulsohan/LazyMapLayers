@@ -172,6 +172,14 @@ LML.api.setMapSettings = function (args) {
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
     if (args.highlights !== undefined) tag.highlights = args.highlights;
+    // Polygons of custom areas are large: they sit on their own comment line, like the shot list.
+    if (args.areas !== undefined) {
+      var hasAreas = false;
+      for (var areaId in args.areas) {
+        if (args.areas.hasOwnProperty(areaId)) hasAreas = true;
+      }
+      LML.tag.writeExtra(layer, "AREAS", hasAreas ? args.areas : null);
+    }
     if (args.projection !== undefined) {
         var globe = LML.map.controlValueProperty(layer, LML.map.GLOBE_CONTROL);
         if (!globe) {
@@ -184,6 +192,11 @@ LML.api.setMapSettings = function (args) {
     }
     LML.tag.write(layer, tag);
     return tag;
+};
+
+/** The polygons of a map's custom highlight areas ({ id: MultiPolygon coordinates }). */
+LML.api.getAreas = function (args) {
+    return LML.tag.readExtra(LML.pins.findMapLayer(args.mapId), "AREAS") || {};
 };
 
 /** Opens the map's scene comp in the viewer. */

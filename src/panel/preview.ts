@@ -11,7 +11,7 @@ import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
-import type { Highlight } from "../core/style/highlights.ts";
+import type { Areas, Highlight } from "../core/style/highlights.ts";
 import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
 import { COUNTRY_HIT_LAYER } from "./basemap/naturalEarthStyle.ts";
 import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
@@ -41,7 +41,7 @@ const BY_USER = { lmlByUser: true };
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
 /** What the preview shows now, so the style can be rebuilt when the panel is resized. */
-export type Look = { theme: string | null; relief: boolean; highlights?: Highlight[] };
+export type Look = { theme: string | null; relief: boolean; highlights?: Highlight[]; areas?: Areas };
 let shown: { source: BasemapSource; projection: MapProjection; look: Look } = { source: { kind: "world" }, projection: "mercator", look: { theme: null, relief: false } };
 /** False shows sizes exactly as they render (tiny in a small panel). */
 let readable = true;
@@ -55,7 +55,7 @@ function sizeFactor(): number {
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
   if (!isInCep()) return BLANK_STYLE;
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
 }
 
 let styledFactor = 1;

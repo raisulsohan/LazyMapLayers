@@ -1,8 +1,19 @@
 // Highlighted countries of a map. They are drawn as their own render pass (fill, outline and a soft
 // glow with alpha), so in After Effects the highlight is a layer of its own above the clean basemap.
 
+/** Polygons of a custom area, as GeoJSON MultiPolygon coordinates: [polygon][ring][point][lng, lat]. */
+export type AreaGeometry = number[][][][];
+
+/** Geometry of the custom areas a map highlights, by area id (the part after "area:" in a highlight's code). */
+export type Areas = Record<string, AreaGeometry>;
+
+export const AREA_PREFIX = "area:";
+
 export type Highlight = {
-  /** Natural Earth's three-letter code of the country (adm0_a3), which the world tiles carry. */
+  /**
+   * What is highlighted: Natural Earth's three-letter code of a country (adm0_a3, which the world
+   * tiles carry), or "area:<id>" for a custom area whose polygons live in the map's areas.
+   */
   code: string;
   name: string;
   color: string;
@@ -25,7 +36,7 @@ export function normaliseHighlights(raw: unknown): Highlight[] {
   const seen = new Set<string>();
   for (const entry of raw) {
     const h = (entry ?? {}) as Partial<Highlight>;
-    if (typeof h.code !== "string" || !/^[A-Z0-9_-]{2,8}$/i.test(h.code) || seen.has(h.code)) continue;
+    if (typeof h.code !== "string" || !/^(area:[a-z0-9]{4,24}|[A-Z0-9_-]{2,8})$/i.test(h.code) || seen.has(h.code)) continue;
     seen.add(h.code);
     out.push({
       code: h.code,
@@ -36,6 +47,36 @@ export function normaliseHighlights(raw: unknown): Highlight[] {
     });
   }
   return out.slice(0, 60);
+}
+
+export const isAreaCode = (code: string) => code.startsWith(AREA_PREFIX);
+export const areaIdOf = (code: string) => code.slice(AREA_PREFIX.length);
+
+/** Points an area may keep (all rings together), and areas a map may hold: the project stores them. */
+export const AREA_MAX_POINTS = 600;
+export const MAX_AREAS = 40;
+
+/** Stored areas, repaired: only the geometry of areas that are still highlighted is kept. */
+export function normaliseAreas(raw: unknown, highlights: Highlight[]): Areas {
+  const out: Areas = {};
+  if (!raw || typeof raw !== "object") return out;
+  const wanted = new Set(highlights.filter((h) => isAreaCode(h.code)).map((h) => areaIdOf(h.code)));
+  for (const [id, value] of Object.entries(raw as Record<string, unknown>)) {
+    if (!wanted.has(id) || !Array.isArray(value) || Object.keys(out).length >= MAX_AREAS) continue;
+    const polygons: AreaGeometry = [];
+    for (const polygon of value) {
+      if (!Array.isArray(polygon)) continue;
+      const rings: number[][][] = [];
+      for (const ring of polygon) {
+        if (!Array.isArray(ring)) continue;
+        const points = ring.filter((p) => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[1]) <= 90).map((p) => [p[0], p[1]]);
+        if (points.length >= 4) rings.push(points);
+      }
+      if (rings.length) polygons.push(rings);
+    }
+    if (polygons.length) out[id] = polygons;
+  }
+  return out;
 }
 
 /** Adds the country, or removes it when it is highlighted already. New ones take the next colour. */

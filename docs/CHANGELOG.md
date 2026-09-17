@@ -34,6 +34,10 @@
   Highlights render as their own **Highlight** layer above a basemap that stays clean, switched on, so
   in After Effects they can be faded, coloured or given a glow. Changing a highlight redraws only that
   layer, and removing the last highlight removes the layer.
+- **Highlight any area.** Polygons in an imported KML or GeoJSON file (provinces, districts, a park,
+  a shape of your own) are listed as areas: **Highlight** puts one on the same Highlight layer as the
+  countries, holes included. The outline is thinned to 600 points and saved inside the project, so the
+  file is not needed again.
 - **Auto labels without waiting.** Names arrive in After Effects eight at a time with a progress count
   and a **Cancel** button, so it never blocks for more than about a second (the world flight's 140
   names: 14 seconds in all instead of 49 in one frozen call). **How many** picks Few, Normal or Many

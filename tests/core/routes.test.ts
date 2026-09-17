@@ -4,7 +4,7 @@ import { travellerExpressions } from "../../src/core/ae/labelExpressions.ts";
 import { float32 } from "../../src/core/ae/pinExpressions.ts";
 import { project, type View, type Viewport } from "../../src/core/camera/camera.ts";
 import { importGeoJson } from "../../src/core/data/importLines.ts";
-import { lineLengthKm, simplifyLine } from "../../src/core/geo/simplify.ts";
+import { lineLengthKm, simplifyLine, simplifyPolygons } from "../../src/core/geo/simplify.ts";
 
 const hd: Viewport = { width: 1920, height: 1080 };
 
@@ -100,5 +100,24 @@ test("GeoJSON becomes lines and places, with names, times and sensible order", (
   assert.deepEqual(result.lines[3].times, [0, 600, 1800]);
   assert.equal(result.skipped, 2);
   assert.deepEqual(importGeoJson({ type: "LineString", coordinates: [[1, 2], [3, 4]] }, "bare.json").lines[0].name, "bare");
-  assert.deepEqual(importGeoJson("nonsense"), { lines: [], places: [], skipped: 0 });
+  assert.deepEqual(importGeoJson("nonsense"), { lines: [], places: [], areas: [], skipped: 0 });
+  // Polygons are also kept whole, as areas that can be highlighted.
+  assert.equal(result.areas.length, 1);
+  assert.equal(result.areas[0].name, "Square");
+  assert.deepEqual([result.areas[0].polygons.length, result.areas[0].polygons[0].length, result.areas[0].points], [1, 2, 9]);
+  assert.deepEqual(result.areas[0].bbox, [0, 0, 1, 1]);
+});
+
+test("areas are thinned within a point budget, keep their outer rings and stay closed", () => {
+  const circle = (cx: number, cy: number, r: number, n: number) => Array.from({ length: n + 1 }, (_, i) => [cx + r * Math.cos((2 * Math.PI * (i % n)) / n), cy + r * Math.sin((2 * Math.PI * (i % n)) / n)]);
+  const polygons = [[circle(90, 23, 2, 4000), circle(90, 23, 0.5, 1000)], [circle(95, 20, 0.01, 12)], [circle(80, 25, 1, 2000)]];
+  const light = simplifyPolygons(polygons, 600);
+  const count = light.reduce((n, polygon) => n + polygon.reduce((m, ring) => m + ring.length, 0), 0);
+  assert.ok(count <= 640 && count > 200, `points: ${count}`);
+  assert.equal(light.length, 2, "the speck of an island is dropped");
+  assert.equal(light[0].length, 2, "the large hole stays");
+  for (const polygon of light) for (const ring of polygon) assert.deepEqual(ring[0], ring[ring.length - 1], "rings stay closed");
+  assert.deepEqual(simplifyPolygons([], 100), []);
+  // A single small polygon always survives.
+  assert.equal(simplifyPolygons([[circle(1, 1, 0.001, 8)]], 600).length, 1);
 });
