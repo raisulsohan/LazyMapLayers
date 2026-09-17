@@ -17,6 +17,14 @@
 - **PNG decoder** for all filter types.
 - **End-to-end test E1.** AE's own rendered frames show every pin centred on the renderer's marker
   (20/20).
+- **Usable panel UI.**
+  - Map picker and **New map**.
+  - Basemap picker (world or downloaded regions), stored per map.
+  - Region download with a size check before downloading.
+  - Alt+click to drop pins.
+  - **Keyframe view** and **Match AE**.
+  - **Render preview** (half resolution) and **Render**, with progress.
+- **UI test U1** drives the real panel through DevTools and saves screenshots.
 - **Fixed.** Views are read at the scene comp's time.
 
 ## Phase 0 (foundation and spikes)

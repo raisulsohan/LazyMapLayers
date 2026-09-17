@@ -37,17 +37,37 @@ LML.api.importBasemap = function (args) {
     });
 };
 
+/** Stores per-map settings (such as the basemap source) in the map layer's tag. */
+LML.api.setMapSettings = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    var tag = LML.tag.read(layer);
+    if (args.basemap !== undefined) tag.basemap = args.basemap;
+    LML.tag.write(layer, tag);
+    return tag;
+};
+
+/** Opens the map's scene comp in the viewer. */
+LML.api.revealMap = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    layer.containingComp.openInViewer();
+    return true;
+};
+
 LML.api.listMaps = function () {
     var layers = LML.map.findMapLayers();
     var out = [];
     for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
         var comp = layer.containingComp;
+        var tag = LML.tag.read(layer);
         out.push({
-            mapId: LML.tag.read(layer).mapId,
+            mapId: tag.mapId,
+            mapCompName: layer.source ? layer.source.name : layer.name,
             sceneCompId: comp.id,
             sceneCompName: comp.name,
             layerIndex: layer.index,
+            basemap: tag.basemap || null,
+            isActiveScene: app.project.activeItem === comp,
             view: LML.map.readViewAtTime(layer, comp.time)
         });
     }

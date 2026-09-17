@@ -15,6 +15,7 @@ import zlib from "node:zlib";
 import { execFileSync, spawn } from "node:child_process";
 import { fileURLToPath } from "node:url";
 import { encodePng } from "../src/core/image/png.ts";
+import { connectPanel } from "./cep-devtools.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const aeExe = process.env.LML_AFTERFX ?? "C:\\Program Files\\Adobe\\Adobe After Effects 2026\\Support Files\\AfterFX.com";
@@ -97,6 +98,50 @@ function decodePng(file) {
 
 const sleep = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
 
+/** U1: drives the real panel UI through DevTools and saves screenshots to .cache/ui. */
+async function runUiScenario() {
+  const out = path.join(root, ".cache", "ui");
+  fs.rmSync(out, { recursive: true, force: true });
+  fs.mkdirSync(out, { recursive: true });
+  const panel = await connectPanel();
+  const shot = async (name) => fs.writeFileSync(path.join(out, `${name}.png`), await panel.screenshot());
+  const click = (text) =>
+    panel.evaluate(`(() => { const b = [...document.querySelectorAll("button")].find((x) => x.textContent.trim() === ${JSON.stringify(text)}); if (!b) throw new Error("no button " + ${JSON.stringify(text)}); b.click(); return true; })()`);
+  const idle = async (timeoutMs = 180000) => {
+    const started = Date.now();
+    await sleep(500);
+    while (Date.now() - started < timeoutMs) {
+      const free = await panel.evaluate(`!![...document.querySelectorAll("button")].find((b) => b.textContent.trim() === "New map" && !b.disabled)`);
+      if (free) return;
+      await sleep(500);
+    }
+    throw new Error("panel stayed busy");
+  };
+  const logText = () => panel.evaluate(`document.querySelector(".log").innerText`);
+  await sleep(5000);
+  await shot("01-start");
+  await panel.evaluate(`(() => { const s = [...document.querySelectorAll("select")][1]; s.value = "region:paris"; s.dispatchEvent(new Event("change", { bubbles: true })); return s.value; })()`);
+  await idle();
+  await panel.evaluate(`(window.lmlDebug.map().jumpTo({ center: [2.3222, 48.8626], zoom: 13.2, pitch: 45, bearing: 20 }), true)`);
+  await sleep(2500);
+  await shot("02-paris-preview");
+  await click("New map");
+  await idle();
+  for (const [lat, lng] of [[48.85837, 2.294481], [48.873792, 2.295028], [48.860611, 2.337644]]) {
+    await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}).then(() => true)`);
+    await idle();
+  }
+  await click("Render preview");
+  await idle();
+  await sleep(1500);
+  await shot("03-after-render");
+  const frame = path.join(out, "04-ae-frame.png").split(String.fromCharCode(92)).join("/");
+  await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(`(function(){ var c = app.project.activeItem; c.time = 0; c.saveFrameToPng(0, new File("${frame}")); return c.name; })()`)}, resolve))`);
+  for (let i = 0; i < 60 && !fs.existsSync(frame); i++) await sleep(250);
+  console.log(["UI log:", await logText()].join(String.fromCharCode(10)));
+  panel.close();
+}
+
 async function main() {
   if (!fs.existsSync(aeExe)) throw new Error(`After Effects not found at ${aeExe} (set LML_AFTERFX)`);
   if (aeRunning()) throw new Error("After Effects is already running. Close it first; the spikes need their own instance.");
@@ -116,7 +161,9 @@ async function main() {
   const heartbeatFile = path.join(spikeDir, "..", "panel-alive.json");
   fs.rmSync(heartbeatFile, { force: true });
   fs.writeFileSync(path.join(spikeDir, "allow-quit.flag"), "created by tools/ae-spikes.mjs", "utf8");
-  fs.writeFileSync(path.join(spikeDir, "run-request.json"), JSON.stringify({ quit: true, only, hostScript }), "utf8");
+  const uiMode = process.argv.includes("--ui");
+  if (!uiMode) fs.writeFileSync(path.join(spikeDir, "run-request.json"), JSON.stringify({ quit: true, only, hostScript }), "utf8");
+  else fs.rmSync(path.join(spikeDir, "run-request.json"), { force: true });
 
   // Start After Effects normally (no -r: a script given at launch can end the session with it).
   const guiExe = path.join(path.dirname(aeExe), "AfterFX.exe");
@@ -126,6 +173,7 @@ async function main() {
   const started = Date.now();
   const elapsed = () => `${Math.round((Date.now() - started) / 1000)} s`;
   let openRequested = false;
+  let uiStarted = false;
   let lastStatus = "";
   while (Date.now() - started < timeoutMs) {
     await sleep(3000);
@@ -134,6 +182,16 @@ async function main() {
       console.log(`${elapsed()}: panel not open yet, asking After Effects to open it`);
       spawn(aeExe, ["-r", path.join(root, "tools", "ae", "open-panel.jsx")], { detached: true, stdio: "ignore" }).unref();
       openRequested = true;
+    }
+    if (uiMode && alive && !uiStarted) {
+      uiStarted = true;
+      try {
+        await runUiScenario();
+      } catch (error) {
+        console.log(`UI scenario failed: ${error.message}`);
+      }
+      // Ask the panel to quit After Effects (no tests to run).
+      fs.writeFileSync(path.join(spikeDir, "run-request.json"), JSON.stringify({ quit: true, only: [] }), "utf8");
     }
     const hostDone = fs.existsSync(path.join(spikeDir, "host-done.flag"));
     const panelDone = fs.existsSync(path.join(spikeDir, "results.json"));

@@ -1,165 +1,396 @@
-// Panel entry point (Phase 0): offline preview map, map comp creation, and the spike runner.
+// LazyMapLayers panel: pick a map, frame it in the preview, keyframe views, drop pins, render the
+// basemap into After Effects, and download OpenStreetMap regions.
 
 import "./polyfills.ts";
 import { render } from "preact";
 import { useEffect, useRef, useState } from "preact/hooks";
 import * as maplibregl from "maplibre-gl";
+import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
-import { callHost, evalScript, fs, isInCep, path } from "./cep.ts";
-
-let spikeRunActive = false;
-import { ensureMaplibreWorker, naturalEarthArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
+import type { Bbox } from "../core/tiles/tileMath.ts";
+import type { ExtractPlan } from "../core/pmtiles/extract.ts";
+import { callHost, fs, isInCep, path } from "./cep.ts";
+import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
 import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
-import { runSpikes, spikeDir, type SpikeLog } from "./spikes.ts";
+import { protomapsStyle } from "./basemap/protomapsStyle.ts";
+import { addPin, createMapComp, setView } from "./mapApi.ts";
+import { renderMap, type BasemapSource } from "./render/renderMap.ts";
+import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
+import { startDevAutomation } from "./devAutomation.ts";
+import { spikeDir, type SpikeLog } from "./spikes.ts";
 
-type LogLine = { text: string; kind?: "ok" | "fail" | "muted" };
+type LogKind = "ok" | "fail" | "muted";
+type LogLine = { text: string; kind?: LogKind };
+type MapEntry = {
+  mapId: string;
+  mapCompName: string;
+  sceneCompName: string;
+  basemap: BasemapSource | null;
+  isActiveScene: boolean;
+  view: View;
+};
+type Progress = { label: string; done: number; total: number } | null;
+type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
+
+const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
 
 function viewOf(map: maplibregl.Map): View {
   const c = map.getCenter();
   return { center: { lng: c.lng, lat: c.lat }, zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
 }
 
+function previewStyle(source: BasemapSource): StyleSpecification {
+  if (source.kind === "region" && fs().existsSync(regionArchivePath(source.name))) {
+    return protomapsStyle(registerLocalArchive(source.name, regionArchivePath(source.name)), { labels: true });
+  }
+  return naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: true });
+}
+
+const sourceKey = (s: BasemapSource) => (s.kind === "region" ? `region:${s.name}` : "world");
+const sourceFromKey = (key: string): BasemapSource => (key.startsWith("region:") ? { kind: "region", name: key.slice(7) } : { kind: "world" });
+
 function App() {
   const mapNode = useRef<HTMLDivElement>(null);
   const mapRef = useRef<maplibregl.Map | null>(null);
   const [lines, setLines] = useState<LogLine[]>([]);
-  const [view, setView] = useState<View | null>(null);
+  const [view, setViewState] = useState<View | null>(null);
   const [busy, setBusy] = useState(false);
+  const [maps, setMaps] = useState<MapEntry[]>([]);
+  const [selectedId, setSelectedId] = useState<string>("");
+  const [regions, setRegions] = useState<RegionInfo[]>([]);
+  const [basemap, setBasemap] = useState<BasemapSource>({ kind: "world" });
+  const [progress, setProgress] = useState<Progress>(null);
+  const [regionSheet, setRegionSheet] = useState<RegionSheet | null>(null);
+  const pinCounter = useRef(1);
+  const selectedRef = useRef<string>("");
+  selectedRef.current = selectedId;
 
-  const log: SpikeLog = (text, kind) => setLines((previous) => [...previous.slice(-300), { text, kind }]);
+  const log: SpikeLog = (text, kind) => setLines((previous) => [...previous.slice(-200), { text, kind }]);
+  const fail = (what: string, error: unknown) => log(`${what}: ${error instanceof Error ? error.message : String(error)}`, "fail");
+
+  function showMap(entry: MapEntry) {
+    const source = entry.basemap ?? { kind: "world" };
+    setBasemap(source);
+    const map = mapRef.current;
+    if (!map) return;
+    map.setStyle(previewStyle(source));
+    const v = entry.view;
+    map.jumpTo({ center: [v.center.lng, v.center.lat], zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
+  }
+
+  async function refreshMaps(preferActive = false) {
+    if (!isInCep()) return;
+    try {
+      const list = await callHost<MapEntry[]>("listMaps");
+      setMaps(list);
+      const current = list.find((m) => m.mapId === selectedRef.current);
+      const active = list.find((m) => m.isActiveScene);
+      const next = (preferActive && active) || current || active || list[0];
+      if (next && next.mapId !== selectedRef.current) {
+        selectedRef.current = next.mapId;
+        setSelectedId(next.mapId);
+        showMap(next);
+      }
+    } catch (error) {
+      fail("reading maps", error);
+    }
+  }
+
+  async function refreshRegions() {
+    if (!isInCep()) return;
+    try {
+      setRegions(await listRegions());
+    } catch (error) {
+      fail("reading regions", error);
+    }
+  }
 
   useEffect(() => {
     if (!mapNode.current) return;
     try {
       ensureMaplibreWorker();
-      const url = registerLocalArchive("natural-earth", naturalEarthArchivePath());
       const map = new maplibregl.Map({
         container: mapNode.current,
-        style: naturalEarthStyle(url),
+        style: previewStyle({ kind: "world" }),
         center: [10, 25],
         zoom: 1.4,
         maxPitch: 85,
         attributionControl: { compact: true }
       });
-      map.on("move", () => setView(viewOf(map)));
-      map.on("load", () => setView(viewOf(map)));
+      map.on("move", () => setViewState(viewOf(map)));
+      map.on("load", () => setViewState(viewOf(map)));
       map.on("error", (e) => log(`map error: ${e.error?.message ?? e}`, "fail"));
+      map.on("click", (e) => {
+        if (e.originalEvent.altKey) void addPinAt({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+      });
       mapRef.current = map;
     } catch (error) {
-      log(`preview failed: ${error instanceof Error ? error.message : String(error)}`, "fail");
+      fail("preview", error);
     }
+    if (!isInCep()) return () => mapRef.current?.remove();
 
-    if (isInCep()) {
-      callHost<{ appVersion: string; lml: string }>("ping")
-        .then((info) => log(`After Effects ${info.appVersion} · host ${info.lml}`, "ok"))
-        .catch((error) => log(`host not ready: ${error.message}`, "fail"));
-      // Developer automation (tools/ae-spikes.mjs): heartbeat file plus polling for spike requests.
-      const heartbeat = setInterval(() => {
-        try {
-          fs().mkdirSync(spikeDir(), { recursive: true });
-          fs().writeFileSync(path().join(spikeDir(), "..", "panel-alive.json"), JSON.stringify({ time: Date.now() }), "utf8");
-        } catch {
-          // ignore
-        }
-        void maybeRunRequestedSpikes();
-      }, 2000);
-      return () => {
-        clearInterval(heartbeat);
-        mapRef.current?.remove();
-      };
-    }
-    return () => mapRef.current?.remove();
+    callHost<{ appVersion: string; lml: string }>("ping")
+      .then((info) => log(`After Effects ${info.appVersion} · LazyMapLayers ${info.lml}`, "muted"))
+      .catch((error) => fail("host not ready", error));
+    void refreshMaps(true);
+    void refreshRegions();
+    const onFocus = () => void refreshMaps();
+    window.addEventListener("focus", onFocus);
+    const stopAutomation = startDevAutomation(log, setBusy);
+    return () => {
+      stopAutomation();
+      window.removeEventListener("focus", onFocus);
+      mapRef.current?.remove();
+    };
   }, []);
 
+  const selected = maps.find((m) => m.mapId === selectedId) ?? null;
 
-  async function maybeRunRequestedSpikes() {
-    const request = path().join(spikeDir(), "run-request.json");
-    if (spikeRunActive || !fs().existsSync(request)) return;
-    spikeRunActive = true;
-    let options: { quit?: boolean; only?: string[] | null; hostScript?: string } = {};
-    try {
-      options = JSON.parse(fs().readFileSync(request, "utf8"));
-    } catch {
-      // Empty request file: run with defaults.
-    }
-    fs().unlinkSync(request);
-    log("spike run requested by tools/ae-spikes", "muted");
-    const only = options.only ?? undefined;
-    if (options.hostScript && (!only || only.includes("S3") || only.includes("S5"))) {
-      log("running host spikes S3 and S5", "muted");
-      const scriptPath = options.hostScript.split(String.fromCharCode(92)).join("/");
-      await evalScript(`$.evalFile(${JSON.stringify(scriptPath)})`).catch((error) => log(`host spikes failed: ${error.message}`, "fail"));
-    }
-    fs().writeFileSync(path().join(spikeDir(), "host-done.flag"), "1", "utf8");
-    await spikes(only);
-    if (options.quit) await callHost("devQuitAfterSpikes").catch((error) => log(`quit refused: ${error.message}`, "fail"));
-    spikeRunActive = false;
-  }
+  // Handle for UI tests driven through DevTools (tools/ae-spikes.mjs --ui).
+  (window as unknown as { lmlDebug: unknown }).lmlDebug = {
+    map: () => mapRef.current,
+    addPin: (lat: number, lng: number) => addPinAt({ lat, lng }),
+    selectedMapId: () => selectedRef.current
+  };
 
-  async function spikes(only?: string[]) {
+  async function run(label: string, task: () => Promise<void>) {
     setBusy(true);
     try {
-      await runSpikes(log, only);
+      await task();
     } catch (error) {
-      log(`spikes failed: ${error instanceof Error ? error.stack ?? error.message : String(error)}`, "fail");
+      fail(label, error);
     } finally {
       setBusy(false);
+      setProgress(null);
     }
   }
 
-  async function createMapComp() {
-    const map = mapRef.current;
-    if (!map) return;
-    setBusy(true);
-    try {
-      const result = await callHost<{ mapCompName: string; sceneCompName: string }>("createMapComp", { view: viewOf(map) });
-      log(`created ${result.mapCompName} in ${result.sceneCompName}`, "ok");
-    } catch (error) {
-      log(`create map comp failed: ${error instanceof Error ? error.message : String(error)}`, "fail");
-    } finally {
-      setBusy(false);
+  const newMap = () =>
+    run("new map", async () => {
+      const map = mapRef.current;
+      if (!map) return;
+      const created = await createMapComp({ view: viewOf(map) });
+      await callHost("setMapSettings", { mapId: created.id, basemap });
+      log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
+      selectedRef.current = created.id;
+      setSelectedId(created.id);
+      await refreshMaps();
+    });
+
+  const keyframeView = () =>
+    run("keyframe", async () => {
+      const map = mapRef.current;
+      if (!map || !selected) return;
+      await setView(selected.mapId, viewOf(map), true);
+      log("camera keyframed at the current time", "ok");
+    });
+
+  const matchAe = () =>
+    run("match view", async () => {
+      const list = await callHost<MapEntry[]>("listMaps");
+      setMaps(list);
+      const entry = list.find((m) => m.mapId === selectedRef.current);
+      if (!entry || !mapRef.current) return;
+      const v = entry.view;
+      mapRef.current.jumpTo({ center: [v.center.lng, v.center.lat], zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
+    });
+
+  async function addPinAt(position: { lat: number; lng: number }) {
+    const mapId = selectedRef.current;
+    if (!mapId) {
+      log("create or select a map first", "muted");
+      return;
     }
+    await run("add pin", async () => {
+      const added = await addPin(mapId, position, { name: `Pin ${pinCounter.current++}` });
+      if (added.expressionErrors.length) log(`pin expression problems: ${added.expressionErrors.join("; ")}`, "fail");
+      else log(`added ${added.name} at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`, "ok");
+    });
   }
 
-  async function keyframeView() {
+  const changeBasemap = (key: string) =>
+    run("basemap", async () => {
+      const source = sourceFromKey(key);
+      setBasemap(source);
+      mapRef.current?.setStyle(previewStyle(source));
+      const mapId = selectedRef.current;
+      if (mapId) await callHost("setMapSettings", { mapId, basemap: source });
+    });
+
+  const renderBasemap = (scale: number) =>
+    run("render", async () => {
+      if (!selected) return;
+      const label = scale < 1 ? "Rendering preview" : "Rendering";
+      setProgress({ label, done: 0, total: 1 });
+      const result = await renderMap(selected.mapId, {
+        basemap,
+        scale,
+        onProgress: (done, total) => setProgress({ label, done, total })
+      });
+      log(`rendered ${result.frames} frames (${result.msPerFrame.toFixed(0)} ms each) into ${selected.mapCompName}`, "ok");
+    });
+
+  const openRegionSheet = () => {
     const map = mapRef.current;
     if (!map) return;
-    try {
-      const maps = await callHost<{ mapId: string }[]>("listMaps");
-      if (!maps.length) {
-        log("no map comp yet: create one first", "muted");
-        return;
-      }
-      await callHost("setView", { mapId: maps[0].mapId, view: viewOf(map), keyframe: true });
-      log("view keyframed at the current time", "ok");
-    } catch (error) {
-      log(`keyframe failed: ${error instanceof Error ? error.message : String(error)}`, "fail");
-    }
-  }
+    const b = map.getBounds();
+    setRegionSheet({
+      name: "",
+      maxZoom: 15,
+      bbox: { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) }
+    });
+  };
+
+  const checkRegionSize = () =>
+    run("check size", async () => {
+      const sheet = regionSheet;
+      if (!sheet) return;
+      setProgress({ label: "Checking size", done: 0, total: 1 });
+      const planned = await planRegion(sheet.bbox, sheet.maxZoom);
+      setRegionSheet({ ...sheet, planned });
+    });
+
+  const startRegionDownload = () =>
+    run("download", async () => {
+      const sheet = regionSheet;
+      if (!sheet?.planned) return;
+      const name = safeRegionName(sheet.name || `region-${Date.now()}`);
+      setProgress({ label: "Downloading", done: 0, total: sheet.planned.plan.tileBytes });
+      await downloadRegion(name, sheet.planned, (done, total) => setProgress({ label: "Downloading", done, total }));
+      log(`downloaded region "${name}" (${mb(sheet.planned.plan.tileBytes)}) · © OpenStreetMap contributors`, "ok");
+      setRegionSheet(null);
+      await refreshRegions();
+      await changeBasemap(`region:${name}`);
+    });
 
   return (
     <>
       <div class="toolbar">
         <span class="title">LazyMapLayers</span>
-        <button class="primary" disabled={busy} onClick={createMapComp}>
-          Create map comp
-        </button>
-        <button disabled={busy} onClick={keyframeView}>
-          Keyframe view
-        </button>
-        <button disabled={busy} onClick={() => spikes()}>
-          Run spikes
+        <select
+          value={selectedId}
+          disabled={busy || maps.length === 0}
+          onChange={(e) => {
+            const id = (e.target as HTMLSelectElement).value;
+            selectedRef.current = id;
+            setSelectedId(id);
+            const entry = maps.find((m) => m.mapId === id);
+            if (entry) {
+              showMap(entry);
+              void callHost("revealMap", { mapId: id });
+            }
+          }}
+        >
+          {maps.length === 0 && <option value="">No maps yet</option>}
+          {maps.map((m) => (
+            <option key={m.mapId} value={m.mapId}>
+              {m.mapCompName}
+            </option>
+          ))}
+        </select>
+        <button class="primary" disabled={busy} onClick={newMap}>
+          New map
         </button>
       </div>
+
+      <div class="toolbar secondary">
+        <label class="field">
+          Basemap
+          <select value={sourceKey(basemap)} disabled={busy} onChange={(e) => void changeBasemap((e.target as HTMLSelectElement).value)}>
+            <option value="world">World (Natural Earth, offline)</option>
+            {regions.map((r) => (
+              <option key={r.name} value={`region:${r.name}`}>
+                {r.name} ({mb(r.sizeBytes)})
+              </option>
+            ))}
+          </select>
+        </label>
+        <button disabled={busy} onClick={openRegionSheet}>
+          Download this area…
+        </button>
+      </div>
+
+      {regionSheet && (
+        <div class="sheet">
+          <div class="sheet-row">
+            <input
+              placeholder="Region name, e.g. paris"
+              value={regionSheet.name}
+              onInput={(e) => setRegionSheet({ ...regionSheet, name: (e.target as HTMLInputElement).value })}
+            />
+            <select
+              value={regionSheet.maxZoom}
+              onChange={(e) => setRegionSheet({ ...regionSheet, maxZoom: Number((e.target as HTMLSelectElement).value), planned: undefined })}
+            >
+              {[12, 13, 14, 15].map((z) => (
+                <option key={z} value={z}>
+                  Detail to zoom {z}
+                </option>
+              ))}
+            </select>
+          </div>
+          <div class="muted small">
+            Area {regionSheet.bbox.west.toFixed(3)}, {regionSheet.bbox.south.toFixed(3)} → {regionSheet.bbox.east.toFixed(3)},{" "}
+            {regionSheet.bbox.north.toFixed(3)} · OpenStreetMap data (© OpenStreetMap contributors) from the newest Protomaps planet build
+          </div>
+          {regionSheet.planned && (
+            <div class="small">
+              {regionSheet.planned.plan.tiles.length} tiles · <strong>{mb(regionSheet.planned.plan.tileBytes)}</strong> to download (build{" "}
+              {regionSheet.planned.build})
+            </div>
+          )}
+          <div class="sheet-row">
+            {!regionSheet.planned ? (
+              <button disabled={busy} onClick={checkRegionSize}>
+                Check size
+              </button>
+            ) : (
+              <button class="primary" disabled={busy} onClick={startRegionDownload}>
+                Download
+              </button>
+            )}
+            <button disabled={busy} onClick={() => setRegionSheet(null)}>
+              Cancel
+            </button>
+          </div>
+        </div>
+      )}
+
       <div class="map-wrap">
         <div id="map" ref={mapNode} />
         {view && (
           <div class="view-readout">
-            {view.center.lat.toFixed(4)}, {view.center.lng.toFixed(4)} · z {view.zoom.toFixed(2)} · b {view.bearing.toFixed(1)}° · p{" "}
-            {view.pitch.toFixed(1)}°
+            {view.center.lat.toFixed(4)}, {view.center.lng.toFixed(4)} · z {view.zoom.toFixed(2)} · b {view.bearing.toFixed(1)}° · p {view.pitch.toFixed(1)}°
           </div>
         )}
+        <div class="hint">Alt+click: drop a pin · Right-drag: rotate and tilt</div>
       </div>
+
+      <div class="toolbar">
+        <button disabled={busy || !selected} onClick={keyframeView} title="Set a camera keyframe at the current AE time">
+          ◆ Keyframe view
+        </button>
+        <button disabled={busy || !selected} onClick={matchAe} title="Show the camera at the current AE time">
+          Match AE
+        </button>
+        <span class="spacer" />
+        <button disabled={busy || !selected} onClick={() => renderBasemap(0.5)} title="Half resolution, fast">
+          Render preview
+        </button>
+        <button class="primary" disabled={busy || !selected} onClick={() => renderBasemap(1)}>
+          Render
+        </button>
+      </div>
+
+      {progress && (
+        <div class="progress">
+          <div class="bar" style={{ width: `${Math.round((100 * progress.done) / Math.max(1, progress.total))}%` }} />
+          <span>
+            {progress.label} {progress.total > 1 ? `${Math.round((100 * progress.done) / progress.total)}%` : "…"}
+          </span>
+        </div>
+      )}
+
       <div class="log">
         {lines.map((line, i) => (
           <div key={i} class={line.kind ?? ""}>
