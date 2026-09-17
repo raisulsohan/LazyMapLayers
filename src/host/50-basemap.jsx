@@ -6,7 +6,10 @@
 LML.basemap = LML.basemap || {};
 
 /** Pass order from the bottom of the map comp upwards. */
-LML.basemap.PASS_ORDER = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte"];
+LML.basemap.PASS_ORDER = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte", "highlight"];
+
+/** Passes that show right away; the others are switched off until the user needs them. */
+LML.basemap.VISIBLE_PASSES = { base: true, highlight: true };
 
 LML.basemap.passOrder = function (pass) {
     for (var i = 0; i < LML.basemap.PASS_ORDER.length; i++) {
@@ -187,7 +190,8 @@ LML.basemap.importPass = function (mapComp, mapId, sequence, quality, stamp) {
         if (pass === "base") {
             layer.moveToEnd();
         } else {
-            // Directly above the nearest pass below it in PASS_ORDER; switched off until the user needs it.
+            // Directly above the nearest pass below it in PASS_ORDER; switched off until the user needs it
+            // (highlights are part of the picture, so they show at once).
             var below = null;
             var belowOrder = -1;
             for (var i = 1; i <= mapComp.numLayers; i++) {
@@ -202,7 +206,7 @@ LML.basemap.importPass = function (mapComp, mapId, sequence, quality, stamp) {
             }
             if (below) layer.moveBefore(below);
             else layer.moveToEnd();
-            layer.enabled = false;
+            layer.enabled = LML.basemap.VISIBLE_PASSES[pass] === true;
         }
     }
     LML.basemap.withUnlocked(layer, function () {
@@ -281,7 +285,9 @@ LML.basemap.ensureAttribution = function (mapLayer, text) {
 
 /**
  * args: { mapId, quality: "preview" | "final", stamp, sequences: [{ pass, label, kind, firstFramePath }],
- *         attribution: string | null }
+ *         attribution: string | null, dropPasses: [pass] }
+ * dropPasses removes the tagged layer (and its footage, when nothing else uses it) of passes the map
+ * no longer has, such as the highlight pass after the last highlight was removed.
  */
 LML.basemap.importPasses = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
@@ -295,8 +301,19 @@ LML.basemap.importPasses = function (args) {
     for (var i = 0; i < sequences.length; i++) {
         imported.push(LML.basemap.importPass(mapComp, args.mapId, sequences[i], args.quality, args.stamp));
     }
+    var dropped = [];
+    var drop = args.dropPasses || [];
+    for (var d = 0; d < drop.length; d++) {
+        var stale = LML.basemap.findPassLayer(mapComp, drop[d]);
+        if (!stale || drop[d] === "base") continue;
+        var footage = stale.source instanceof FootageItem ? stale.source : null;
+        stale.locked = false;
+        stale.remove();
+        if (footage && LML.tag.read(footage) && footage.usedIn.length === 0) footage.remove();
+        dropped.push(drop[d]);
+    }
     var attribution = LML.basemap.ensureAttribution(mapLayer, args.attribution);
-    return { passes: imported, attribution: attribution };
+    return { passes: imported, attribution: attribution, dropped: dropped };
 };
 
 /** Legacy single-sequence import (base pass, final quality). */

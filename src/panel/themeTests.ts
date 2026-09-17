@@ -2,13 +2,13 @@
 // (when the Paris region is on disk) a tilted city. For judging the looks by eye; it also fails when a
 // theme's style does not load or draws an empty frame.
 
-import type { View } from "../core/camera/camera.ts";
+import { project, type View } from "../core/camera/camera.ts";
 import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { THEMES } from "../core/style/themes.ts";
 import { basemapStyle, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
-import { fs, path } from "./cep.ts";
+import { evalScript, fs, path } from "./cep.ts";
 import { hasImagery } from "./imagery/packs.ts";
 import { createMapComp } from "./mapApi.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
@@ -121,4 +121,91 @@ export async function runSatelliteTest(log: SpikeLog): Promise<Record<string, un
   log(`SAT1 satellite passes: land ${(landShare * 100).toFixed(0)} % of the frame, ${landColours} land colours, ${waterColours} water colours, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
   return { passed, landShare, landColours, waterColours, problems };
+}
+
+// HL1: highlighted countries through the real render job. The highlight must arrive as its own layer,
+// switched on, above a base pass that stays clean; its pixels must sit on the country and nowhere
+// else; and a map without highlights must lose the layer again.
+export async function runHighlightTest(log: SpikeLog): Promise<Record<string, unknown>> {
+  const problems: string[] = [];
+  const size = { width: 1280, height: 720 };
+  const view: View = { center: { lat: 23.7, lng: 86 }, zoom: 4.4, bearing: 0, pitch: 0 };
+  const map = await createMapComp({ name: "HL1 highlight", ...size, duration: 1, frameRate: 25, view, newScene: true });
+  const highlights = [{ code: "BGD", name: "Bangladesh", color: "#ff9d2e", fill: 0.5, outline: 3 }];
+  const settings = normaliseSettings({ ...DEFAULT_FINAL_SETTINGS, supersample: 1, passes: ["base"] }, DEFAULT_FINAL_SETTINGS);
+  const first = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights });
+  const read = (result: typeof first, pass: string) => {
+    const sequence = result.sequences.find((s) => s.pass === pass);
+    if (!sequence) throw new Error(`no ${pass} sequence`);
+    return decodePng(new Uint8Array(fs().readFileSync(path().join(sequence.folder, sequenceFileName(0))))).rgba;
+  };
+  if (first.passes.join(",") !== "base,highlight") problems.push(`passes rendered: ${first.passes.join(",")}`);
+  const at = (rgba: Uint8Array, place: { lat: number; lng: number }) => {
+    const p = project(view, size, place);
+    const i = (Math.round(p.y) * size.width + Math.round(p.x)) * 4;
+    return [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]];
+  };
+  const dhaka = { lat: 23.8, lng: 90.4 };
+  const delhi = { lat: 28.6, lng: 77.2 };
+  const bay = { lat: 15, lng: 88 };
+  const pass = read(first, "highlight");
+  const inside = at(pass, dhaka);
+  // Premultiplied #ff9d2e at half opacity is about (128, 79, 23, 128); the file stores it unpremultiplied.
+  if (inside[3] < 100 || inside[3] > 160 || inside[0] < 200 || inside[2] > 90) problems.push(`Dhaka in the highlight pass is ${inside}`);
+  if (at(pass, delhi)[3] !== 0 || at(pass, bay)[3] !== 0) problems.push(`the highlight pass is not empty outside Bangladesh: Delhi ${at(pass, delhi)}, the bay ${at(pass, bay)}`);
+  const base = read(first, "base");
+  const baseDhaka = at(base, dhaka);
+  const baseDelhi = at(base, delhi);
+  if (Math.abs(baseDhaka[0] - baseDelhi[0]) > 6 || Math.abs(baseDhaka[2] - baseDelhi[2]) > 6) problems.push(`the base pass is tinted under the highlight: ${baseDhaka} vs ${baseDelhi}`);
+
+  const layers = async () =>
+    JSON.parse(
+      await evalScript(`(function () { var c = LML.pins.findMapLayer(${JSON.stringify(map.id)}).source, out = []; for (var i = 1; i <= c.numLayers; i++) { var t = LML.tag.read(c.layer(i)); out.push({ pass: t ? t.pass : "?", enabled: c.layer(i).enabled, name: c.layer(i).name }); } return LML.json.stringify(out); })()`)
+    ) as { pass: string; enabled: boolean; name: string }[];
+  const withHighlight = await layers();
+  if (withHighlight.map((l) => `${l.pass}:${l.enabled}`).join(",") !== "highlight:true,base:true") problems.push(`layers after the first render: ${JSON.stringify(withHighlight)}`);
+
+  // A colour change redraws the highlight pass alone: the base pass keeps its cached image.
+  const baseKeyBefore = first.sequences.find((s) => s.pass === "base")!.firstFramePath;
+  const recoloured = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [{ ...highlights[0], color: "#36b3ff" }] });
+  const blue = at(read(recoloured, "highlight"), dhaka);
+  if (blue[2] < 200 || blue[0] > 110) problems.push(`the recoloured highlight is ${blue}`);
+  const sameBase = Buffer.compare(fs().readFileSync(baseKeyBefore), fs().readFileSync(recoloured.sequences.find((s) => s.pass === "base")!.firstFramePath)) === 0;
+  if (!sameBase) problems.push("the base pass changed with the highlight's colour");
+
+  // Without highlights the layer goes away.
+  const none = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [] });
+  const withoutHighlight = await layers();
+  if (none.passes.join(",") !== "base" || withoutHighlight.map((l) => l.pass).join(",") !== "base") problems.push(`after removing the highlight: passes ${none.passes.join(",")}, layers ${JSON.stringify(withoutHighlight)}`);
+
+  // A picture of the result for people: two highlights over the satellite look (when it is installed).
+  try {
+    const sample = await runRenderJob({
+      mapId: map.id,
+      quality: "final",
+      settings,
+      basemap: { kind: "world" },
+      theme: hasImagery("blue-marble") ? "satellite" : "midnight",
+      highlights: [
+        { code: "BGD", name: "Bangladesh", color: "#ff9d2e", fill: 0.45, outline: 3 },
+        { code: "NPL", name: "Nepal", color: "#36b3ff", fill: 0.45, outline: 3 }
+      ]
+    });
+    const sheet = document.createElement("canvas");
+    sheet.width = size.width;
+    sheet.height = size.height;
+    const context = sheet.getContext("2d")!;
+    for (const pass of ["base", "highlight"]) {
+      const file = path().join(sample.sequences.find((q) => q.pass === pass)!.folder, sequenceFileName(0));
+      context.drawImage(await createImageBitmap(new Blob([fs().readFileSync(file)], { type: "image/png" })), 0, 0);
+    }
+    fs().writeFileSync(path().join(spikeDir(), "highlight-sample.png"), Buffer.from(sheet.toDataURL("image/png").split(",")[1], "base64"));
+  } catch (error) {
+    problems.push(`the sample picture failed: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
+  const passed = problems.length === 0;
+  log(`HL1 highlight pass: Dhaka ${inside.join(",")}, own layer switched on, base untouched, ${problems.length} problems`, passed ? "ok" : "fail");
+  for (const problem of problems) log(`  ${problem}`, "fail");
+  return { passed, inside, problems };
 }

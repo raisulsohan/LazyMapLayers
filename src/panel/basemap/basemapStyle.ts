@@ -18,6 +18,7 @@ import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeById, type Theme } from "../../core/style/themes.ts";
+import type { Highlight } from "../../core/style/highlights.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
@@ -41,6 +42,10 @@ export type BasemapStyleOptions = {
   theme?: string | null;
   /** Shaded relief over the land (needs the relief pack; ignored by satellite looks). */
   relief?: boolean;
+  /** Highlighted countries (their own render pass). */
+  highlights?: Highlight[];
+  /** Adds an invisible layer of country shapes, so the preview can tell which country was clicked. */
+  countryHits?: boolean;
 };
 
 /**
@@ -156,7 +161,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   const imagery: WorldImagery = {};
   if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
-  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery });
+  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, countryHits: options.countryHits });
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
   let style = world;
   const regions = regionNames(basemap);

@@ -11,6 +11,7 @@ import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
+import { normaliseHighlights, toggleHighlight, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
@@ -20,7 +21,7 @@ import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
 import { addCallout, addRoute } from "./overlays/routeCallout.ts";
-import { compSize, compView, previewMap, setCompSize, setPreviewStyle, showCompView } from "./preview.ts";
+import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 
@@ -46,6 +47,7 @@ export type MapEntry = {
   /** The map's look (core/style/themes.ts). */
   theme: string | null;
   relief: boolean;
+  highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
   expressionEngine: string | null;
@@ -56,7 +58,7 @@ export type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?:
 export type Screen = "main" | "maps" | "newMap" | "settings";
 export type Tab = "shots" | "render";
 /** A tool waits for clicks on the preview: a place for a pin or a callout, two places for a route. */
-export type Tool = "none" | "pin" | "pin3d" | "callout" | "route";
+export type Tool = "none" | "pin" | "pin3d" | "callout" | "route" | "highlight";
 export type ToolSheet = { kind: "callout"; place: { lat: number; lng: number }; title: string; subtitle: string; seconds: number } | { kind: "route"; from: { lat: number; lng: number }; to: { lat: number; lng: number }; seconds: number };
 
 export const LARGE_DOWNLOAD_BYTES = 200 * 1048576;
@@ -81,7 +83,9 @@ export const projection = signal<MapProjection>("mercator");
 export const themeId = signal<string>(DEFAULT_THEME_ID);
 /** Shaded relief over the land (needs the relief imagery pack). */
 export const reliefOn = signal(false);
-const look = () => ({ theme: themeId.value, relief: reliefOn.value });
+/** Highlighted countries of the selected map. */
+export const highlights = signal<Highlight[]>([]);
+const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -166,6 +170,7 @@ function showMap(entry: MapEntry): void {
   projection.value = entry.projection ?? "mercator";
   themeId.value = themeById(entry.theme).id;
   reliefOn.value = !!entry.relief;
+  highlights.value = normaliseHighlights(entry.highlights);
   setCompSize(entry.width, entry.height);
   setPreviewStyle(source, projection.value, look());
   showCompView(entry.view);
@@ -249,7 +254,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -343,13 +348,20 @@ export function armTool(next: Tool): void {
 }
 
 /** A click on the preview: Alt+click pins as before; otherwise the armed tool gets the place. */
-export function previewClicked(position: { lat: number; lng: number }, event: MouseEvent): void {
+export function previewClicked(position: { lat: number; lng: number }, event: MouseEvent, point: { x: number; y: number }): void {
   if (event.altKey) {
     void addPinAt(position, event.shiftKey);
     return;
   }
   const active = tool.value;
   if (active === "none") return;
+  if (active === "highlight") {
+    // The tool stays on, so several countries can be clicked in a row (Esc ends it).
+    const country = countryAt(point);
+    if (country) toggleCountryHighlight(country.code, country.name);
+    else log("no country there (click on land)", "muted");
+    return;
+  }
   if (!selectedId.value) {
     log("create or select a map first", "muted");
     tool.value = "none";
@@ -417,6 +429,25 @@ export const changeTheme = (next: string) =>
     }
   });
 
+/** Replaces the map's highlights: the preview shows them at once, the next render draws their pass. */
+export async function setHighlights(next: Highlight[]): Promise<void> {
+  highlights.value = normaliseHighlights(next);
+  setPreviewStyle(basemap.value, projection.value, look());
+  if (!selectedId.value) return;
+  try {
+    await callHost("setMapSettings", { mapId: selectedId.value, highlights: highlights.value });
+    maps.value = maps.value.map((m) => (m.mapId === selectedId.value ? { ...m, highlights: highlights.value } : m));
+  } catch (error) {
+    fail("saving highlights", error);
+  }
+}
+
+export function toggleCountryHighlight(code: string, name: string): void {
+  const had = highlights.value.some((h) => h.code === code);
+  void setHighlights(toggleHighlight(highlights.value, code, name));
+  log(had ? `${name} is no longer highlighted` : `${name} highlighted: render to get it as its own layer above the basemap`, "ok");
+}
+
 export const changeRelief = (on: boolean) =>
   run("relief", async () => {
     reliefOn.value = on;
@@ -480,7 +511,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value }, entry.mapCompName);
   tab.value = "render";
 }
 

@@ -29,6 +29,11 @@
   valleys over the land of any other look). With imagery, the Land and Water passes carry the picture
   and the mattes still follow the land's outline exactly. The packs are built on the development
   machine for now; downloading them from inside the panel comes next.
+- **Highlight countries.** Click the highlight tool and then countries on the map, or the highlight
+  button next to a country in the search results. Each gets a colour; fill and outline are adjustable.
+  Highlights render as their own **Highlight** layer above a basemap that stays clean, switched on, so
+  in After Effects they can be faded, coloured or given a glow. Changing a highlight redraws only that
+  layer, and removing the last highlight removes the layer.
 - **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
   A country is framed whole; a city at a zoom that suits its size.
 - **Automatic names.** New maps and shots are named after the place they show ("Paris Map").
@@ -48,7 +53,8 @@
 - **Tests.** Unit tests for easing, fitting, route moves, the shot list and search; SH1 checks the
   shot list inside After Effects (every frame against core maths, key counts, cuts, markers, comp
   length, hand edits, a 40-shot list); U1 drives the new interface; TH1 renders a contact sheet of
-  every look with the real renderer.
+  every look with the real renderer; SAT1 checks passes and mattes under satellite imagery; HL1
+  checks the highlight layer pixel by pixel.
 
 ## 0.1.1 — works with the Legacy ExtendScript expression engine (2026-09-17)
 

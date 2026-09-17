@@ -42,7 +42,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { HighlightSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { ShotsTab } from "./ShotsTab.tsx";
 
 function Header(): JSX.Element {
@@ -82,6 +82,7 @@ function ToolRow(): JSX.Element {
       <IconButton icon="pin3d" id="tool-pin3d" title="3D pin that lies on the ground under the matched 3D camera (or Alt+Shift+click the map)" disabled={off} active={tool.value === "pin3d"} onClick={() => armTool("pin3d")} />
       <IconButton icon="callout" id="tool-callout" title="Callout: a leader line with a title box next to a place" disabled={off} active={tool.value === "callout"} onClick={() => armTool("callout")} />
       <IconButton icon="route" id="tool-route" title="Route: a great-circle line between two places that draws on" disabled={off} active={tool.value === "route"} onClick={() => armTool("route")} />
+      <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
       <span class="divider" />
       <IconButton icon="text" id="tool-labels" title="Auto labels: country and city names over the whole timeline" disabled={off} active={labelsSheetOpen.value} onClick={() => (labelsSheetOpen.value = !labelsSheetOpen.value)} />
       <IconButton icon="borders" id="tool-borders" title="Animate borders: country borders draw on over 4 seconds from the current time" disabled={off} onClick={() => void animateBorders()} />
@@ -213,6 +214,7 @@ export function App(): JSX.Element {
         <SearchBar />
         <RegionSheetView />
         <ToolSheetView />
+        <HighlightSheetView />
         <LabelsSheetView />
         <LookSheetView />
         <div class={`map-wrap ${tool.value !== "none" ? "armed" : ""}`} ref={wrapNode}>

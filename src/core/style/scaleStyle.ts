@@ -53,14 +53,18 @@ export function scaleValue(value: Value, k: number): Value {
   return value;
 }
 
-type Layer = { type: string; layout?: Record<string, Value>; paint?: Record<string, Value> };
+type Layer = { type: string; layout?: Record<string, Value>; paint?: Record<string, Value>; metadata?: Record<string, unknown> };
 
-/** A copy of the style with every size multiplied by k (k = 1 returns the style itself). */
-export function scaleStyleSizes<T extends { layers: unknown[] }>(style: T, k: number): T {
+/**
+ * A copy of the style with every size multiplied by k (k = 1 returns the style itself). Layers for
+ * which `keep` answers true stay as they are: parts of the picture itself, such as highlights, must
+ * look in the preview as they will render.
+ */
+export function scaleStyleSizes<T extends { layers: unknown[] }>(style: T, k: number, keep?: (layer: Layer) => boolean): T {
   if (!(k > 0) || Math.abs(k - 1) < 1e-3) return style;
   const layers = (style.layers as Layer[]).map((layer) => {
     const spec = SIZE_PROPERTIES[layer.type];
-    if (!spec) return layer;
+    if (!spec || keep?.(layer)) return layer;
     const next: Layer = { ...layer };
     for (const bag of ["layout", "paint"] as const) {
       const names = spec[bag];

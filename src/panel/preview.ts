@@ -11,7 +11,9 @@ import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
+import type { Highlight } from "../core/style/highlights.ts";
 import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
+import { COUNTRY_HIT_LAYER } from "./basemap/naturalEarthStyle.ts";
 import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { ensureMaplibreWorker, regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { fs, isInCep } from "./cep.ts";
@@ -19,7 +21,7 @@ import { fs, isInCep } from "./cep.ts";
 export type PreviewEvents = {
   onView: (view: View) => void;
   onMoveEnd: (view: View, byUser: boolean) => void;
-  onClick: (position: { lat: number; lng: number }, event: MouseEvent) => void;
+  onClick: (position: { lat: number; lng: number }, event: MouseEvent, point: { x: number; y: number }) => void;
   onError: (message: string) => void;
 };
 
@@ -39,7 +41,7 @@ const BY_USER = { lmlByUser: true };
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
 /** What the preview shows now, so the style can be rebuilt when the panel is resized. */
-type Look = { theme: string | null; relief: boolean };
+export type Look = { theme: string | null; relief: boolean; highlights?: Highlight[] };
 let shown: { source: BasemapSource; projection: MapProjection; look: Look } = { source: { kind: "world" }, projection: "mercator", look: { theme: null, relief: false } };
 /** False shows sizes exactly as they render (tiny in a small panel). */
 let readable = true;
@@ -53,7 +55,7 @@ function sizeFactor(): number {
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
   if (!isInCep()) return BLANK_STYLE;
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief }), sizeFactor());
+  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
 }
 
 let styledFactor = 1;
@@ -136,7 +138,7 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
       events.onMoveEnd(toCompView(m), !!data.originalEvent || !!data.lmlByUser);
     });
     m.on("error", (e) => events.onError(String(e.error?.message ?? e)));
-    m.on("click", (e) => events.onClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.originalEvent));
+    m.on("click", (e) => events.onClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.originalEvent, { x: e.point.x, y: e.point.y }));
   } catch (error) {
     events.onError(error instanceof Error ? error.message : String(error));
   }
@@ -151,6 +153,15 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
 }
 
 export const previewMap = () => map;
+
+/** The country under a point of the preview (in the map box's own pixels), or null over the sea. */
+export function countryAt(point: { x: number; y: number }): { code: string; name: string } | null {
+  if (!map || !map.getLayer(COUNTRY_HIT_LAYER)) return null;
+  const hit = map.queryRenderedFeatures([point.x, point.y], { layers: [COUNTRY_HIT_LAYER] })[0];
+  const code = hit?.properties?.adm0_a3;
+  if (typeof code !== "string" || !code) return null;
+  return { code, name: String(hit.properties?.name_long ?? hit.properties?.name ?? code) };
+}
 
 /** The frame the preview shows, as a view of the comp. */
 export function compView(): View | null {

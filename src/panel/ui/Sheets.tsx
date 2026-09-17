@@ -26,7 +26,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
-import { changeRelief, changeTheme, reliefOn, themeId } from "../store.ts";
+import { changeRelief, changeTheme, highlights, reliefOn, setHighlights, themeId } from "../store.ts";
 
 export const labelsSheetOpen = signal(false);
 export const lookSheetOpen = signal(false);
@@ -139,11 +139,52 @@ export function RegionSheetView(): JSX.Element | null {
   );
 }
 
+/** The highlighted countries: colour, fill and outline; shown while the highlight tool is on. */
+export function HighlightSheetView(): JSX.Element | null {
+  if (tool.value !== "highlight") return null;
+  const list = highlights.value;
+  const first = list[0];
+  return (
+    <div class="sheet" data-id="highlight-sheet">
+      <div class="sheet-title">Highlight countries</div>
+      <div class="muted small">Click a country on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
+      {list.map((h) => (
+        <div key={h.code} class="sheet-row highlight-row">
+          <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />
+          <span class="grow">{h.name}</span>
+          <button class="small-button" title="Remove this highlight" onClick={() => void setHighlights(list.filter((x) => x.code !== h.code))}>
+            ✕
+          </button>
+        </div>
+      ))}
+      {first && (
+        <div class="sheet-row">
+          <label class="num-field" title="How solid the fill is (0 for an outline only)">
+            <span>Fill</span>
+            <input type="range" min={0} max={100} step={5} value={Math.round(first.fill * 100)} onChange={(e) => void setHighlights(list.map((x) => ({ ...x, fill: Number((e.target as HTMLInputElement).value) / 100 })))} />
+            <span class="muted">{Math.round(first.fill * 100)} %</span>
+          </label>
+          <label class="num-field" title="Outline width in comp pixels (0 for none)">
+            <span>Outline</span>
+            <input type="number" min={0} max={40} step={0.5} value={first.outline} onChange={(e) => void setHighlights(list.map((x) => ({ ...x, outline: Number((e.target as HTMLInputElement).value) })))} />
+            <span class="muted">px</span>
+          </label>
+        </div>
+      )}
+      <div class="sheet-row">
+        <button class="small-button" onClick={() => (tool.value = "none")}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** The hint while a tool waits for clicks, and the callout and route sheets once it has its places. */
 export function ToolSheetView(): JSX.Element | null {
   const sheet = toolSheet.value;
   if (!sheet) {
-    if (tool.value === "none") return null;
+    if (tool.value === "none" || tool.value === "highlight") return null;
     const hint =
       tool.value === "route"
         ? toolFirstPoint.value

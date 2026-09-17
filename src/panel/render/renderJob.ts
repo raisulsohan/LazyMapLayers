@@ -4,7 +4,8 @@
 
 import type { AnimatedView } from "../../core/render/plan.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
-import { PASS_INFO, rendersFor, type PassId, type RenderId } from "../../core/render/passes.ts";
+import { HIGHLIGHT_PASS, PASS_INFO, rendersFor, type PassId, type RenderId } from "../../core/render/passes.ts";
+import { normaliseHighlights, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
@@ -26,6 +27,8 @@ export type RenderJobSpec = {
   /** The map's look (core/style/themes.ts) and whether shaded relief lies over the land. */
   theme?: string | null;
   relief?: boolean;
+  /** Highlighted countries: rendered as their own pass, which the job adds by itself. */
+  highlights?: Highlight[];
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -130,7 +133,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights) });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -139,9 +142,15 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     (l) => l.type === "background" && (l.paint?.["background-opacity"] ?? 1) === 1 && !(l.layout?.visibility === "none") && !l.minzoom && !l.maxzoom
   );
   const opaquePasses: PassId[] = opaqueBackground ? ["base"] : [];
+  // The highlight pass follows the map's highlights: present when there are any, dropped when not.
+  const highlightLayers = style.layers.filter((l) => layerGroup(l) === "highlight");
+  const passes: PassId[] = [...settings.passes.filter((p) => p !== HIGHLIGHT_PASS), ...(highlightLayers.length ? [HIGHLIGHT_PASS] : [])];
   const geometry = outputGeometry({ width: info.width, height: info.height }, settings.scale, settings.supersample);
+  // Highlights are left out of the base pass, so changing them must not redraw it: the highlight pass
+  // is keyed by its own layers, every other pass by the style without them.
+  const highlightStyleKey = keyOf({ projection: style.projection, layers: highlightLayers });
   const context: FrameKeyContext = {
-    style: keyOf(style),
+    style: keyOf({ ...style, layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
     data: dataFingerprint(spec.basemap),
     width: geometry.width,
     height: geometry.height,
@@ -162,8 +171,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     const timeMs = (frame * 1000) / info.frameRate;
     const frameKeys: Record<string, string> = {};
     const missing: PassId[] = [];
-    for (const pass of settings.passes) {
-      const key = frameKey(context, pass, cameras[frame], timeMs);
+    for (const pass of passes) {
+      const key = frameKey(pass === HIGHLIGHT_PASS ? { ...context, style: highlightStyleKey } : context, pass, cameras[frame], timeMs);
       frameKeys[pass] = key;
       const id = `${pass}:${key}`;
       if (!scheduled.has(id) && !store.has(pass, key)) {
@@ -239,7 +248,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   reused = info.frames - rendered;
 
   report({ stage: "importing", done: info.frames, total: info.frames, rendered, reused });
-  const sequences = settings.passes.map((pass) => ({
+  const sequences = passes.map((pass) => ({
     pass,
     ...store.createSequence(
       pass,
@@ -252,14 +261,16 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: PASS_INFO[s.pass].label, kind: PASS_INFO[s.pass].kind, firstFramePath: s.firstFramePath })),
-    attribution: regionNames(spec.basemap).length ? OSM_CREDIT : null
+    attribution: regionNames(spec.basemap).length ? OSM_CREDIT : null,
+    // A map without highlights loses the highlight layer of an earlier render.
+    dropPasses: highlightLayers.length ? [] : [HIGHLIGHT_PASS]
   });
 
   // Old sequence folders: keep the newest two per pass (Undo), and anything After Effects still uses.
   try {
     const listed = await callHost<{ path: string | null; proxyPath: string | null }[]>("listPasses", { mapId: spec.mapId });
     const inUse = listed.flatMap((p) => [p.path, p.proxyPath]).filter((p): p is string => !!p);
-    for (const pass of settings.passes) store.pruneSequences(pass, spec.quality, 2, inUse);
+    for (const pass of passes) store.pruneSequences(pass, spec.quality, 2, inUse);
   } catch {
     // Pruning is housekeeping; never fail a finished render over it.
   }
@@ -272,7 +283,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     totalMs: performance.now() - started,
     geometry,
     samples: offsets.length,
-    passes: settings.passes,
+    passes,
     sequences,
     imported,
     stamp,
