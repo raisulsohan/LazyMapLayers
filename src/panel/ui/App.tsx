@@ -2,7 +2,7 @@
 
 import type { JSX } from "preact";
 import { useEffect, useRef } from "preact/hooks";
-import { initPreview, resetNorth, setCompZoom, zoomPreviewBy } from "../preview.ts";
+import { initPreview, resetNorth, setCompZoom, setPreviewReadable, zoomPreviewBy } from "../preview.ts";
 import { play, playing, startShots, stop as stopPlayback } from "../shots/shotsStore.ts";
 import {
   addCamera,
@@ -10,6 +10,7 @@ import {
   armTool,
   basemap,
   busy,
+  exactLook,
   flightSeconds,
   flyHere,
   hostInfo,
@@ -213,6 +214,16 @@ export function App(): JSX.Element {
           <div id="map" ref={boxNode} />
           <div class="map-overlay top-left">
             <IconButton icon="target" id="match-ae" title="Show the camera of the current time in After Effects" disabled={busy.value || !selected.value} onClick={() => void matchAe()} />
+            <IconButton
+              icon="frame"
+              id="exact-look"
+              title="Exact look: show names and lines at the size they render (small in a small panel). Off: enlarged so they stay readable; the framing is exact either way."
+              active={exactLook.value}
+              onClick={() => {
+                exactLook.value = !exactLook.value;
+                setPreviewReadable(!exactLook.value);
+              }}
+            />
           </div>
           <div class="credit" title="Where the map data comes from. Rendering an OpenStreetMap region adds a credit layer to your scene.">
             {basemap.value.kind === "world" ? "Natural Earth" : "© OpenStreetMap contributors · Natural Earth"}

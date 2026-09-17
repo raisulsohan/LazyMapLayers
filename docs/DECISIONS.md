@@ -226,6 +226,10 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   works at the comp's zoom with the comp's viewport, so framing, tiles, fades, label and line sizes
   equal the final frames, while the GPU draws only the pixels the panel shows. The data credit moved
   out of the scaled box into the panel.
+- **Readable by default.** Scaled down, names and lines were a fraction of their size and could not be
+  read (Sohan's first try). The preview therefore multiplies the style's text, line and circle sizes
+  by the inverse of its scale (`src/core/style/scaleStyle.ts`); an "exact look" button shows them as
+  they render. Framing, tiles and fades are exact either way.
 - **Consequences.** What is framed is what renders, at any comp size or shape. Shot thumbnails come
   from the same canvas.
 
