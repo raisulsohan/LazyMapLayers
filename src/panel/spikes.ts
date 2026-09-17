@@ -21,6 +21,7 @@ import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
 import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
+import { runShotTests } from "./shotTests.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -226,6 +227,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.R_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`render tests failed: ${results.R_error}`, "fail");
+    }
+  }
+
+  if (wants("SH1")) {
+    try {
+      results.SH1_shots = await runShotTests(log);
+    } catch (error) {
+      results.SH1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SH1 failed: ${results.SH1_error}`, "fail");
     }
   }
 

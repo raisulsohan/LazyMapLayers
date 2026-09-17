@@ -71,7 +71,8 @@ export async function runHostSmoke(log: SpikeLog): Promise<{ passed: number; fai
   const expected = [35.6895, 139.6917, 9.25, 12.5, 30];
   check(
     "control values match the view",
-    !!layer && layer.values.every((v, i) => Math.abs(v - expected[i]) < 1e-3),
+    // The sixth control is the Globe checkbox, which is not part of the view.
+    !!layer && expected.every((v, i) => Math.abs(layer.values[i] - v) < 1e-3),
     layer?.values.join(", ")
   );
 
@@ -83,7 +84,7 @@ export async function runHostSmoke(log: SpikeLog): Promise<{ passed: number; fai
   });
   const afterKey = await inspect();
   const keyed = afterKey.mapLayers[afterKey.mapLayers.length - 1];
-  check("keyframe view sets one key per control", !!keyed && keyed.keys.every((k) => k === 1), keyed?.keys.join(","));
+  check("keyframe view sets one key per camera control", !!keyed && keyed.keys.slice(0, 5).every((k) => k === 1) && keyed.keys.slice(5).every((k) => k === 0), keyed?.keys.join(","));
 
   // Edit > Undo is command 16. One undo removes the keyframes, a second removes the map comp.
   await evalScript("app.executeCommand(16)");

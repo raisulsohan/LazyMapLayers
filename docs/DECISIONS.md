@@ -186,3 +186,57 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   when a project uses the Legacy ExtendScript engine, which plays back more slowly. After Effects
   keeps an expression compiled by the engine it was set with, so layers made by 0.1.0 in a Legacy
   ExtendScript project must be made again.
+
+## D15 — The shot list is the source of the camera; Apply bakes it (2026-09-17)
+
+- **Context.** Phase 3 needs a way to build camera animation that is quicker than keyframing five
+  controls by hand, and that never blocks After Effects.
+- **Decision.**
+  - A map's camera is a list of shots (a view, a hold with optional orbit, push-in or globe spin) with
+    a move into each shot: Fly (van Wijk–Nuij), Straight (constant speed on screen), Along route
+    (great circle or any line, optionally turning with the route) or Cut, each with a duration and an
+    easing preset or custom Bézier (`src/core/camera/shots.ts`, `easing.ts`, `routeMove.ts`).
+  - The panel owns the maths. **Apply to timeline** sends baked keys to the host in one call and one
+    undo step: one key per frame while the camera moves, two keys for a still hold, a Hold key before
+    a cut, and a marker per shot (the user's own markers are never touched).
+  - The list is stored on its own line of the map layer's comment (`LML-SHOTS:`), so it travels with
+    the project while reading the tag stays cheap. Edits between two Applies live in a draft file in
+    the user's data folder, not in the project, so the undo history stays clean.
+  - A fingerprint of the keys (counts and sampled values) tells the panel when keys were changed by
+    hand; Apply then says which time range it will replace.
+  - Play runs the camera in the preview in real time, with no render and no After Effects calls.
+  - Keyframe view and Fly here stay for people who key by hand.
+  - **Replacing keys fast.** After Effects removes keys one at a time, at about 1.3 ms each whatever
+    the viewer shows or the undo state is (measured by SH1), so re-applying a camera with a key on
+    every frame blocked for seconds. When a control holds more than 120 keys, all inside the range being
+    replaced, and no expression, the host removes the control and adds a fresh one with the same name
+    at the same place (`LML.shots.clearKeys`). Expressions find controls by name, so pins, labels and
+    the 3D camera keep following; SH1 checks that. Controls with the user's own keys outside the range
+    keep the slow, exact path.
+- **Consequences.** Shots can be retimed, reordered and re-eased at any point and applied again.
+  Passing through a shot without stopping (a spline through several views) is not included yet: a
+  shot with no hold still eases to a stop unless both moves use Linear.
+
+## D16 — The preview is the comp, scaled down (2026-09-17)
+
+- **Context.** The preview used the panel's own size, so at the same zoom the comp showed a wider
+  area than the preview, and styles drew other detail than the render.
+- **Decision.** The preview's map box has the comp's size in CSS pixels, is scaled to fit with a CSS
+  transform, and its pixel ratio is lowered by the same factor (`src/panel/preview.ts`). MapLibre
+  works at the comp's zoom with the comp's viewport, so framing, tiles, fades, label and line sizes
+  equal the final frames, while the GPU draws only the pixels the panel shows. The data credit moved
+  out of the scaled box into the panel.
+- **Consequences.** What is framed is what renders, at any comp size or shape. Shot thumbnails come
+  from the same canvas.
+
+## D17 — Phase 3 scope (2026-09-17)
+
+- **Included.** Shot list, easing presets, orbit, push-in, globe spin, moves along routes, fit to a
+  country or place with offline search (Natural Earth names in 26 languages, coordinates), automatic
+  names for maps and shots, tools for pins, callouts and routes, the new panel layout.
+- **Deferred.** Terrain and sky need elevation data (a download) and elevation-aware pins, so they
+  come as their own step. Online place search and the feature browser stay in Phase 4. A preferences
+  screen waits until there are settings that need one.
+- **No hangs.** Rules for every new feature: the panel never polls After Effects; each host call is
+  short or chunked; camera maths, search and playback run in the panel; anything slow shows progress
+  and can be cancelled.

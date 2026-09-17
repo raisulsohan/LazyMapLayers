@@ -146,12 +146,10 @@ LML.map.setViewKeys = function (layer, times, views) {
     var to = times[times.length - 1];
     var eps = 0.25 / layer.containingComp.frameRate;
     for (var c = 0; c < LML.map.CONTROLS.length; c++) {
+        if (!LML.map.controlValueProperty(layer, LML.map.CONTROLS[c].name)) continue;
+        // Fast even when the range is full of keys (see LML.shots.clearKeys).
+        LML.shots.clearKeys(layer, LML.map.CONTROLS[c], from, to, eps);
         var prop = LML.map.controlValueProperty(layer, LML.map.CONTROLS[c].name);
-        if (!prop) continue;
-        for (var k = prop.numKeys; k >= 1; k--) {
-            var t = prop.keyTime(k);
-            if (t >= from - eps && t <= to + eps) prop.removeKey(k);
-        }
         var values = [];
         for (var i = 0; i < views.length; i++) values.push(views[i][c]);
         prop.setValuesAtTimes(times, values);

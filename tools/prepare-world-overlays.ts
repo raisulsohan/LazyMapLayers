@@ -43,6 +43,48 @@ function roundCoordinates(coords: unknown): unknown {
   return (coords as unknown[]).map(roundCoordinates);
 }
 
+/**
+ * The box around a country's main land: polygons much smaller than the largest one (far islands,
+ * overseas territories) are left out, so "fit to France" frames France and not French Guiana too.
+ * A box that crosses the antimeridian comes back with its east smaller than its west.
+ */
+function mainBbox(geometry: GeoJSON.Geometry | null): [number, number, number, number] | null {
+  if (!geometry || (geometry.type !== "Polygon" && geometry.type !== "MultiPolygon")) return null;
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  const rings = polygons.map((polygon) => polygon[0]).filter((ring) => ring && ring.length > 2);
+  if (!rings.length) return null;
+  const area = (ring: number[][]) => {
+    let sum = 0;
+    for (let i = 0; i < ring.length - 1; i++) sum += ring[i][0] * ring[i + 1][1] - ring[i + 1][0] * ring[i][1];
+    return Math.abs(sum) / 2;
+  };
+  const areas = rings.map(area);
+  const largest = Math.max(...areas);
+  const kept = rings.filter((_, i) => areas[i] >= largest * 0.12);
+  const box = (shift: boolean) => {
+    let west = Infinity;
+    let south = Infinity;
+    let east = -Infinity;
+    let north = -Infinity;
+    for (const ring of kept)
+      for (const [x, y] of ring) {
+        const lng = shift && x < 0 ? x + 360 : x;
+        west = Math.min(west, lng);
+        east = Math.max(east, lng);
+        south = Math.min(south, y);
+        north = Math.max(north, y);
+      }
+    return { west, south, east, north };
+  };
+  let b = box(false);
+  if (b.east - b.west > 300) {
+    const shifted = box(true);
+    if (shifted.east - shifted.west < b.east - b.west) b = shifted;
+  }
+  const wrap = (lng: number) => (lng > 180 ? lng - 360 : lng);
+  return [round(wrap(b.west), 3), round(b.south, 3), round(wrap(b.east), 3), round(b.north, 3)];
+}
+
 async function main() {
   const started = Date.now();
   fs.mkdirSync(outDir, { recursive: true });
@@ -79,6 +121,8 @@ async function main() {
         minZoom: valid(p.min_label) ? Number(p.min_label) : 2,
         maxZoom: valid(p.max_label) ? Number(p.max_label) : 10,
         population: valid(p.pop_est) ? Number(p.pop_est) : 0,
+        // [west, south, east, north] of the main land, for "fit to country".
+        bbox: mainBbox(f.geometry) ?? undefined,
         names: names(p)
       }
     ];

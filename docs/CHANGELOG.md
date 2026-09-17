@@ -1,5 +1,42 @@
 # Changelog
 
+## Unreleased — Phase 3: cinematic camera and the new panel
+
+- **Shot list.** Build the camera from shots instead of keyframing five controls:
+  - **+ Shot** adds the view in the preview. Each shot has a hold time and can orbit, push in or (on a
+    globe) spin while it holds.
+  - Between two shots sits a move: **Fly** (one continuous zoom-and-pan curve), **Straight**,
+    **Along route** (the great circle between the shots, like an airliner; it can turn with the
+    route) or **Cut**, with a duration, a flight height and an easing: Linear, Smooth, Cinematic, Soft
+    start, Soft landing, Snappy or your own curve.
+  - **Play** runs the camera in the preview in real time. Nothing renders and After Effects is not
+    touched.
+  - **Apply to timeline** writes the keys in one undo step, adds a marker per shot and makes the comp
+    longer when the shots need it. Still holds get two keys instead of one per frame. Keys changed by
+    hand are noticed before they are replaced.
+  - The list is saved inside the project, on the map layer.
+- **The preview is the frame.** The preview has the comp's shape and shows exactly what renders: the
+  same framing, detail, label and line sizes, at any comp size.
+- **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
+  A country is framed whole; a city at a zoom that suits its size.
+- **Automatic names.** New maps and shots are named after the place they show ("Paris Map").
+- **New panel layout.** A header with the map's name and the render buttons, a row of tools (pin, 3D
+  pin, callout, route, auto labels, borders, 3D camera), search above the map, keyframe, live link,
+  Fly here and zoom under it, Shots and Render tabs, and a one-line status with the log behind it.
+- **Tools.** Callouts and routes can now be added from the panel: click the tool, then the place.
+- **Live link.** While on, moving the preview moves the map at the current time.
+- **New map screen.** Name, size, frame rate, duration, basemap and globe in one step, into the open
+  comp or a new scene. Maps can be renamed safely.
+- **No waiting.** Applying 24 seconds of camera takes about 30 ms, also the second time: After Effects
+  removes keys one at a time (over a millisecond each), so a control full of keys is replaced by a
+  fresh one with the same name instead. Fly here uses the same path. Play starts at the move into the
+  selected shot.
+- **Render tab.** Finished renders of earlier sessions no longer come back in the queue; jobs that can
+  resume still do.
+- **Tests.** Unit tests for easing, fitting, route moves, the shot list and search; SH1 checks the
+  shot list inside After Effects (every frame against core maths, key counts, cuts, markers, comp
+  length, hand edits, a 40-shot list); U1 drives the new interface.
+
 ## 0.1.1 — works with the Legacy ExtendScript expression engine (2026-09-17)
 
 - **Fixed.** In projects that use After Effects' Legacy ExtendScript expression engine (older

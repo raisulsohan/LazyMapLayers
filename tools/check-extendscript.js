@@ -94,6 +94,40 @@ check("tag reads back", LML.tag.is(tagged, "mapComp") && !LML.tag.is(tagged, "sc
 LML.tag.write(tagged, { kind: "mapComp", v: 2 });
 check("tag rewrite replaces only the tag line", tagged.comment === "LML:{\"kind\":\"mapComp\",\"v\":2}\nuser note");
 
+// Extra data lines (the shot list) live after the tag line and leave everything else alone.
+LML.tag.writeExtra(tagged, "SHOTS", { list: { shots: [{ name: "One\nTwo" }] } });
+check("extra data sits on its own line", tagged.comment.split("\n").length === 3 && tagged.comment.indexOf("LML-SHOTS:") > 0);
+check("extra data reads back", LML.tag.readExtra(tagged, "SHOTS").list.shots[0].name === "One\nTwo");
+check("the tag still reads with extra data", LML.tag.read(tagged).v === 2);
+LML.tag.write(tagged, { kind: "mapComp", v: 3 });
+check("a tag rewrite keeps extra data and the user's note", LML.tag.readExtra(tagged, "SHOTS") !== null && tagged.comment.indexOf("user note") > 0 && LML.tag.read(tagged).v === 3);
+LML.tag.writeExtra(tagged, "SHOTS", { list: null });
+check("extra data is replaced, not repeated", tagged.comment.split("LML-SHOTS:").length === 2 && LML.tag.readExtra(tagged, "SHOTS").list === null);
+tagged.comment = tagged.comment.split("\n").join("\r");
+check("carriage returns are line ends too", LML.tag.read(tagged) !== null && LML.tag.read(tagged).v === 3 && LML.tag.readExtra(tagged, "SHOTS") !== null);
+LML.tag.writeExtra(tagged, "SHOTS", null);
+check("extra data can be removed", LML.tag.readExtra(tagged, "SHOTS") === null && tagged.comment === "LML:{\"kind\":\"mapComp\",\"v\":3}\nuser note");
+var untagged = { comment: "just a note" };
+var refused = false;
+try {
+    LML.tag.writeExtra(untagged, "SHOTS", {});
+} catch (e) {
+    refused = e.lmlCode === "NOT_TAGGED";
+}
+check("extra data is refused on the user's own items", refused && untagged.comment === "just a note");
+
+// Key ranges on a fake property with keys at 0, 1, 2, 3 and 4 seconds.
+var fakeProp = {
+    numKeys: 5,
+    keyTime: function (k) { return k - 1; },
+    nearestKeyIndex: function (t) { return Math.max(1, Math.min(5, Math.round(t) + 1)); }
+};
+var inside = LML.shots.keyRange(fakeProp, 0.9, 3.2, 0.01);
+check("key range picks the keys inside a time range", inside && inside.first === 2 && inside.last === 4, inside ? inside.first + ".." + inside.last : "null");
+var whole = LML.shots.keyRange(fakeProp, -5, 50, 0.01);
+check("key range covers every key of a wide range", whole && whole.first === 1 && whole.last === 5);
+check("key range is empty between keys", LML.shots.keyRange(fakeProp, 1.2, 1.4, 0.01) === null);
+
 WScript.Echo("");
 WScript.Echo(failures ? failures + " check(s) failed" : "All ExtendScript checks passed");
 WScript.Quit(failures ? 1 : 0);
