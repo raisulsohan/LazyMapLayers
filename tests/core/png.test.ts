@@ -1,7 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import zlib from "node:zlib";
-import { crc32, encodePng, flipAndUnpremultiply } from "../../src/core/image/png.ts";
+import { crc32, encodePng, flipAndFlatten, flipAndUnpremultiply } from "../../src/core/image/png.ts";
 
 type Chunk = { type: string; data: Buffer; crc: number };
 
@@ -72,4 +72,11 @@ test("readPixels output is flipped and unpremultiplied", () => {
   const gl = Uint8Array.of(128, 0, 0, 128, 0, 0, 255, 255);
   const straight = flipAndUnpremultiply(gl, 1, 2);
   assert.deepEqual(Array.from(straight), [0, 0, 255, 255, 255, 0, 0, 128]);
+});
+
+test("flattening keeps premultiplied colour over black, flips rows and drops alpha", () => {
+  // Bottom row first, premultiplied: a half-covered pixel of (200, 100, 50) is (100, 50, 25, 128).
+  const gl = Uint8Array.of(100, 50, 25, 128, 10, 20, 30, 255);
+  const flat = flipAndFlatten(gl, 1, 2);
+  assert.deepEqual([...flat], [10, 20, 30, 255, 100, 50, 25, 255]);
 });

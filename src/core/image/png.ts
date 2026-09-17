@@ -99,6 +99,23 @@ export function flipAndUnpremultiply(pixels: Uint8Array, width: number, height: 
   return out;
 }
 
+/**
+ * Flattens WebGL readPixels output (bottom row first, premultiplied) over black into opaque RGBA with
+ * the top row first. For passes that are opaque by design, where a few edge pixels may still carry
+ * alpha just below 1.
+ */
+export function flipAndFlatten(pixels: Uint8Array, width: number, height: number): Uint8Array {
+  const out = new Uint8Array(pixels.length);
+  const rowBytes = width * 4;
+  for (let y = 0; y < height; y++) {
+    const from = (height - 1 - y) * rowBytes;
+    const to = y * rowBytes;
+    out.set(pixels.subarray(from, from + rowBytes), to);
+    for (let i = to + 3; i < to + rowBytes; i += 4) out[i] = 255;
+  }
+  return out;
+}
+
 function chunk(type: string, data: Uint8Array): Uint8Array {
   const out = new Uint8Array(12 + data.length);
   const view = new DataView(out.buffer);

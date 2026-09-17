@@ -235,3 +235,75 @@ button.danger {
   color: #fff;
   font-weight: 600;
 }
+
+button.active {
+  border-color: var(--accent);
+  color: var(--accent);
+}
+
+.check {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  color: var(--text);
+  white-space: nowrap;
+}
+
+.sheet-row.passes {
+  align-items: center;
+  gap: 4px 12px;
+}
+
+.queue {
+  flex: 0 0 auto;
+  max-height: 30%;
+  overflow: auto;
+  padding: 6px 8px 0;
+  border-top: 1px solid var(--line);
+}
+
+.job {
+  padding: 4px 0 6px;
+  border-bottom: 1px solid var(--line);
+}
+
+.job:last-child {
+  border-bottom: none;
+}
+
+.job-head {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+}
+
+.job-title {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.job-status {
+  color: var(--muted);
+  font-size: 11px;
+}
+
+.job.done .job-status {
+  color: var(--good);
+}
+
+.job.failed .job-status,
+.job.interrupted .job-status {
+  color: var(--bad);
+}
+
+.job .progress {
+  margin: 4px 0 0;
+}
+
+.small-button {
+  padding: 1px 7px;
+  font-size: 11px;
+}

@@ -1,5 +1,6 @@
 // LazyMapLayers panel: pick a map, frame it in the preview, keyframe views, drop pins, render the
-// basemap into After Effects, and download OpenStreetMap regions.
+// basemap and its passes into After Effects through the render queue, and download OpenStreetMap
+// regions.
 
 import "./polyfills.ts";
 import { render } from "preact";
@@ -14,7 +15,10 @@ import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, regis
 import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
 import { protomapsStyle } from "./basemap/protomapsStyle.ts";
 import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
-import { renderMap, type BasemapSource } from "./render/renderMap.ts";
+import type { BasemapSource } from "./render/renderJob.ts";
+import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
+import { PASS_IDS, PASS_INFO, type PassId } from "../core/render/passes.ts";
+import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { startDevAutomation } from "./devAutomation.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
@@ -28,6 +32,7 @@ type MapEntry = {
   basemap: BasemapSource | null;
   isActiveScene: boolean;
   hasCamera: boolean;
+  render: Partial<RenderSettings> | null;
   view: View;
 };
 type Progress = { label: string; done: number; total: number } | null;
@@ -45,6 +50,8 @@ function tilesUpTo(bbox: Bbox, maxZoom: number): number {
   for (let z = 0; z <= maxZoom; z++) total += tileCount(tileRangeForBbox(bbox, z));
   return total;
 }
+
+const STAGE_LABELS = { camera: "Reading camera", planning: "Checking cache", rendering: "Rendering", importing: "Importing" } as const;
 
 const compactNumber = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : String(n));
 
@@ -75,6 +82,8 @@ function App() {
   const [basemap, setBasemap] = useState<BasemapSource>({ kind: "world" });
   const [progress, setProgress] = useState<Progress>(null);
   const [regionSheet, setRegionSheet] = useState<RegionSheet | null>(null);
+  const [settingsOpen, setSettingsOpen] = useState(false);
+  const [jobs, setJobs] = useState<QueueJob[]>([]);
   const pinCounter = useRef(1);
   const selectedRef = useRef<string>("");
   selectedRef.current = selectedId;
@@ -148,10 +157,29 @@ function App() {
       .catch((error) => fail("host not ready", error));
     void refreshMaps(true);
     void refreshRegions();
+    renderQueue.load();
+    setJobs([...renderQueue.jobs]);
+    const stopQueue = renderQueue.subscribe((event) => {
+      setJobs([...renderQueue.jobs]);
+      if (!event) return;
+      const { job, result } = event;
+      if (job.status === "done" && result) {
+        log(`${job.mapName}: ${describeSpec(job.spec)} · ${job.summary}`, "ok");
+        if (result.imported.attribution.state === "added") {
+          log("added a data credit layer (© OpenStreetMap contributors) to the scene; keep it, or credit OpenStreetMap in your video", "muted");
+        }
+        void refreshMaps();
+      } else if (job.status === "failed") {
+        log(`${job.mapName}: render failed: ${job.error}`, "fail");
+      } else if (job.status === "cancelled") {
+        log(`${job.mapName}: render cancelled (rendered frames are kept; Resume continues)`, "muted");
+      }
+    });
     const onFocus = () => void refreshMaps();
     window.addEventListener("focus", onFocus);
     const stopAutomation = startDevAutomation(log, setBusy);
     return () => {
+      stopQueue();
       stopAutomation();
       window.removeEventListener("focus", onFocus);
       mapRef.current?.remove();
@@ -159,13 +187,17 @@ function App() {
   }, []);
 
   const selected = maps.find((m) => m.mapId === selectedId) ?? null;
+  const renderSettings = normaliseSettings(selected?.render ?? null, DEFAULT_FINAL_SETTINGS);
 
   // Handle for UI tests driven through DevTools (tools/ae-spikes.mjs --ui).
   (window as unknown as { lmlDebug: unknown }).lmlDebug = {
     map: () => mapRef.current,
     addPin: (lat: number, lng: number, threeD = false) => addPinAt({ lat, lng }, threeD),
     addCamera: () => addCamera(),
-    selectedMapId: () => selectedRef.current
+    selectedMapId: () => selectedRef.current,
+    queue: renderQueue,
+    queueIdle: () => renderQueue.whenIdle().then(() => true),
+    setRenderSettings: (settings: Partial<RenderSettings>) => updateRenderSettings(settings)
   };
 
   async function run(label: string, task: () => Promise<void>) {
@@ -252,18 +284,30 @@ function App() {
       if (mapId) await callHost("setMapSettings", { mapId, basemap: source });
     });
 
-  const renderBasemap = (scale: number) =>
-    run("render", async () => {
-      if (!selected) return;
-      const label = scale < 1 ? "Rendering preview" : "Rendering";
-      setProgress({ label, done: 0, total: 1 });
-      const result = await renderMap(selected.mapId, {
-        basemap,
-        scale,
-        onProgress: (done, total) => setProgress({ label, done, total })
-      });
-      log(`rendered ${result.frames} frames (${result.msPerFrame.toFixed(0)} ms each) into ${selected.mapCompName}`, "ok");
-    });
+  const renderBasemap = (quality: RenderQuality) => {
+    if (!selected) return;
+    const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings;
+    renderQueue.add({ mapId: selected.mapId, quality, settings, basemap }, selected.mapCompName);
+  };
+
+  async function updateRenderSettings(change: Partial<RenderSettings>) {
+    const entry = maps.find((m) => m.mapId === selectedRef.current);
+    if (!entry) return;
+    const next = normaliseSettings({ ...normaliseSettings(entry.render, DEFAULT_FINAL_SETTINGS), ...change }, DEFAULT_FINAL_SETTINGS);
+    setMaps((list) => list.map((m) => (m.mapId === entry.mapId ? { ...m, render: next } : m)));
+    try {
+      await callHost("setMapSettings", { mapId: entry.mapId, render: next });
+    } catch (error) {
+      fail("saving render settings", error);
+    }
+  }
+
+  const togglePass = (pass: PassId, on: boolean) => {
+    const passes = new Set(renderSettings.passes);
+    if (on) passes.add(pass);
+    else passes.delete(pass);
+    void updateRenderSettings({ passes: PASS_IDS.filter((p) => passes.has(p)) });
+  };
 
   const regionTaken = !!regionSheet?.name && regions.some((r) => r.name === safeRegionName(regionSheet.name));
 
@@ -441,13 +485,105 @@ function App() {
           {selected?.hasCamera ? "3D camera ✓" : "3D camera"}
         </button>
         <span class="spacer" />
-        <button disabled={busy || !selected} onClick={() => renderBasemap(0.5)} title="Half resolution, fast">
+        <button class={settingsOpen ? "active" : ""} disabled={!selected} onClick={() => setSettingsOpen(!settingsOpen)} title="Render settings for this map">
+          ⚙
+        </button>
+        <button
+          disabled={!selected}
+          onClick={() => renderBasemap("preview")}
+          title="Half resolution without supersampling: fast. Becomes an After Effects proxy once a final render exists."
+        >
           Render preview
         </button>
-        <button class="primary" disabled={busy || !selected} onClick={() => renderBasemap(1)}>
+        <button class="primary" disabled={!selected} onClick={() => renderBasemap("final")} title="Full resolution with the render settings. Only frames that changed are drawn again.">
           Render
         </button>
       </div>
+
+      {settingsOpen && selected && (
+        <div class="sheet">
+          <div class="sheet-row">
+            <label class="field">
+              Supersampling
+              <select value={renderSettings.supersample} onChange={(e) => void updateRenderSettings({ supersample: Number((e.target as HTMLSelectElement).value) })}>
+                <option value={1}>Off</option>
+                <option value={2}>2× (4 samples per pixel)</option>
+                <option value={3}>3× (9 samples per pixel)</option>
+                <option value={4}>4× (16 samples per pixel)</option>
+              </select>
+            </label>
+            <label class="check">
+              <input type="checkbox" checked={renderSettings.motionBlur} onChange={(e) => void updateRenderSettings({ motionBlur: (e.target as HTMLInputElement).checked })} />
+              Motion blur
+            </label>
+            <select
+              disabled={!renderSettings.motionBlur}
+              value={renderSettings.motionBlurSamples}
+              onChange={(e) => void updateRenderSettings({ motionBlurSamples: Number((e.target as HTMLSelectElement).value) })}
+              title="Sub-frame samples. Shutter angle and phase come from the scene comp, so the basemap blurs like the layers above it."
+            >
+              {[4, 8, 16, 32].map((n) => (
+                <option key={n} value={n}>
+                  {n} samples
+                </option>
+              ))}
+            </select>
+          </div>
+          <div class="sheet-row passes">
+            <span class="muted">Passes</span>
+            {PASS_IDS.filter((p) => p !== "base").map((pass) => (
+              <label key={pass} class="check">
+                <input type="checkbox" checked={renderSettings.passes.includes(pass)} onChange={(e) => togglePass(pass, (e.target as HTMLInputElement).checked)} />
+                {PASS_INFO[pass].label}
+              </label>
+            ))}
+          </div>
+          <div class="muted small">
+            Passes go into the map comp above the basemap, switched off. Ground passes are held out by 3D buildings, so an effect on roads never shows
+            through a building. Mattes are white with alpha.
+          </div>
+        </div>
+      )}
+
+      {jobs.length > 0 && (
+        <div class="queue">
+          {jobs.map((job) => (
+            <div key={job.id} class={`job ${job.status}`}>
+              <div class="job-head">
+                <span class="job-title">
+                  <strong>{job.mapName}</strong> · {describeSpec(job.spec)}
+                </span>
+                <span class="job-status">{job.status}</span>
+                {(job.status === "running" || job.status === "queued") && (
+                  <button class="small-button" onClick={() => renderQueue.cancel(job.id)}>
+                    Cancel
+                  </button>
+                )}
+                {(job.status === "interrupted" || job.status === "cancelled" || job.status === "failed") && (
+                  <button class="small-button" onClick={() => renderQueue.resume(job.id)} title="Continue; frames already rendered are reused">
+                    Resume
+                  </button>
+                )}
+                {job.status !== "running" && job.status !== "queued" && (
+                  <button class="small-button" onClick={() => renderQueue.remove(job.id)} title="Remove from the list">
+                    ✕
+                  </button>
+                )}
+              </div>
+              {job.status === "running" && job.progress && (
+                <div class="progress">
+                  <div class="bar" style={{ width: `${Math.round((100 * job.progress.done) / Math.max(1, job.progress.total))}%` }} />
+                  <span>
+                    {STAGE_LABELS[job.progress.stage]} {job.progress.done}/{job.progress.total} · {job.progress.rendered} rendered · {job.progress.reused} reused
+                  </span>
+                </div>
+              )}
+              {job.summary && <div class="small muted">{job.summary}</div>}
+              {job.error && <div class="small warning">{job.error}</div>}
+            </div>
+          ))}
+        </div>
+      )}
 
       {progress && (
         <div class="progress">

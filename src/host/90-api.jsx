@@ -33,14 +33,42 @@ LML.api.sampleViews = function (args) {
     return LML.basemap.sampleViews(args);
 };
 
-LML.api.importBasemap = function (args) {
-    return LML.withUndo("Update basemap", function () {
-        // Unlock before replacing, relock inside importSequence.
-        var mapLayer = LML.pins.findMapLayer(args.mapId);
-        var existing = LML.basemap.findBasemapLayer(mapLayer.source);
-        if (existing) existing.locked = false;
-        return LML.basemap.importSequence(args);
+LML.api.renderInfo = function (args) {
+    return LML.basemap.renderInfo(args);
+};
+
+/** Imports or swaps rendered pass sequences (one undo step) and keeps the data credit in place. */
+LML.api.importPasses = function (args) {
+    return LML.withUndo(args.quality === "preview" ? "Update basemap preview" : "Update basemap", function () {
+        return LML.basemap.importPasses(args);
     });
+};
+
+/** Pass layers of a map comp with their footage state, for the panel's render section. */
+LML.api.listPasses = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var mapComp = mapLayer.source;
+    var out = [];
+    for (var i = 1; i <= mapComp.numLayers; i++) {
+        var layer = mapComp.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "basemap") continue;
+        var footage = layer.source instanceof FootageItem ? layer.source : null;
+        var footageTag = footage ? LML.tag.read(footage) || {} : {};
+        out.push({
+            pass: tag.pass || "base",
+            layerName: layer.name,
+            enabled: layer.enabled,
+            main: footageTag.main || "final",
+            finalStamp: footageTag.finalStamp || null,
+            proxyStamp: footageTag.proxyStamp || null,
+            hasProxy: LML.basemap.hasProxy(footage),
+            useProxy: footage ? footage.useProxy : false,
+            path: footage && footage.mainSource.file ? footage.mainSource.file.fsName : null,
+            proxyPath: LML.basemap.hasProxy(footage) && footage.proxySource.file ? footage.proxySource.file.fsName : null
+        });
+    }
+    return out;
 };
 
 /** Stores per-map settings (such as the basemap source) in the map layer's tag. */
@@ -48,6 +76,7 @@ LML.api.setMapSettings = function (args) {
     var layer = LML.pins.findMapLayer(args.mapId);
     var tag = LML.tag.read(layer);
     if (args.basemap !== undefined) tag.basemap = args.basemap;
+    if (args.render !== undefined) tag.render = args.render;
     LML.tag.write(layer, tag);
     return tag;
 };
@@ -73,6 +102,7 @@ LML.api.listMaps = function () {
             sceneCompName: comp.name,
             layerIndex: layer.index,
             basemap: tag.basemap || null,
+            render: tag.render || null,
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,
             view: LML.map.readViewAtTime(layer, comp.time)

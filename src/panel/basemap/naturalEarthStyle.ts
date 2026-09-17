@@ -1,7 +1,11 @@
 // "Midnight" — the first offline style, built on the bundled Natural Earth archive.
-// Colours are placeholders for Phase 7's curated style set.
+// Colours are placeholders for Phase 7's curated style set. Every layer names its render pass group
+// in metadata "lml:group" (see core/render/passes.ts).
 
 import type { StyleSpecification } from "maplibre-gl";
+import type { LayerGroup } from "../../core/render/passes.ts";
+
+const group = (name: LayerGroup) => ({ "lml:group": name });
 
 export const NATURAL_EARTH_SOURCE = "natural-earth";
 
@@ -19,10 +23,11 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       }
     },
     layers: [
-      { id: "ocean", type: "background", paint: { "background-color": "#0b1a2b" } },
+      { id: "ocean", type: "background", metadata: group("background"), paint: { "background-color": "#0b1a2b" } },
       {
         id: "land",
         type: "fill",
+        metadata: group("land"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "land",
         paint: { "fill-color": "#1d2a36", "fill-antialias": true }
@@ -30,6 +35,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "lakes",
         type: "fill",
+        metadata: group("water"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "lakes",
         paint: { "fill-color": "#0b1a2b" }
@@ -37,6 +43,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "rivers",
         type: "line",
+        metadata: group("water"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "rivers",
         minzoom: 3,
@@ -48,6 +55,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "admin1",
         type: "line",
+        metadata: group("boundaries"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "admin1_lines",
         minzoom: 4,
@@ -60,6 +68,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "coastline",
         type: "line",
+        metadata: group("boundaries"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "coastline",
         paint: {
@@ -70,6 +79,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "boundaries",
         type: "line",
+        metadata: group("boundaries"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "boundaries",
         paint: {
@@ -85,6 +95,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "country-labels",
         type: "symbol",
+        metadata: group("labels"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "country_points",
         layout: {
@@ -100,6 +111,7 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       {
         id: "place-labels",
         type: "symbol",
+        metadata: group("labels"),
         source: NATURAL_EARTH_SOURCE,
         "source-layer": "places",
         filter: ["<=", ["coalesce", ["get", "min_zoom"], 10], ["+", ["zoom"], 1]],

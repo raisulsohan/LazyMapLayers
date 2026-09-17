@@ -1,0 +1,301 @@
+// One render of a map comp: read the camera for every frame and motion blur sample, work out which
+// pass images are not in the cache yet, draw only those, encode them in workers, link the sequences
+// and import them into After Effects in one undo step.
+
+import type { StyleSpecification } from "maplibre-gl";
+import type { View } from "../../core/camera/camera.ts";
+import { keyOf } from "../../core/render/frameKey.ts";
+import { PASS_INFO, rendersFor, type PassId, type RenderId } from "../../core/render/passes.ts";
+import { SampleAccumulator } from "../../core/render/pixels.ts";
+import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
+import { callHost, callHostWithJobFile, fs } from "../cep.ts";
+import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "../basemap/maplibreSetup.ts";
+import { naturalEarthStyle } from "../basemap/naturalEarthStyle.ts";
+import { protomapsStyle } from "../basemap/protomapsStyle.ts";
+import { sharedEncodePool } from "./encodePool.ts";
+import { FrameRenderer, GROUP_METADATA_KEY, layerGroup } from "./frameRenderer.ts";
+import { RenderStore } from "./renderStore.ts";
+
+export type BasemapSource = { kind: "world" } | { kind: "region"; name: string };
+
+export type Marker = { lat: number; lng: number; radius?: number; color?: string };
+
+export type RenderJobSpec = {
+  mapId: string;
+  quality: RenderQuality;
+  settings: RenderSettings;
+  basemap: BasemapSource;
+  /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
+  markers?: Marker[];
+};
+
+export type RenderStage = "camera" | "planning" | "rendering" | "importing";
+
+export type RenderProgress = {
+  stage: RenderStage;
+  done: number;
+  total: number;
+  /** Unique frames drawn so far in this job. */
+  rendered: number;
+  /** Frames whose images were already cached (or shared with an earlier frame of this job). */
+  reused: number;
+};
+
+export type RenderJobResult = {
+  frames: number;
+  rendered: number;
+  reused: number;
+  msPerRenderedFrame: number;
+  totalMs: number;
+  geometry: OutputGeometry;
+  samples: number;
+  passes: PassId[];
+  sequences: { pass: PassId; folder: string; firstFramePath: string }[];
+  imported: { passes: { pass: string; layerName: string; main: string; hasProxy: boolean; useProxy: boolean; created: boolean }[]; attribution: { state: string } };
+  stamp: string;
+  storeRoot: string;
+};
+
+export class RenderCancelled extends Error {
+  constructor() {
+    super("render cancelled");
+    this.name = "RenderCancelled";
+  }
+}
+
+type RenderInfo = {
+  mapCompName: string;
+  width: number;
+  height: number;
+  frameRate: number;
+  frames: number;
+  shutterAngle: number;
+  shutterPhase: number;
+  animated: boolean;
+  projectFolder: string | null;
+};
+
+const OSM_CREDIT = "© OpenStreetMap contributors";
+
+export function basemapStyle(basemap: BasemapSource, options: { labels: boolean; markers?: Marker[] }): StyleSpecification {
+  const style =
+    basemap.kind === "region"
+      ? protomapsStyle(registerLocalArchive(basemap.name, regionArchivePath(basemap.name)), { labels: options.labels })
+      : naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels });
+  if (options.markers?.length) {
+    style.sources["lml-markers"] = {
+      type: "geojson",
+      data: {
+        type: "FeatureCollection",
+        features: options.markers.map((m) => ({
+          type: "Feature",
+          properties: { radius: m.radius ?? 5, color: m.color ?? "#ff0000" },
+          geometry: { type: "Point", coordinates: [m.lng, m.lat] }
+        }))
+      }
+    };
+    style.layers.push({
+      id: "lml-markers",
+      type: "circle",
+      source: "lml-markers",
+      metadata: { [GROUP_METADATA_KEY]: "overlay" },
+      paint: {
+        "circle-radius": ["get", "radius"],
+        "circle-color": ["get", "color"],
+        "circle-pitch-alignment": "viewport",
+        "circle-pitch-scale": "viewport"
+      }
+    });
+  }
+  return style;
+}
+
+function archiveOf(basemap: BasemapSource): string {
+  return basemap.kind === "region" ? regionArchivePath(basemap.name) : naturalEarthArchivePath();
+}
+
+function dataFingerprint(basemap: BasemapSource): string {
+  const file = archiveOf(basemap);
+  const stat = fs().statSync(file);
+  return keyOf({ file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) });
+}
+
+const toView = (a: number[]): View => ({ center: { lat: a[0], lng: a[1] }, zoom: a[2], bearing: a[3], pitch: a[4] });
+
+async function readCameras(mapId: string, info: RenderInfo, offsets: number[], signal: AbortSignal | undefined, progress: (done: number) => void): Promise<View[][]> {
+  if (!info.animated) {
+    const one = await callHost<{ views: number[][][] }>("sampleViews", { mapId, firstFrame: 0, lastFrame: 0, offsets: [0], compact: true });
+    const view = toView(one.views[0][0]);
+    return Array.from({ length: info.frames }, () => [view]);
+  }
+  const perCall = Math.max(1, Math.floor(1500 / offsets.length));
+  const views: View[][] = [];
+  for (let first = 0; first < info.frames; first += perCall) {
+    if (signal?.aborted) throw new RenderCancelled();
+    const last = Math.min(info.frames - 1, first + perCall - 1);
+    const chunk = await callHost<{ views: number[][][] }>("sampleViews", { mapId, firstFrame: first, lastFrame: last, offsets, compact: true });
+    for (const samples of chunk.views) views.push(samples.map(toView));
+    progress(views.length);
+  }
+  return views;
+}
+
+export async function runRenderJob(spec: RenderJobSpec, options: { signal?: AbortSignal; onProgress?: (p: RenderProgress) => void } = {}): Promise<RenderJobResult> {
+  const { signal } = options;
+  const started = performance.now();
+  const settings = spec.settings;
+  const report = (p: RenderProgress) => options.onProgress?.(p);
+
+  if (!fs().existsSync(archiveOf(spec.basemap))) throw new Error(`basemap data is missing: ${archiveOf(spec.basemap)}`);
+  const info = await callHost<RenderInfo>("renderInfo", { mapId: spec.mapId });
+  const offsets = sampleOffsets(settings, { angle: info.shutterAngle, phase: info.shutterPhase });
+  report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
+  const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
+
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers });
+  const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
+  // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
+  const opaqueBackground = style.layers.some(
+    (l) => l.type === "background" && (l.paint?.["background-opacity"] ?? 1) === 1 && !(l.layout?.visibility === "none") && !l.minzoom && !l.maxzoom
+  );
+  const opaquePasses: PassId[] = opaqueBackground ? ["base"] : [];
+  const geometry = outputGeometry({ width: info.width, height: info.height }, settings.scale, settings.supersample);
+  const context: FrameKeyContext = {
+    style: keyOf(style),
+    data: dataFingerprint(spec.basemap),
+    width: geometry.width,
+    height: geometry.height,
+    supersample: geometry.supersample,
+    labels: settings.labels
+  };
+  // The camera animation alone: equal stamps mean a preview and a final show the same move.
+  const stamp = keyOf({ fps: info.frameRate, cameras: cameras.map((c) => [c[0].center.lat, c[0].center.lng, c[0].zoom, c[0].bearing, c[0].pitch]) });
+  const store = RenderStore.forMap(spec.mapId, info.mapCompName, info.projectFolder);
+
+  // Plan: the pass images each frame still needs. Frames sharing a key share one render.
+  report({ stage: "planning", done: 0, total: info.frames, rendered: 0, reused: 0 });
+  const keys: Record<string, string>[] = [];
+  const scheduled = new Set<string>();
+  const work: { frame: number; passes: PassId[] }[] = [];
+  let reused = 0;
+  for (let frame = 0; frame < info.frames; frame++) {
+    const timeMs = (frame * 1000) / info.frameRate;
+    const frameKeys: Record<string, string> = {};
+    const missing: PassId[] = [];
+    for (const pass of settings.passes) {
+      const key = frameKey(context, pass, cameras[frame], timeMs);
+      frameKeys[pass] = key;
+      const id = `${pass}:${key}`;
+      if (!scheduled.has(id) && !store.has(pass, key)) {
+        scheduled.add(id);
+        missing.push(pass);
+      }
+    }
+    keys.push(frameKeys);
+    if (missing.length) work.push({ frame, passes: missing });
+    else reused++;
+  }
+
+  let rendered = 0;
+  let renderMs = 0;
+  if (work.length) {
+    const pool = sharedEncodePool();
+    const renderer = new FrameRenderer({
+      width: info.width,
+      height: info.height,
+      pixelRatio: geometry.pixelRatio,
+      supersample: geometry.supersample,
+      style,
+      antialias: geometry.canvasWidth * geometry.canvasHeight <= 40_000_000
+    });
+    const writes: Promise<void>[] = [];
+    let writeError: Error | null = null;
+    const renderStarted = performance.now();
+    try {
+      await renderer.init();
+      for (const item of work) {
+        if (signal?.aborted || writeError) break;
+        const renders = rendersFor(item.passes, hasBuildings);
+        const samples = isStill(cameras[item.frame]) ? [cameras[item.frame][0]] : cameras[item.frame];
+        const timeMs = (item.frame * 1000) / info.frameRate;
+        const images: Partial<Record<RenderId, Uint8Array>> = {};
+        if (samples.length === 1) {
+          await renderer.setView(samples[0], timeMs);
+          for (const render of renders) images[render] = renderer.draw(render, settings.labels).pixels;
+        } else {
+          const sums: Partial<Record<RenderId, SampleAccumulator>> = {};
+          for (let s = 0; s < samples.length; s++) {
+            await renderer.setView(samples[s], timeMs + (offsets[s] * 1000) / info.frameRate);
+            for (const render of renders) {
+              const pixels = renderer.draw(render, settings.labels).pixels;
+              (sums[render] ??= new SampleAccumulator(pixels.length)).add(pixels);
+            }
+          }
+          for (const render of renders) images[render] = sums[render]!.mean();
+        }
+        await pool.whenReady();
+        const frameKeys = keys[item.frame];
+        writes.push(
+          pool.encode(geometry.width, geometry.height, images, item.passes, opaquePasses).then(
+            (pngs) => {
+              for (const pass of item.passes) store.write(pass, frameKeys[pass], pngs[pass]!);
+            },
+            (error: Error) => {
+              writeError = error;
+            }
+          )
+        );
+        rendered++;
+        report({ stage: "rendering", done: rendered + reused, total: info.frames, rendered, reused });
+      }
+      await Promise.all(writes);
+    } finally {
+      renderer.destroy();
+    }
+    renderMs = performance.now() - renderStarted;
+    if (writeError) throw writeError;
+    if (signal?.aborted) throw new RenderCancelled();
+  }
+  reused = info.frames - rendered;
+
+  report({ stage: "importing", done: info.frames, total: info.frames, rendered, reused });
+  const sequences = settings.passes.map((pass) => ({
+    pass,
+    ...store.createSequence(
+      pass,
+      spec.quality,
+      keys.map((k, frame) => ({ frame, key: k[pass] }))
+    )
+  }));
+  const imported = await callHostWithJobFile<RenderJobResult["imported"]>("importPasses", {
+    mapId: spec.mapId,
+    quality: spec.quality,
+    stamp,
+    sequences: sequences.map((s) => ({ pass: s.pass, label: PASS_INFO[s.pass].label, kind: PASS_INFO[s.pass].kind, firstFramePath: s.firstFramePath })),
+    attribution: spec.basemap.kind === "region" ? OSM_CREDIT : null
+  });
+
+  // Old sequence folders: keep the newest two per pass (Undo), and anything After Effects still uses.
+  try {
+    const listed = await callHost<{ path: string | null; proxyPath: string | null }[]>("listPasses", { mapId: spec.mapId });
+    const inUse = listed.flatMap((p) => [p.path, p.proxyPath]).filter((p): p is string => !!p);
+    for (const pass of settings.passes) store.pruneSequences(pass, spec.quality, 2, inUse);
+  } catch {
+    // Pruning is housekeeping; never fail a finished render over it.
+  }
+
+  return {
+    frames: info.frames,
+    rendered,
+    reused,
+    msPerRenderedFrame: rendered ? renderMs / rendered : 0,
+    totalMs: performance.now() - started,
+    geometry,
+    samples: offsets.length,
+    passes: settings.passes,
+    sequences,
+    imported,
+    stamp,
+    storeRoot: store.root
+  };
+}

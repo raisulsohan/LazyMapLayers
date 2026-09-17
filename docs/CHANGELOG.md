@@ -1,6 +1,29 @@
 # Changelog
 
-## Unreleased — Phase 1 (camera rig and pins), done
+## Unreleased — Phase 2 (frame renderer and passes), done
+
+- **Render queue.** **Render preview** and **Render** add jobs to a queue with progress, Cancel and
+  Resume. The queue is saved, so jobs cut off by closing After Effects come back with Resume.
+- **Only changed frames render.** Every pass image has a content key. Held shots render once, an
+  unchanged re-render finishes in under a second, and a keyframe change redraws exactly the frames
+  it affects. A cancelled render resumes where it stopped.
+- **Render settings per map** (⚙): supersampling off, 2×, 3× or 4× (filtered on the GPU), motion
+  blur with 4 to 32 samples that follows the scene comp's shutter angle and phase, and passes.
+- **Passes and mattes.** Land, Water, Boundaries, Roads and Buildings passes, plus Land and Water
+  mattes, one footage item and one layer each, added switched off above the basemap. Ground
+  passes are held out by 3D buildings.
+- **Proxies.** A preview becomes the After Effects proxy of the final render and is switched on; the
+  next final render switches it off, or removes it if the move changed.
+- **Faster rendering.** Encoding runs in a pool of workers. A 10-second 4K move with 2×
+  supersampling renders at 125 ms per frame.
+- **Data credit.** Rendering an OpenStreetMap region adds a "© OpenStreetMap contributors" text
+  layer to the scene once. It is not added again if you delete it.
+- **Smoother city zooms.** 3D buildings fade in and rise between zoom 12 and 13 instead of popping
+  in.
+- **Tests.** R1 (15 checks inside After Effects) and R2 (the 4K acceptance move) with automatic pop
+  detection. E1 now renders with supersampling.
+
+## Phase 1 (camera rig and pins)
 
 - **Pinned layers.** `addPin` creates a marker shape layer linked to a map through a Layer
   Control effect, with these effects: Latitude, Longitude, Scale with Map, Rotate with Map,

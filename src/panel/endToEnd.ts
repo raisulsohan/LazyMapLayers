@@ -9,7 +9,8 @@ import { decodePng } from "../core/image/pngDecode.ts";
 import { evalScript, fs, path } from "./cep.ts";
 import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
-import { renderMap } from "./render/renderMap.ts";
+import { DEFAULT_FINAL_SETTINGS } from "../core/render/plan.ts";
+import { runRenderJob } from "./render/renderJob.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
 
 const landmarks = [
@@ -64,12 +65,15 @@ export async function runEndToEnd(log: SpikeLog): Promise<Record<string, unknown
     }
     return "1";`);
 
-  const render = await renderMap(map.id, {
+  const render = await runRenderJob({
+    mapId: map.id,
+    quality: "final",
+    settings: DEFAULT_FINAL_SETTINGS,
     basemap: { kind: "region", name: region },
-    scale: 1,
     markers: landmarks.map((l) => ({ lat: l.lat, lng: l.lng, radius: 4, color: "#ff0000" }))
   });
-  log(`E1 rendered ${render.frames} basemap frames at ${render.msPerFrame.toFixed(0)} ms/frame and imported them`, "ok");
+  const msPerFrame = render.msPerRenderedFrame;
+  log(`E1 rendered ${render.rendered} of ${render.frames} basemap frames at ${msPerFrame.toFixed(0)} ms/frame (2x supersampling) and imported them`, "ok");
 
   const results: { time: number; name: string; x: number; y: number; centre: number[]; hit: boolean }[] = [];
   for (const time of [0, 0.64, 1.28, 1.92]) {
@@ -110,5 +114,5 @@ export async function runEndToEnd(log: SpikeLog): Promise<Record<string, unknown
   const passed = results.length >= 20 && threeD.length >= 10 && hits === results.length;
   log(`E1 pins centred on renderer dots in AE's own frames: ${hits}/${results.length} (3D pins ${hits3d}/${threeD.length})`, passed ? "ok" : "fail");
   for (const miss of results.filter((r) => !r.hit)) log(`  miss: ${miss.name} at ${miss.time}s (${miss.x.toFixed(1)}, ${miss.y.toFixed(1)}) rgb ${miss.centre}`, "fail");
-  return { frames: render.frames, msPerFrame: Math.round(render.msPerFrame), checks: results.length, hits, checks3d: threeD.length, hits3d, passed, results };
+  return { frames: render.frames, msPerFrame: Math.round(msPerFrame), checks: results.length, hits, checks3d: threeD.length, hits3d, passed, results };
 }
