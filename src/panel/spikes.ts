@@ -18,6 +18,7 @@ import { runEndToEnd } from "./endToEnd.ts";
 import { runCameraAlignment } from "./cameraAlignment.ts";
 import { runRenderTests } from "./renderTests.ts";
 import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
+import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
 
@@ -183,6 +184,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     }
   }
 
+  if (only && only.includes("D1L")) {
+    try {
+      results.D1L_demoLegacyEngine = await runDemoTest(log, { width: 1920, height: 1080, engine: "extendscript" });
+    } catch (error) {
+      results.D1L_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`D1L failed: ${results.D1L_error}`, "fail");
+    }
+  }
+
   if (wants("G1")) {
     try {
       results.G1_globe = await runGlobeTests(log);
@@ -198,6 +208,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.G2_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`G2 failed: ${results.G2_error}`, "fail");
+    }
+  }
+
+  if (wants("X1")) {
+    try {
+      results.X1_expressionEngines = await runExpressionEngineTest(log);
+    } catch (error) {
+      results.X1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`X1 failed: ${results.X1_error}`, "fail");
     }
   }
 

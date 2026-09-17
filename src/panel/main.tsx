@@ -41,6 +41,8 @@ type MapEntry = {
   height: number;
   render: Partial<RenderSettings> | null;
   view: View;
+  /** "javascript-1.0" or "extendscript" (the project's expression engine). */
+  expressionEngine: string | null;
 };
 type Progress = { label: string; done: number; total: number } | null;
 type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
@@ -107,6 +109,7 @@ function App() {
   const [jobs, setJobs] = useState<QueueJob[]>([]);
   const pinCounter = useRef(1);
   const selectedRef = useRef<string>("");
+  const legacyEngineNoted = useRef(false);
   selectedRef.current = selectedId;
 
   const log: SpikeLog = (text, kind) => setLines((previous) => [...previous.slice(-200), { text, kind }]);
@@ -128,6 +131,10 @@ function App() {
     try {
       const list = await callHost<MapEntry[]>("listMaps");
       setMaps(list);
+      if (list.some((m) => m.expressionEngine === "extendscript") && !legacyEngineNoted.current) {
+        legacyEngineNoted.current = true;
+        log("this project uses the Legacy ExtendScript expression engine. Map layers work with it, but play back faster with File > Project Settings > Expressions > JavaScript", "muted");
+      }
       const current = list.find((m) => m.mapId === selectedRef.current);
       const active = list.find((m) => m.isActiveScene);
       const next = (preferActive && active) || current || active || list[0];

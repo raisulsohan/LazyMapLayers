@@ -22,6 +22,7 @@
 import { DEFAULT_FOV_RAD, cameraToCenterDistance, type View, type Viewport } from "../camera/camera.ts";
 import { MAX_LATITUDE, TILE_SIZE, mercatorXFromLng, mercatorYFromLat, unwrapLongitudeNear, type LngLat } from "../geo/mercator.ts";
 import { MAP_CONTROL_NAMES, PIN_EFFECTS } from "./pinExpressions.ts";
+import { froundSource } from "./projectionExpression.ts";
 
 /** MapLibre converts metres with this radius (maplibre-gl earthRadius), so extrusions line up. */
 export const MAPLIBRE_EARTH_RADIUS_M = 6371008.8;
@@ -166,13 +167,20 @@ const q = JSON.stringify;
 
 /** Declares mx, my, S and ground(lat, lng) from the map layer's 3D controls. Needs `map`. */
 function groundPrelude(): string {
-  return `const DEG = Math.PI / 180, MAXLAT = ${num(MAX_LATITUDE)};
-const mx = (lon) => (180 + lon) / 360;
-const my = (la) => { const c = Math.max(-MAXLAT, Math.min(MAXLAT, la)); return (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + c * DEG / 2))) / 360; };
-const oLat = map.effect(${q(RIG_CONTROL_NAMES.originLatitude)})(1).value;
-const oLng = map.effect(${q(RIG_CONTROL_NAMES.originLongitude)})(1).value;
-const S = ${num(TILE_SIZE)} * Math.pow(2, map.effect(${q(RIG_CONTROL_NAMES.referenceZoom)})(1).value);
-const ground = (la, lo) => [(mx(lo + 360 * Math.round((oLng - lo) / 360)) - mx(oLng)) * S + thisComp.width / 2, (my(la) - my(oLat)) * S + thisComp.height / 2];
+  return `var DEG = Math.PI / 180, MAXLAT = ${num(MAX_LATITUDE)};
+function mx(lon) {
+  return (180 + lon) / 360;
+}
+function my(la) {
+  var c = Math.max(-MAXLAT, Math.min(MAXLAT, la));
+  return (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + c * DEG / 2))) / 360;
+}
+var oLat = map.effect(${q(RIG_CONTROL_NAMES.originLatitude)})(1).value;
+var oLng = map.effect(${q(RIG_CONTROL_NAMES.originLongitude)})(1).value;
+var S = ${num(TILE_SIZE)} * Math.pow(2, map.effect(${q(RIG_CONTROL_NAMES.referenceZoom)})(1).value);
+function ground(la, lo) {
+  return [(mx(lo + 360 * Math.round((oLng - lo) / 360)) - mx(oLng)) * S + thisComp.width / 2, (my(la) - my(oLat)) * S + thisComp.height / 2];
+}
 `;
 }
 
@@ -187,22 +195,22 @@ export type CameraRigExpressions = {
 export function cameraRigExpressions(): CameraRigExpressions {
   const tanHalf = num(Math.tan(DEFAULT_FOV_RAD / 2));
   const header = `${RIG_MARKER} (generated; animate the map controls, not this code)`;
-  const onTarget = `const map = effect(${q(PIN_EFFECTS.map)})(1);`;
-  const onCamera = `const map = parent.effect(${q(PIN_EFFECTS.map)})(1);`;
+  const onTarget = `var map = effect(${q(PIN_EFFECTS.map)})(1);`;
+  const onCamera = `var map = parent.effect(${q(PIN_EFFECTS.map)})(1);`;
   const control = (name: string) => `map.effect(${q(name)})(1).value`;
   return {
     targetPosition: `${header}
 ${onTarget}
-${groundPrelude()}const g = ground(${control(MAP_CONTROL_NAMES.latitude)}, ${control(MAP_CONTROL_NAMES.longitude)});
+${groundPrelude()}var g = ground(${control(MAP_CONTROL_NAMES.latitude)}, ${control(MAP_CONTROL_NAMES.longitude)});
 [g[0], g[1], 0];`,
     targetRotationZ: `${header}
 ${onTarget}
 ${control(MAP_CONTROL_NAMES.bearing)};`,
     cameraPosition: `${header}
 ${onCamera}
-const D = map.source.height / 2 / ${tanHalf};
-const u = Math.pow(2, ${control(RIG_CONTROL_NAMES.referenceZoom)} - ${control(MAP_CONTROL_NAMES.zoom)});
-const p = ${control(MAP_CONTROL_NAMES.pitch)} * Math.PI / 180;
+var D = map.source.height / 2 / ${tanHalf};
+var u = Math.pow(2, ${control(RIG_CONTROL_NAMES.referenceZoom)} - ${control(MAP_CONTROL_NAMES.zoom)});
+var p = ${control(MAP_CONTROL_NAMES.pitch)} * Math.PI / 180;
 [0, D * u * Math.sin(p), -D * u * Math.cos(p)];`,
     cameraRotationX: `${header}
 ${onCamera}
@@ -216,11 +224,14 @@ map.source.height / 2 / ${tanHalf} * map.transform.scale[0] / 100;`
 /** Position expression for a 3D pin; exact coordinates are baked in like 2D pins (see pinExpressions). */
 export function pin3dPositionExpression(lat: number, lng: number): string {
   return `${PIN3D_MARKER} (generated; edit the effects, not this code)
-const map = effect(${q(PIN3D_EFFECTS.map)})(1);
-const pick = (slider, exact) => Math.abs(slider - Math.fround(exact)) < 1e-9 ? exact : slider;
-const lat = pick(effect(${q(PIN3D_EFFECTS.latitude)})(1).value, ${num(lat)});
-const lng = pick(effect(${q(PIN3D_EFFECTS.longitude)})(1).value, ${num(lng)});
-${groundPrelude()}const g = ground(lat, lng);
-const perMeter = S / (2 * Math.PI * ${num(MAPLIBRE_EARTH_RADIUS_M)} * Math.cos(Math.max(-MAXLAT, Math.min(MAXLAT, lat)) * DEG));
+var map = effect(${q(PIN3D_EFFECTS.map)})(1);
+${froundSource()}function lmlPick(slider, exact) {
+  if (Math.abs(slider - lmlFround(exact)) < 1e-9) return exact;
+  return slider;
+}
+var lat = lmlPick(effect(${q(PIN3D_EFFECTS.latitude)})(1).value, ${num(lat)});
+var lng = lmlPick(effect(${q(PIN3D_EFFECTS.longitude)})(1).value, ${num(lng)});
+${groundPrelude()}var g = ground(lat, lng);
+var perMeter = S / (2 * Math.PI * ${num(MAPLIBRE_EARTH_RADIUS_M)} * Math.cos(Math.max(-MAXLAT, Math.min(MAXLAT, lat)) * DEG));
 [g[0], g[1], -effect(${q(PIN3D_EFFECTS.altitude)})(1).value * perMeter];`;
 }

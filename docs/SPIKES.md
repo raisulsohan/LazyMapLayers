@@ -5,6 +5,30 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
+## X1 — Both expression engines in After Effects: PASS (2026-09-17)
+
+- **Why.** Release 0.1.0 failed in a project from a template that uses the Legacy ExtendScript
+  expression engine: its const and arrow-function expressions did not parse (D14).
+- **Test.** `src/panel/engineTests.ts` builds a 3-second globe map with 2D pins (scale and rotation
+  with the map), a 3D camera and a 3D pin, a route, a callout and auto labels. Every expression is
+  read at 5 times with the JavaScript engine, then the project is switched to the Legacy ExtendScript
+  engine, every expression is set again (After Effects keeps expressions compiled by their original
+  engine) and read again. A probe expression (`typeof [].map`) proves which engine ran each pass.
+- **Result.** 21 expressions of 8 kinds: no errors in either engine, worst difference 0.0000000001,
+  identical rendered frames. With the 0.1.0 expressions the same test fails in the Legacy
+  ExtendScript engine with errors like the ones seen in the release test.
+- **Also.** `npm run check:expressions` runs 515 generated expressions in JScript (an ES3 engine) and
+  matches Node; it rejects the 0.1.0 expressions too.
+
+## D1L — The world flight in a Legacy ExtendScript project: PASS (2026-09-17)
+
+- The whole D1 demo built in a project switched to the Legacy ExtendScript engine, with the minified
+  release code: built in 39 s, 900 frames rendered in 52 s.
+- All 324 expressions in the scene evaluate without errors. The 15 saved frames match the
+  JavaScript-engine D1 frames (mean difference at most 0.001 of 255).
+- P1, C1, E1 (40/40 and 20/20), G2 and D1 pass again with the ES3 expressions; X1, G2, E1 and D1
+  also with the minified build.
+
 ## D1 — Milestone A world flight at 1080p and 4K: PASS (2026-09-17)
 
 - **What it builds.** `src/panel/demo/worldFlight.ts` (also the panel's **World flight sample**

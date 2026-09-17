@@ -172,6 +172,12 @@ LML.api.revealMap = function (args) {
 LML.api.listMaps = function () {
     var layers = LML.map.findMapLayers();
     var out = [];
+    var engine = null;
+    try {
+        engine = app.project.expressionEngine;
+    } catch (e) {
+        engine = null;
+    }
     for (var i = 0; i < layers.length; i++) {
         var layer = layers[i];
         var comp = layer.containingComp;
@@ -191,7 +197,8 @@ LML.api.listMaps = function () {
             frameRate: comp.frameRate,
             width: layer.source ? layer.source.width : comp.width,
             height: layer.source ? layer.source.height : comp.height,
-            view: LML.map.readViewAtTime(layer, comp.time)
+            view: LML.map.readViewAtTime(layer, comp.time),
+            expressionEngine: engine
         });
     }
     return out;

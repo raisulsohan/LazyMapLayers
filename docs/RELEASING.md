@@ -4,12 +4,13 @@
 
 1. **Version.** Set the new version in `package.json`, `package-lock.json`, `CSXS/manifest.xml` and
    `src/host/00-namespace.jsx`. The build also writes it into `dist/`.
-2. **Checks.** Run `npm run verify`.
+2. **Checks.** Run `npm run verify`. It includes `npm run check:expressions`, which runs every
+   generated expression in an ES3 engine like After Effects' Legacy ExtendScript expression engine.
 3. **Release code inside After Effects.** Users get minified code, so run the in-AE tests on it:
 
    ```
    node tools/build.mjs --dev --minify
-   npm run ae:spikes -- --only R1,G2,D1
+   npm run ae:spikes -- --only R1,G2,E1,X1,D1,D1L
    npm run build:dev
    ```
 
@@ -42,7 +43,9 @@ user has, then switch it back. Close After Effects before each step.
 2. **Try the release** in After Effects:
    - [ ] Window > Extensions > LazyMapLayers opens, and the log says "LazyMapLayers X.Y.Z".
    - [ ] The preview map shows the world.
-   - [ ] **World flight sample** builds without red lines in the log.
+   - [ ] **World flight sample** builds without red lines in the log, and After Effects shows no
+     expression errors. Try it once in a project from File > New > New Project too: with a project
+     template, that project may use the Legacy ExtendScript expression engine.
    - [ ] **Render** finishes, and the comp plays the globe, the flight to Paris, the route and Tokyo.
    - [ ] **Auto labels** with another language, **Fly here**, and Alt+click all work.
 3. **`2 Turn on the signature check.bat`** (optional but recommended)

@@ -167,3 +167,22 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Water (revised).** Wedges also appear in zoom-12 water polygons, so region water polygons wait
   for zoom 13 and regions without zoom-13 tiles never draw them. Rivers and canals are drawn as lines
   from the line features in the same tiles, at every zoom.
+
+## D14 — Generated expressions are ES3, for both expression engines (2026-09-17)
+
+- **Context.** After Effects has two expression engines. New projects default to the JavaScript
+  engine, but older projects, and new projects made from a project template, often use the Legacy
+  ExtendScript engine, which only understands ES3. Release 0.1.0 generated expressions with const
+  and arrow functions, so every pin, label, route, callout and camera expression failed in such a
+  project (found by the first release test, in a project from Sohan's own template).
+- **Decision.** Every expression generator in `src/core/ae/` writes ES3: var and function, loops
+  instead of array methods, `lmlFround` instead of Math.fround, and no chained conditional
+  operators. `npm run check:expressions` runs every kind of generated expression in Windows Script
+  Host's JScript (an ES3 engine) against the same fake expression API as Node and compares the
+  results (`tools/expression-fixtures.ts`, `tools/expression-env.js`, `tools/check-expressions.js`).
+  In After Effects, X1 compares every expression in both engines and D1L builds and renders the whole
+  world flight in a Legacy ExtendScript project.
+- **Consequences.** Map layers work in any project, whichever engine it uses. The panel log notes
+  when a project uses the Legacy ExtendScript engine, which plays back more slowly. After Effects
+  keeps an expression compiled by the engine it was set with, so layers made by 0.1.0 in a Legacy
+  ExtendScript project must be made again.
