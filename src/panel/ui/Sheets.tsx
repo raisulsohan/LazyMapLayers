@@ -29,7 +29,9 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
-import { changeRelief, changeTheme, highlights, reliefOn, setHighlights, themeId } from "../store.ts";
+import { changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId } from "../store.ts";
+import { addRouteShot } from "../shots/shotsStore.ts";
+import { useState } from "preact/hooks";
 
 export const labelsSheetOpen = signal(false);
 export const lookSheetOpen = signal(false);
@@ -136,6 +138,59 @@ export function RegionSheetView(): JSX.Element | null {
         )}
         <button disabled={busy.value} onClick={() => (regionSheet.value = null)}>
           Cancel
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/** What an imported file holds: every line can be framed, drawn as a route, given a traveller, or flown along. */
+export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | null {
+  const [seconds, setSeconds] = useState(5);
+  const data = imported.value;
+  if (!importSheetOpen.value || !data) return null;
+  const hasMap = !!selected.value;
+  const lines = data.lines.slice(0, 12);
+  return (
+    <div class="sheet" data-id="import-sheet">
+      <div class="sheet-title">{data.fileName}</div>
+      {lines.map((line, i) => (
+        <div key={i} class="sheet-row import-row">
+          <span class="grow" title={`${line.points.length} points${line.times ? ", with times" : ""}`}>
+            {line.name} <span class="muted">· {line.lengthKm >= 10 ? Math.round(line.lengthKm) : line.lengthKm.toFixed(1)} km</span>
+          </span>
+          <button class="small-button" title="Frame this line in the preview" onClick={() => fitLine(line.points)}>
+            Fit
+          </button>
+          <button class="small-button" disabled={busy.value || !hasMap} title="A route layer that follows the map and draws on from the current time" onClick={() => void drawImportedLine(line, seconds, false)}>
+            Draw
+          </button>
+          <button class="small-button" disabled={busy.value || !hasMap} title="The route, plus an arrow that travels along it and turns with it. Parent your own artwork to the Traveller layer." onClick={() => void drawImportedLine(line, seconds, true)}>
+            Draw + arrow
+          </button>
+          <button class="small-button" disabled={!hasMap} title="Adds shots that move the camera along this line (Shots tab; Play shows it at once)" onClick={() => addRouteShot(line, seconds)}>
+            Camera
+          </button>
+        </div>
+      ))}
+      {data.lines.length > lines.length && <div class="muted small">…and {data.lines.length - lines.length} shorter lines.</div>}
+      <div class="sheet-row">
+        <label class="num-field" title="How long a route takes to draw on, and a camera move along it">
+          <span>Duration</span>
+          <input type="number" min={0.5} step={0.5} value={seconds} onChange={(e) => setSeconds(Math.max(0.5, Number((e.target as HTMLInputElement).value) || 5))} />
+          <span class="muted">s</span>
+        </label>
+        {data.places.length > 0 && (
+          <button class="small-button" disabled={busy.value || !hasMap} onClick={() => void pinImportedPlaces(data.places)}>
+            Pin {data.places.length} {data.places.length === 1 ? "place" : "places"}
+          </button>
+        )}
+        <span class="spacer" />
+        <button class="small-button" disabled={busy.value} onClick={props.pickFile}>
+          Another file…
+        </button>
+        <button class="small-button" onClick={() => (importSheetOpen.value = false)}>
+          Close
         </button>
       </div>
     </div>

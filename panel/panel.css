@@ -656,6 +656,19 @@ select.compact {
   color: var(--bad);
 }
 
+.import-row {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 4px;
+}
+
+.import-row .grow {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
 .highlight-row {
   align-items: center;
   flex-wrap: nowrap;

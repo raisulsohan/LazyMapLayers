@@ -4,7 +4,8 @@
 
 import { computed, signal } from "@preact/signals";
 import type { View } from "../core/camera/camera.ts";
-import { fitBounds } from "../core/camera/fit.ts";
+import { fitBounds, fitPoints } from "../core/camera/fit.ts";
+import type { ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
 import { NAME_LANGUAGES, type NameLanguage } from "../core/labels/language.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
@@ -20,7 +21,8 @@ import { placeIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
-import { addCallout, addRoute } from "./overlays/routeCallout.ts";
+import { importFile } from "./data/importFile.ts";
+import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
@@ -83,6 +85,10 @@ export const projection = signal<MapProjection>("mercator");
 export const themeId = signal<string>(DEFAULT_THEME_ID);
 /** Shaded relief over the land (needs the relief imagery pack). */
 export const reliefOn = signal(false);
+/** What the last imported file held (kept for this session; the layers made from it live in the project). */
+export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; skipped: number } | null>(null);
+export const importSheetOpen = signal(false);
+
 /** Highlighted countries of the selected map. */
 export const highlights = signal<Highlight[]>([]);
 const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value });
@@ -413,6 +419,57 @@ export const confirmToolSheet = () =>
       log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
+  });
+
+export const importPicked = (file: File) =>
+  run("import", async () => {
+    progress.value = { label: `Reading ${file.name}`, done: 0, total: 1 };
+    const result = await importFile(file);
+    imported.value = result;
+    importSheetOpen.value = true;
+    const first = result.lines[0];
+    if (first) fitLine(first.points);
+    else if (result.places.length) showCompView(fitPoints(result.places, compSize(), { padding: 0.15, maxZoom: 12 + Math.log2(compSize().height / 1080) }), true);
+    log(`${file.name}: ${result.lines.length} ${result.lines.length === 1 ? "line" : "lines"}, ${result.places.length} ${result.places.length === 1 ? "place" : "places"}${result.skipped ? `, ${result.skipped} skipped` : ""}`, "ok");
+  });
+
+/** Frames a line in the preview, at the current bearing and pitch. */
+export function fitLine(points: { lat: number; lng: number }[]): void {
+  const current = compView();
+  showCompView(fitPoints(points, compSize(), { bearing: current?.bearing ?? 0, pitch: current?.pitch ?? 0, padding: 0.12, maxZoom: 16 + Math.log2(compSize().height / 1080) }), true);
+}
+
+/** Draws an imported line as a route layer from the current time, with or without a traveller. */
+export const drawImportedLine = (line: ImportedLine, seconds: number, traveller: boolean) =>
+  run("draw route", async () => {
+    const list = await readMaps();
+    const entry = list.find((m) => m.mapId === selectedId.value);
+    if (!entry) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const start = currentMapFrame(entry);
+    const frames = Math.max(1, Math.round(seconds * entry.frameRate));
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller });
+    const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
+    log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
+  });
+
+export const pinImportedPlaces = (places: ImportedPlace[]) =>
+  run("add pins", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const some = places.slice(0, 40);
+    let done = 0;
+    for (const place of some) {
+      progress.value = { label: "Adding pins", done, total: some.length };
+      await addPin(mapId, place, { name: place.name });
+      done++;
+    }
+    log(`added ${done} pins${places.length > some.length ? ` (the first ${some.length} of ${places.length})` : ""}`, "ok");
   });
 
 export const changeBasemap = (key: string) =>

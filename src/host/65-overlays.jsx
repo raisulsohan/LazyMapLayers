@@ -141,6 +141,53 @@ LML.overlays.addText = function (args) {
     return { name: layer.name, index: layer.index, expressionErrors: errors };
 };
 
+/**
+ * A layer that travels along a route: an arrow that the panel's expressions move and turn, driven by
+ * a "Progress" slider. People who want their own artwork parent it to this layer and switch its
+ * Contents off; their layers are never touched.
+ * args: { mapId, kind, name, expressions: { position, rotation, opacity }, progressKeys: [[frame, value]],
+ *         size, color, strokeColor }
+ */
+LML.overlays.addTraveller = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var errors = [];
+    var layer = scene.layers.addShape();
+    layer.name = args.name;
+    LML.overlays.linkToMap(layer, mapLayer);
+    LML.pins.addEffect(layer, "ADBE Slider Control", "Progress", 0);
+    LML.pins.addEffect(layer, "ADBE Checkbox Control", "Rotate along Route", 1);
+    // Adding an effect invalidates references to the effects before it: fetch the slider by name now.
+    var progress = layer.property("ADBE Effect Parade").property("Progress").property(1);
+    if (args.progressKeys && args.progressKeys.length) {
+        LML.overlays.keyFrames(progress, mapLayer, args.progressKeys);
+        LML.overlays.ease(progress);
+    }
+
+    // An arrow that points to the right, which is "forward" for the rotation expression.
+    var size = args.size || 16;
+    var group = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+    group.name = "Arrow";
+    var contents = group.property("ADBE Vectors Group");
+    var shape = new Shape();
+    shape.vertices = [[size, 0], [-size * 0.75, -size * 0.65], [-size * 0.35, 0], [-size * 0.75, size * 0.65]];
+    shape.closed = true;
+    contents.addProperty("ADBE Vector Shape - Group").property("ADBE Vector Shape").setValue(shape);
+    var stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
+    stroke.property("ADBE Vector Stroke Color").setValue(args.strokeColor || [0.03, 0.07, 0.11]);
+    stroke.property("ADBE Vector Stroke Width").setValue(Math.max(1.5, size / 7));
+    stroke.property("ADBE Vector Stroke Line Join").setValue(2);
+    contents.addProperty("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue(args.color || [1, 1, 1]);
+
+    var transform = layer.property("ADBE Transform Group");
+    LML.pins.setExpression(transform.property("ADBE Position"), args.expressions.position, errors, args.name + " position");
+    LML.pins.setExpression(transform.property("ADBE Rotate Z"), args.expressions.rotation, errors, args.name + " rotation");
+    LML.pins.setExpression(transform.property("ADBE Opacity"), args.expressions.opacity, errors, args.name + " opacity");
+    layer.moveBefore(mapLayer);
+    LML.tag.write(layer, { kind: args.kind, v: 1, mapId: args.mapId, name: args.name });
+    return { name: layer.name, index: layer.index, expressionErrors: errors };
+};
+
 /** Removes the tagged overlays of a kind for a map (for regeneration). */
 LML.overlays.removeKind = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);

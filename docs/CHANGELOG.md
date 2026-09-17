@@ -38,6 +38,17 @@
   and a **Cancel** button, so it never blocks for more than about a second (the world flight's 140
   names: 14 seconds in all instead of 49 in one frozen call). **How many** picks Few, Normal or Many
   names (the most important first), and **Remove labels** clears them in one undo step.
+- **Import GPX, KML and GeoJSON.** The import button reads a file and lists its lines (tracks, routes,
+  outlines of areas) with their length, and its places. For every line:
+  - **Fit** frames it in the preview.
+  - **Draw** makes a route layer that follows the map and draws on with Trim Paths from the current
+    time. Long tracks are thinned to 300 points, so After Effects stays quick.
+  - **Draw + arrow** adds a traveller: an arrow that rides the tip of the line as it draws on and turns
+    with it, under any camera. Its "Progress" slider counts along the line as drawn on screen, exactly
+    like Trim Paths. For your own artwork (a plane, a car), parent it to the Traveller layer and switch
+    the arrow's Contents off.
+  - **Camera** adds shots that move the camera along the line (Shots tab; Play shows it at once).
+  Places become pins with one click.
 - **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
   A country is framed whole; a city at a zoom that suits its size.
 - **Automatic names.** New maps and shots are named after the place they show ("Paris Map").
@@ -58,7 +69,8 @@
   shot list inside After Effects (every frame against core maths, key counts, cuts, markers, comp
   length, hand edits, a 40-shot list); U1 drives the new interface; TH1 renders a contact sheet of
   every look with the real renderer; SAT1 checks passes and mattes under satellite imagery; HL1
-  checks the highlight layer pixel by pixel.
+  checks the highlight layer pixel by pixel; RT1 imports a GPX track and checks the route and its
+  traveller against core maths inside After Effects.
 
 ## 0.1.1 — works with the Legacy ExtendScript expression engine (2026-09-17)
 

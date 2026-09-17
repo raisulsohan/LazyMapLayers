@@ -323,3 +323,24 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Consequences.** Every batch is its own undo step ("Auto labels (2 of 6)"): After Effects cannot
   keep one undo group open across calls. Remove labels and running Auto labels again both clear all
   labels in one step, which is what people need in practice.
+
+## D22 — Imported routes and travellers (2026-09-18)
+
+- **Import.** GPX and KML go through `@tmcw/togeojson` in the panel (it needs a DOM), everything then
+  is GeoJSON: `src/core/data/importLines.ts` turns it into lines (with GPS times when present) and
+  places. Files over 60 MB are refused. The list lives in the panel for the session; what is made
+  from it lives in the project.
+- **Routes.** A line becomes the same route layer as before (a path expression that projects every
+  point on every frame, drawn on with Trim Paths). Expressions pay per point per frame, so lines are
+  thinned with Douglas–Peucker in Web Mercator to at most 300 points (`src/core/geo/simplify.ts`).
+- **Travellers.** A tagged shape layer (an arrow) with a "Progress" slider and a "Rotate along Route"
+  checkbox. Its expressions rebuild the route's projected polyline and place the layer at
+  Progress % of its on-screen length, which is exactly how Trim Paths measures the route layer's path:
+  with the same keys the traveller rides the tip of the line under any camera (RT1: within 0.5 px).
+  Measuring along the ground instead let the tip and the arrow drift apart in tilted views.
+- **The user's layers stay untouched.** A traveller is our own layer; people parent their artwork to
+  it. Attaching expressions to a layer the user selected would break hard rule 3.
+- **Camera.** "Camera" adds two shots joined by a level "Along route" move that carries the thinned
+  line (at most 160 points) inside the shot list.
+- **Not yet.** KMZ, CSV and Shapefile import; timing a traveller by the GPS times; areas as filled
+  shapes; lines as a render pass for very long tracks.

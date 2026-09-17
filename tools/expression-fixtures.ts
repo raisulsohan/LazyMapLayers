@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
-import { anchoredPositionExpression, leaderPathExpression, routePathExpression } from "../src/core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, leaderPathExpression, routePathExpression, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
 import type { View } from "../src/core/camera/camera.ts";
@@ -121,6 +121,11 @@ for (const globe of [false, true]) {
     const b = near(view, spread * 4);
     const route = greatCircle({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }, 24, globe ? 400000 : 0).map((p) => [p.lat, p.lng, p.altitude]);
     add(`route ${kind} ${i}`, routePathExpression(route), { own: { Map: "MAP" }, map, comp, value: null });
+    const traveller = travellerExpressions(route);
+    const travellerOwn = { Map: "MAP" as const, Progress: float32(random() * 100), "Rotate along Route": i % 2 };
+    add(`traveller position ${kind} ${i}`, traveller.position, { own: travellerOwn, map, comp, value: [0, 0] });
+    add(`traveller rotation ${kind} ${i}`, traveller.rotation, { own: travellerOwn, map, comp, value: 10 }, 1e-5);
+    add(`traveller opacity ${kind} ${i}`, traveller.opacity, { own: travellerOwn, map, comp, value: 90 });
   }
 }
 

@@ -14,6 +14,9 @@ import {
   flightSeconds,
   flyHere,
   hostInfo,
+  importPicked,
+  importSheetOpen,
+  imported,
   jobs,
   keyframeView,
   liveLink,
@@ -42,7 +45,8 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { HighlightSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { IMPORT_ACCEPT } from "../data/importFile.ts";
 import { ShotsTab } from "./ShotsTab.tsx";
 
 function Header(): JSX.Element {
@@ -74,6 +78,7 @@ function Header(): JSX.Element {
 }
 
 function ToolRow(): JSX.Element {
+  const filePicker = useRef<HTMLInputElement>(null);
   const entry = selected.value;
   const off = busy.value || !entry;
   return (
@@ -83,6 +88,29 @@ function ToolRow(): JSX.Element {
       <IconButton icon="callout" id="tool-callout" title="Callout: a leader line with a title box next to a place" disabled={off} active={tool.value === "callout"} onClick={() => armTool("callout")} />
       <IconButton icon="route" id="tool-route" title="Route: a great-circle line between two places that draws on" disabled={off} active={tool.value === "route"} onClick={() => armTool("route")} />
       <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
+      <IconButton
+        icon="import"
+        id="tool-import"
+        title="Import a GPX, KML or GeoJSON file: draw its lines as routes, run an arrow or the camera along them, pin its places"
+        disabled={busy.value}
+        active={importSheetOpen.value}
+        onClick={() => {
+          if (imported.value) importSheetOpen.value = !importSheetOpen.value;
+          else filePicker.current?.click();
+        }}
+      />
+      <input
+        ref={filePicker}
+        type="file"
+        accept={IMPORT_ACCEPT}
+        style={{ display: "none" }}
+        onChange={(e) => {
+          const input = e.target as HTMLInputElement;
+          const file = input.files?.[0];
+          input.value = "";
+          if (file) void importPicked(file);
+        }}
+      />
       <span class="divider" />
       <IconButton icon="text" id="tool-labels" title="Auto labels: country and city names over the whole timeline" disabled={off} active={labelsSheetOpen.value} onClick={() => (labelsSheetOpen.value = !labelsSheetOpen.value)} />
       <IconButton icon="borders" id="tool-borders" title="Animate borders: country borders draw on over 4 seconds from the current time" disabled={off} onClick={() => void animateBorders()} />
@@ -226,6 +254,7 @@ export function App(): JSX.Element {
         <SearchBar />
         <RegionSheetView />
         <ToolSheetView />
+        <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
         <HighlightSheetView />
         <LabelsSheetView />
         <LookSheetView />
