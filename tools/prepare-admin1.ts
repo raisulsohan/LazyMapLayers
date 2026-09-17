@@ -12,9 +12,7 @@
 import fs from "node:fs";
 import path from "node:path";
 import shp from "shpjs";
-import { feature } from "topojson-client";
-import { topology } from "topojson-server";
-import { presimplify, quantile, simplify } from "topojson-simplify";
+import { countPoints, simplifyTogether } from "../src/core/geo/sharedBorders.ts";
 
 type Props = Record<string, unknown>;
 type Feature = GeoJSON.Feature<GeoJSON.Polygon | GeoJSON.MultiPolygon | null, Props>;
@@ -29,20 +27,6 @@ const POINTS_PER_PROVINCE = 110;
 const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 ** digits;
 const lower = (props: Props) => Object.fromEntries(Object.entries(props).map(([k, v]) => [k.toLowerCase(), v]));
 const text = (v: unknown) => (typeof v === "string" && v.trim() && v.trim() !== "-99" ? v.trim() : "");
-
-function countPoints(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): number {
-  if (!geometry) return 0;
-  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-  return polygons.reduce((n, polygon) => n + polygon.reduce((m, ring) => m + ring.length, 0), 0);
-}
-
-function toPolygons(geometry: GeoJSON.Polygon | GeoJSON.MultiPolygon | null): number[][][][] {
-  if (!geometry) return [];
-  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
-  return polygons
-    .map((polygon) => polygon.map((ring) => ring.map(([lng, lat]) => [round(lng, 4), round(lat, 4)])).filter((ring) => ring.length >= 4))
-    .filter((polygon) => polygon.length > 0);
-}
 
 async function main() {
   const started = Date.now();
@@ -70,26 +54,12 @@ async function main() {
     const total = features.reduce((n, f) => n + countPoints(f.geometry), 0);
     before += total;
     // One topology per country: shared borders are one arc, simplified once.
-    const topo = presimplify(topology({ provinces: { type: "FeatureCollection", features } as GeoJSON.FeatureCollection }, 1e6));
-    const target = Math.max(60, features.length * POINTS_PER_PROVINCE);
-    let light = features;
-    if (total > target) {
-      // The share of points to keep, tightened until the country fits its budget.
-      let keep = Math.min(1, target / total);
-      for (let round2 = 0; round2 < 8; round2++) {
-        // topojson sorts weights from the most to the least important: quantile(p) keeps the share p.
-        const simplified = simplify(topo, quantile(topo, keep));
-        light = (feature(simplified, simplified.objects.provinces) as GeoJSON.FeatureCollection).features as Feature[];
-        const now = light.reduce((n, f) => n + countPoints(f.geometry), 0);
-        if (now <= target * 1.15) break;
-        keep *= (target / now) * 0.95;
-      }
-    }
+    const light = simplifyTogether(features, POINTS_PER_PROVINCE);
 
     const out: { id: string; name: string; polygons: number[][][][] }[] = [];
     features.forEach((original, i) => {
       const p = original.properties as Props;
-      const polygons = toPolygons(light[i]?.geometry ?? null);
+      const polygons = light[i];
       if (!polygons.length) return;
       const id = (text(p.adm1_code) || `${country}-${i}`).toLowerCase().replace(/[^a-z0-9]/g, "");
       const name = text(p.name_en) || text(p.name);

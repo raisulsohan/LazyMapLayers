@@ -20,7 +20,8 @@ import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.t
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
-import { placeIndex } from "./data/worldLabels.ts";
+import { districtAt, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
+import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
@@ -392,6 +393,15 @@ export function previewClicked(position: { lat: number; lng: number }, event: Mo
       const province = provinceAt(country.code, position);
       if (province) toggleProvinceHighlight(province);
       else log(`no province of ${country.name} there`, "muted");
+    } else if (highlightLevel.value === "district") {
+      const set = districtSetOf(country.code);
+      if (!set) void offerDistricts(country);
+      else {
+        districtPrompt.value = null;
+        const unit = districtAt(country.code, position);
+        if (unit) toggleProvinceHighlight(unit);
+        else log(`no ${set.unit} of ${country.name} there`, "muted");
+      }
     } else toggleCountryHighlight(country.code, country.name);
     return;
   }
@@ -562,8 +572,63 @@ export const changeHighlightLayers = (next: "each" | "one") =>
     }
   });
 
-/** What a click of the highlight tool picks: whole countries, or their provinces. */
-export const highlightLevel = signal<"country" | "province">("country");
+/** What a click of the highlight tool picks: whole countries, their provinces, or their districts (a download per country). */
+export const highlightLevel = signal<"country" | "province" | "district">("country");
+
+/** The country whose districts the user asked for, and what geoBoundaries offers for it. */
+export type DistrictPrompt = { country: { code: string; name: string; iso: string }; state: "looking" | "offer" | "none" | "failed"; offer?: DistrictOffer; message?: string };
+export const districtPrompt = signal<DistrictPrompt | null>(null);
+/** Bumped when district sets are installed or removed, so lists of them redraw. */
+export const districtSets = signal(0);
+export const listDistrictSets = () => (districtSets.value, installedDistricts());
+
+/** Looks up what can be downloaded for a country (a few kilobytes); nothing large moves before the user presses Download. */
+export async function offerDistricts(country: { code: string; name: string; iso: string }): Promise<void> {
+  districtPrompt.value = { country, state: "looking" };
+  try {
+    const offer = await findDistricts(country.iso);
+    if (districtPrompt.value?.country.code !== country.code) return;
+    districtPrompt.value = offer ? { country, state: "offer", offer } : { country, state: "none" };
+  } catch (error) {
+    if (districtPrompt.value?.country.code === country.code) districtPrompt.value = { country, state: "failed", message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export const downloadDistricts = () =>
+  run("download districts", async () => {
+    const prompt = districtPrompt.value;
+    if (!prompt?.offer) return;
+    const stopper = new AbortController();
+    const cancel = () => stopper.abort();
+    const label = `Downloading the ${prompt.offer.unit} boundaries of ${prompt.country.name}`;
+    progress.value = { label, done: 0, total: 1, cancel };
+    const started = performance.now();
+    const set = await installDistricts(prompt.offer, prompt.country, {
+      signal: stopper.signal,
+      onProgress: (done, total) => (progress.value = { label, done, total: total ?? Math.max(done, prompt.offer?.sizeBytes ?? 1), cancel })
+    });
+    resetPlaceIndex();
+    districtSets.value++;
+    districtPrompt.value = null;
+    log(`${set.units.length} ${set.unit} boundaries of ${set.countryName} installed in ${((performance.now() - started) / 1000).toFixed(1)} s (${set.source}; ${set.license}). Click one on the map, or search its name`, "ok");
+  });
+
+export function removeDistrictSet(iso: string): void {
+  try {
+    removeDistricts(iso);
+    resetPlaceIndex();
+    districtSets.value++;
+  } catch (error) {
+    fail("removing districts", error);
+  }
+}
+
+/** A district from a search result (its country and id). */
+export function toggleDistrictById(country: string, id: string): void {
+  const unit = districtsOf(country).find((u) => u.id === id);
+  if (unit) toggleProvinceHighlight(unit);
+  else log("that district's boundaries are no longer installed", "fail");
+}
 
 /** Highlights a province (or removes it again): its polygons come from the bundled province data. */
 export function toggleProvinceHighlight(province: Province): void {

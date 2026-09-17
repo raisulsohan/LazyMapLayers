@@ -11,6 +11,7 @@ import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
+import { isoOfCountry } from "../core/data/boundarySet.ts";
 import type { Imported } from "../core/data/importLines.ts";
 import { simplifyLine } from "../core/geo/simplify.ts";
 import type { Areas, Highlight } from "../core/style/highlights.ts";
@@ -198,12 +199,12 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
 export const previewMap = () => map;
 
 /** The country under a point of the preview (in the map box's own pixels), or null over the sea. */
-export function countryAt(point: { x: number; y: number }): { code: string; name: string } | null {
+export function countryAt(point: { x: number; y: number }): { code: string; name: string; iso: string } | null {
   if (!map || !map.getLayer(COUNTRY_HIT_LAYER)) return null;
   const hit = map.queryRenderedFeatures([point.x, point.y], { layers: [COUNTRY_HIT_LAYER] })[0];
   const code = hit?.properties?.adm0_a3;
   if (typeof code !== "string" || !code) return null;
-  return { code, name: String(hit.properties?.name_long ?? hit.properties?.name ?? code) };
+  return { code, name: String(hit.properties?.name_long ?? hit.properties?.name ?? code), iso: isoOfCountry(code, hit.properties?.iso_a3) };
 }
 
 /** The frame the preview shows, as a view of the comp. */

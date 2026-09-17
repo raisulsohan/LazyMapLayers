@@ -189,6 +189,18 @@ async function runUiScenario() {
   await showView({ center: { lat: 46.5, lng: 2.5 }, zoom: 5.2, bearing: 0, pitch: 0 });
   await sleep(2500);
   await shot("07a-highlight");
+  // Districts are a download per country: the sheet lists what is installed (nothing goes online here).
+  await click("level-district");
+  await sleep(400);
+  if (process.env.LML_ONLINE) {
+    // With LML_ONLINE=1: ask geoBoundaries what it offers for France (a few kilobytes; nothing is downloaded).
+    await panel.evaluate(`window.lmlDebug.store.offerDistricts({ code: "FRA", name: "France", iso: "FRA" }).then(() => true)`);
+    await sleep(500);
+    const offer = await panel.evaluate(`(() => { const p = window.lmlDebug.store.districtPrompt.value; return p && { state: p.state, count: p.offer && p.offer.count, unit: p.offer && p.offer.unit, size: p.offer && p.offer.sizeBytes, button: (document.querySelector('[data-id="district-download"]') || {}).textContent }; })()`);
+    console.log(`U1 district offer: ${JSON.stringify(offer)}`);
+  }
+  await shot("07c-districts");
+  await click("level-country");
   const highlighted = await panel.evaluate("window.lmlDebug.store.highlights.value.map((h) => h.name)");
   console.log(`U1 highlights: ${JSON.stringify(highlighted)}`);
   await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);

@@ -5,43 +5,14 @@
 import { PMTiles } from "pmtiles";
 import { planExtract, runExtract, type ExtractPlan, type RangeReader } from "../core/pmtiles/extract.ts";
 import type { Bbox } from "../core/tiles/tileMath.ts";
-import { fs, nodeRequire, path } from "./cep.ts";
+import { fs, path } from "./cep.ts";
+import { httpsGet } from "./net.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { NodeFileSource } from "./basemap/nodeFileSource.ts";
-
-type NodeHttps = typeof import("node:https");
 
 export type RegionInfo = { name: string; file: string; sizeBytes: number; bbox: Bbox | null; maxZoom: number | null };
 
 const BUILD_LIST = "https://build-metadata.protomaps.dev/builds.json";
-
-function httpsGet(url: string, headers: Record<string, string> = {}): Promise<{ status: number; body: Uint8Array }> {
-  const https = nodeRequire<NodeHttps>("https");
-  return new Promise((resolve, reject) => {
-    const request = https.get(url, { headers: { "user-agent": "LazyMapLayers (After Effects extension)", ...headers } }, (response) => {
-      if (response.statusCode && response.statusCode >= 300 && response.statusCode < 400 && response.headers.location) {
-        httpsGet(new URL(response.headers.location, url).toString(), headers).then(resolve, reject);
-        response.resume();
-        return;
-      }
-      const chunks: Uint8Array[] = [];
-      response.on("data", (chunk: Uint8Array) => chunks.push(chunk));
-      response.on("end", () => {
-        const total = chunks.reduce((sum, c) => sum + c.length, 0);
-        const body = new Uint8Array(total);
-        let at = 0;
-        for (const c of chunks) {
-          body.set(c, at);
-          at += c.length;
-        }
-        resolve({ status: response.statusCode ?? 0, body });
-      });
-      response.on("error", reject);
-    });
-    request.setTimeout(60000, () => request.destroy(new Error(`timeout fetching ${url}`)));
-    request.on("error", reject);
-  });
-}
 
 export async function newestPlanetBuild(): Promise<{ url: string; key: string; version: string }> {
   const response = await httpsGet(BUILD_LIST);

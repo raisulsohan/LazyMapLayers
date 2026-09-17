@@ -44,6 +44,14 @@
   pick the province under it instead of the country. Neighbouring provinces share exactly the same
   border, so two of them never show a gap. A country's outlines are read only when first needed
   (Bangladesh: 15 KB).
+- **Districts, counties and departments.** In the Highlight tool, **Districts** makes a click pick
+  the second-level unit under it. A country's districts are downloaded once, when you ask: the panel
+  shows what geoBoundaries (open data) offers for the country you clicked, with its source, licence
+  and size (Bangladesh: 64 districts, 1.7 MB; the United States: 3,233 counties, 7.9 MB), and
+  **Download** installs it in under a second. Installed districts are found by search ("Sunamganj ·
+  District, Sylhet, Bangladesh"), neighbours share exactly the same border, and renders that use
+  them add "Boundaries: geoBoundaries" to the data credit layer. Nothing goes online unless you
+  click a country with Districts switched on.
 - **Every highlight is its own layer.** A render gives each highlighted country, province or area
   its own layer in the map comp ("Highlight: Bangladesh"), areas above countries, so they can fade
   in one after another or be styled one by one. Changing or removing one highlight redraws only
