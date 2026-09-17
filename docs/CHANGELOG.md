@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased — Milestone A (world flight demo), in progress
+
+- **Globe.** A **Globe** checkbox per map switches the preview and the renders to MapLibre's globe:
+  a planet with an atmosphere and transparent space at low zoom, turning into the flat map by
+  zoom 12.
+- **Pins on the globe.** Pin expressions share one projection (Mercator and globe, with the
+  transition) and hide pins behind the planet. With "Rotate with Map" on a globe, pins follow the
+  local north.
+- **Tests.** G1 (globe maths against MapLibre, CPU and rendered pixels) and G2 (globe pins in After
+  Effects' own render).
+
 ## Unreleased — Phase 2 (frame renderer and passes), done
 
 - **Render queue.** **Render preview** and **Render** add jobs to a queue with progress, Cancel and

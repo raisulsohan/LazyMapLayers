@@ -14,6 +14,8 @@ import { callHost, fs, isInCep, path } from "./cep.ts";
 import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
 import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
 import { protomapsStyle } from "./basemap/protomapsStyle.ts";
+import { withProjection } from "./basemap/projection.ts";
+import type { MapProjection } from "../core/camera/globe.ts";
 import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
 import type { BasemapSource } from "./render/renderJob.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
@@ -32,6 +34,7 @@ type MapEntry = {
   basemap: BasemapSource | null;
   isActiveScene: boolean;
   hasCamera: boolean;
+  projection: MapProjection;
   render: Partial<RenderSettings> | null;
   view: View;
 };
@@ -60,11 +63,11 @@ function viewOf(map: maplibregl.Map): View {
   return { center: { lng: c.lng, lat: c.lat }, zoom: map.getZoom(), bearing: map.getBearing(), pitch: map.getPitch() };
 }
 
-function previewStyle(source: BasemapSource): StyleSpecification {
+function previewStyle(source: BasemapSource, projection: MapProjection): StyleSpecification {
   if (source.kind === "region" && fs().existsSync(regionArchivePath(source.name))) {
-    return protomapsStyle(registerLocalArchive(source.name, regionArchivePath(source.name)), { labels: true });
+    return withProjection(protomapsStyle(registerLocalArchive(source.name, regionArchivePath(source.name)), { labels: true }), projection);
   }
-  return naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: true });
+  return withProjection(naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: true }), projection);
 }
 
 const sourceKey = (s: BasemapSource) => (s.kind === "region" ? `region:${s.name}` : "world");
@@ -80,6 +83,7 @@ function App() {
   const [selectedId, setSelectedId] = useState<string>("");
   const [regions, setRegions] = useState<RegionInfo[]>([]);
   const [basemap, setBasemap] = useState<BasemapSource>({ kind: "world" });
+  const [projection, setProjection] = useState<MapProjection>("mercator");
   const [progress, setProgress] = useState<Progress>(null);
   const [regionSheet, setRegionSheet] = useState<RegionSheet | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -94,9 +98,10 @@ function App() {
   function showMap(entry: MapEntry) {
     const source = entry.basemap ?? { kind: "world" };
     setBasemap(source);
+    setProjection(entry.projection ?? "mercator");
     const map = mapRef.current;
     if (!map) return;
-    map.setStyle(previewStyle(source));
+    map.setStyle(previewStyle(source, entry.projection ?? "mercator"));
     const v = entry.view;
     map.jumpTo({ center: [v.center.lng, v.center.lat], zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
   }
@@ -134,7 +139,7 @@ function App() {
       ensureMaplibreWorker();
       const map = new maplibregl.Map({
         container: mapNode.current,
-        style: previewStyle({ kind: "world" }),
+        style: previewStyle({ kind: "world" }, "mercator"),
         center: [10, 25],
         zoom: 1.4,
         maxPitch: 85,
@@ -216,7 +221,7 @@ function App() {
     run("new map", async () => {
       const map = mapRef.current;
       if (!map) return;
-      const created = await createMapComp({ view: viewOf(map) });
+      const created = await createMapComp({ view: viewOf(map), projection });
       await callHost("setMapSettings", { mapId: created.id, basemap });
       log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
       selectedRef.current = created.id;
@@ -279,9 +284,18 @@ function App() {
     run("basemap", async () => {
       const source = sourceFromKey(key);
       setBasemap(source);
-      mapRef.current?.setStyle(previewStyle(source));
+      mapRef.current?.setStyle(previewStyle(source, projection));
       const mapId = selectedRef.current;
       if (mapId) await callHost("setMapSettings", { mapId, basemap: source });
+    });
+
+  const changeProjection = (next: MapProjection) =>
+    run("projection", async () => {
+      setProjection(next);
+      mapRef.current?.setStyle(previewStyle(basemap, next));
+      const mapId = selectedRef.current;
+      if (mapId) await callHost("setMapSettings", { mapId, projection: next });
+      await refreshMaps();
     });
 
   const renderBasemap = (quality: RenderQuality) => {
@@ -384,6 +398,10 @@ function App() {
               </option>
             ))}
           </select>
+        </label>
+        <label class="check" title="MapLibre globe: a planet at low zoom that becomes the flat map by zoom 12">
+          <input type="checkbox" checked={projection === "globe"} disabled={busy} onChange={(e) => void changeProjection((e.target as HTMLInputElement).checked ? "globe" : "mercator")} />
+          Globe
         </label>
         <button disabled={busy} onClick={openRegionSheet}>
           Download this area…

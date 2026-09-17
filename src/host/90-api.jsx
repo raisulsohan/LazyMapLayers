@@ -77,6 +77,16 @@ LML.api.setMapSettings = function (args) {
     var tag = LML.tag.read(layer);
     if (args.basemap !== undefined) tag.basemap = args.basemap;
     if (args.render !== undefined) tag.render = args.render;
+    if (args.projection !== undefined) {
+        var globe = LML.map.controlValueProperty(layer, LML.map.GLOBE_CONTROL);
+        if (!globe) {
+            var effect = layer.property("ADBE Effect Parade").addProperty("ADBE Checkbox Control");
+            effect.name = LML.map.GLOBE_CONTROL;
+            globe = effect.property(1);
+        }
+        globe.setValue(args.projection === "globe" ? 1 : 0);
+        tag.projection = args.projection;
+    }
     LML.tag.write(layer, tag);
     return tag;
 };
@@ -103,6 +113,7 @@ LML.api.listMaps = function () {
             layerIndex: layer.index,
             basemap: tag.basemap || null,
             render: tag.render || null,
+            projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,
             view: LML.map.readViewAtTime(layer, comp.time)

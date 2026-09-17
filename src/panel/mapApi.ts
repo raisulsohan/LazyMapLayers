@@ -7,7 +7,16 @@ import { callHost, callHostWithJobFile } from "./cep.ts";
 
 export type CreatedMap = { id: string; mapCompId: number; mapCompName: string; sceneCompId: number; sceneCompName: string; layerIndex: number };
 
-export function createMapComp(options: { name?: string; width?: number; height?: number; duration?: number; frameRate?: number; view: View; newScene?: boolean }): Promise<CreatedMap> {
+export function createMapComp(options: {
+  name?: string;
+  width?: number;
+  height?: number;
+  duration?: number;
+  frameRate?: number;
+  view: View;
+  newScene?: boolean;
+  projection?: "mercator" | "globe";
+}): Promise<CreatedMap> {
   return callHost<CreatedMap>("createMapComp", options);
 }
 

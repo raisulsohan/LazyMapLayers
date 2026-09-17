@@ -67,7 +67,7 @@ export async function runHostSmoke(log: SpikeLog): Promise<{ passed: number; fai
   check("one tagged map comp added", afterCreate.mapComps.length === before.mapComps.length + 1);
   const layer = afterCreate.mapLayers[afterCreate.mapLayers.length - 1];
   check("map layer carries its tag", !!layer && layer.tag.indexOf(`"mapId":"${created.id}"`) > 0, layer?.tag);
-  check("camera controls exist in order", !!layer && layer.effects.join(",") === "Latitude,Longitude,Zoom,Bearing,Pitch", layer?.effects.join(","));
+  check("camera controls exist in order", !!layer && layer.effects.join(",") === "Latitude,Longitude,Zoom,Bearing,Pitch,Globe", layer?.effects.join(","));
   const expected = [35.6895, 139.6917, 9.25, 12.5, 30];
   check(
     "control values match the view",

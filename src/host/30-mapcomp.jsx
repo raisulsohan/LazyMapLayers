@@ -12,6 +12,14 @@ LML.map.CONTROLS = [
     { name: "Pitch", matchName: "ADBE Slider Control", key: "pitch" }
 ];
 
+LML.map.GLOBE_CONTROL = "Globe";
+
+/** "globe" when the map layer's Globe checkbox is on (at the start of the comp), else "mercator". */
+LML.map.projectionOf = function (layer) {
+    var prop = LML.map.controlValueProperty(layer, LML.map.GLOBE_CONTROL);
+    return prop && prop.valueAtTime(layer.startTime, false) ? "globe" : "mercator";
+};
+
 LML.map.uid = function () {
     return "m" + new Date().getTime().toString(36) + Math.floor(Math.random() * 1e9).toString(36);
 };
@@ -74,6 +82,15 @@ LML.map.createMapComp = function (args) {
         effect.name = control.name;
     }
     LML.map.setViewAtTime(layer, view, null);
+    // Projection: a checkbox the expressions read; the renderer reads it at render time.
+    var globe = effects.addProperty("ADBE Checkbox Control");
+    globe.name = LML.map.GLOBE_CONTROL;
+    globe.property(1).setValue(args.projection === "globe" ? 1 : 0);
+    if (args.projection === "globe") {
+        var mapTag = LML.tag.read(layer);
+        mapTag.projection = "globe";
+        LML.tag.write(layer, mapTag);
+    }
 
     try {
         scene.openInViewer();
