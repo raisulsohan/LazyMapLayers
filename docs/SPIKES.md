@@ -32,6 +32,20 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   is cheap enough to measure every candidate. Create layers only for labels that survive placement,
   and batch the creation behind a progress bar.
 
+## U1 — The real panel UI, driven through DevTools: PASS (2026-09-17)
+
+- `npm run ae:spikes -- --ui` starts After Effects and connects to the panel's DevTools port (8123,
+  dev builds only). It clicks through the UI like a user:
+  1. Picks the downloaded "paris" basemap.
+  2. Frames Paris in the preview.
+  3. Clicks **New map**.
+  4. Drops three pins.
+  5. Clicks **Render preview**.
+- Screenshots of each step and an AE-rendered frame are saved to `.cache/ui/`.
+- **Result.** A 10-second, 250-frame map rendered at half resolution in 51 ms per frame and was
+  imported. AE's own frame shows the 3D Paris basemap with the pins on the Arc de Triomphe, Louvre
+  and Eiffel Tower.
+
 ## E1 — End to end in After Effects' own render: PASS 20/20 (2026-09-17)
 
 - **Setup.** A 1280×720, 2-second map comp animates from Paris at zoom 12.6 (flat) to zoom 13.4

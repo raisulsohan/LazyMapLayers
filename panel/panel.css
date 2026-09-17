@@ -127,3 +127,100 @@ button.primary {
   top: 0;
   visibility: hidden;
 }
+
+/* Controls */
+select,
+input {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 4px 6px;
+  min-width: 0;
+}
+
+.toolbar select {
+  flex: 1 1 140px;
+}
+
+.toolbar.secondary {
+  padding-top: 4px;
+}
+
+.field {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex: 1 1 auto;
+  color: var(--muted);
+}
+
+.field select {
+  flex: 1 1 auto;
+}
+
+.spacer {
+  flex: 1 1 auto;
+}
+
+.hint {
+  position: absolute;
+  right: 8px;
+  bottom: 8px;
+  padding: 3px 7px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.45);
+  color: var(--muted);
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.sheet {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  background: var(--panel);
+}
+
+.sheet-row {
+  display: flex;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.sheet-row input {
+  flex: 1 1 160px;
+}
+
+.small {
+  font-size: 11px;
+}
+
+.muted {
+  color: var(--muted);
+}
+
+.progress {
+  position: relative;
+  height: 20px;
+  margin: 0 8px 6px;
+  border-radius: var(--radius);
+  background: var(--panel);
+  overflow: hidden;
+}
+
+.progress .bar {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(54, 179, 255, 0.35);
+}
+
+.progress span {
+  position: relative;
+  padding-left: 8px;
+  line-height: 20px;
+  font-size: 11px;
+}
