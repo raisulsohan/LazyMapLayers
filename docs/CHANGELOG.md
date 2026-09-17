@@ -11,6 +11,12 @@
 - **Street-level precision.** Exact double coordinates in the expressions work around float32
   slider precision.
 - **In-AE alignment test P1.** Worst error 0.006 px across 112 comparisons.
+- **Render map.** Samples the camera for every frame, renders the basemap (world or a downloaded
+  OpenStreetMap region) into a PNG sequence, and imports or swaps it into the map comp as a locked,
+  tagged layer. A new folder is used per render, so After Effects never shows cached frames.
+- **PNG decoder** for all filter types.
+- **End-to-end test E1.** AE's own rendered frames show every pin centred on the renderer's marker
+  (20/20).
 - **Fixed.** Views are read at the scene comp's time.
 
 ## Phase 0 (foundation and spikes)

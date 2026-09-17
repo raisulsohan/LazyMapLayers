@@ -6,7 +6,7 @@ import { callHost, callHostWithJobFile } from "./cep.ts";
 
 export type CreatedMap = { id: string; mapCompId: number; mapCompName: string; sceneCompId: number; sceneCompName: string; layerIndex: number };
 
-export function createMapComp(options: { name?: string; width?: number; height?: number; duration?: number; frameRate?: number; view: View }): Promise<CreatedMap> {
+export function createMapComp(options: { name?: string; width?: number; height?: number; duration?: number; frameRate?: number; view: View; newScene?: boolean }): Promise<CreatedMap> {
   return callHost<CreatedMap>("createMapComp", options);
 }
 
@@ -19,7 +19,12 @@ export type AddedPin = { layerIndex: number; name: string; sceneCompId: number; 
 export function addPin(
   mapId: string,
   position: { lat: number; lng: number },
-  options: { name?: string; scaleWithMap?: boolean; rotateWithMap?: boolean; style?: { radius?: number; color?: [number, number, number] } } = {}
+  options: {
+    name?: string;
+    scaleWithMap?: boolean;
+    rotateWithMap?: boolean;
+    style?: { radius?: number; color?: [number, number, number]; fill?: boolean; strokeColor?: [number, number, number]; strokeWidth?: number };
+  } = {}
 ): Promise<AddedPin> {
   return callHostWithJobFile<AddedPin>("addPin", {
     mapId,

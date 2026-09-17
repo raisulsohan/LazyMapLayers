@@ -23,6 +23,20 @@ LML.api.addPin = function (args) {
     });
 };
 
+LML.api.sampleViews = function (args) {
+    return LML.basemap.sampleViews(args);
+};
+
+LML.api.importBasemap = function (args) {
+    return LML.withUndo("Update basemap", function () {
+        // Unlock before replacing, relock inside importSequence.
+        var mapLayer = LML.pins.findMapLayer(args.mapId);
+        var existing = LML.basemap.findBasemapLayer(mapLayer.source);
+        if (existing) existing.locked = false;
+        return LML.basemap.importSequence(args);
+    });
+};
+
 LML.api.listMaps = function () {
     var layers = LML.map.findMapLayers();
     var out = [];
