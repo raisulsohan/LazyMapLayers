@@ -7,7 +7,7 @@ import { useEffect, useRef, useState } from "preact/hooks";
 import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
-import type { Bbox } from "../core/tiles/tileMath.ts";
+import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { callHost, fs, isInCep, path } from "./cep.ts";
 import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
@@ -33,6 +33,19 @@ type Progress = { label: string; done: number; total: number } | null;
 type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
 
 const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
+
+const LARGE_DOWNLOAD_BYTES = 200 * 1048576;
+const MAX_DOWNLOAD_BYTES = 2048 * 1048576;
+const DETAIL_ZOOMS = [10, 11, 12, 13, 14, 15];
+
+/** Tiles from zoom 0 to maxZoom that cover the bbox (offline estimate, before asking the server). */
+function tilesUpTo(bbox: Bbox, maxZoom: number): number {
+  let total = 0;
+  for (let z = 0; z <= maxZoom; z++) total += tileCount(tileRangeForBbox(bbox, z));
+  return total;
+}
+
+const compactNumber = (n: number) => (n >= 10000 ? `${Math.round(n / 1000)}k` : String(n));
 
 function viewOf(map: maplibregl.Map): View {
   const c = map.getCenter();
@@ -230,15 +243,16 @@ function App() {
       log(`rendered ${result.frames} frames (${result.msPerFrame.toFixed(0)} ms each) into ${selected.mapCompName}`, "ok");
     });
 
+  const regionTaken = !!regionSheet?.name && regions.some((r) => r.name === safeRegionName(regionSheet.name));
+
   const openRegionSheet = () => {
     const map = mapRef.current;
     if (!map) return;
     const b = map.getBounds();
-    setRegionSheet({
-      name: "",
-      maxZoom: 15,
-      bbox: { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) }
-    });
+    const bbox = { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) };
+    // Start with the most detail that stays around a city-sized download (a few thousand tiles).
+    const maxZoom = [...DETAIL_ZOOMS].reverse().find((z) => tilesUpTo(bbox, z) <= 3000) ?? DETAIL_ZOOMS[0];
+    setRegionSheet({ name: "", maxZoom, bbox });
   };
 
   const checkRegionSize = () =>
@@ -317,14 +331,19 @@ function App() {
               placeholder="Region name, e.g. paris"
               value={regionSheet.name}
               onInput={(e) => setRegionSheet({ ...regionSheet, name: (e.target as HTMLInputElement).value })}
+              onBlur={(e) => {
+                // Show the name the file will really get ("New York" becomes "new-york").
+                const typed = (e.target as HTMLInputElement).value;
+                if (typed.trim()) setRegionSheet({ ...regionSheet, name: safeRegionName(typed) });
+              }}
             />
             <select
               value={regionSheet.maxZoom}
               onChange={(e) => setRegionSheet({ ...regionSheet, maxZoom: Number((e.target as HTMLSelectElement).value), planned: undefined })}
             >
-              {[12, 13, 14, 15].map((z) => (
+              {DETAIL_ZOOMS.map((z) => (
                 <option key={z} value={z}>
-                  Detail to zoom {z}
+                  Detail to zoom {z} (≈{compactNumber(tilesUpTo(regionSheet.bbox, z))} tiles)
                 </option>
               ))}
             </select>
@@ -339,14 +358,33 @@ function App() {
               {regionSheet.planned.build})
             </div>
           )}
+          {regionSheet.planned && regionSheet.planned.plan.tileBytes > MAX_DOWNLOAD_BYTES && (
+            <div class="warning small">
+              Too large to download in one go ({mb(regionSheet.planned.plan.tileBytes)}). Zoom the preview in to the area you need, or pick less detail.
+            </div>
+          )}
+          {regionSheet.planned && regionSheet.planned.plan.tileBytes > LARGE_DOWNLOAD_BYTES && regionSheet.planned.plan.tileBytes <= MAX_DOWNLOAD_BYTES && (
+            <div class="warning small">
+              This is a large download ({mb(regionSheet.planned.plan.tileBytes)}). For one city, zoom the preview in until the city fills it, or pick less detail.
+            </div>
+          )}
+          {regionTaken && (
+            <div class="warning small">
+              A region named "{safeRegionName(regionSheet.name)}" already exists. Downloading replaces it.
+            </div>
+          )}
           <div class="sheet-row">
             {!regionSheet.planned ? (
               <button disabled={busy} onClick={checkRegionSize}>
                 Check size
               </button>
             ) : (
-              <button class="primary" disabled={busy} onClick={startRegionDownload}>
-                Download
+              <button
+                class={regionTaken || regionSheet.planned.plan.tileBytes > LARGE_DOWNLOAD_BYTES ? "danger" : "primary"}
+                disabled={busy || regionSheet.planned.plan.tileBytes > MAX_DOWNLOAD_BYTES}
+                onClick={startRegionDownload}
+              >
+                {regionTaken ? "Replace existing region" : "Download"}
               </button>
             )}
             <button disabled={busy} onClick={() => setRegionSheet(null)}>

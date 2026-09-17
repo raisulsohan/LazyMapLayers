@@ -25,6 +25,14 @@
   - **Keyframe view** and **Match AE**.
   - **Render preview** (half resolution) and **Render**, with progress.
 - **UI test U1** drives the real panel through DevTools and saves screenshots.
+- **Safer region downloads.**
+  - The detail picker shows a tile estimate for every zoom (10 to 15) and starts at the most
+    detail that stays city-sized.
+  - An existing region name warns, and the button becomes **Replace existing region**.
+  - Downloads over 200 MB show a warning. Downloads over 2 GB are blocked, with advice to zoom in or
+    pick less detail.
+  - The name is shown as the file will be saved ("New York" becomes "new-york").
+- **Preview hint** moved to the top right, so it no longer hides the attribution button.
 - **Fixed.** Views are read at the scene comp's time.
 
 ## Phase 0 (foundation and spikes)
