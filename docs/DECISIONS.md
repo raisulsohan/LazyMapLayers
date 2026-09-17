@@ -124,3 +124,39 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Later.** A renderer cross-fade between tile levels (drawing near a level change with the lower
   level too and blending by zoom) would remove the remaining small steps. It needs a per-pixel
   blend for pitched views, so it waits for Phase 3's camera work.
+
+## D11 — Globe until zoom 7, flat map from zoom 8 (2026-09-17)
+
+- **Context.** MapLibre's "globe" preset turns into the flat map between zoom 11 and 12. City detail
+  then renders inside the transition, and region tiles overlap the globe's curved mesh.
+- **Decision.** Our styles use the same mechanism with the transition between zoom 7 and 8
+  (`GLOBE_TO_MERCATOR` in `src/core/camera/globe.ts`); the curvature is no longer visible there.
+  Core maths, expressions and tests follow the same constants.
+
+## D12 — Labels are After Effects layers placed over the whole timeline (2026-09-17)
+
+- **Decision.**
+  - Country and city names come from Natural Earth (26 name languages), in the local language of
+    the place with an English subtitle (`src/core/labels/language.ts`).
+  - `src/core/labels/placement.ts` places labels on every frame: labels on screen keep their place,
+    new ones come in by priority, nothing overlaps, appearances shorter than 0.8 s are dropped,
+    and labels fade in and out inside their appearances. On a globe the whole label must sit on the
+    planet.
+  - The host builds one text layer per label (plus a dot and a subtitle) with position expressions
+    and fade keys, picking a font per writing system that exists on the machine (Windows, macOS,
+    then Noto).
+- **Consequences.** Labels stay editable text with correct shaping (Universal Type Engine) and never
+  flicker. Building 140 labels (340 layers) takes about 30 s; the scene comp is taken out of the
+  viewer meanwhile, which made it almost three times faster.
+
+## D13 — Regions appear when the frame fits inside them (2026-09-17)
+
+- **Context.** A downloaded region only has tiles inside its bounds. Seen from far out, its detail
+  sits on the world map as a sharp-edged patch. Its water polygons below zoom 12 can also be
+  triangulated into wedges across rivers.
+- **Decision.** Each region fades in over 0.8 zoom levels ending where the frame is about as large as
+  the region (`src/core/tiles/regionFade.ts`, never before zoom 9.8), and its water polygons wait for
+  zoom 12. OSM outlines tagged building=no are not drawn, so buildings made of parts (such as the
+  Eiffel Tower) show their real shape.
+- **Consequences.** Small regions leave a stretch of world-map-only zooms during a descent. Wider,
+  lower-detail regions around a city fill that stretch (to be supported as tiers).

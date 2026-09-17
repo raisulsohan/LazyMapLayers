@@ -23,6 +23,10 @@ LML.map.isViewAnimated = function (layer) {
         if (prop.numKeys > 0) return true;
         if (prop.expressionEnabled && prop.expression !== "") return true;
     }
+    var animations = LML.map.animationControlsOf(layer);
+    for (var a = 0; a < animations.length; a++) {
+        if (animations[a].prop.numKeys > 0 || (animations[a].prop.expressionEnabled && animations[a].prop.expression !== "")) return true;
+    }
     return false;
 };
 
@@ -43,6 +47,12 @@ LML.basemap.renderInfo = function (args) {
         shutterPhase: scene.shutterPhase,
         animated: LML.map.isViewAnimated(mapLayer),
         projection: LML.map.projectionOf(mapLayer),
+        animations: (function () {
+            var keys = [];
+            var controls = LML.map.animationControlsOf(mapLayer);
+            for (var i = 0; i < controls.length; i++) keys.push(controls[i].key);
+            return keys;
+        })(),
         projectFolder: app.project.file ? app.project.file.parent.fsName : null
     };
 };
@@ -60,6 +70,7 @@ LML.basemap.sampleViews = function (args) {
     var first = args.firstFrame || 0;
     var last = Math.min(frames - 1, args.lastFrame === undefined ? frames - 1 : args.lastFrame);
     var offsets = args.offsets || [0];
+    var animations = LML.map.animationControlsOf(mapLayer);
     var views = [];
     for (var f = first; f <= last; f++) {
         if (!args.compact) {
@@ -69,8 +80,11 @@ LML.basemap.sampleViews = function (args) {
         }
         var samples = [];
         for (var s = 0; s < offsets.length; s++) {
-            var v = LML.map.readViewAtTime(mapLayer, mapLayer.startTime + (f + offsets[s]) / fps);
-            samples.push([v.center.lat, v.center.lng, v.zoom, v.bearing, v.pitch]);
+            var sampleTime = mapLayer.startTime + (f + offsets[s]) / fps;
+            var v = LML.map.readViewAtTime(mapLayer, sampleTime);
+            var row = [v.center.lat, v.center.lng, v.zoom, v.bearing, v.pitch];
+            for (var a = 0; a < animations.length; a++) row.push(animations[a].prop.valueAtTime(sampleTime, false));
+            samples.push(row);
         }
         views.push(samples);
     }

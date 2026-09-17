@@ -98,15 +98,24 @@ export type FrameKeyContext = {
   labels: boolean;
 };
 
-/** True when every sample view is the same camera (a held frame renders once, without blur work). */
-export function isStill(views: View[]): boolean {
+/** A camera view plus the values of animated style controls (such as "bordersDraw") at that time. */
+export type AnimatedView = View & { animation?: Record<string, number> };
+
+const sameAnimation = (a: AnimatedView, b: AnimatedView) => {
+  const keys = new Set([...Object.keys(a.animation ?? {}), ...Object.keys(b.animation ?? {})]);
+  for (const key of keys) if (a.animation?.[key] !== b.animation?.[key]) return false;
+  return true;
+};
+
+/** True when every sample is the same camera and animation (a held frame renders once, without blur work). */
+export function isStill(views: AnimatedView[]): boolean {
   const a = views[0];
-  return views.every((v) => v.center.lat === a.center.lat && v.center.lng === a.center.lng && v.zoom === a.zoom && v.bearing === a.bearing && v.pitch === a.pitch);
+  return views.every((v) => v.center.lat === a.center.lat && v.center.lng === a.center.lng && v.zoom === a.zoom && v.bearing === a.bearing && v.pitch === a.pitch && sameAnimation(v, a));
 }
 
 /** Cache key of one pass of one frame. Identical cameras and settings give identical keys. */
-export function frameKey(context: FrameKeyContext, pass: PassId, views: View[], timeMs: number): string {
-  const cameras = (isStill(views) ? [views[0]] : views).map((v) => [v.center.lat, v.center.lng, v.zoom, v.bearing, v.pitch]);
+export function frameKey(context: FrameKeyContext, pass: PassId, views: AnimatedView[], timeMs: number): string {
+  const cameras = (isStill(views) ? [views[0]] : views).map((v) => (v.animation ? [v.center.lat, v.center.lng, v.zoom, v.bearing, v.pitch, v.animation] : [v.center.lat, v.center.lng, v.zoom, v.bearing, v.pitch]));
   return keyOf({
     renderer: RENDERER_VERSION,
     ...context,

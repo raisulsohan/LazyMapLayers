@@ -12,6 +12,8 @@ import type { View } from "../../core/camera/camera.ts";
 import { flipAndUnpremultiply } from "../../core/image/png.ts";
 import { groupVisibleIn, type LayerGroup, type RenderId } from "../../core/render/passes.ts";
 import { ensureMaplibreWorker } from "../basemap/maplibreSetup.ts";
+import { BORDERS_DRAW_LAYER, bordersGradient } from "../basemap/basemapStyle.ts";
+import type { AnimatedView } from "../../core/render/plan.ts";
 import { GpuReader } from "./gpuReader.ts";
 
 export type FrameRendererOptions = {
@@ -60,6 +62,7 @@ export class FrameRenderer {
   private groups = new Map<string, LayerGroup>();
   private hidden = new Set<string>();
   private visibleRender: string | null = null;
+  private animation: Record<string, number> = {};
 
   constructor(options: FrameRendererOptions) {
     this.options = options;
@@ -151,16 +154,26 @@ export class FrameRenderer {
   }
 
   /** Moves the camera and waits until every tile it needs is loaded. `timeMs` freezes MapLibre's clock. */
-  async setView(view: View, timeMs: number): Promise<number> {
+  async setView(view: AnimatedView, timeMs: number): Promise<number> {
     const map = this.maplibre;
     const started = performance.now();
     maplibregl.setNow(timeMs);
+    this.applyAnimation(view.animation);
     map.jumpTo({ center: [view.center.lng, view.center.lat], zoom: view.zoom, bearing: view.bearing, pitch: view.pitch });
     // Tiles are chosen with every layer visible, so each render of this camera uses the same tiles.
     this.hidden.clear();
     this.visibleRender = null;
     await this.waitForTiles();
     return performance.now() - started;
+  }
+
+  /** Sets animated style values (paint changes only, so no tiles reload). */
+  private applyAnimation(animation: Record<string, number> | undefined): void {
+    const bordersDraw = animation?.bordersDraw;
+    if (bordersDraw !== undefined && bordersDraw !== this.animation.bordersDraw && this.groups.has(BORDERS_DRAW_LAYER) && this.maplibre.getLayer(BORDERS_DRAW_LAYER)?.type === "line") {
+      this.maplibre.setPaintProperty(BORDERS_DRAW_LAYER, "line-gradient", bordersGradient(bordersDraw) as never);
+      this.animation.bordersDraw = bordersDraw;
+    }
   }
 
   /** Draws one render at the current camera: premultiplied RGBA8 at output size, rows bottom-up. */

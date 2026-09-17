@@ -3,6 +3,7 @@
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../core/ae/cameraRig.ts";
 import { pinExpressions } from "../core/ae/pinExpressions.ts";
 import type { View } from "../core/camera/camera.ts";
+import { flightKeys } from "../core/camera/flight.ts";
 import { callHost, callHostWithJobFile } from "./cep.ts";
 
 export type CreatedMap = { id: string; mapCompId: number; mapCompName: string; sceneCompId: number; sceneCompName: string; layerIndex: number };
@@ -75,4 +76,23 @@ export function addCameraRig(mapId: string, view: View): Promise<AddedCameraRig>
     referenceZoom: frame.referenceZoom,
     expressions: cameraRigExpressions()
   });
+}
+
+/**
+ * Keys a smooth flight (van Wijk-Nuij path with Easy Ease) from the camera of the map at the current AE
+ * time to `to`, one key per frame, and moves the time indicator to its end so flights can be chained.
+ */
+export async function flyTo(
+  map: { mapId: string; view: View; time: number; frameRate: number; width: number; height: number },
+  to: View,
+  seconds: number
+): Promise<{ keys: number; topZoom: number }> {
+  const keys = flightKeys(map.view, to, { width: map.width, height: map.height }, { duration: seconds, frameRate: map.frameRate, startTime: map.time });
+  await callHostWithJobFile("setViewKeys", {
+    mapId: map.mapId,
+    times: keys.map((k) => k.time),
+    views: keys.map((k) => [k.view.center.lat, k.view.center.lng, k.view.zoom, k.view.bearing, k.view.pitch]),
+    moveTime: true
+  });
+  return { keys: keys.length, topZoom: Math.min(...keys.map((k) => k.view.zoom)) };
 }

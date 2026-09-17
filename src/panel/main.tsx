@@ -11,13 +11,10 @@ import type { View } from "../core/camera/camera.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { callHost, fs, isInCep, path } from "./cep.ts";
-import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
-import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
-import { protomapsStyle } from "./basemap/protomapsStyle.ts";
-import { withProjection } from "./basemap/projection.ts";
+import { ensureMaplibreWorker, regionArchivePath } from "./basemap/maplibreSetup.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
-import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
-import type { BasemapSource } from "./render/renderJob.ts";
+import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
+import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 import { PASS_IDS, PASS_INFO, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
@@ -35,6 +32,10 @@ type MapEntry = {
   isActiveScene: boolean;
   hasCamera: boolean;
   projection: MapProjection;
+  time: number;
+  frameRate: number;
+  width: number;
+  height: number;
   render: Partial<RenderSettings> | null;
   view: View;
 };
@@ -64,13 +65,11 @@ function viewOf(map: maplibregl.Map): View {
 }
 
 function previewStyle(source: BasemapSource, projection: MapProjection): StyleSpecification {
-  if (source.kind === "region" && fs().existsSync(regionArchivePath(source.name))) {
-    return withProjection(protomapsStyle(registerLocalArchive(source.name, regionArchivePath(source.name)), { labels: true }), projection);
-  }
-  return withProjection(naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: true }), projection);
+  const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
+  return basemapStyle(usable, { labels: true, projection });
 }
 
-const sourceKey = (s: BasemapSource) => (s.kind === "region" ? `region:${s.name}` : "world");
+const sourceKey = (s: BasemapSource) => (s.kind === "region" ? `region:${s.name}` : s.kind === "regions" ? `regions:${s.names.join("+")}` : "world");
 const sourceFromKey = (key: string): BasemapSource => (key.startsWith("region:") ? { kind: "region", name: key.slice(7) } : { kind: "world" });
 
 function App() {
@@ -84,6 +83,7 @@ function App() {
   const [regions, setRegions] = useState<RegionInfo[]>([]);
   const [basemap, setBasemap] = useState<BasemapSource>({ kind: "world" });
   const [projection, setProjection] = useState<MapProjection>("mercator");
+  const [flightSeconds, setFlightSeconds] = useState(6);
   const [progress, setProgress] = useState<Progress>(null);
   const [regionSheet, setRegionSheet] = useState<RegionSheet | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -235,6 +235,17 @@ function App() {
       if (!map || !selected) return;
       await setView(selected.mapId, viewOf(map), true);
       log("camera keyframed at the current time", "ok");
+    });
+
+  const flyHere = () =>
+    run("fly", async () => {
+      const map = mapRef.current;
+      const list = await callHost<MapEntry[]>("listMaps");
+      setMaps(list);
+      const entry = list.find((m) => m.mapId === selectedRef.current);
+      if (!map || !entry) return;
+      const flight = await flyTo(entry, viewOf(map), flightSeconds);
+      log(`flight of ${flightSeconds} s keyed from ${entry.time.toFixed(2)} s (${flight.keys} keys, widest zoom ${flight.topZoom.toFixed(1)}); the time indicator is at its end`, "ok");
     });
 
   const matchAe = () =>
@@ -492,6 +503,16 @@ function App() {
         <button disabled={busy || !selected} onClick={keyframeView} title="Set a camera keyframe at the current AE time">
           ◆ Keyframe view
         </button>
+        <button disabled={busy || !selected} onClick={flyHere} title="Key a smooth flight from the camera at the current AE time to this preview view">
+          ✈ Fly here
+        </button>
+        <select value={flightSeconds} disabled={busy || !selected} onChange={(e) => setFlightSeconds(Number((e.target as HTMLSelectElement).value))} title="Flight duration">
+          {[2, 3, 4, 6, 8, 10, 12, 15, 20].map((n) => (
+            <option key={n} value={n}>
+              {n} s
+            </option>
+          ))}
+        </select>
         <button disabled={busy || !selected} onClick={matchAe} title="Show the camera at the current AE time">
           Match AE
         </button>

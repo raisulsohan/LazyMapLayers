@@ -36,6 +36,20 @@ if (!fso.FileExists(hostPath)) {
 
 var source = read(hostPath);
 
+// ExtendScript mis-evaluates unparenthesised chained conditionals (a ? b : c ? d : e).
+(function () {
+    var lines = source.split(String.fromCharCode(10));
+    var bad = [];
+    var strings = new RegExp("\"(?:[^\"\\\\]|\\\\.)*\"", "g");
+    var comment = new RegExp("//.*$");
+    var chained = new RegExp("\\?[^:;()?]*:[^;()?]*\\?[^:;()]*:");
+    for (var i = 0; i < lines.length; i++) {
+        var code = lines[i].replace(strings, "\"\"").replace(comment, "");
+        if (chained.test(code)) bad.push((i + 1) + ": " + lines[i].replace(new RegExp("^\\s+"), ""));
+    }
+    check("no chained conditional operators", bad.length === 0, bad.join(" | "));
+})();
+
 // Minimal fakes so the host file can load outside After Effects.
 var Folder = function (p) { this.fsName = p; this.exists = true; };
 Folder.prototype.create = function () { return true; };

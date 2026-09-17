@@ -29,6 +29,77 @@ LML.api.addCameraRig = function (args) {
     });
 };
 
+LML.api.addLabels = function (args) {
+    return LML.withUndo("Auto labels", function () {
+        return LML.labels.addLabels(args);
+    });
+};
+
+/** Several overlay layers (paths, boxes, texts) in one undo step: args.items = [{ type, ...args }]. */
+LML.api.addOverlays = function (args) {
+    return LML.withUndo(args.undoName || "Add overlays", function () {
+        var results = [];
+        var errors = [];
+        if (args.replaceKinds) {
+            for (var k = 0; k < args.replaceKinds.length; k++) LML.overlays.removeKind({ mapId: args.mapId, kind: args.replaceKinds[k] });
+        }
+        // Items are listed bottom to top; each new layer goes directly above the map layer, so build
+        // the top one first.
+        for (var i = args.items.length - 1; i >= 0; i--) {
+            var item = args.items[i];
+            item.mapId = args.mapId;
+            // No chained ?: here: ExtendScript evaluates chained conditional operators wrongly.
+            var result;
+            if (item.type === "path") result = LML.overlays.addPath(item);
+            else if (item.type === "box") result = LML.overlays.addBox(item);
+            else result = LML.overlays.addText(item);
+            for (var e = 0; e < result.expressionErrors.length; e++) errors.push(result.expressionErrors[e]);
+            results.unshift(result.name);
+        }
+        return { layers: results, expressionErrors: errors };
+    });
+};
+
+/** Keys a transform property of a tagged layer of the map: args { mapId, layerName, property: "opacity" | "scale", keys: [[frame, value]] }. */
+LML.api.keyLayer = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    return LML.withUndo("Animate " + args.layerName, function () {
+        for (var i = 1; i <= scene.numLayers; i++) {
+            var layer = scene.layer(i);
+            if (layer.name !== args.layerName || !LML.tag.read(layer)) continue;
+            var match = args.property === "scale" ? "ADBE Scale" : "ADBE Opacity";
+            var prop = layer.property("ADBE Transform Group").property(match);
+            LML.overlays.keyFrames(prop, mapLayer, args.keys);
+            return { layer: layer.name, keys: args.keys.length };
+        }
+        throw LML.util.error("LAYER_NOT_FOUND", "No tagged layer named " + args.layerName);
+    });
+};
+
+/** A dark space gradient behind the map in its scene comp (for globe maps, whose space is transparent). */
+LML.api.addBackground = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    return LML.withUndo("Add space background", function () {
+        LML.labels.removeTagged(scene, args.mapId, "background");
+        var solid = scene.layers.addSolid(args.color || [0.02, 0.035, 0.06], "Space", scene.width, scene.height, 1, scene.duration);
+        try {
+            var ramp = solid.property("ADBE Effect Parade").addProperty("ADBE Ramp");
+            ramp.property("ADBE Ramp-0001").setValue([scene.width / 2, 0]);
+            ramp.property("ADBE Ramp-0002").setValue(args.top || [0.05, 0.09, 0.16]);
+            ramp.property("ADBE Ramp-0003").setValue([scene.width / 2, scene.height]);
+            ramp.property("ADBE Ramp-0004").setValue(args.bottom || [0.005, 0.01, 0.02]);
+            ramp.property("ADBE Ramp-0005").setValue(2);
+        } catch (e) {
+            // A flat colour is fine.
+        }
+        solid.moveToEnd();
+        LML.tag.write(solid, { kind: "background", v: 1, mapId: args.mapId });
+        return { layer: solid.name };
+    });
+};
+
 LML.api.sampleViews = function (args) {
     return LML.basemap.sampleViews(args);
 };
@@ -116,10 +187,41 @@ LML.api.listMaps = function () {
             projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,
+            time: comp.time,
+            frameRate: comp.frameRate,
+            width: layer.source ? layer.source.width : comp.width,
+            height: layer.source ? layer.source.height : comp.height,
             view: LML.map.readViewAtTime(layer, comp.time)
         });
     }
     return out;
+};
+
+/** A flight or any baked camera move: one key per frame, replacing keys in its time range. */
+LML.api.setViewKeys = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    return LML.withUndo("Fly to", function () {
+        LML.map.setViewKeys(layer, args.times, args.views);
+        if (args.moveTime) layer.containingComp.time = args.times[args.times.length - 1];
+        return { keys: args.times.length };
+    });
+};
+
+/** Keys any slider control on the map layer (created if missing), for example "Borders Draw-on". */
+LML.api.setControlKeys = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    return LML.withUndo("Animate " + args.name, function () {
+        var prop = LML.map.controlValueProperty(layer, args.name);
+        if (!prop) {
+            var effect = layer.property("ADBE Effect Parade").addProperty("ADBE Slider Control");
+            effect.name = args.name;
+            prop = effect.property(1);
+        }
+        for (var k = prop.numKeys; k >= 1; k--) prop.removeKey(k);
+        if (args.times.length === 1) prop.setValue(args.values[0]);
+        else prop.setValuesAtTimes(args.times, args.values);
+        return { keys: args.times.length };
+    });
 };
 
 LML.api.setView = function (args) {

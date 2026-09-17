@@ -1,16 +1,16 @@
-// Projection for a style: flat Web Mercator, or MapLibre's globe (a globe up to zoom 11 that turns into
-// the flat map by zoom 12, see core/camera/globe.ts). The globe gets an atmosphere that fades out as
+// Projection for a style: flat Web Mercator, or MapLibre's globe (a globe at low zoom that turns into
+// the flat map, see GLOBE_TO_MERCATOR in core/camera/globe.ts). The globe gets an atmosphere that fades out as
 // the camera comes down; space stays transparent, so a render can go over any background in After
 // Effects.
 
 import type { StyleSpecification } from "maplibre-gl";
-import type { MapProjection } from "../../core/camera/globe.ts";
+import { globeProjectionSpec, type MapProjection } from "../../core/camera/globe.ts";
 
 export function withProjection(style: StyleSpecification, projection: MapProjection): StyleSpecification {
   if (projection !== "globe") return { ...style, projection: { type: "mercator" } };
   return {
     ...style,
-    projection: { type: "globe" },
+    projection: globeProjectionSpec() as StyleSpecification["projection"],
     sky: {
       "sky-color": "#1a3a5c",
       "horizon-color": "#4f8fc4",

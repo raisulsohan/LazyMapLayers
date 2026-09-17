@@ -6,11 +6,11 @@ import { globeRadiusPixels, globeness, projectPoint } from "../../src/core/camer
 const hd: Viewport = { width: 1920, height: 1080 };
 const globe = { projection: "globe" as const };
 
-test("globeness follows MapLibre's globe projection: globe to zoom 11, Mercator from 12", () => {
+test("globeness: globe to zoom 7, Mercator from 8", () => {
   assert.equal(globeness(3), 1);
-  assert.equal(globeness(11), 1);
-  assert.equal(globeness(11.25), 0.75);
-  assert.equal(globeness(12), 0);
+  assert.equal(globeness(7), 1);
+  assert.equal(globeness(7.25), 0.75);
+  assert.equal(globeness(8), 0);
   assert.equal(globeness(16), 0);
   assert.equal(globeness(3, "mercator"), 0);
 });
@@ -38,11 +38,11 @@ test("east is right, north is up, bearing 90 puts east at the top", () => {
 });
 
 test("near the centre the globe keeps the Mercator map scale", () => {
-  const view: View = { center: { lng: 2.35, lat: 48.86 }, zoom: 9, bearing: 0, pitch: 0 };
-  const point = { lng: 2.36, lat: 48.865 };
+  const view: View = { center: { lng: 2.35, lat: 48.86 }, zoom: 6.5, bearing: 0, pitch: 0 };
+  const point = { lng: 2.4, lat: 48.88 };
   const round = projectPoint(view, hd, point, globe);
   const flat = project(view, hd, point);
-  // About 1 km away at zoom 9: the two projections differ by far less than a pixel.
+  // About 4 km away at zoom 6.5: the two projections differ by far less than a pixel.
   assert.ok(Math.hypot(round.x - flat.x, round.y - flat.y) < 0.05, `${round.x},${round.y} vs ${flat.x},${flat.y}`);
 });
 
@@ -65,14 +65,14 @@ test("the far side of the planet is hidden, the near limb is not", () => {
   assert.equal(high.visible, true);
 });
 
-test("from zoom 12 the globe projection is exactly Mercator; the transition is continuous", () => {
-  const base: View = { center: { lng: 139.7671, lat: 35.6812 }, zoom: 12, bearing: 25, pitch: 45 };
-  const point = { lng: 139.78, lat: 35.69 };
+test("from zoom 8 the globe projection is exactly Mercator; the transition is continuous", () => {
+  const base: View = { center: { lng: 139.7671, lat: 35.6812 }, zoom: 8, bearing: 25, pitch: 45 };
+  const point = { lng: 139.95, lat: 35.8 };
   const mercator = project(base, hd, point);
-  const atTwelve = projectPoint(base, hd, point, globe);
-  assert.ok(Math.abs(atTwelve.x - mercator.x) < 1e-9 && Math.abs(atTwelve.y - mercator.y) < 1e-9);
-  let previous = projectPoint({ ...base, zoom: 10.9 }, hd, point, globe);
-  for (let zoom = 10.91; zoom <= 12.1; zoom += 0.01) {
+  const atEight = projectPoint(base, hd, point, globe);
+  assert.ok(Math.abs(atEight.x - mercator.x) < 1e-9 && Math.abs(atEight.y - mercator.y) < 1e-9);
+  let previous = projectPoint({ ...base, zoom: 6.9 }, hd, point, globe);
+  for (let zoom = 6.91; zoom <= 8.1; zoom += 0.01) {
     const current = projectPoint({ ...base, zoom }, hd, point, globe);
     // Zooming by 0.01 moves this point by about 0.7 % of its distance from the centre; no jumps.
     const expectedStep = Math.hypot(current.x - 960, current.y - 540) * 0.012 + 0.5;
@@ -90,4 +90,16 @@ test("altitude lifts points towards the camera in both projections", () => {
   const g = projectPoint(roundView, hd, { lng: 30, lat: 0 }, globe);
   const up = projectPoint(roundView, hd, { lng: 30, lat: 0 }, { ...globe, altitudeMeters: 500_000 });
   assert.ok(up.x > g.x && up.w < g.w, "a raised point moves outwards and closer");
+});
+
+test("pixels on the globe disc", async () => {
+  const { pixelOnGlobe } = await import("../../src/core/camera/globe.ts");
+  const view: View = { center: { lng: 0, lat: 0 }, zoom: 2, bearing: 0, pitch: 0 };
+  assert.equal(pixelOnGlobe(view, hd, 960, 540), true);
+  assert.equal(pixelOnGlobe(view, hd, 10, 10), false);
+  const r = globeRadiusPixels(view);
+  const silhouette = (1620 * r) / Math.sqrt((r + 1620) ** 2 - r * r);
+  assert.equal(pixelOnGlobe(view, hd, 960 + silhouette - 2, 540), true);
+  assert.equal(pixelOnGlobe(view, hd, 960 + silhouette + 2, 540), false);
+  assert.equal(pixelOnGlobe({ ...view, zoom: 9 }, hd, 10, 10), true, "flat map: every pixel");
 });

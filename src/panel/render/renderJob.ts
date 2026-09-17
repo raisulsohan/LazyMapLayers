@@ -2,25 +2,21 @@
 // pass images are not in the cache yet, draw only those, encode them in workers, link the sequences
 // and import them into After Effects in one undo step.
 
-import type { StyleSpecification } from "maplibre-gl";
-import type { View } from "../../core/camera/camera.ts";
+import type { AnimatedView } from "../../core/render/plan.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
 import { PASS_INFO, rendersFor, type PassId, type RenderId } from "../../core/render/passes.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
-import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "../basemap/maplibreSetup.ts";
-import { naturalEarthStyle } from "../basemap/naturalEarthStyle.ts";
-import { protomapsStyle } from "../basemap/protomapsStyle.ts";
-import { withProjection } from "../basemap/projection.ts";
+import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreSetup.ts";
+import { basemapStyle, regionNames, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
-import { FrameRenderer, GROUP_METADATA_KEY, layerGroup } from "./frameRenderer.ts";
+import { FrameRenderer, layerGroup } from "./frameRenderer.ts";
 import { RenderStore } from "./renderStore.ts";
 
-export type BasemapSource = { kind: "world" } | { kind: "region"; name: string };
-
-export type Marker = { lat: number; lng: number; radius?: number; color?: string };
+export type { BasemapSource, Marker } from "../basemap/basemapStyle.ts";
+export { basemapStyle } from "../basemap/basemapStyle.ts";
 
 export type RenderJobSpec = {
   mapId: string;
@@ -65,7 +61,7 @@ export class RenderCancelled extends Error {
   }
 }
 
-type RenderInfo = {
+export type RenderInfo = {
   mapCompName: string;
   width: number;
   height: number;
@@ -75,71 +71,44 @@ type RenderInfo = {
   shutterPhase: number;
   animated: boolean;
   projection: MapProjection;
+  animations: string[];
   projectFolder: string | null;
 };
 
 const OSM_CREDIT = "© OpenStreetMap contributors";
 
-export function basemapStyle(basemap: BasemapSource, options: { labels: boolean; markers?: Marker[]; projection?: MapProjection }): StyleSpecification {
-  const style = withProjection(
-    basemap.kind === "region"
-      ? protomapsStyle(registerLocalArchive(basemap.name, regionArchivePath(basemap.name)), { labels: options.labels })
-      : naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels }),
-    options.projection ?? "mercator"
-  );
-  if (options.markers?.length) {
-    style.sources["lml-markers"] = {
-      type: "geojson",
-      data: {
-        type: "FeatureCollection",
-        features: options.markers.map((m) => ({
-          type: "Feature",
-          properties: { radius: m.radius ?? 5, color: m.color ?? "#ff0000" },
-          geometry: { type: "Point", coordinates: [m.lng, m.lat] }
-        }))
-      }
-    };
-    style.layers.push({
-      id: "lml-markers",
-      type: "circle",
-      source: "lml-markers",
-      metadata: { [GROUP_METADATA_KEY]: "overlay" },
-      paint: {
-        "circle-radius": ["get", "radius"],
-        "circle-color": ["get", "color"],
-        "circle-pitch-alignment": "viewport",
-        "circle-pitch-scale": "viewport"
-      }
-    });
-  }
-  return style;
-}
-
-function archiveOf(basemap: BasemapSource): string {
-  return basemap.kind === "region" ? regionArchivePath(basemap.name) : naturalEarthArchivePath();
+function archivesOf(basemap: BasemapSource): string[] {
+  return [naturalEarthArchivePath(), ...regionNames(basemap).map((name) => regionArchivePath(name))];
 }
 
 function dataFingerprint(basemap: BasemapSource): string {
-  const file = archiveOf(basemap);
-  const stat = fs().statSync(file);
-  return keyOf({ file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) });
+  return keyOf(
+    archivesOf(basemap).map((file) => {
+      const stat = fs().statSync(file);
+      return { file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) };
+    })
+  );
 }
 
-const toView = (a: number[]): View => ({ center: { lat: a[0], lng: a[1] }, zoom: a[2], bearing: a[3], pitch: a[4] });
+function toView(a: number[], animations: string[]): AnimatedView {
+  const view: AnimatedView = { center: { lat: a[0], lng: a[1] }, zoom: a[2], bearing: a[3], pitch: a[4] };
+  if (animations.length) view.animation = Object.fromEntries(animations.map((key, i) => [key, a[5 + i]]));
+  return view;
+}
 
-async function readCameras(mapId: string, info: RenderInfo, offsets: number[], signal: AbortSignal | undefined, progress: (done: number) => void): Promise<View[][]> {
+export async function readCameras(mapId: string, info: RenderInfo, offsets: number[], signal: AbortSignal | undefined, progress: (done: number) => void): Promise<AnimatedView[][]> {
   if (!info.animated) {
     const one = await callHost<{ views: number[][][] }>("sampleViews", { mapId, firstFrame: 0, lastFrame: 0, offsets: [0], compact: true });
-    const view = toView(one.views[0][0]);
+    const view = toView(one.views[0][0], info.animations);
     return Array.from({ length: info.frames }, () => [view]);
   }
   const perCall = Math.max(1, Math.floor(1500 / offsets.length));
-  const views: View[][] = [];
+  const views: AnimatedView[][] = [];
   for (let first = 0; first < info.frames; first += perCall) {
     if (signal?.aborted) throw new RenderCancelled();
     const last = Math.min(info.frames - 1, first + perCall - 1);
     const chunk = await callHost<{ views: number[][][] }>("sampleViews", { mapId, firstFrame: first, lastFrame: last, offsets, compact: true });
-    for (const samples of chunk.views) views.push(samples.map(toView));
+    for (const samples of chunk.views) views.push(samples.map((sample) => toView(sample, info.animations)));
     progress(views.length);
   }
   return views;
@@ -151,13 +120,14 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const settings = spec.settings;
   const report = (p: RenderProgress) => options.onProgress?.(p);
 
-  if (!fs().existsSync(archiveOf(spec.basemap))) throw new Error(`basemap data is missing: ${archiveOf(spec.basemap)}`);
+  const missing = archivesOf(spec.basemap).filter((file) => !fs().existsSync(file));
+  if (missing.length) throw new Error(`basemap data is missing: ${missing.join(", ")}`);
   const info = await callHost<RenderInfo>("renderInfo", { mapId: spec.mapId });
   const offsets = sampleOffsets(settings, { angle: info.shutterAngle, phase: info.shutterPhase });
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height } });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
   // On the globe, space around the planet is transparent.
@@ -278,7 +248,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: PASS_INFO[s.pass].label, kind: PASS_INFO[s.pass].kind, firstFramePath: s.firstFramePath })),
-    attribution: spec.basemap.kind === "region" ? OSM_CREDIT : null
+    attribution: regionNames(spec.basemap).length ? OSM_CREDIT : null
   });
 
   // Old sequence folders: keep the newest two per pass (Undo), and anything After Effects still uses.

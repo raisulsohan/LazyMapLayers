@@ -18,6 +18,8 @@ import { runEndToEnd } from "./endToEnd.ts";
 import { runCameraAlignment } from "./cameraAlignment.ts";
 import { runRenderTests } from "./renderTests.ts";
 import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
+import { runDemoTest } from "./demoTests.ts";
+import { runDiagnostics } from "./diagnostics.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -161,6 +163,23 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.P1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`P1 failed: ${results.P1_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("W1")) {
+    try {
+      results.W1 = await runDiagnostics(log);
+    } catch (error) {
+      results.W1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+    }
+  }
+
+  if (only && only.includes("D1")) {
+    try {
+      results.D1_demo = await runDemoTest(log);
+    } catch (error) {
+      results.D1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`D1 failed: ${results.D1_error}`, "fail");
     }
   }
 

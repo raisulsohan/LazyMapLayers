@@ -96,6 +96,11 @@ async function main() {
   const archive = path.join(root, "data", "generated", "natural-earth.pmtiles");
   if (fs.existsSync(archive)) copy(archive, path.join(dist, "data", "natural-earth.pmtiles"));
   else console.warn("warning: data/generated/natural-earth.pmtiles missing; run node tools/prepare-natural-earth.ts");
+  for (const overlay of ["borders.geojson", "labels.json"]) {
+    const file = path.join(root, "data", "generated", overlay);
+    if (fs.existsSync(file)) copy(file, path.join(dist, "data", overlay));
+    else console.warn(`warning: data/generated/${overlay} missing; run node tools/prepare-world-overlays.ts`);
+  }
 
   const size = (f) => (fs.statSync(path.join(dist, f)).size / 1024).toFixed(0) + " KB";
   console.log(

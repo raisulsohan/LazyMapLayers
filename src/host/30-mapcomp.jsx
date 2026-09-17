@@ -14,6 +14,20 @@ LML.map.CONTROLS = [
 
 LML.map.GLOBE_CONTROL = "Globe";
 
+/** Style animations driven by sliders on the map layer (0 to 100). The renderer reads them per frame. */
+LML.map.ANIMATION_CONTROLS = [{ name: "Borders Draw-on", key: "bordersDraw" }];
+
+/** The animation controls present on a map layer, in ANIMATION_CONTROLS order. */
+LML.map.animationControlsOf = function (layer) {
+    var out = [];
+    for (var i = 0; i < LML.map.ANIMATION_CONTROLS.length; i++) {
+        var control = LML.map.ANIMATION_CONTROLS[i];
+        var prop = LML.map.controlValueProperty(layer, control.name);
+        if (prop) out.push({ name: control.name, key: control.key, prop: prop });
+    }
+    return out;
+};
+
 /** "globe" when the map layer's Globe checkbox is on (at the start of the comp), else "mercator". */
 LML.map.projectionOf = function (layer) {
     var prop = LML.map.controlValueProperty(layer, LML.map.GLOBE_CONTROL);
@@ -120,6 +134,27 @@ LML.map.setViewAtTime = function (layer, view, time) {
         } else {
             prop.setValueAtTime(time, values[control.key]);
         }
+    }
+};
+
+/**
+ * Replaces the camera keys between the first and last time with one key per given view
+ * ([lat, lng, zoom, bearing, pitch], the order of LML.map.CONTROLS). Times are scene comp times.
+ */
+LML.map.setViewKeys = function (layer, times, views) {
+    var from = times[0];
+    var to = times[times.length - 1];
+    var eps = 0.25 / layer.containingComp.frameRate;
+    for (var c = 0; c < LML.map.CONTROLS.length; c++) {
+        var prop = LML.map.controlValueProperty(layer, LML.map.CONTROLS[c].name);
+        if (!prop) continue;
+        for (var k = prop.numKeys; k >= 1; k--) {
+            var t = prop.keyTime(k);
+            if (t >= from - eps && t <= to + eps) prop.removeKey(k);
+        }
+        var values = [];
+        for (var i = 0; i < views.length; i++) values.push(views[i][c]);
+        prop.setValuesAtTimes(times, values);
     }
 };
 
