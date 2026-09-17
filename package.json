@@ -1,0 +1,50 @@
+{
+  "name": "lazymaplayers",
+  "version": "0.0.1",
+  "private": true,
+  "type": "module",
+  "description": "LazyMapLayers — free, open-source map design and map animation for After Effects.",
+  "author": "Raisul Sohan",
+  "license": "MIT",
+  "homepage": "https://github.com/raisulsohan/LazyMapLayers",
+  "engines": {
+    "node": ">=24"
+  },
+  "scripts": {
+    "test": "node --test \"tests/**/*.test.ts\"",
+    "typecheck": "tsc -p tsconfig.json",
+    "check:host": "cscript //Nologo tools/check-extendscript.js",
+    "build": "node tools/build.mjs",
+    "build:dev": "node tools/build.mjs --dev",
+    "data:natural-earth": "node tools/prepare-natural-earth.ts --max-zoom 6",
+    "install:dev": "node tools/install-dev.mjs",
+    "verify": "npm test && npm run typecheck && npm run build:dev && npm run check:host",
+    "ae:spikes": "node tools/ae-spikes.mjs"
+  },
+  "dependencies": {
+    "@preact/signals": "^2.11.2",
+    "@tmcw/togeojson": "^7.1.2",
+    "@turf/boolean-point-in-polygon": "^7.4.0",
+    "@turf/buffer": "^7.4.0",
+    "@turf/great-circle": "^7.4.0",
+    "@turf/helpers": "^7.4.0",
+    "@turf/union": "^7.4.0",
+    "fflate": "^0.8.3",
+    "maplibre-gl": "^6.10.0",
+    "papaparse": "^5.7.0",
+    "pmtiles": "^4.5.0",
+    "polylabel": "^2.1.0",
+    "preact": "^10.29.8",
+    "shpjs": "^6.2.0",
+    "topojson-client": "^3.1.0",
+    "topojson-server": "^3.0.1",
+    "topojson-simplify": "^3.0.3"
+  },
+  "devDependencies": {
+    "@maplibre/geojson-vt": "^6.1.1",
+    "@maplibre/vt-pbf": "^4.3.2",
+    "@types/node": "^24.13.5",
+    "esbuild": "^0.28.2",
+    "typescript": "^7.0.2"
+  }
+}

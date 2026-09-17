@@ -1,0 +1,65 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!--
+  LazyMapLayers — map design and map animation panel for After Effects.
+  AE 24 (2024) or newer: the Universal Type Engine is needed for complex scripts, and CEP 11+
+  gives a Chromium with WebGL2 for the map renderer. tools/build.mjs copies this file into dist/.
+-->
+<ExtensionManifest Version="11.0"
+    ExtensionBundleId="com.sohan.LazyMapLayers"
+    ExtensionBundleVersion="0.0.1"
+    ExtensionBundleName="LazyMapLayers"
+    xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
+
+    <ExtensionList>
+        <Extension Id="com.sohan.LazyMapLayers.panel" Version="0.0.1" />
+    </ExtensionList>
+
+    <ExecutionEnvironment>
+        <HostList>
+            <Host Name="AEFT" Version="[24.0,99.9]" />
+        </HostList>
+        <LocaleList>
+            <Locale Code="All" />
+        </LocaleList>
+        <RequiredRuntimeList>
+            <RequiredRuntime Name="CSXS" Version="11.0" />
+        </RequiredRuntimeList>
+    </ExecutionEnvironment>
+
+    <DispatchInfoList>
+        <Extension Id="com.sohan.LazyMapLayers.panel">
+            <DispatchInfo>
+                <Resources>
+                    <MainPath>./panel/index.html</MainPath>
+                    <ScriptPath>./host/lazymaplayers.jsx</ScriptPath>
+                    <CEFCommandLine>
+                        <Parameter>--enable-nodejs</Parameter>
+                        <Parameter>--mixed-context</Parameter>
+                        <Parameter>--ignore-gpu-blocklist</Parameter>
+                    </CEFCommandLine>
+                </Resources>
+                <Lifecycle>
+                    <AutoVisible>true</AutoVisible>
+                </Lifecycle>
+                <UI>
+                    <Type>Panel</Type>
+                    <Menu>LazyMapLayers</Menu>
+                    <Geometry>
+                        <Size>
+                            <Height>720</Height>
+                            <Width>420</Width>
+                        </Size>
+                        <MinSize>
+                            <Height>360</Height>
+                            <Width>300</Width>
+                        </MinSize>
+                        <MaxSize>
+                            <Height>3000</Height>
+                            <Width>3000</Width>
+                        </MaxSize>
+                    </Geometry>
+                </UI>
+            </DispatchInfo>
+        </Extension>
+    </DispatchInfoList>
+</ExtensionManifest>
