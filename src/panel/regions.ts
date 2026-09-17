@@ -1,4 +1,5 @@
-// Downloaded OpenStreetMap regions (Protomaps planet builds) in %APPDATA%/LazyMapLayers/regions.
+// Downloaded OpenStreetMap regions (Protomaps planet builds) in the user data folder's "regions"
+// (%APPDATA%/LazyMapLayers/regions on Windows, ~/Library/Application Support/LazyMapLayers/regions on macOS).
 // Network access goes through Node's https module, so browser CORS rules do not apply.
 
 import { PMTiles } from "pmtiles";

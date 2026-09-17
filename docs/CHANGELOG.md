@@ -1,10 +1,28 @@
 # Changelog
 
-## Unreleased — Milestone A (world flight demo), in progress
+## 0.1.0 — first release (2026-09-17)
 
+The first release: everything below, from the foundation to the world flight, in one signed
+installer for After Effects 2024 or newer. Tested on Windows 11 with After Effects 2026; the macOS
+installer is included but has not been tried on a Mac yet.
+
+### Milestone A (world flight)
+
+- **Installer.** A signed package with double-click installers for Windows and macOS, a "Fix a blank
+  panel" helper and uninstallers. No extension manager and no debug switch needed.
+- **Panel buttons.**
+  - **Auto labels** with a language picker: the local language with English subtitles, the local
+    language only, or any of the 26 name languages.
+  - **Animate borders** keys the borders to draw on over 4 seconds from the current time.
+  - **World flight sample** builds the whole demo in a new scene. Without city regions it stays
+    above Paris and Tokyo, and the log says which regions to download for the street-level ending.
+  - **All downloaded regions** as a basemap choice.
+- **4K framing.** The sample keeps the same shot at any comp height; pins and routes scale with it.
+- **Data folder on macOS.** Regions, the render cache and the render queue live in
+  ~/Library/Application Support/LazyMapLayers on macOS (%APPDATA%\LazyMapLayers on Windows).
 - **Globe.** A **Globe** checkbox per map switches the preview and the renders to MapLibre's globe:
-  a planet with an atmosphere and transparent space at low zoom, turning into the flat map by
-  zoom 12.
+  a planet with an atmosphere and transparent space at low zoom, turning into the flat map between
+  zoom 7 and 8.
 - **Pins on the globe.** Pin expressions share one projection (Mercator and globe, with the
   transition) and hide pins behind the planet. With "Rotate with Map" on a globe, pins follow the
   local north.
@@ -25,12 +43,16 @@
 - **Routes and callouts.** Great-circle routes that arc above the globe and draw on with Trim Paths;
   callouts with a leader line, a box, a title and a subtitle.
 - **World flight demo** (`src/panel/demo/worldFlight.ts`, test D1): a 36-second globe-to-Paris-to-
-  Tokyo flight with borders, labels, pins, callouts and a route, built and rendered in about 2 minutes
-  at 1080p.
+  Tokyo flight with borders, labels, pins, callouts and a route. At 1080p it builds and renders in
+  about 2 minutes; the 4K render takes about 2.5 minutes.
+- **Cleaner city detail.** OpenStreetMap outlines tagged building=no (such as the outline around the
+  Eiffel Tower's parts) are not drawn as solid blocks.
+- **Development only.** The test automation that reads request files runs in development builds
+  only.
 - **Fixed.** Chained conditional operators in host scripts (ExtendScript evaluates them wrongly);
   the ES3 check now rejects them.
 
-## Unreleased — Phase 2 (frame renderer and passes), done
+### Phase 2 (frame renderer and passes)
 
 - **Render queue.** **Render preview** and **Render** add jobs to a queue with progress, Cancel and
   Resume. The queue is saved, so jobs cut off by closing After Effects come back with Resume.
@@ -53,7 +75,7 @@
 - **Tests.** R1 (15 checks inside After Effects) and R2 (the 4K acceptance move) with automatic pop
   detection. E1 now renders with supersampling.
 
-## Phase 1 (camera rig and pins)
+### Phase 1 (camera rig and pins)
 
 - **Pinned layers.** `addPin` creates a marker shape layer linked to a map through a Layer
   Control effect, with these effects: Latitude, Longitude, Scale with Map, Rotate with Map,
@@ -94,7 +116,7 @@
 - **Preview hint** moved to the top right, so it no longer hides the attribution button.
 - **Fixed.** Views are read at the scene comp's time.
 
-## Phase 0 (foundation and spikes)
+### Phase 0 (foundation and spikes)
 
 - **Project scaffold.**
   - CEP manifest for AE 24+.

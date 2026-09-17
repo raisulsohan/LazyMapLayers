@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Adobe%20After%20Effects-2024+-9999FF?style=for-the-badge&logo=adobeaftereffects&logoColor=white" alt="AE Support" />
   <img src="https://img.shields.io/badge/CEP-12-FF5722?style=for-the-badge" alt="CEP Version" />
-  <img src="https://img.shields.io/badge/Status-Early%20development-orange?style=for-the-badge" alt="Status" />
+  <img src="https://img.shields.io/badge/Version-0.1-orange?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT%20%C2%B7%20Free-yellow?style=for-the-badge" alt="MIT License" />
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
@@ -14,7 +14,25 @@
 
 Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy suite · Free & open source ([MIT](LICENSE))
 
-> **Status:** early development. There is no installer yet. See [docs/PLAN.md](docs/PLAN.md) for the roadmap and [docs/SPIKES.md](docs/SPIKES.md) for what has been proven inside After Effects so far.
+> **Version 0.1** — the first release: a world flight from the globe down to street level, with borders, labels, routes and callouts. Many features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
+
+## Install
+
+Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
+Effects 2026; the macOS installer has not been tried on a Mac yet.
+
+1. Download `LazyMapLayers-v0.1.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
+2. Close After Effects.
+3. Windows: double-click **Install LazyMapLayers.bat**. macOS: double-click
+   **Install LazyMapLayers (macOS).command** (if macOS refuses, right-click it and choose Open).
+4. Start After Effects and open **Window > Extensions > LazyMapLayers**.
+
+The package is signed, so no extension manager or debug setting is needed. If the panel opens blank,
+run **Fix a blank panel.bat** (Windows) and restart After Effects.
+
+**First map in a minute:** click **World flight sample**, then **Render**. For the street-level ending,
+move the preview over Paris or Tokyo, click **Download this area…**, name the region `paris` or
+`tokyo`, and build the sample again.
 
 ---
 
@@ -34,7 +52,18 @@ built to be free **and** to give better final frames.
 | Data | Offline Natural Earth world data, OpenStreetMap detail for any region you download, open terrain and imagery. |
 | Undo | Every panel action is one Ctrl+Z. |
 
-## What works today
+## What works today (0.1)
+
+- **Globe to street level.** A Globe checkbox per map: a turning planet with an atmosphere at low
+  zoom that becomes the flat map by zoom 8, and **Fly here** keys one continuous flight to the
+  preview view.
+- **Auto labels.** Country and city names in the local language and script, with English subtitles,
+  as editable After Effects text layers placed over the whole timeline without overlaps or flicker.
+- **Animated borders, routes and callouts.** Borders draw on frame-exactly in the renders;
+  great-circle routes arc above the globe and draw on; callouts with a leader line, title and
+  subtitle.
+- **Layered regions.** Several downloaded regions work together: a wide region hands over to the
+  detailed city inside it, over the offline world map.
 
 - **Offline world basemap.** Built from Natural Earth: countries (names in 26 languages), coastlines,
   boundaries, lakes, rivers and cities.
@@ -71,6 +100,7 @@ npm run verify                          # unit tests, typecheck, build, ExtendSc
 npm run install:dev                     # link dist/ into the CEP extensions folder
 npm run ae:spikes                       # optional: run the in-AE test suite (starts After Effects)
 node tools/extract-region.ts --name paris --bbox 2.2,48.8,2.48,48.92 --max-zoom 15
+node tools/package-zxp.mjs              # release: build, sign and zip (see the script header)
 ```
 
 Project layout:

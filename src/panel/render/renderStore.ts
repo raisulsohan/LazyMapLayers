@@ -11,7 +11,7 @@
 import type { PassId } from "../../core/render/passes.ts";
 import type { RenderQuality } from "../../core/render/plan.ts";
 import { sequenceFileName } from "../../core/render/plan.ts";
-import { fs, os, path } from "../cep.ts";
+import { fs, path, userDataDir } from "../cep.ts";
 
 export class RenderStore {
   readonly root: string;
@@ -25,7 +25,7 @@ export class RenderStore {
   static forMap(mapId: string, compName: string, projectFolder: string | null): RenderStore {
     const base = projectFolder
       ? path().join(projectFolder, "LazyMapLayers Renders")
-      : path().join(process.env.APPDATA ?? path().join(os().homedir(), "AppData", "Roaming"), "LazyMapLayers", "renders");
+      : path().join(userDataDir(), "renders");
     // Reuse the folder of this map even if its comp was renamed since.
     try {
       const existing = fs()

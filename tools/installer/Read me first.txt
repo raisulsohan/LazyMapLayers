@@ -1,0 +1,142 @@
+============================================================
+  LAZYMAPLAYERS 0.1
+  Free map animation for After Effects: globe to street level,
+  labels, routes and callouts, rendered frame-exact
+============================================================
+
+WHAT YOU NEED
+  - Windows 10 / 11, or macOS
+    (tested on Windows 11; the macOS installer has not been
+    tried on a Mac yet)
+  - Adobe After Effects 2024 or newer
+  - A graphics card with WebGL 2 (any card from the last
+    ten years)
+
+
+------------------------------------------------------------
+INSTALL
+------------------------------------------------------------
+  1. Unzip this download anywhere. The Desktop is fine.
+  2. Close After Effects if it is open.
+  3. Windows: double-click  "Install LazyMapLayers.bat"
+     macOS:   double-click  "Install LazyMapLayers (macOS).command"
+              (if macOS refuses, right-click it and choose Open)
+  4. Wait for "Installed", then press a key.
+  5. Start After Effects and open:
+       Window > Extensions > LazyMapLayers
+
+  The panel is signed, so nothing else needs installing and
+  no Adobe setting has to be changed.
+
+
+------------------------------------------------------------
+YOUR FIRST MAP IN A MINUTE
+------------------------------------------------------------
+  1. Click "World flight sample". It builds a 36-second scene:
+     the globe turns while borders draw on, the camera flies to
+     Paris, then along a route to Tokyo, with labels, pins and
+     callouts.
+  2. Click "Render". The map is rendered for every frame and
+     imported into the map comp.
+  3. Press play (or render with After Effects as usual).
+
+  For the street-level ending, move the preview over Paris,
+  click "Download this area...", name it  paris , and do the
+  same for Tokyo ( tokyo ). Then build the sample again.
+
+
+------------------------------------------------------------
+MAKING YOUR OWN MAP
+------------------------------------------------------------
+  New map          adds a map comp to the comp you have open, at
+                   its size (or to a new scene).
+  Basemap          World (offline) or downloaded regions.
+  Globe            a planet at low zoom that becomes the flat
+                   map by zoom 8.
+  Preview          drag to move, scroll to zoom, right-drag to
+                   rotate and tilt.
+  Keyframe view    sets a camera keyframe at the current time.
+  Fly here         keys one smooth flight from the camera at
+                   the current time to the preview (pick the
+                   length next to it). Flights chain.
+  Match AE         shows the camera at the current time.
+  3D camera        adds an After Effects camera that matches
+                   the map, so 3D layers sit on the ground.
+  Alt+click        drops a pin.  Alt+Shift+click: a 3D pin.
+  Auto labels      country and city names in the local
+                   language, as editable text layers that never
+                   overlap or flicker.
+  Animate borders  draws the borders on over 4 seconds.
+  Render preview   half resolution, fast.
+  Render           full quality. Only frames that changed are
+                   drawn again.
+  (gear)           supersampling, motion blur, passes and
+                   mattes for this map.
+
+  Every panel action is one Ctrl+Z (Cmd+Z).
+
+
+------------------------------------------------------------
+MAP DATA
+------------------------------------------------------------
+  The world map (Natural Earth) is inside the panel and works
+  offline.
+
+  "Download this area..." fetches OpenStreetMap detail (roads,
+  buildings, water) for the area in the preview from the free
+  Protomaps planet build. The panel shows the size before
+  anything is downloaded. Regions are saved in
+    Windows  %APPDATA%\LazyMapLayers\regions
+    macOS    ~/Library/Application Support/LazyMapLayers/regions
+
+  OpenStreetMap data must be credited. Rendering a region adds
+  a "(c) OpenStreetMap contributors" text layer to the scene
+  once; keep it, or credit OpenStreetMap in your video.
+
+
+------------------------------------------------------------
+IF SOMETHING GOES WRONG
+------------------------------------------------------------
+  The panel is not in the Window menu
+      Restart After Effects. Adobe only looks for new panels
+      while the app is starting.
+
+  The panel opens blank
+      Windows: run "Fix a blank panel.bat" and restart After
+      Effects.
+      macOS: in Terminal run
+        defaults write com.adobe.CSXS.12 PlayerDebugMode 1
+      and restart After Effects.
+
+  The map preview stays black
+      Update the graphics driver. The panel needs WebGL 2.
+
+  Renders take disk space
+      Renders of a saved project go to a "LazyMapLayers
+      Renders" folder next to the project. You can delete that
+      folder when the project is finished.
+
+
+------------------------------------------------------------
+UNINSTALL
+------------------------------------------------------------
+  Windows: double-click  "Uninstall LazyMapLayers.bat"
+  macOS:   double-click  "Uninstall LazyMapLayers (macOS).command"
+  Both ask before deleting downloaded regions.
+
+
+------------------------------------------------------------
+SUPPORT
+------------------------------------------------------------
+  Raisul Sohan
+  lettertosohan@gmail.com
+  https://raisulsohan.com
+
+  LazyMapLayers is free and open source (MIT licence):
+  https://github.com/raisulsohan/LazyMapLayers
+
+  Map data: Natural Earth (public domain), OpenStreetMap
+  contributors (ODbL) through Protomaps. Rendering: MapLibre
+  GL JS (BSD-3-Clause).
+
+  Feel free to share it with friends.

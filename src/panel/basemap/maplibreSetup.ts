@@ -3,7 +3,7 @@
 
 import * as maplibregl from "maplibre-gl";
 import { PMTiles, Protocol } from "pmtiles";
-import { extensionRoot, fs, isInCep, os, path } from "../cep.ts";
+import { extensionRoot, fs, isInCep, path, userDataDir } from "../cep.ts";
 import { NodeFileSource } from "./nodeFileSource.ts";
 
 let workerReady = false;
@@ -34,8 +34,7 @@ export function registerLocalArchive(key: string, filePath: string): string {
 
 /** Downloaded OpenStreetMap regions live in the user's data folder, not in the extension. */
 export function regionArchivePath(name: string): string {
-  const base = process.env.APPDATA ?? path().join(os().homedir(), "AppData", "Roaming");
-  return path().join(base, "LazyMapLayers", "regions", `${name}.pmtiles`);
+  return path().join(userDataDir(), "regions", `${name}.pmtiles`);
 }
 
 export function naturalEarthArchivePath(): string {

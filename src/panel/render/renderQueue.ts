@@ -2,7 +2,7 @@
 // interrupted by closing After Effects show up again with a Resume button; resuming reuses every frame
 // that was already cached, so it continues where it stopped.
 
-import { fs, isInCep, os, path } from "../cep.ts";
+import { fs, isInCep, path, userDataDir } from "../cep.ts";
 import { RenderCancelled, runRenderJob, type RenderJobResult, type RenderJobSpec, type RenderProgress } from "./renderJob.ts";
 
 export type QueueStatus = "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted";
@@ -24,8 +24,7 @@ export type QueueEvent = { job: QueueJob; result?: RenderJobResult };
 const KEEP_FINISHED = 12;
 
 function queueFile(): string {
-  const base = process.env.APPDATA ?? path().join(os().homedir(), "AppData", "Roaming");
-  return path().join(base, "LazyMapLayers", "render-queue.json");
+  return path().join(userDataDir(), "render-queue.json");
 }
 
 export function describeSpec(spec: RenderJobSpec): string {

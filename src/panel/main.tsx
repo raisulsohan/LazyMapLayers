@@ -199,7 +199,8 @@ function App() {
     });
     const onFocus = () => void refreshMaps();
     window.addEventListener("focus", onFocus);
-    const stopAutomation = startDevAutomation(log, setBusy);
+    // Test automation only exists in development builds: a release never acts on request files.
+    const stopAutomation = process.env.NODE_ENV === "development" ? startDevAutomation(log, setBusy) : () => {};
     return () => {
       stopQueue();
       stopAutomation();
@@ -353,9 +354,17 @@ function App() {
       const wanted = ["paris-wide", "paris", "tokyo-wide", "tokyo"].filter((name) => regions.some((r) => r.name === name));
       setProgress({ label: "Building the world flight sample", done: 0, total: 1 });
       const demo = await buildWorldFlight(
-        { basemap: wanted.length ? { kind: "regions", names: wanted } : { kind: "world" }, secondZoom: wanted.includes("tokyo") ? undefined : 5.2 },
+        {
+          basemap: wanted.length ? { kind: "regions", names: wanted } : { kind: "world" },
+          firstZoom: wanted.includes("paris") ? undefined : 5.2,
+          secondZoom: wanted.includes("tokyo") ? undefined : 5.2
+        },
         (line) => log(`sample: ${line}`, "muted")
       );
+      const missing = ["paris", "tokyo"].filter((name) => !wanted.includes(name));
+      if (missing.length) {
+        log(`sample: download regions named ${missing.join(" and ")} (Download this area…) and build it again to fly down to street level`, "muted");
+      }
       log(`world flight sample built in "${demo.sceneName}": render it to see the basemap`, demo.expressionErrors.length ? "fail" : "ok");
       await refreshMaps(true);
     });
