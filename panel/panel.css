@@ -1,0 +1,129 @@
+:root {
+  --bg: #232323;
+  --panel: #2b2b2b;
+  --line: #3a3a3a;
+  --text: #d6d6d6;
+  --muted: #8f8f8f;
+  --accent: #36b3ff;
+  --good: #58c27d;
+  --bad: #ff6b6b;
+  --radius: 6px;
+  font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
+  font-size: 12px;
+  color: var(--text);
+}
+
+* {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  height: 100%;
+  background: var(--bg);
+  overflow: hidden;
+  user-select: none;
+}
+
+#app {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+}
+
+.toolbar {
+  display: flex;
+  gap: 6px;
+  align-items: center;
+  padding: 8px;
+  border-bottom: 1px solid var(--line);
+  flex-wrap: wrap;
+}
+
+.toolbar .title {
+  font-weight: 600;
+  letter-spacing: 0.02em;
+  margin-right: auto;
+}
+
+button {
+  font: inherit;
+  color: var(--text);
+  background: var(--panel);
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  padding: 5px 10px;
+  cursor: pointer;
+}
+
+button:hover {
+  border-color: var(--accent);
+}
+
+button:disabled {
+  opacity: 0.5;
+  cursor: default;
+}
+
+button.primary {
+  background: var(--accent);
+  border-color: var(--accent);
+  color: #06121a;
+  font-weight: 600;
+}
+
+.map-wrap {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 160px;
+}
+
+#map {
+  position: absolute;
+  inset: 0;
+}
+
+.view-readout {
+  position: absolute;
+  left: 8px;
+  bottom: 8px;
+  padding: 3px 7px;
+  border-radius: var(--radius);
+  background: rgba(0, 0, 0, 0.55);
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  pointer-events: none;
+}
+
+.log {
+  flex: 0 0 auto;
+  max-height: 34%;
+  overflow: auto;
+  padding: 6px 8px;
+  border-top: 1px solid var(--line);
+  font-family: Consolas, monospace;
+  font-size: 11px;
+  white-space: pre-wrap;
+  user-select: text;
+}
+
+.log .ok {
+  color: var(--good);
+}
+
+.log .fail {
+  color: var(--bad);
+}
+
+.log .muted {
+  color: var(--muted);
+}
+
+/* Off-screen area for the frame renderer; never shown. */
+#render-stage {
+  position: fixed;
+  left: -100000px;
+  top: 0;
+  visibility: hidden;
+}

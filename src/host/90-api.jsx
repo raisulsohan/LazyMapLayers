@@ -1,0 +1,71 @@
+/*
+ * Functions the panel may call through LML.call(name, argsJson).
+ */
+LML.api.ping = function () {
+    return {
+        lml: LML.version,
+        appVersion: app.version,
+        buildName: app.buildName,
+        language: app.isoLanguage,
+        projectFile: app.project.file ? app.project.file.fsName : null
+    };
+};
+
+LML.api.createMapComp = function (args) {
+    return LML.withUndo("Create map comp", function () {
+        return LML.map.createMapComp(args);
+    });
+};
+
+LML.api.listMaps = function () {
+    var layers = LML.map.findMapLayers();
+    var out = [];
+    for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+        var comp = layer.containingComp;
+        out.push({
+            mapId: LML.tag.read(layer).mapId,
+            sceneCompId: comp.id,
+            sceneCompName: comp.name,
+            layerIndex: layer.index,
+            view: LML.map.readViewAtTime(layer, comp.time - layer.startTime)
+        });
+    }
+    return out;
+};
+
+LML.api.setView = function (args) {
+    var layers = LML.map.findMapLayers();
+    for (var i = 0; i < layers.length; i++) {
+        var layer = layers[i];
+        if (LML.tag.read(layer).mapId !== args.mapId) continue;
+        return LML.withUndo(args.keyframe ? "Set view keyframe" : "Set view", function () {
+            var time = args.keyframe ? layer.containingComp.time : null;
+            LML.map.setViewAtTime(layer, args.view, time);
+            return true;
+        });
+    }
+    throw LML.util.error("MAP_NOT_FOUND", "No map layer with id " + args.mapId);
+};
+
+/*
+ * Developer automation only: tools/ae-spikes.mjs creates the flag file, the panel calls this when
+ * its spikes finish, and After Effects closes the throwaway test project unsaved and quits.
+ * Without the flag file this does nothing.
+ */
+LML.api.devQuitAfterSpikes = function () {
+    var flag = new File(Folder.temp.fsName + "/LazyMapLayers/spikes/allow-quit.flag");
+    if (!flag.exists) throw LML.util.error("NOT_ALLOWED", "Quit is only allowed during an automated spike run");
+    flag.remove();
+    // Quitting inside the panel's own evalScript call does not close After Effects; do it right
+    // after the call returns instead.
+    app.scheduleTask("LML.devQuitNow()", 300, false);
+    return true;
+};
+
+LML.devQuitNow = function () {
+    app.project.close(CloseOptions.DO_NOT_SAVE_CHANGES);
+    app.quit();
+};
+
+LML.loaded = true;

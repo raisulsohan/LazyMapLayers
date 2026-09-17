@@ -1,0 +1,21 @@
+# Private study notes about GEOlayers 3. Never commit (clean-room rule).
+/research/
+
+# The signing key and its password stay local.
+/Signing key (do not share)/
+*.p12
+password.txt
+
+node_modules/
+dist/
+tools/vendor/
+*.zxp
+
+# Generated data and caches
+data/generated/
+.cache/
+
+.claude/
+
+# Local scratch
+.tmp*
