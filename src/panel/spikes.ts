@@ -22,6 +22,7 @@ import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
 import { runShotTests } from "./shotTests.ts";
+import { runThemeTests } from "./themeTests.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -227,6 +228,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.R_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`render tests failed: ${results.R_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("TH1")) {
+    try {
+      results.TH1_themes = await runThemeTests(log);
+    } catch (error) {
+      results.TH1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`TH1 failed: ${results.TH1_error}`, "fail");
     }
   }
 

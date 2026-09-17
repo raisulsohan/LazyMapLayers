@@ -12,7 +12,7 @@ import type { View } from "../../core/camera/camera.ts";
 import { flipAndUnpremultiply } from "../../core/image/png.ts";
 import { groupVisibleIn, type LayerGroup, type RenderId } from "../../core/render/passes.ts";
 import { ensureMaplibreWorker } from "../basemap/maplibreSetup.ts";
-import { BORDERS_DRAW_LAYER, bordersGradient } from "../basemap/basemapStyle.ts";
+import { BORDERS_DRAW_LAYER, LAYER_COLOR_KEY, bordersGradient } from "../basemap/basemapStyle.ts";
 import type { AnimatedView } from "../../core/render/plan.ts";
 import { GpuReader } from "./gpuReader.ts";
 
@@ -171,7 +171,9 @@ export class FrameRenderer {
   private applyAnimation(animation: Record<string, number> | undefined): void {
     const bordersDraw = animation?.bordersDraw;
     if (bordersDraw !== undefined && bordersDraw !== this.animation.bordersDraw && this.groups.has(BORDERS_DRAW_LAYER) && this.maplibre.getLayer(BORDERS_DRAW_LAYER)?.type === "line") {
-      this.maplibre.setPaintProperty(BORDERS_DRAW_LAYER, "line-gradient", bordersGradient(bordersDraw) as never);
+      const metadata = this.maplibre.getLayer(BORDERS_DRAW_LAYER)?.metadata as Record<string, unknown> | undefined;
+      const color = typeof metadata?.[LAYER_COLOR_KEY] === "string" ? (metadata[LAYER_COLOR_KEY] as string) : "#9fb3c6";
+      this.maplibre.setPaintProperty(BORDERS_DRAW_LAYER, "line-gradient", bordersGradient(bordersDraw, color) as never);
       this.animation.bordersDraw = bordersDraw;
     }
   }

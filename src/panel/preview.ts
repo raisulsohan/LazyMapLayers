@@ -39,7 +39,7 @@ const BY_USER = { lmlByUser: true };
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
 /** What the preview shows now, so the style can be rebuilt when the panel is resized. */
-let shown: { source: BasemapSource; projection: MapProjection } = { source: { kind: "world" }, projection: "mercator" };
+let shown: { source: BasemapSource; projection: MapProjection; theme: string | null } = { source: { kind: "world" }, projection: "mercator", theme: null };
 /** False shows sizes exactly as they render (tiny in a small panel). */
 let readable = true;
 
@@ -49,10 +49,10 @@ function sizeFactor(): number {
   return Math.max(1, Math.min(8, Math.round((1 / Math.max(0.01, scale)) * 4) / 4));
 }
 
-export function previewStyle(source: BasemapSource, projection: MapProjection): StyleSpecification {
+export function previewStyle(source: BasemapSource, projection: MapProjection, theme: string | null = null): StyleSpecification {
   if (!isInCep()) return BLANK_STYLE;
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp }), sizeFactor());
+  return scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme }), sizeFactor());
 }
 
 let styledFactor = 1;
@@ -63,7 +63,7 @@ function restyleSoon(): void {
   if (restyleTimer) clearTimeout(restyleTimer);
   restyleTimer = setTimeout(() => {
     restyleTimer = null;
-    if (map && sizeFactor() !== styledFactor) setPreviewStyle(shown.source, shown.projection);
+    if (map && sizeFactor() !== styledFactor) setPreviewStyle(shown.source, shown.projection, shown.theme);
   }, 250);
 }
 
@@ -72,7 +72,7 @@ export const previewReadable = () => readable;
 export function setPreviewReadable(value: boolean): void {
   if (readable === value) return;
   readable = value;
-  setPreviewStyle(shown.source, shown.projection);
+  setPreviewStyle(shown.source, shown.projection, shown.theme);
 }
 
 function toCompView(m: maplibregl.Map): View {
@@ -115,7 +115,7 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
     ensureMaplibreWorker();
     map = new maplibregl.Map({
       container: boxNode,
-      style: previewStyle(shown.source, shown.projection),
+      style: previewStyle(shown.source, shown.projection, shown.theme),
       center: [10, 25],
       zoom: 1.2,
       minZoom: -2,
@@ -168,10 +168,10 @@ export function setCompSize(width: number, height: number): void {
 
 export const compSize = () => comp;
 
-export function setPreviewStyle(source: BasemapSource, projection: MapProjection): void {
-  shown = { source, projection };
+export function setPreviewStyle(source: BasemapSource, projection: MapProjection, theme: string | null = shown.theme): void {
+  shown = { source, projection, theme };
   styledFactor = sizeFactor();
-  map?.setStyle(previewStyle(source, projection));
+  map?.setStyle(previewStyle(source, projection, theme));
 }
 
 /** Shows a view of the comp. `animate` glides there (for search results); otherwise it jumps. */

@@ -16,6 +16,7 @@ import { naturalEarthStyle } from "./naturalEarthStyle.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
+import { hexToRgb, themeById, type Theme } from "../../core/style/themes.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
@@ -35,6 +36,8 @@ export type BasemapStyleOptions = {
   animations?: string[];
   /** The frame size, which decides when a region is large enough on screen to appear. */
   viewport?: { width: number; height: number };
+  /** The map's look (core/style/themes.ts); the default theme when missing or unknown. */
+  theme?: string | null;
 };
 
 /**
@@ -112,7 +115,7 @@ function bordersData(): unknown {
   return bordersCache;
 }
 
-function withAnimatedBorders(style: StyleSpecification): StyleSpecification {
+function withAnimatedBorders(style: StyleSpecification, theme: Theme): StyleSpecification {
   const index = style.layers.findIndex((l) => l.id === BORDERS_DRAW_LAYER);
   if (index < 0) return style;
   const original = style.layers[index] as LayerSpecification & { paint?: Record<string, unknown>; metadata?: unknown };
@@ -125,26 +128,30 @@ function withAnimatedBorders(style: StyleSpecification): StyleSpecification {
     layout: { "line-cap": "round", "line-join": "round" },
     paint: {
       "line-width": (original.paint?.["line-width"] as number) ?? 1,
-      "line-gradient": bordersGradient(100)
+      "line-gradient": bordersGradient(100, theme.border)
     }
   } as LayerSpecification;
   return { ...style, sources: { ...style.sources, "lml-borders": { type: "geojson", data: bordersData() as GeoJSON.FeatureCollection, lineMetrics: true } }, layers };
 }
 
-export const BORDERS_COLOR = "#9fb3c6";
+/** Metadata key under which the borders layer carries its colour (themes change it). */
+export const LAYER_COLOR_KEY = "lml:color";
 
-/** The line gradient that shows the first `percent` % of every border line. */
-export function bordersGradient(percent: number): unknown {
+/** The line gradient that shows the first `percent` % of every border line, in the layer's colour. */
+export function bordersGradient(percent: number, color: string): unknown {
   const p = Math.max(0, Math.min(100, percent)) / 100;
-  if (p >= 1) return ["interpolate", ["linear"], ["line-progress"], 0, BORDERS_COLOR, 1, BORDERS_COLOR];
-  if (p <= 0) return ["interpolate", ["linear"], ["line-progress"], 0, "rgba(0,0,0,0)", 1, "rgba(0,0,0,0)"];
+  const [r, g, b] = hexToRgb(color).map((v) => Math.round(v * 255));
+  const clear = `rgba(${r},${g},${b},0)`;
+  if (p >= 1) return ["interpolate", ["linear"], ["line-progress"], 0, color, 1, color];
+  if (p <= 0) return ["interpolate", ["linear"], ["line-progress"], 0, clear, 1, clear];
   const soft = Math.min(0.02, p / 2);
-  return ["interpolate", ["linear"], ["line-progress"], 0, BORDERS_COLOR, p - soft, BORDERS_COLOR, p, "rgba(159,179,198,0)", 1, "rgba(159,179,198,0)"];
+  return ["interpolate", ["linear"], ["line-progress"], 0, color, p - soft, color, p, clear, 1, clear];
 }
 
 export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOptions): StyleSpecification {
-  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels });
-  if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world);
+  const theme = themeById(options.theme);
+  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme });
+  if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
   let style = world;
   const regions = regionNames(basemap);
   if (regions.length) {
@@ -166,7 +173,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     const regionLayers: LayerSpecification[] = [];
     let light = world.light;
     regions.forEach((name, index) => {
-      const region = protomapsStyle(registerLocalArchive(name, regionArchivePath(name)), { labels: options.labels });
+      const region = protomapsStyle(registerLocalArchive(name, regionArchivePath(name)), { labels: options.labels, theme });
       light = region.light;
       // Several regions: one source each, layer ids made unique.
       const sourceId = index === 0 ? "osm" : `osm-${name}`;
@@ -200,7 +207,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       ]
     };
   }
-  style = withProjection(style, options.projection ?? "mercator");
+  style = withProjection(style, options.projection ?? "mercator", theme);
   if (options.markers?.length) {
     style.sources["lml-markers"] = {
       type: "geojson",

@@ -24,8 +24,47 @@ import {
 } from "../store.ts";
 import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
+import { THEMES, type Theme } from "../../core/style/themes.ts";
+import { changeTheme, themeId } from "../store.ts";
 
 export const labelsSheetOpen = signal(false);
+export const lookSheetOpen = signal(false);
+
+/** A tiny map in a theme's colours. */
+function ThemeSwatch(props: { theme: Theme }): JSX.Element {
+  const t = props.theme;
+  const fills = t.countryFills;
+  return (
+    <svg width="64" height="36" viewBox="0 0 64 36" class="swatch" aria-hidden="true">
+      <rect width="64" height="36" fill={t.ocean} />
+      <path d="M0 24C10 12 18 22 28 14S50 4 64 10V36H0z" fill={fills ? fills[0] : t.land} stroke={t.coast} stroke-width="1" />
+      {fills && <path d="M28 14C36 9 46 6 64 10V36H34z" fill={fills[4]} />}
+      {fills && <path d="M0 24C6 17 12 19 18 19L26 36H0z" fill={fills[2]} />}
+      <path d="M18 19 26 36M28 14l6 22" stroke={t.border} stroke-width="1" fill="none" />
+      <path d="M4 32 22 25l14 3 24-14" stroke={t.highway} stroke-width="1.6" fill="none" stroke-linecap="round" />
+      <circle cx="36" cy="28" r="1.8" fill={t.text} />
+    </svg>
+  );
+}
+
+/** The map's look: six themes that colour the world map, regions, the globe's haze and new labels. */
+export function LookSheetView(): JSX.Element | null {
+  if (!lookSheetOpen.value) return null;
+  return (
+    <div class="sheet" data-id="look-sheet">
+      <div class="sheet-title">Look</div>
+      <div class="theme-grid">
+        {THEMES.map((t) => (
+          <button key={t.id} class={`theme-card ${themeId.value === t.id ? "on" : ""}`} data-id={`theme-${t.id}`} disabled={busy.value} title={t.hint} onClick={() => void changeTheme(t.id)}>
+            <ThemeSwatch theme={t} />
+            <span>{t.label}</span>
+          </button>
+        ))}
+      </div>
+      <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels made from now on match it.</div>
+    </div>
+  );
+}
 
 export function RegionSheetView(): JSX.Element | null {
   const sheet = regionSheet.value;

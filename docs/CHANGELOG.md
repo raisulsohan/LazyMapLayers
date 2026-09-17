@@ -18,6 +18,11 @@
 - **The preview is the frame.** The preview has the comp's shape and frames exactly what renders, at
   any comp size. Names and lines are enlarged to stay readable in a small panel; the frame button on
   the map shows them at the size they render instead.
+- **Looks.** Six map looks, picked from the palette button and saved with the map: Midnight (deep navy
+  with glowing coasts), Daylight, Atlas (a political map, every country in its own colour), Blueprint,
+  Mono (neutral greys for grading) and Paper. One palette colours the world map, downloaded city
+  regions, the globe's haze, animated borders and the labels made by Auto labels (dark text on light
+  maps).
 - **Search.** Countries and cities by name in 26 languages, and "lat, lng" coordinates, all offline.
   A country is framed whole; a city at a zoom that suits its size.
 - **Automatic names.** New maps and shots are named after the place they show ("Paris Map").
@@ -36,7 +41,8 @@
   resume still do.
 - **Tests.** Unit tests for easing, fitting, route moves, the shot list and search; SH1 checks the
   shot list inside After Effects (every frame against core maths, key counts, cuts, markers, comp
-  length, hand edits, a 40-shot list); U1 drives the new interface.
+  length, hand edits, a 40-shot list); U1 drives the new interface; TH1 renders a contact sheet of
+  every look with the real renderer.
 
 ## 0.1.1 — works with the Legacy ExtendScript expression engine (2026-09-17)
 

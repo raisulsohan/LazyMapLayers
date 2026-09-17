@@ -11,6 +11,7 @@ import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
+import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
@@ -42,6 +43,8 @@ export type MapEntry = {
   width: number;
   height: number;
   render: Partial<RenderSettings> | null;
+  /** The map's look (core/style/themes.ts). */
+  theme: string | null;
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
   expressionEngine: string | null;
@@ -74,6 +77,7 @@ export const selectedId = signal("");
 export const regions = signal<RegionInfo[]>([]);
 export const basemap = signal<BasemapSource>({ kind: "world" });
 export const projection = signal<MapProjection>("mercator");
+export const themeId = signal<string>(DEFAULT_THEME_ID);
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -156,8 +160,9 @@ function showMap(entry: MapEntry): void {
   const source = entry.basemap ?? { kind: "world" };
   basemap.value = source;
   projection.value = entry.projection ?? "mercator";
+  themeId.value = themeById(entry.theme).id;
   setCompSize(entry.width, entry.height);
-  setPreviewStyle(source, projection.value);
+  setPreviewStyle(source, projection.value, themeId.value);
   showCompView(entry.view);
 }
 
@@ -239,7 +244,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -397,6 +402,16 @@ export const changeBasemap = (key: string) =>
     if (selectedId.value) await callHost("setMapSettings", { mapId: selectedId.value, basemap: source });
   });
 
+export const changeTheme = (next: string) =>
+  run("look", async () => {
+    themeId.value = themeById(next).id;
+    setPreviewStyle(basemap.value, projection.value, themeId.value);
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, theme: themeId.value });
+      await readMaps();
+    }
+  });
+
 export const changeProjection = (next: MapProjection) =>
   run("projection", async () => {
     projection.value = next;
@@ -414,7 +429,7 @@ export const runAutoLabels = () =>
     progress.value = { label: "Placing labels over the timeline", done: 0, total: 1 };
     const choice = labelLanguage.value;
     const fixed = choice !== "local" && choice !== "local+en";
-    const result = await autoLabels(mapId, { language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" }, english: choice === "local+en" });
+    const result = await autoLabels(mapId, { language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" }, english: choice === "local+en", theme: themeId.value });
     log(`labels: ${result.labels} placed over the timeline (${result.layers} layers, ${result.removed} old layers replaced) in ${result.seconds.toFixed(1)} s`, result.expressionErrors.length ? "fail" : "ok");
   });
 
@@ -450,7 +465,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value }, entry.mapCompName);
   tab.value = "render";
 }
 
