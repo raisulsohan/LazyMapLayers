@@ -244,3 +244,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **No hangs.** Rules for every new feature: the panel never polls After Effects; each host call is
   short or chunked; camera maths, search and playback run in the panel; anything slow shows progress
   and can be cancelled.
+
+## D18 — Looks first: themes now, imagery and highlights next (2026-09-18)
+
+- **Context.** Sohan's first try of the new panel: names too small to read (fixed, D16) and "still
+  nowhere near" the paid plugin. The basemap was one flat placeholder style, rendered frames carry no
+  names until Auto labels runs, and nothing can highlight a country yet. First impressions come from
+  how the map looks, so looks move ahead of the remaining camera work (terrain, sky).
+- **Decision.**
+  - Themes (`src/core/style/themes.ts`): one palette per look drives the world style, the region
+    style, the globe's sky, the border draw-on colour (carried in the layer's metadata) and the colours
+    of generated labels. Six looks ship: Midnight, Daylight, Atlas, Blueprint, Mono, Paper. The theme
+    id is stored in the map layer's tag and is part of the render job, so the frame cache keys differ
+    per look.
+  - The coast glow belongs to the boundaries group, so the land and water mattes stay exact.
+  - On Atlas, country colours fade out between zoom 7.5 and 9.5, where city regions take over.
+- **Next, in this order.** Satellite and relief imagery from public-domain sources (NASA Blue Marble,
+  Natural Earth shaded relief; downloads need Sohan's permission), highlighting countries and regions
+  as a render pass, names in the render without waiting (faster Auto labels), then data import.

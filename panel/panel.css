@@ -656,6 +656,33 @@ select.compact {
   color: var(--bad);
 }
 
+.theme-grid {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));
+  gap: 6px;
+}
+
+.theme-card {
+  flex-direction: column;
+  gap: 3px;
+  padding: 4px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.theme-card.on {
+  color: var(--accent);
+  border-color: var(--accent);
+  background: var(--accent-soft);
+}
+
+.swatch {
+  width: 100%;
+  height: auto;
+  border-radius: 3px;
+  display: block;
+}
+
 /* Screens */
 .screen-body {
   flex: 1 1 auto;

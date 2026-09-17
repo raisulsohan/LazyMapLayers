@@ -5,16 +5,17 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import { globeProjectionSpec, type MapProjection } from "../../core/camera/globe.ts";
+import { themeById, type Theme } from "../../core/style/themes.ts";
 
-export function withProjection(style: StyleSpecification, projection: MapProjection): StyleSpecification {
+export function withProjection(style: StyleSpecification, projection: MapProjection, theme: Theme = themeById(null)): StyleSpecification {
   if (projection !== "globe") return { ...style, projection: { type: "mercator" } };
   return {
     ...style,
     projection: globeProjectionSpec() as StyleSpecification["projection"],
     sky: {
-      "sky-color": "#1a3a5c",
-      "horizon-color": "#4f8fc4",
-      "fog-color": "#0b1a2b",
+      "sky-color": theme.sky.sky,
+      "horizon-color": theme.sky.horizon,
+      "fog-color": theme.sky.fog,
       "sky-horizon-blend": 0.6,
       "horizon-fog-blend": 0.5,
       "fog-ground-blend": 0.9,

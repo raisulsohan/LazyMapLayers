@@ -5,6 +5,7 @@ import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
+import { hexToRgb, mixHex, themeById } from "../../core/style/themes.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { loadWorldLabels, type WorldLabel } from "../data/worldLabels.ts";
 import { readCameras, type RenderInfo } from "../render/renderJob.ts";
@@ -18,6 +19,8 @@ export type AutoLabelOptions = {
   places?: boolean;
   /** Most label layers to create (lowest priority dropped first). */
   maxLabels?: number;
+  /** The map's look: labels take their colours from it (light text on dark maps, dark on light ones). */
+  theme?: string | null;
   /** Place labels fade away above this zoom, where the map shows the city itself. */
   placeMaxZoom?: number;
   /**
@@ -66,6 +69,13 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const language = options.language ?? { kind: "local" };
   const english = options.english ?? true;
   const placeMaxZoom = options.placeMaxZoom ?? 10;
+  const theme = themeById(options.theme);
+  const colors = {
+    place: hexToRgb(theme.text),
+    country: hexToRgb(theme.textCountry),
+    halo: hexToRgb(theme.halo),
+    subtitle: hexToRgb(mixHex(theme.textCountry, theme.halo, 0.25))
+  };
   const lowestZoom = Math.min(...cameras.map((c) => c.zoom));
   const highestZoom = Math.max(...cameras.map((c) => c.zoom));
 
@@ -85,15 +95,15 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const tracking = isCountry && UPPERCASE.includes(script) ? 160 : 0;
     const main: TextStyle = {
       size,
-      color: isCountry ? [0.8, 0.86, 0.92] : [0.97, 0.98, 1],
-      haloColor: [0.03, 0.07, 0.11],
+      color: isCountry ? colors.country : colors.place,
+      haloColor: colors.halo,
       haloWidth: Math.max(2, Math.round(3 * scale)),
       fonts: SCRIPT_FONTS[script].bold,
       tracking,
       rtl: RTL.includes(script)
     };
     const subScript = subtitle ? scriptOf(subtitle) : "latin";
-    const sub: TextStyle = { ...main, size: Math.round(size * 0.62), color: [0.7, 0.77, 0.84], fonts: SCRIPT_FONTS[subScript].regular, tracking: 20, rtl: RTL.includes(subScript) };
+    const sub: TextStyle = { ...main, size: Math.round(size * 0.62), color: colors.subtitle, fonts: SCRIPT_FONTS[subScript].regular, tracking: 20, rtl: RTL.includes(subScript) };
     const mainWidth = measure(text, script, size, 600, tracking);
     const subWidth = subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0;
     const width = Math.max(mainWidth, subWidth) + main.haloWidth * 2;
@@ -164,7 +174,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       dot: record.kind === "place",
       main: label.main,
       sub: label.sub,
-      dotStyle: { radius: 4.5 * scale, color: [0.97, 0.98, 1], strokeColor: [0.03, 0.07, 0.11], strokeWidth: 2 * scale },
+      dotStyle: { radius: 4.5 * scale, color: colors.place, strokeColor: colors.halo, strokeWidth: 2 * scale },
       expressions: {
         main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy),
         sub: label.subtitle ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy) : null,

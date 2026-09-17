@@ -39,7 +39,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { LabelsSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen } from "./Sheets.tsx";
+import { LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { ShotsTab } from "./ShotsTab.tsx";
 
 function Header(): JSX.Element {
@@ -91,6 +91,7 @@ function ToolRow(): JSX.Element {
         onClick={() => void addCamera()}
       />
       <span class="spacer" />
+      <IconButton icon="palette" id="look" title="Look: the colours of the map (Midnight, Daylight, Atlas, Blueprint, Mono, Paper)" active={lookSheetOpen.value} onClick={() => (lookSheetOpen.value = !lookSheetOpen.value)} />
       <BasemapPicker />
       <IconButton icon="download" id="download-area" title="Download OpenStreetMap detail for the area in the preview (once, then it works offline)" disabled={busy.value} onClick={openRegionSheet} />
       <IconButton
@@ -210,6 +211,7 @@ export function App(): JSX.Element {
         <RegionSheetView />
         <ToolSheetView />
         <LabelsSheetView />
+        <LookSheetView />
         <div class={`map-wrap ${tool.value !== "none" ? "armed" : ""}`} ref={wrapNode}>
           <div id="map" ref={boxNode} />
           <div class="map-overlay top-left">
