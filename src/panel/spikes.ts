@@ -14,6 +14,7 @@ import { protomapsStyle } from "./basemap/protomapsStyle.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import { runHostSmoke } from "./smoke.ts";
 import { runAlignment } from "./alignment.ts";
+import { runEndToEnd } from "./endToEnd.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -157,6 +158,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.P1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`P1 failed: ${results.P1_error}`, "fail");
+    }
+  }
+
+  if (wants("E1")) {
+    try {
+      results.E1_endToEnd = await runEndToEnd(log);
+    } catch (error) {
+      results.E1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`E1 failed: ${results.E1_error}`, "fail");
     }
   }
 

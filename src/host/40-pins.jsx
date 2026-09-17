@@ -49,10 +49,12 @@ LML.pins.addPin = function (args) {
     var ellipse = contents.addProperty("ADBE Vector Shape - Ellipse");
     ellipse.property("ADBE Vector Ellipse Size").setValue([radius * 2, radius * 2]);
     var stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
-    stroke.property("ADBE Vector Stroke Color").setValue([1, 1, 1]);
-    stroke.property("ADBE Vector Stroke Width").setValue(Math.max(2, radius / 4));
-    var fill = contents.addProperty("ADBE Vector Graphic - Fill");
-    fill.property("ADBE Vector Fill Color").setValue(color);
+    stroke.property("ADBE Vector Stroke Color").setValue(style.strokeColor || [1, 1, 1]);
+    stroke.property("ADBE Vector Stroke Width").setValue(style.strokeWidth || Math.max(2, radius / 4));
+    if (style.fill !== false) {
+        var fill = contents.addProperty("ADBE Vector Graphic - Fill");
+        fill.property("ADBE Vector Fill Color").setValue(color);
+    }
 
     var mapLink = LML.pins.addEffect(layer, "ADBE Layer Control", "Map");
     mapLink.property(1).setValue(mapLayer.index);

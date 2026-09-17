@@ -32,6 +32,21 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   is cheap enough to measure every candidate. Create layers only for labels that survive placement,
   and batch the creation behind a progress bar.
 
+## E1 — End to end in After Effects' own render: PASS 20/20 (2026-09-17)
+
+- **Setup.** A 1280×720, 2-second map comp animates from Paris at zoom 12.6 (flat) to zoom 13.4
+  (bearing 35°, pitch 50°).
+  - Pins: hollow green rings at the Eiffel Tower, Arc de Triomphe, Louvre, Notre-Dame and
+    Sacré-Cœur.
+- **Render map.** `src/panel/render/renderMap.ts`:
+  1. Samples the camera for all 50 frames through `LML.api.sampleViews`.
+  2. Renders the Paris OpenStreetMap region with 3D buildings, plus solid red dots at the same five
+     coordinates. Speed: 67 ms per frame, including PNG encoding.
+  3. Imports the sequence into the map comp through `LML.api.importBasemap`.
+- **Check.** After Effects renders the scene comp at four times with `saveFrameToPng`. At every pin
+  centre that AE evaluates, the pixel of AE's own frame is pure red (255, 0, 0).
+- **Result.** 20 of 20 checks hit. The AE layer rig and the renderer agree inside a real AE render.
+
 ## P1 — Pins in After Effects against the camera maths: PASS (2026-09-17)
 
 - **Pins.** `src/core/ae/pinExpressions.ts` generates the expressions for position, scale, rotation
