@@ -13,7 +13,7 @@ import { callHost, fs, isInCep, path } from "./cep.ts";
 import { ensureMaplibreWorker, naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./basemap/maplibreSetup.ts";
 import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
 import { protomapsStyle } from "./basemap/protomapsStyle.ts";
-import { addPin, createMapComp, setView } from "./mapApi.ts";
+import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
 import { renderMap, type BasemapSource } from "./render/renderMap.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { startDevAutomation } from "./devAutomation.ts";
@@ -27,6 +27,7 @@ type MapEntry = {
   sceneCompName: string;
   basemap: BasemapSource | null;
   isActiveScene: boolean;
+  hasCamera: boolean;
   view: View;
 };
 type Progress = { label: string; done: number; total: number } | null;
@@ -134,7 +135,7 @@ function App() {
       map.on("load", () => setViewState(viewOf(map)));
       map.on("error", (e) => log(`map error: ${e.error?.message ?? e}`, "fail"));
       map.on("click", (e) => {
-        if (e.originalEvent.altKey) void addPinAt({ lat: e.lngLat.lat, lng: e.lngLat.lng });
+        if (e.originalEvent.altKey) void addPinAt({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.originalEvent.shiftKey);
       });
       mapRef.current = map;
     } catch (error) {
@@ -162,7 +163,8 @@ function App() {
   // Handle for UI tests driven through DevTools (tools/ae-spikes.mjs --ui).
   (window as unknown as { lmlDebug: unknown }).lmlDebug = {
     map: () => mapRef.current,
-    addPin: (lat: number, lng: number) => addPinAt({ lat, lng }),
+    addPin: (lat: number, lng: number, threeD = false) => addPinAt({ lat, lng }, threeD),
+    addCamera: () => addCamera(),
     selectedMapId: () => selectedRef.current
   };
 
@@ -208,14 +210,34 @@ function App() {
       mapRef.current.jumpTo({ center: [v.center.lng, v.center.lat], zoom: v.zoom, bearing: v.bearing, pitch: v.pitch });
     });
 
-  async function addPinAt(position: { lat: number; lng: number }) {
+  /** Adds the matched 3D camera unless the map has one; uses the map's view at the current AE time. */
+  async function ensureCamera(mapId: string) {
+    const list = await callHost<MapEntry[]>("listMaps");
+    setMaps(list);
+    const entry = list.find((m) => m.mapId === mapId);
+    if (!entry) throw new Error("the selected map is gone");
+    if (entry.hasCamera) return;
+    const rig = await addCameraRig(mapId, entry.view);
+    if (rig.expressionErrors.length) log(`3D camera expression problems: ${rig.expressionErrors.join("; ")}`, "fail");
+    else log(`added ${rig.cameraName} (ground scale of zoom ${rig.referenceZoom})`, "ok");
+    for (const warning of rig.warnings) log(warning, "fail");
+    await refreshMaps();
+  }
+
+  const addCamera = () =>
+    run("3D camera", async () => {
+      if (selectedRef.current) await ensureCamera(selectedRef.current);
+    });
+
+  async function addPinAt(position: { lat: number; lng: number }, threeD = false) {
     const mapId = selectedRef.current;
     if (!mapId) {
       log("create or select a map first", "muted");
       return;
     }
     await run("add pin", async () => {
-      const added = await addPin(mapId, position, { name: `Pin ${pinCounter.current++}` });
+      if (threeD) await ensureCamera(mapId);
+      const added = await addPin(mapId, position, { name: threeD ? String(pinCounter.current++) : `Pin ${pinCounter.current++}`, threeD });
       if (added.expressionErrors.length) log(`pin expression problems: ${added.expressionErrors.join("; ")}`, "fail");
       else log(`added ${added.name} at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`, "ok");
     });
@@ -401,7 +423,7 @@ function App() {
             {view.center.lat.toFixed(4)}, {view.center.lng.toFixed(4)} · z {view.zoom.toFixed(2)} · b {view.bearing.toFixed(1)}° · p {view.pitch.toFixed(1)}°
           </div>
         )}
-        <div class="hint">Alt+click: drop a pin · Right-drag: rotate and tilt</div>
+        <div class="hint">Alt+click: pin · Alt+Shift+click: 3D pin · Right-drag: rotate and tilt</div>
       </div>
 
       <div class="toolbar">
@@ -410,6 +432,13 @@ function App() {
         </button>
         <button disabled={busy || !selected} onClick={matchAe} title="Show the camera at the current AE time">
           Match AE
+        </button>
+        <button
+          disabled={busy || !selected || selected.hasCamera}
+          onClick={addCamera}
+          title="Add an After Effects 3D camera that matches the map, so 3D layers sit on the ground"
+        >
+          {selected?.hasCamera ? "3D camera ✓" : "3D camera"}
         </button>
         <span class="spacer" />
         <button disabled={busy || !selected} onClick={() => renderBasemap(0.5)} title="Half resolution, fast">

@@ -23,6 +23,12 @@ LML.api.addPin = function (args) {
     });
 };
 
+LML.api.addCameraRig = function (args) {
+    return LML.withUndo("Add 3D camera", function () {
+        return LML.camera.addCameraRig(args);
+    });
+};
+
 LML.api.sampleViews = function (args) {
     return LML.basemap.sampleViews(args);
 };
@@ -67,6 +73,7 @@ LML.api.listMaps = function () {
             sceneCompName: comp.name,
             layerIndex: layer.index,
             basemap: tag.basemap || null,
+            hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,
             view: LML.map.readViewAtTime(layer, comp.time)
         });

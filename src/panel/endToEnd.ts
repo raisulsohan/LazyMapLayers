@@ -2,11 +2,12 @@
 // The basemap is rendered with solid red dots at five landmarks; AE pins (hollow green rings, no
 // fill) sit on the same coordinates. After Effects renders the scene comp, and the pixel at each
 // pin centre must be red, i.e. the ring is centred exactly on the dot the renderer drew.
+// The same landmarks are also 3D pins under the matched 3D camera, checked the same way.
 
 import type { View } from "../core/camera/camera.ts";
 import { decodePng } from "../core/image/pngDecode.ts";
 import { evalScript, fs, path } from "./cep.ts";
-import { addPin, createMapComp, setView } from "./mapApi.ts";
+import { addCameraRig, addPin, createMapComp, setView } from "./mapApi.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { renderMap } from "./render/renderMap.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
@@ -47,6 +48,21 @@ export async function runEndToEnd(log: SpikeLog): Promise<Record<string, unknown
   for (const l of landmarks) {
     await addPin(map.id, l, { name: l.name, style: { radius: 9, fill: false, strokeColor: [0, 1, 0], strokeWidth: 3 } });
   }
+  await addCameraRig(map.id, start);
+  for (const l of landmarks) {
+    await addPin(map.id, l, { name: l.name, threeD: true, style: { radius: 8, fill: false, strokeColor: [0, 1, 1], strokeWidth: 2 } });
+  }
+  // Where AE's camera puts each 3D pin's centre.
+  await host(`
+    var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp;
+    for (var i = 1; i <= scene.numLayers; i++) {
+      var tag = LML.tag.read(scene.layer(i));
+      if (!tag || tag.kind !== "pin" || !tag.threeD) continue;
+      var probe = scene.layer(i).property("ADBE Effect Parade").addProperty("ADBE Point Control");
+      probe.name = "E1 Probe";
+      probe.property(1).expression = "const p = toComp([0, 0, 0]); [p[0], p[1]];";
+    }
+    return "1";`);
 
   const render = await renderMap(map.id, {
     basemap: { kind: "region", name: region },
@@ -68,7 +84,9 @@ export async function runEndToEnd(log: SpikeLog): Promise<Record<string, unknown
         var layer = scene.layer(i);
         var tag = LML.tag.read(layer);
         if (!tag || tag.kind !== "pin") continue;
-        var p = layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(${time}, false);
+        var p = tag.threeD
+          ? layer.property("ADBE Effect Parade").property("E1 Probe").property(1).valueAtTime(${time}, false)
+          : layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(${time}, false);
         out.push({ name: layer.name, x: p[0], y: p[1] });
       }
       scene.saveFrameToPng(${time}, new File(${JSON.stringify(file)}));
@@ -87,8 +105,10 @@ export async function runEndToEnd(log: SpikeLog): Promise<Record<string, unknown
     }
   }
   const hits = results.filter((r) => r.hit).length;
-  const passed = results.length >= 10 && hits === results.length;
-  log(`E1 pins centred on renderer dots in AE's own frames: ${hits}/${results.length}`, passed ? "ok" : "fail");
+  const threeD = results.filter((r) => r.name.startsWith("3D Pin"));
+  const hits3d = threeD.filter((r) => r.hit).length;
+  const passed = results.length >= 20 && threeD.length >= 10 && hits === results.length;
+  log(`E1 pins centred on renderer dots in AE's own frames: ${hits}/${results.length} (3D pins ${hits3d}/${threeD.length})`, passed ? "ok" : "fail");
   for (const miss of results.filter((r) => !r.hit)) log(`  miss: ${miss.name} at ${miss.time}s (${miss.x.toFixed(1)}, ${miss.y.toFixed(1)}) rgb ${miss.centre}`, "fail");
-  return { frames: render.frames, msPerFrame: Math.round(render.msPerFrame), checks: results.length, hits, passed, results };
+  return { frames: render.frames, msPerFrame: Math.round(render.msPerFrame), checks: results.length, hits, checks3d: threeD.length, hits3d, passed, results };
 }

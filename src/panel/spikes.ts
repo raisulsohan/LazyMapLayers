@@ -15,6 +15,7 @@ import { FrameRenderer } from "./render/frameRenderer.ts";
 import { runHostSmoke } from "./smoke.ts";
 import { runAlignment } from "./alignment.ts";
 import { runEndToEnd } from "./endToEnd.ts";
+import { runCameraAlignment } from "./cameraAlignment.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -158,6 +159,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.P1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`P1 failed: ${results.P1_error}`, "fail");
+    }
+  }
+
+  if (wants("C1")) {
+    try {
+      results.C1_camera = await runCameraAlignment(log);
+    } catch (error) {
+      results.C1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`C1 failed: ${results.C1_error}`, "fail");
     }
   }
 

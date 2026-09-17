@@ -55,9 +55,13 @@ function toSceneScript(mapId: string, time: number, points: number[][]): string 
 }
 
 export async function runAlignment(log: SpikeLog): Promise<Record<string, unknown>> {
-  const width = 1920;
-  const height = 1080;
-  const map = await createMapComp({ name: "P1 alignment", width, height, duration: 4, frameRate: 25, view: viewA });
+  const hd = await runAlignmentAt(log, 1920, 1080);
+  const uhd = await runAlignmentAt(log, 3840, 2160);
+  return { hd, uhd, passed: hd.passed && uhd.passed };
+}
+
+async function runAlignmentAt(log: SpikeLog, width: number, height: number) {
+  const map = await createMapComp({ name: `P1 alignment ${width}`, width, height, duration: 4, frameRate: 25, view: viewA, newScene: true });
 
   // Animate the camera: A at 0 s, B at 3 s.
   await host(`var l = LML.pins.findMapLayer(${JSON.stringify(map.id)}); l.containingComp.time = 0; return "1";`);
@@ -109,7 +113,7 @@ export async function runAlignment(log: SpikeLog): Promise<Record<string, unknow
       });
     }
     worst = Math.max(worst, worstHere);
-    log(`P1 ${label}: worst error ${worstHere.toFixed(6)} px`, worstHere < 0.5 ? "ok" : "fail");
+    log(`P1 ${width}x${height} ${label}: worst error ${worstHere.toFixed(6)} px`, worstHere < 0.5 ? "ok" : "fail");
     return worstHere;
   };
 
@@ -133,6 +137,6 @@ export async function runAlignment(log: SpikeLog): Promise<Record<string, unknow
   const renamed = await compare("after renaming the map layer and comp", [1.5]);
 
   const passed = worst < 0.5 && expressionErrors.length === 0;
-  log(`P1 pins: ${pins.length}, comparisons ${checks}, expression errors ${expressionErrors.length}`, passed ? "ok" : "fail");
+  log(`P1 ${width}x${height} pins: ${pins.length}, comparisons ${checks}, expression errors ${expressionErrors.length}`, passed ? "ok" : "fail");
   return { pins: pins.length, checks, worstErrorPx: worst, plain, transformed, renamed, expressionErrors, passed };
 }

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Phase 1 (camera rig and pins), in progress
+## Unreleased — Phase 1 (camera rig and pins), done
 
 - **Pinned layers.** `addPin` creates a marker shape layer linked to a map through a Layer
   Control effect, with these effects: Latitude, Longitude, Scale with Map, Rotate with Map,
@@ -25,6 +25,12 @@
   - **Keyframe view** and **Match AE**.
   - **Render preview** (half resolution) and **Render**, with progress.
 - **UI test U1** drives the real panel through DevTools and saves screenshots.
+- **Matched 3D camera.** The **3D camera** button adds an After Effects camera rig that follows the
+  map controls. 3D layers on its ground plane line up with the rendered map. Test C1: worst error
+  0.004 px at 1080p and 4K, including a scaled map layer.
+- **3D pins.** Alt+Shift+click drops a pin that lies flat on the map in 3D, with an Altitude (m)
+  control. The 3D camera is added first if the map has none.
+- **Tests.** P1 now also runs at 4K. E1 checks 3D pins in AE's own render as well (40/40).
 - **Safer region downloads.**
   - The detail picker shows a tile estimate for every zoom (10 to 15) and starts at the most
     detail that stays city-sized.

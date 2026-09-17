@@ -32,6 +32,42 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   is cheap enough to measure every candidate. Create layers only for labels that survive placement,
   and batch the creation behind a progress bar.
 
+## C1 — Matched 3D camera in After Effects: PASS (2026-09-17)
+
+- **Rig.** `src/core/ae/cameraRig.ts` generates the expressions and `LML.api.addCameraRig` builds
+  the layers:
+  - "Map Camera Target": a 3D null at the ground position of the view centre, rotated by the
+    bearing, and linked to the map layer through a Layer Control effect.
+  - "Map Camera": a one-node camera parented to the null. It sits at local
+    `(0, D·u·sin p, −D·u·cos p)` with X Rotation = pitch and Zoom = D, where
+    `D = map height / 2 / tan(fov / 2)` and `u = 2^(reference zoom − zoom)`.
+  - The ground plane is the scene's z = 0 plane at a fixed reference zoom. Its origin is stored
+    float32-exact on the map layer as "3D Origin Latitude/Longitude" and "3D Reference Zoom".
+  - Everything reads the map controls, so the camera follows every keyframe.
+- **3D pins** (`addPin` with `threeD`) are 3D shape layers on the ground plane. An
+  "Altitude (m)" slider lifts them at MapLibre's metre scale.
+- **Test.** `src/panel/cameraAlignment.ts` animates New York from zoom 13.4 (bearing −29°,
+  pitch 40°) to zoom 16.9 (bearing 70°, pitch 72°). It adds the rig and 18 3D pins, a third of
+  them 30–400 m above the ground. It then reads where AE's own camera projects each pin through
+  `toComp` in an expression.
+  - Ground pins are compared with the core projection (MapLibre's camera, see S2a).
+  - Lifted pins are compared with the rig maths.
+
+| Case | Comparisons | Worst error |
+|---|---|---|
+| 1080p, animated camera, 5 times | 88 | 0.00004 px |
+| 1080p, map layer scaled to 62 % | 18 | 0.0037 px |
+| 4K, animated camera and scaled map layer | 126 | 0.00003 px |
+
+- No expression errors. A second `addCameraRig` call reuses the rig instead of adding another.
+- **In AE's own render.** E1 also places the five landmarks as 3D pins: 20 of 20 centres land on
+  the renderer's red dots. In U1's frame with the 2D pins hidden, the 3D rings lie flat on the map
+  exactly where the 2D pins were.
+- **Limits.** The camera cannot match a map layer that is moved off centre, rotated or scaled
+  unevenly (AE cameras have no lens shift). `addCameraRig` returns a warning in those cases.
+  3D layers are sized in ground units of the reference zoom. Very long zoom ranges (such as world
+  to street) are a Phase 3 topic.
+
 ## U1 — The real panel UI, driven through DevTools: PASS (2026-09-17)
 
 - `npm run ae:spikes -- --ui` starts After Effects and connects to the panel's DevTools port (8123,
@@ -39,9 +75,13 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   1. Picks the downloaded "paris" basemap.
   2. Frames Paris in the preview.
   3. Clicks **New map**.
-  4. Drops three pins.
-  5. Clicks **Render preview**.
-- Screenshots of each step and an AE-rendered frame are saved to `.cache/ui/`.
+  4. Opens **Download this area…**, types "Paris" and checks the existing-region warning and the
+     per-zoom tile estimates (no download).
+  5. Clicks **New map**.
+  6. Drops three pins, then the same three places as 3D pins (this adds the 3D camera).
+  7. Clicks **Render preview**.
+- Screenshots of each step, an AE-rendered frame, and a second frame with only the 3D pins are
+  saved to `.cache/ui/`.
 - **Result.** A 10-second, 250-frame map rendered at half resolution in 51 ms per frame and was
   imported. AE's own frame shows the 3D Paris basemap with the pins on the Arc de Triomphe, Louvre
   and Eiffel Tower.
@@ -60,6 +100,8 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
 - **Check.** After Effects renders the scene comp at four times with `saveFrameToPng`. At every pin
   centre that AE evaluates, the pixel of AE's own frame is pure red (255, 0, 0).
 - **Result.** 20 of 20 checks hit. The AE layer rig and the renderer agree inside a real AE render.
+- **With the 3D camera (C1).** The five landmarks are added again as 3D pins under the matched
+  camera. 40 of 40 checks hit, 20 of them 3D pins.
 
 ## P1 — Pins in After Effects against the camera maths: PASS (2026-09-17)
 
@@ -77,6 +119,7 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
 | Animated camera, 5 times | 70 | 0.0061 px |
 | Map layer moved, scaled to 55 % and rotated −12° | 28 | 0.0002 px |
 | After renaming the map layer and its comp | 14 | 0.0042 px |
+| 4K (3840×2160), all three cases | 112 | 0.0042 px |
 
 - No expression errors.
 - **Precision.** Slider Controls are float32, so the exact double coordinates are baked into each

@@ -140,6 +140,11 @@ async function runUiScenario() {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}).then(() => true)`);
     await idle();
   }
+  // The same places as 3D pins under the matched 3D camera (added on the first 3D pin).
+  for (const [lat, lng] of [[48.85837, 2.294481], [48.873792, 2.295028], [48.860611, 2.337644]]) {
+    await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}, true).then(() => true)`);
+    await idle();
+  }
   await click("Render preview");
   await idle();
   await sleep(1500);
@@ -147,6 +152,11 @@ async function runUiScenario() {
   const frame = path.join(out, "04-ae-frame.png").split(String.fromCharCode(92)).join("/");
   await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(`(function(){ var c = app.project.activeItem; c.time = 0; c.saveFrameToPng(0, new File("${frame}")); return c.name; })()`)}, resolve))`);
   for (let i = 0; i < 60 && !fs.existsSync(frame); i++) await sleep(250);
+  // Only the 3D pins: they must sit where the 2D pins were.
+  const frame3d = path.join(out, "05-ae-frame-3d-pins.png").split(String.fromCharCode(92)).join("/");
+  const hide2d = `(function(){ var c = app.project.activeItem; for (var i = 1; i <= c.numLayers; i++) { var t = LML.tag.read(c.layer(i)); if (t && t.kind === "pin" && !t.threeD) c.layer(i).enabled = false; } c.saveFrameToPng(0, new File("${frame3d}")); return "1"; })()`;
+  await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(hide2d)}, resolve))`);
+  for (let i = 0; i < 60 && !fs.existsSync(frame3d); i++) await sleep(250);
   console.log(["UI log:", await logText()].join(String.fromCharCode(10)));
   panel.close();
 }

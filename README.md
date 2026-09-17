@@ -45,6 +45,14 @@ built to be free **and** to give better final frames.
 - **Camera maths.** Our camera equals MapLibre's projection to within 0.00000003 px.
 - **Map comp creation from the panel.** Tagged comps, camera controls and view keyframes, all
   undoable.
+- **Render map.** The panel renders the basemap for every frame of the map comp and imports it as an
+  image sequence, at preview or full resolution.
+- **Pins.** 2D pins follow the animated camera. In After Effects' own render they sit on the exact
+  pixel the renderer draws (worst error 0.006 px at 1080p and 4K).
+- **Matched 3D camera.** One click adds an After Effects camera that matches the map, so 3D layers
+  and 3D pins sit on the ground as the camera moves (worst error 0.004 px).
+- **Region download safety.** Tile estimates for each detail level, and warnings for large
+  downloads and existing names.
 
 ## Development
 
