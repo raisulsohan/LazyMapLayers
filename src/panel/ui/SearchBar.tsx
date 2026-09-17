@@ -5,7 +5,7 @@ import { useRef, useState } from "preact/hooks";
 import { searchPlaces, type SearchResult } from "../../core/search/placeSearch.ts";
 import { isInCep } from "../cep.ts";
 import { placeIndex } from "../data/worldLabels.ts";
-import { addPinAt, fail, goToResult, selected } from "../store.ts";
+import { addPinAt, fail, goToResult, highlights, selected, toggleCountryHighlight } from "../store.ts";
 import { Icon, IconButton } from "./icons.tsx";
 
 export function SearchBar() {
@@ -81,6 +81,23 @@ export function SearchBar() {
                 {r.matched && <span class="muted"> · {r.matched}</span>}
               </span>
               <span class="muted search-detail">{r.detail}</span>
+              {r.kind === "country" && r.code && (
+                <span
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                >
+                  <IconButton
+                    icon="highlight"
+                    size={12}
+                    class="flat"
+                    active={highlights.value.some((h) => h.code === r.code)}
+                    title="Highlight this country (again to remove)"
+                    onClick={() => toggleCountryHighlight(r.code!, r.name)}
+                  />
+                </span>
+              )}
               {selected.value && (
                 // The row acts on mouse down; the pin button must not trigger it.
                 <span

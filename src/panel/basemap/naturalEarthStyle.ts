@@ -4,6 +4,7 @@
 
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
+import type { Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
 const group = (name: LayerGroup) => ({ "lml:group": name });
@@ -17,10 +18,16 @@ export type WorldImagery = {
   reliefUrl?: string;
 };
 
+/** An invisible layer of country shapes that the preview asks "which country is under the click?". */
+export const COUNTRY_HIT_LAYER = "country-hit";
+
 export const SATELLITE_SOURCE = "lml-satellite";
 export const RELIEF_SOURCE = "lml-relief";
 
-export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery } = {}): StyleSpecification {
+export function naturalEarthStyle(
+  pmtilesUrl: string,
+  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; countryHits?: boolean } = {}
+): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
   const source = NATURAL_EARTH_SOURCE;
@@ -140,6 +147,43 @@ export function naturalEarthStyle(pmtilesUrl: string, options: { labels?: boolea
       paint: { "line-color": t.border, "line-opacity": satelliteUrl ? 0.8 : 1, "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 1, 0.6, 8, 2.4] }
     }
   );
+
+  // Highlighted countries: a fill, a soft glow and an outline, all in the "highlight" group, which is
+  // rendered as its own pass and left out of the base pass.
+  for (const [i, h] of (options.highlights ?? []).entries()) {
+    const only = ["==", ["get", "adm0_a3"], h.code] as unknown as boolean;
+    if (h.fill > 0) {
+      layers.push({ id: `highlight-fill-${i}`, type: "fill", metadata: group("highlight"), source, "source-layer": "countries", filter: only, paint: { "fill-color": h.color, "fill-opacity": h.fill, "fill-antialias": true } } as LayerSpecification);
+    }
+    if (h.outline > 0) {
+      layers.push(
+        {
+          id: `highlight-glow-${i}`,
+          type: "line",
+          metadata: group("highlight"),
+          source,
+          "source-layer": "countries",
+          filter: only,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": h.color, "line-opacity": 0.4, "line-width": h.outline * 4, "line-blur": h.outline * 3 }
+        } as LayerSpecification,
+        {
+          id: `highlight-line-${i}`,
+          type: "line",
+          metadata: group("highlight"),
+          source,
+          "source-layer": "countries",
+          filter: only,
+          layout: { "line-join": "round", "line-cap": "round" },
+          paint: { "line-color": h.color, "line-width": h.outline }
+        } as LayerSpecification
+      );
+    }
+  }
+
+  if (options.countryHits) {
+    layers.push({ id: COUNTRY_HIT_LAYER, type: "fill", metadata: group("overlay"), source, "source-layer": "countries", paint: { "fill-color": "#000000", "fill-opacity": 0 } } as LayerSpecification);
+  }
 
   if (labels) {
     layers.push(

@@ -44,6 +44,9 @@ test("a style's text, lines and circles scale; everything else stays", () => {
   assert.deepEqual(scaled.layers[3].paint, { "text-halo-width": 4 });
   assert.deepEqual((scaled.layers[4].paint as Record<string, unknown>)["circle-radius"], ["*", 4, ["get", "radius"]]);
   assert.equal(scaleStyleSizes(style, 1), style);
+  // Layers that are part of the picture keep their sizes.
+  const kept = scaleStyleSizes({ layers: [{ id: "h", type: "line", metadata: { "lml:group": "highlight" }, paint: { "line-width": 3 } }] }, 4, (l) => l.metadata?.["lml:group"] === "highlight");
+  assert.equal((kept.layers[0] as { paint: Record<string, unknown> }).paint["line-width"], 3);
   // The input is never changed.
   assert.equal(style.layers[1].paint!["line-width"], 1.5);
 });

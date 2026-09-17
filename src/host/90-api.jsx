@@ -157,6 +157,7 @@ LML.api.setMapSettings = function (args) {
     if (args.render !== undefined) tag.render = args.render;
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
+    if (args.highlights !== undefined) tag.highlights = args.highlights;
     if (args.projection !== undefined) {
         var globe = LML.map.controlValueProperty(layer, LML.map.GLOBE_CONTROL);
         if (!globe) {
@@ -201,6 +202,7 @@ LML.api.listMaps = function () {
             render: tag.render || null,
             theme: tag.theme || null,
             relief: !!tag.relief,
+            highlights: tag.highlights || [],
             projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,

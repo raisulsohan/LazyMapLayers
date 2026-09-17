@@ -12,17 +12,21 @@
 //   buildings    3D buildings
 //   landMatte    white where land (inland water excluded), no holdout
 //   waterMatte   white where water; landMatte + waterMatte cover every pixel exactly once
+//   highlight    highlighted countries alone, with alpha; never part of the base pass, and added by
+//                the render job itself whenever a map has highlights (it is not a user setting)
 //
 // Holdouts: buildings stand in front of everything on the ground, so a ground pass loses the pixels a
 // building covers. Laying a roads pass with a glow over the base pass then never glows through a
 // building.
 
-export type LayerGroup = "background" | "imagery" | "land" | "water" | "boundaries" | "roads" | "buildings" | "labels" | "overlay";
+export type LayerGroup = "background" | "imagery" | "land" | "water" | "boundaries" | "roads" | "buildings" | "highlight" | "labels" | "overlay";
 
 export const PASS_IDS = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte"] as const;
-export type PassId = (typeof PASS_IDS)[number];
+/** Passes the user can switch on, plus the highlight pass that follows the map's highlights. */
+export type PassId = (typeof PASS_IDS)[number] | "highlight";
+export const HIGHLIGHT_PASS: PassId = "highlight";
 
-export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings";
+export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings" | "highlight";
 
 export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" }> = {
   base: { label: "Base", kind: "color" },
@@ -32,7 +36,8 @@ export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" 
   roads: { label: "Roads", kind: "color" },
   buildings: { label: "Buildings", kind: "color" },
   landMatte: { label: "Land Matte", kind: "matte" },
-  waterMatte: { label: "Water Matte", kind: "matte" }
+  waterMatte: { label: "Water Matte", kind: "matte" },
+  highlight: { label: "Highlight", kind: "color" }
 };
 
 /** Groups drawn by each render. The base render draws every group except labels unless asked. */
@@ -45,7 +50,8 @@ const RENDER_GROUPS: Record<Exclude<RenderId, "base">, LayerGroup[]> = {
   waterShapes: ["water"],
   boundaries: ["boundaries"],
   roads: ["roads"],
-  buildings: ["buildings"]
+  buildings: ["buildings"],
+  highlight: ["highlight"]
 };
 
 export function isPassId(value: string): value is PassId {
@@ -54,7 +60,8 @@ export function isPassId(value: string): value is PassId {
 
 /** Whether a layer of `group` is drawn in `render`. */
 export function groupVisibleIn(render: RenderId, group: LayerGroup, options: { labels: boolean }): boolean {
-  if (render === "base") return group !== "labels" || options.labels;
+  // Highlights are their own layer in After Effects, so the basemap stays clean under them.
+  if (render === "base") return group !== "highlight" && (group !== "labels" || options.labels);
   return RENDER_GROUPS[render].includes(group);
 }
 
@@ -80,6 +87,7 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
         break;
       case "boundaries":
       case "roads":
+      case "highlight":
         needed.add(pass);
         if (holdout) needed.add("buildings");
         break;
@@ -93,7 +101,7 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
     }
   }
   if (hasImagery && (needed.has("land") || needed.has("waterFill"))) needed.add("landShapes");
-  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings"];
+  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings", "highlight"];
   return order.filter((r) => needed.has(r));
 }
 
@@ -171,6 +179,7 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
       }
       case "boundaries":
       case "roads":
+      case "highlight":
         out[pass] = scaled(need(pass), holdoutAt);
         break;
       case "buildings":

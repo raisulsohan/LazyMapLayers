@@ -6,7 +6,7 @@ import { render } from "preact";
 import type { RenderSettings } from "../core/render/plan.ts";
 import { fs, isInCep, path } from "./cep.ts";
 import { startDevAutomation } from "./devAutomation.ts";
-import { previewMap, showCompView, compView } from "./preview.ts";
+import { previewMap, showCompView, compView, countryAt, compSize } from "./preview.ts";
 import { renderQueue } from "./render/renderQueue.ts";
 import * as shots from "./shots/shotsStore.ts";
 import { spikeDir } from "./spikes.ts";
@@ -36,6 +36,8 @@ logToFile(`panel start: ${navigator.userAgent}`);
   map: () => previewMap(),
   compView,
   showCompView,
+  /** The country in the middle of the preview (for the UI test of the highlight tool). */
+  countryAtCentre: () => countryAt({ x: compSize().width / 2, y: compSize().height / 2 }),
   addPin: (lat: number, lng: number, threeD = false) => store.addPinAt({ lat, lng }, threeD),
   addCamera: () => store.addCamera(),
   selectedMapId: () => store.selectedId.value,

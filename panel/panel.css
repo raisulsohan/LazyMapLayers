@@ -656,6 +656,20 @@ select.compact {
   color: var(--bad);
 }
 
+.highlight-row {
+  align-items: center;
+  flex-wrap: nowrap;
+}
+
+.highlight-row input[type="color"] {
+  flex: none;
+  width: 28px;
+  height: 20px;
+  padding: 0;
+  border: 1px solid var(--line);
+  background: none;
+}
+
 .theme-grid {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(76px, 1fr));

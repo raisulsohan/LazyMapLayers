@@ -163,6 +163,26 @@ async function runUiScenario() {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}, true).then(() => true)`);
     await idle();
   }
+  // Looks and highlights: pick the Daylight look, highlight the country under the preview's centre.
+  await click("look");
+  await sleep(300);
+  await click("theme-daylight");
+  await idle();
+  await sleep(1500);
+  await shot("07-look-daylight");
+  await click("look");
+  await click("tool-highlight");
+  await sleep(300);
+  const country = await panel.evaluate("window.lmlDebug.countryAtCentre()");
+  console.log(`U1 country under the centre: ${JSON.stringify(country)}`);
+  if (country) await panel.evaluate(`(window.lmlDebug.store.toggleCountryHighlight(${JSON.stringify(country.code)}, ${JSON.stringify(country.name)}), true)`);
+  await sleep(1200);
+  await showView({ center: { lat: 46.5, lng: 2.5 }, zoom: 5.2, bearing: 0, pitch: 0 });
+  await sleep(2500);
+  await shot("07a-highlight");
+  const highlighted = await panel.evaluate("window.lmlDebug.store.highlights.value.map((h) => h.name)");
+  console.log(`U1 highlights: ${JSON.stringify(highlighted)}`);
+  await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
   // Shots: three views, an opened move, playback in the preview, then Apply.
   for (const view of [
     { center: { lat: 48.8626, lng: 2.3222 }, zoom: 12.4, bearing: 0, pitch: 0 },

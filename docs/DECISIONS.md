@@ -288,3 +288,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   downloaded city region takes over. A sharper pack needs NASA's 86400-pixel tiles (about 250 MB to
   download) and is left for later.
 - **Next.** Publish the packs as release assets and add an in-panel download, so other users get them.
+
+## D20 — Highlights are a render pass of their own (2026-09-18)
+
+- **Context.** Highlighting a country is the most used move of map explainers. As an After Effects
+  shape layer it would need thousands of vertices projected by expressions on every frame, and level
+  of detail per zoom.
+- **Decision.** Highlights are drawn by the renderer from the country polygons already in the world
+  tiles (filter on `adm0_a3`): a fill, a soft glow and an outline per country, in the layer group
+  "highlight". The group is left out of the base pass and rendered as its own pass with alpha, which
+  the render job adds whenever the map has highlights and the host shows switched on, on top of the
+  pass stack. The map's highlights live in the map layer's tag. The pass has its own style key, so a
+  colour change redraws only the highlight images; without highlights the host removes the layer
+  (HL1).
+- **Consequences.** Highlights are crisp at any zoom, cost After Effects nothing per frame, and stay a
+  separate layer for fades, colour and glow. All highlights share one layer for now; one layer per
+  country (to animate them apart) and provinces or custom regions (they need boundary data, Phase 4)
+  come later. In the preview, highlight sizes are not enlarged like other lines, because they are
+  part of the picture.

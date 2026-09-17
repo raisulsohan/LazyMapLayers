@@ -27,6 +27,8 @@ export type SearchResult = {
   matched?: string;
   /** Region and country for places. */
   detail: string;
+  /** The country's three-letter Natural Earth code (adm0_a3): of the country itself, or of a place's country. */
+  code?: string;
   lat: number;
   lng: number;
   bbox?: Bbox;
@@ -77,6 +79,7 @@ function toResult(index: PlaceIndex, record: PlaceRecord, matched?: string): Sea
     name,
     matched: matched && fold(matched) !== fold(name) ? matched : undefined,
     detail: record.kind === "country" ? "Country" : [record.region, country].filter((part) => part && part !== name).join(", "),
+    code: record.country || undefined,
     lat: record.lat,
     lng: record.lng,
     bbox: b ? { west: b[0], south: b[1], east: b[2], north: b[3] } : undefined,
