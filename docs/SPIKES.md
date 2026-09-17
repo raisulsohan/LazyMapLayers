@@ -5,26 +5,49 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
+## D1 — Milestone A world flight at 1080p and 4K: PASS (2026-09-17)
+
+- **What it builds.** `src/panel/demo/worldFlight.ts` (also the panel's **World flight sample**
+  button) makes a 36-second, 25 fps globe map: the globe turns while country borders draw on, one
+  continuous flight goes down to the Eiffel Tower, a slow orbit shows a pin and a callout, a second
+  flight goes to Tokyo Tower along a great-circle route that draws on, and a second pin and callout
+  end the move. Country and city labels in the local language are placed over the whole timeline.
+- **Data.** The offline world map plus four downloaded OpenStreetMap regions used together:
+  paris-wide (zoom 12), paris (zoom 15), tokyo-wide (zoom 12) and tokyo (zoom 15). The wide regions
+  hand over to the city regions (D13).
+- **1080p.** Built in 30–56 s: 140 labels (324 text, subtitle and dot layers, chosen from 7,359
+  candidates), a route, 2 pins and 2 callouts, no expression errors. All 900 frames rendered with 2×
+  supersampling in 30–53 s. After Effects' own render was saved at 15 moments and reviewed, before and
+  after purging its image cache (identical files).
+- **4K.** The same move at 3840×2160 keeps the 1080p framing (`zoomOffset = log2(height / 1080)`, with
+  pins and routes scaled by height). The 900 frames rendered in 132–142 s, 158–169 ms per frame.
+- **Release code.** With the minified release build (`node tools/build.mjs --dev --minify`), R1
+  (15/15), G2 and D1 pass again: D1 built in 29 s with no expression errors and rendered its 900
+  frames in 37 s (43 ms per frame).
+- **Review.** Globe with labels in each country's own script and no labels outside the planet; the descent to Paris without empty zooms or floating region patches; the Eiffel
+  Tower in 3D with its callout; the route arc across Asia; Tokyo's towers at arrival with the 東京
+  callout.
+
 ## G1 — Globe projection against MapLibre: PASS (2026-09-17)
 
 - `src/core/camera/globe.ts` projects points for MapLibre's globe projection: a vertical-perspective
-  globe up to zoom 11, mixed in clip space with Mercator between zoom 11 and 12 (as MapLibre's
-  shaders do), and flat Mercator from zoom 12. Points can sit above the ground, and points behind the
+  globe up to zoom 7, mixed in clip space with Mercator between zoom 7 and 8 (as MapLibre's shaders
+  do), and flat Mercator from zoom 8 (D11). Points can sit above the ground, and points behind the
   planet are reported hidden.
-- **CPU.** 287 random globe views (zoom 1 to 11, any bearing, pitch up to 60°) against
-  `map.project()`: worst error 0.00000000009 px.
-- **GPU.** 58 renders of a red dot, half of them in the transition zooms, where `map.project()` does
-  not mix like the shaders: the dot centre found in the pixels is within 0.2 px of the core
-  projection (centroid noise).
+- **CPU.** 268 random globe views (zoom 1 to 7, any bearing, pitch up to 60°) against
+  `map.project()`: worst error 0.000000000007 px.
+- **GPU.** 57 renders of a red dot, half of them in the transition zooms, where `map.project()` does
+  not mix like the shaders: the dot centre found in the pixels is within 0.19 px of the core
+  projection (0.13 px in the transition; centroid noise).
 
 ## G2 — Pins on a globe map in After Effects' own render: PASS (2026-09-17)
 
 - A 1280×720 globe map turns from the Atlantic to Europe, then flies down to Paris through the
-  transition (zoom 11.5) and ends at zoom 12.6, pitched 50°. Seven pins (Paris, London, Cairo, New
-  York, Tokyo, São Paulo, Versailles) use the shared projection expression
+  transition (zoom 7.5), on to zoom 11.5 and ends at zoom 12.6, pitched 50°. Seven pins (Paris,
+  London, Cairo, New York, Tokyo, São Paulo, Versailles) use the shared projection expression
   (`src/core/ae/projectionExpression.ts`).
-- At 8 times, every shown pin (19) sits on the red dot the renderer drew, and every pin hidden behind
-  the planet (7) has no dot under it. No expression errors.
+- At 8 times, every shown pin (22) sits on the red dot the renderer drew, and every pin hidden behind
+  the planet (6) has no dot under it. No expression errors.
 
 ## R1 — Phase 2 renderer in After Effects: PASS 15/15 (2026-09-17)
 

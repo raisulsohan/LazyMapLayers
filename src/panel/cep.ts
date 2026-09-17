@@ -38,6 +38,15 @@ export const fs = () => nodeRequire<NodeFs>("fs");
 export const path = () => nodeRequire<NodePath>("path");
 export const os = () => nodeRequire<NodeOs>("os");
 
+/**
+ * The user's LazyMapLayers data folder (downloaded regions, render cache, render queue):
+ * %APPDATA%LazyMapLayers on Windows, ~/Library/Application Support/LazyMapLayers on macOS.
+ */
+export function userDataDir(): string {
+  if (process.platform === "darwin") return path().join(os().homedir(), "Library", "Application Support", "LazyMapLayers");
+  return path().join(process.env.APPDATA ?? path().join(os().homedir(), "AppData", "Roaming"), "LazyMapLayers");
+}
+
 /** Folder that contains CSXS/, panel/ and host/. */
 export function extensionRoot(): string {
   const cep = window.__adobe_cep__;

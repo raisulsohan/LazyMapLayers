@@ -2,9 +2,15 @@
 //   dist/CSXS/manifest.xml
 //   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
-//   dist/data/natural-earth.pmtiles
+//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json}
+//   dist/LICENSE
 //
-//   node tools/build.mjs [--dev]
+//   node tools/build.mjs [--dev] [--minify] [--out <folder>]
+//
+// --dev --minify is a development build (debug port, test automation) with the release's minified
+// code, for running the in-AE tests against what users get.
+// --out builds somewhere else than dist/ (the release script stages there, so a running After Effects
+// that uses the dist/ link is never touched).
 
 import fs from "node:fs";
 import path from "node:path";
@@ -13,8 +19,10 @@ import * as esbuild from "esbuild";
 import { toAsciiEscapes } from "./ascii.mjs";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
-const dist = path.join(root, "dist");
+const outIndex = process.argv.indexOf("--out");
+const dist = outIndex > 0 ? path.resolve(process.argv[outIndex + 1]) : path.join(root, "dist");
 const dev = process.argv.includes("--dev");
+const minify = !dev || process.argv.includes("--minify");
 const target = ["chrome99"];
 
 const pkg = JSON.parse(fs.readFileSync(path.join(root, "package.json"), "utf8"));
@@ -48,6 +56,7 @@ async function main() {
   fs.writeFileSync(path.join(dist, "CSXS", "manifest.xml"), manifest, "utf8");
   if (dev) fs.writeFileSync(path.join(dist, ".debug"), debugFile(), "utf8");
 
+  copy(path.join(root, "LICENSE"), path.join(dist, "LICENSE"));
   copy(path.join(root, "panel", "index.html"), path.join(dist, "panel", "index.html"));
   copy(path.join(root, "panel", "panel.css"), path.join(dist, "panel", "panel.css"));
   copy(path.join(root, "node_modules", "maplibre-gl", "dist", "maplibre-gl.css"), path.join(dist, "panel", "maplibre-gl.css"));
@@ -58,7 +67,7 @@ async function main() {
     bundle: true,
     format: "esm",
     target,
-    minify: !dev,
+    minify,
     legalComments: "inline",
     logLevel: "warning"
   });
@@ -70,7 +79,7 @@ async function main() {
     format: "iife",
     platform: "browser",
     target,
-    minify: !dev,
+    minify,
     legalComments: "inline",
     logLevel: "warning"
   });
@@ -84,8 +93,8 @@ async function main() {
     target,
     jsx: "automatic",
     jsxImportSource: "preact",
-    sourcemap: dev ? "inline" : false,
-    minify: !dev,
+    sourcemap: dev && !minify ? "inline" : false,
+    minify,
     legalComments: "inline",
     define: { "process.env.NODE_ENV": dev ? '"development"' : '"production"' },
     logLevel: "warning"

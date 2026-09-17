@@ -322,7 +322,7 @@ Rendered at 1080p and 4K. This is the first "wow" release (0.1).
 | 0 — Foundation and spikes | DONE 2026-09-17: spikes S1–S6 and host smoke H1 pass in AE 2026 (docs/SPIKES.md) |
 | 1 — Camera core and rig | DONE 2026-09-17: 2D pins (P1 0.006 px at 1080p and 4K), matched 3D camera and 3D pins (C1 0.004 px), AE render check (E1 40/40), usable panel UI (U1) |
 | 2 — Frame renderer and passes | DONE 2026-09-17: content-keyed cache, render queue with cancel and resume, preview proxies, 1–4× GPU supersampling, motion blur, 6 passes and 2 mattes (R1 15/15); 10-second 4K move at 125 ms per frame with no pops, keyframe change redraws only affected frames (R2). Deferred: label, terrain and selected-region passes (D8), tile-level cross-fade (D10) |
-| Milestone A — World flight demo | IN PROGRESS: globe (G1, G2), fly-to keys, world plus regions, borders draw-on, auto labels in local scripts, routes, callouts, demo builder (D1). Next: city data for Tokyo and wider areas, region tiers, panel buttons, 4K render, release 0.1 |
+| Milestone A — World flight demo | DONE 2026-09-17: globe (G1, G2), fly-to keys, world plus layered regions (D13), borders draw-on, auto labels in local scripts, routes, callouts, panel buttons, demo built and rendered at 1080p and 4K (D1), signed installer for release 0.1.0. Deferred: macOS test run, far-field region tiers beyond lines (D13) |
 | 3 — Cinematic camera | NOT STARTED |
 | 4 — Data | NOT STARTED |
 | 5 — AE vector layers and styles | NOT STARTED |

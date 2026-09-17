@@ -41,6 +41,8 @@ export type WorldFlightOptions = {
   frameRate?: number;
   basemap: BasemapSource;
   second?: City;
+  /** Ends the first flight above Paris instead of in the street (when there is no region data for it). */
+  firstZoom?: number;
   /** Ends the second flight above the city instead of in the street (when there is no region data for it). */
   secondZoom?: number;
 };
@@ -58,8 +60,9 @@ export async function buildWorldFlight(options: WorldFlightOptions, log: (line: 
   // Views are framed for 1080 lines; taller comps zoom in by the same factor, so 4K shows the same shot.
   const zoomOffset = Math.log2(height / 1080);
   const framed = (view: View): View => ({ ...view, zoom: view.zoom + zoomOffset });
-  const parisView = framed(PARIS.view);
-  const secondView: View = framed(options.secondZoom ? { ...second.view, zoom: options.secondZoom, pitch: Math.min(second.view.pitch, 35) } : second.view);
+  const above = (city: City, zoom: number | undefined): View => (zoom ? { ...city.view, zoom, pitch: Math.min(city.view.pitch, 35) } : city.view);
+  const parisView = framed(above(PARIS, options.firstZoom));
+  const secondView = framed(above(second, options.secondZoom));
   // A globe that fills about two thirds of the frame height.
   const globeZoom = Math.log2(((height * 0.36 * 2 * Math.PI) / 512) * Math.cos(30 * (Math.PI / 180)));
   const space1: View = { center: { lat: 24, lng: -32 }, zoom: globeZoom, bearing: 0, pitch: 0 };

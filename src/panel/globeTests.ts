@@ -1,7 +1,7 @@
 // G1: core globe projection against MapLibre's globe renderer.
-//   CPU: random globe views (zoom 1 to 11) against map.project().
+//   CPU: random globe views (zoom 1 to 7) against map.project().
 //   GPU: a red dot drawn by MapLibre at a known place, found in the rendered pixels, for globe views and
-//        for the globe-to-Mercator transition (zoom 11 to 12), where map.project() does not mix like
+//        for the globe-to-Mercator transition (zoom 7 to 8), where map.project() does not mix like
 //        the shaders do.
 
 import type { StyleSpecification } from "maplibre-gl";
