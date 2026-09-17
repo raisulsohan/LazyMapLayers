@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { projectionPrelude } from "../../src/core/ae/projectionExpression.ts";
+import { froundSource, projectionPrelude } from "../../src/core/ae/projectionExpression.ts";
 import { float32 } from "../../src/core/ae/pinExpressions.ts";
 import type { View } from "../../src/core/camera/camera.ts";
 import { projectPoint } from "../../src/core/camera/globe.ts";
@@ -60,4 +60,19 @@ test("maps without a Globe control are Mercator", () => {
   const got = run(`${projectionPrelude()}return lmlProject(12, 25, 0);`, controls, { width: 1920, height: 1080 }) as { x: number; y: number };
   const expected = projectPoint({ center: { lat: 10, lng: 20 }, zoom: 3, bearing: 0, pitch: 0 }, { width: 1920, height: 1080 }, { lat: 12, lng: 25 });
   assert.ok(Math.abs(got.x - expected.x) < 1e-9 && Math.abs(got.y - expected.y) < 1e-9);
+});
+
+test("the ES3 float32 rounding equals Math.fround", () => {
+  const fround = new Function(`${froundSource()}return lmlFround;`)() as (x: number) => number;
+  const values = [0, -0, 1, -1, 0.5, 2.5, 3.5, 16777217, 16777218, 16777219, 1 + 2 ** -24, 1 + 3 * 2 ** -25, 2 ** -149, 2 ** -150, 3 * 2 ** -151, 2 ** -126, 1.5 * 2 ** -127];
+  values.push(3.4028234663852886e38, 3.4028235677973362e38, 3.4028235677973366e38, 1e39, -1e300, Infinity, -Infinity, 5e-324, 48.8583701, -73.9856644);
+  let seed = 7;
+  const random = () => {
+    seed = (seed * 1664525 + 1013904223) % 4294967296;
+    return seed / 4294967296;
+  };
+  for (let i = 0; i < 20000; i++) values.push((random() - 0.5) * 2 ** Math.floor(random() * 340 - 170));
+  for (let i = 0; i < 2000; i++) values.push((Math.floor(random() * 2 ** 24) + 0.5) * 2 ** Math.floor(random() * 60 - 30));
+  for (const x of values) assert.ok(Object.is(fround(x), Math.fround(x)), `${x}: ${fround(x)} vs ${Math.fround(x)}`);
+  assert.ok(Number.isNaN(fround(NaN)));
 });

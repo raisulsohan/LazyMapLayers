@@ -1,5 +1,23 @@
 # Changelog
 
+## 0.1.1 — works with the Legacy ExtendScript expression engine (2026-09-17)
+
+- **Fixed.** In projects that use After Effects' Legacy ExtendScript expression engine (older
+  projects, and new projects made from many project templates), every pin, label, route, callout
+  and 3D camera expression failed with errors such as "does not have a value", and nothing followed
+  the map. All generated expressions now run in both expression engines (DECISIONS D14).
+  - Layers made by 0.1.0 in such a project keep their old expressions: run **Auto labels** or
+    **World flight sample** again, and add pins, routes and callouts again.
+- **Panel.** The log notes when a project uses the Legacy ExtendScript engine, which works but plays
+  back more slowly than the JavaScript engine (File > Project Settings > Expressions).
+- **Tests.**
+  - `npm run check:expressions` runs 515 generated expressions of every kind in an ES3 engine and
+    compares them with Node.
+  - In After Effects, X1 checks every kind of linked layer in both engines (proven by a probe
+    expression), and D1L builds and renders the whole world flight in a Legacy ExtendScript
+    project: 324 expressions without errors, and frames identical to the JavaScript engine.
+- **Release testing** on the development PC: `tools/release-test/` and `docs/RELEASING.md`.
+
 ## 0.1.0 — first release (2026-09-17)
 
 The first release: everything below, from the foundation to the world flight, in one signed

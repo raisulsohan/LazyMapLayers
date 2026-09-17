@@ -58,6 +58,9 @@ Bundle id: `com.sohan.LazyMapLayers`.
     they come from our polyfill file.
 - Before calling `open()` on a file, set `file.encoding = "UTF-8"`. Never use `alert()` on
   production paths.
+- Generated AE expressions (`src/core/ae/`) follow the same ES3 rules, and also avoid
+  `Math.fround` and chained conditional operators, because projects on the Legacy ExtendScript
+  expression engine run them as ES3 (DECISIONS D14). `npm run check:expressions` enforces it.
 
 ## Commands
 

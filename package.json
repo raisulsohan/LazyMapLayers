@@ -1,6 +1,6 @@
 {
   "name": "lazymaplayers",
-  "version": "0.1.0",
+  "version": "0.1.1",
   "private": true,
   "type": "module",
   "description": "LazyMapLayers — free, open-source map design and map animation for After Effects.",
@@ -14,12 +14,13 @@
     "test": "node --test \"tests/**/*.test.ts\"",
     "typecheck": "tsc -p tsconfig.json",
     "check:host": "cscript //Nologo tools/check-extendscript.js",
+    "check:expressions": "node tools/expression-fixtures.ts && cscript //Nologo tools/check-expressions.js",
     "build": "node tools/build.mjs",
     "build:dev": "node tools/build.mjs --dev",
     "data:natural-earth": "node tools/prepare-natural-earth.ts --max-zoom 6",
     "data:world-overlays": "node tools/prepare-world-overlays.ts",
     "install:dev": "node tools/install-dev.mjs",
-    "verify": "npm test && npm run typecheck && npm run build:dev && npm run check:host",
+    "verify": "npm test && npm run typecheck && npm run build:dev && npm run check:host && npm run check:expressions",
     "ae:spikes": "node tools/ae-spikes.mjs"
   },
   "dependencies": {

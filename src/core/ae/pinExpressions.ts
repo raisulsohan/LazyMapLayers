@@ -1,4 +1,4 @@
-// After Effects expressions for pinned layers (JavaScript expression engine).
+// After Effects expressions for pinned layers (ES3: both expression engines, see projectionExpression.ts).
 //
 // A pin keeps its geographic position on the map at every frame. Its expressions read the camera
 // controls from the map layer through a Layer Control effect named "Map" (rename-safe), project the
@@ -11,7 +11,7 @@
 // used while the slider still holds (the float32 rounding of) the same value. Once someone changes
 // the slider, its value wins.
 
-import { MAP_CONTROL_NAMES, projectionPrelude } from "./projectionExpression.ts";
+import { froundSource, MAP_CONTROL_NAMES, projectionPrelude } from "./projectionExpression.ts";
 
 export { MAP_CONTROL_NAMES };
 
@@ -41,28 +41,33 @@ function num(value: number): string {
 /** Shared prelude. Ends with `pin` = lmlProject(lat, lng) plus the camera values used below. */
 function prelude(lat: number, lng: number): string {
   return `${EXPRESSION_MARKER} (generated; edit the effects, not this code)
-const map = effect(${JSON.stringify(PIN_EFFECTS.map)})(1);
-const pick = (slider, exact) => Math.abs(slider - Math.fround(exact)) < 1e-9 ? exact : slider;
-const lat = pick(effect(${JSON.stringify(PIN_EFFECTS.latitude)})(1).value, ${num(lat)});
-const lng = pick(effect(${JSON.stringify(PIN_EFFECTS.longitude)})(1).value, ${num(lng)});
-${projectionPrelude()}const pin = lmlProject(lat, lng, 0);
-const zoom = lmlView.zoom, bearing = lmlView.bearing;
+var map = effect(${JSON.stringify(PIN_EFFECTS.map)})(1);
+${froundSource()}function lmlPick(slider, exact) {
+  if (Math.abs(slider - lmlFround(exact)) < 1e-9) return exact;
+  return slider;
+}
+var lat = lmlPick(effect(${JSON.stringify(PIN_EFFECTS.latitude)})(1).value, ${num(lat)});
+var lng = lmlPick(effect(${JSON.stringify(PIN_EFFECTS.longitude)})(1).value, ${num(lng)});
+${projectionPrelude()}var pin = lmlProject(lat, lng, 0);
+var zoom = lmlView.zoom, bearing = lmlView.bearing;
 `;
 }
 
 export function pinExpressions(lat: number, lng: number): PinExpressions {
   const base = prelude(lat, lng);
   return {
-    position: `${base}const c = map.toComp([pin.x, pin.y]);
+    position: `${base}var c = map.toComp([pin.x, pin.y]);
 value.length > 2 ? [c[0], c[1], value[2]] : [c[0], c[1]];`,
-    scale: `${base}const on = effect(${JSON.stringify(PIN_EFFECTS.scaleWithMap)})(1).value;
-const f = on ? pin.k * Math.pow(2, zoom - effect(${JSON.stringify(PIN_EFFECTS.referenceZoom)})(1).value) : 1;
-value.map((v) => v * f);`,
+    scale: `${base}var on = effect(${JSON.stringify(PIN_EFFECTS.scaleWithMap)})(1).value;
+var f = on ? pin.k * Math.pow(2, zoom - effect(${JSON.stringify(PIN_EFFECTS.referenceZoom)})(1).value) : 1;
+var scaled = [];
+for (var i = 0; i < value.length; i++) scaled.push(value[i] * f);
+scaled;`,
     // On a flat map north turns with the bearing; on the globe it is measured on screen, since
     // meridians converge towards the poles.
-    rotation: `${base}const turn = (() => {
+    rotation: `${base}var turn = (function () {
   if (!lmlView.globe) return -bearing;
-  const north = lmlProject(Math.min(89.9, lat + 0.01), lng, 0);
+  var north = lmlProject(Math.min(89.9, lat + 0.01), lng, 0);
   return Math.atan2(north.x - pin.x, pin.y - north.y) * 180 / Math.PI;
 })();
 effect(${JSON.stringify(PIN_EFFECTS.rotateWithMap)})(1).value ? value + turn : value;`,
