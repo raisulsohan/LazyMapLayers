@@ -12,8 +12,10 @@
 //   buildings    3D buildings
 //   landMatte    white where land (inland water excluded), no holdout
 //   waterMatte   white where water; landMatte + waterMatte cover every pixel exactly once
-//   highlight    highlighted countries alone, with alpha; never part of the base pass, and added by
-//                the render job itself whenever a map has highlights (it is not a user setting)
+//   highlight    highlighted countries and areas alone, with alpha; never part of the base pass, and
+//                added by the render job itself whenever a map has highlights (it is not a user
+//                setting). Either one pass for all of them, or one pass each ("highlight-<code>"), so
+//                every highlight is its own layer in After Effects.
 //
 // Holdouts: buildings stand in front of everything on the ground, so a ground pass loses the pixels a
 // building covers. Laying a roads pass with a glow over the base pass then never glows through a
@@ -22,13 +24,23 @@
 export type LayerGroup = "background" | "imagery" | "land" | "water" | "boundaries" | "roads" | "buildings" | "highlight" | "labels" | "overlay";
 
 export const PASS_IDS = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte"] as const;
-/** Passes the user can switch on, plus the highlight pass that follows the map's highlights. */
-export type PassId = (typeof PASS_IDS)[number] | "highlight";
-export const HIGHLIGHT_PASS: PassId = "highlight";
+export type HighlightPassId = "highlight" | `highlight-${string}`;
+/** Passes the user can switch on, plus the highlight passes that follow the map's highlights. */
+export type PassId = (typeof PASS_IDS)[number] | HighlightPassId;
+export const HIGHLIGHT_PASS: HighlightPassId = "highlight";
 
-export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings" | "highlight";
+/** The pass of one highlight when every highlight is its own layer: safe as a folder name. */
+export function highlightPassId(code: string): HighlightPassId {
+  return `highlight-${code.replace(/[^A-Za-z0-9]+/g, "-")}`;
+}
 
-export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" }> = {
+export function isHighlightPass(pass: string): pass is HighlightPassId {
+  return pass === HIGHLIGHT_PASS || pass.startsWith("highlight-");
+}
+
+export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings" | HighlightPassId;
+
+export const PASS_INFO: Record<(typeof PASS_IDS)[number] | "highlight", { label: string; kind: "color" | "matte" }> = {
   base: { label: "Base", kind: "color" },
   land: { label: "Land", kind: "color" },
   water: { label: "Water", kind: "color" },
@@ -43,25 +55,28 @@ export const PASS_INFO: Record<PassId, { label: string; kind: "color" | "matte" 
 /** Groups drawn by each render. The base render draws every group except labels unless asked. */
 // Imagery (satellite pictures, shaded relief) covers land and sea alike, so it colours the land and
 // water passes, while "landShapes" (the land polygons alone) says where the land is.
-const RENDER_GROUPS: Record<Exclude<RenderId, "base">, LayerGroup[]> = {
+const RENDER_GROUPS: Record<Exclude<RenderId, "base" | HighlightPassId>, LayerGroup[]> = {
   land: ["land", "imagery"],
   landShapes: ["land"],
   waterFill: ["background", "imagery", "water"],
   waterShapes: ["water"],
   boundaries: ["boundaries"],
   roads: ["roads"],
-  buildings: ["buildings"],
-  highlight: ["highlight"]
+  buildings: ["buildings"]
 };
 
 export function isPassId(value: string): value is PassId {
   return (PASS_IDS as readonly string[]).includes(value);
 }
 
-/** Whether a layer of `group` is drawn in `render`. */
-export function groupVisibleIn(render: RenderId, group: LayerGroup, options: { labels: boolean }): boolean {
+/**
+ * Whether a layer of `group` is drawn in `render`. `highlight` is the code of the highlight a layer
+ * belongs to (style metadata "lml:highlight"): a render of one highlight draws that highlight alone.
+ */
+export function groupVisibleIn(render: RenderId, group: LayerGroup, options: { labels: boolean; highlight?: string | null }): boolean {
   // Highlights are their own layer in After Effects, so the basemap stays clean under them.
   if (render === "base") return group !== "highlight" && (group !== "labels" || options.labels);
+  if (isHighlightPass(render)) return group === "highlight" && (render === HIGHLIGHT_PASS || (!!options.highlight && highlightPassId(options.highlight) === render));
   return RENDER_GROUPS[render].includes(group);
 }
 
@@ -87,7 +102,6 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
         break;
       case "boundaries":
       case "roads":
-      case "highlight":
         needed.add(pass);
         if (holdout) needed.add("buildings");
         break;
@@ -98,11 +112,16 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
       case "waterMatte":
         needed.add("land").add("waterShapes");
         break;
+      default:
+        if (isHighlightPass(pass)) {
+          needed.add(pass);
+          if (holdout) needed.add("buildings");
+        }
     }
   }
   if (hasImagery && (needed.has("land") || needed.has("waterFill"))) needed.add("landShapes");
-  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings", "highlight"];
-  return order.filter((r) => needed.has(r));
+  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings"];
+  return [...order.filter((r) => needed.has(r)), ...[...needed].filter(isHighlightPass)];
 }
 
 const mul = (a: number, b: number) => ((a * b + 127) / 255) | 0;
@@ -179,7 +198,6 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
       }
       case "boundaries":
       case "roads":
-      case "highlight":
         out[pass] = scaled(need(pass), holdoutAt);
         break;
       case "buildings":
@@ -195,6 +213,8 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
         out.waterMatte = whiteMatte(water);
         break;
       }
+      default:
+        if (isHighlightPass(pass)) out[pass] = scaled(need(pass), holdoutAt);
     }
   }
   return out;

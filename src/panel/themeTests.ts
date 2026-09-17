@@ -147,7 +147,7 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
     if (!sequence) throw new Error(`no ${pass} sequence`);
     return decodePng(new Uint8Array(fs().readFileSync(path().join(sequence.folder, sequenceFileName(0))))).rgba;
   };
-  if (first.passes.join(",") !== "base,highlight") problems.push(`passes rendered: ${first.passes.join(",")}`);
+  if (first.passes.join(",") !== "base,highlight-BGD") problems.push(`passes rendered: ${first.passes.join(",")}`);
   const at = (rgba: Uint8Array, place: { lat: number; lng: number }) => {
     const p = project(view, size, place);
     const i = (Math.round(p.y) * size.width + Math.round(p.x)) * 4;
@@ -156,7 +156,7 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   const dhaka = { lat: 23.8, lng: 90.4 };
   const delhi = { lat: 28.6, lng: 77.2 };
   const bay = { lat: 15, lng: 88 };
-  const pass = read(first, "highlight");
+  const pass = read(first, "highlight-BGD");
   const inside = at(pass, dhaka);
   // Premultiplied #ff9d2e at half opacity is about (128, 79, 23, 128); the file stores it unpremultiplied.
   if (inside[3] < 100 || inside[3] > 160 || inside[0] < 200 || inside[2] > 90) problems.push(`Dhaka in the highlight pass is ${inside}`);
@@ -171,12 +171,12 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
       await evalScript(`(function () { var c = LML.pins.findMapLayer(${JSON.stringify(map.id)}).source, out = []; for (var i = 1; i <= c.numLayers; i++) { var t = LML.tag.read(c.layer(i)); out.push({ pass: t ? t.pass : "?", enabled: c.layer(i).enabled, name: c.layer(i).name }); } return LML.json.stringify(out); })()`)
     ) as { pass: string; enabled: boolean; name: string }[];
   const withHighlight = await layers();
-  if (withHighlight.map((l) => `${l.pass}:${l.enabled}`).join(",") !== "highlight:true,base:true") problems.push(`layers after the first render: ${JSON.stringify(withHighlight)}`);
+  if (withHighlight.map((l) => `${l.pass}:${l.enabled}`).join(",") !== "highlight-BGD:true,base:true" || withHighlight[0].name !== "Highlight: Bangladesh") problems.push(`layers after the first render: ${JSON.stringify(withHighlight)}`);
 
   // A colour change redraws the highlight pass alone: the base pass keeps its cached image.
   const baseKeyBefore = first.sequences.find((s) => s.pass === "base")!.firstFramePath;
   const recoloured = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [{ ...highlights[0], color: "#36b3ff" }] });
-  const blue = at(read(recoloured, "highlight"), dhaka);
+  const blue = at(read(recoloured, "highlight-BGD"), dhaka);
   if (blue[2] < 200 || blue[0] > 110) problems.push(`the recoloured highlight is ${blue}`);
   const sameBase = Buffer.compare(fs().readFileSync(baseKeyBefore), fs().readFileSync(recoloured.sequences.find((s) => s.pass === "base")!.firstFramePath)) === 0;
   if (!sameBase) problems.push("the base pass changed with the highlight's colour");
@@ -186,13 +186,47 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   const withoutHighlight = await layers();
   if (none.passes.join(",") !== "base" || withoutHighlight.map((l) => l.pass).join(",") !== "base") problems.push(`after removing the highlight: passes ${none.passes.join(",")}, layers ${JSON.stringify(withoutHighlight)}`);
 
+  // Every highlight is its own layer: two countries and an area give three layers, the area on top,
+  // each holding its own shape alone. Taking one away removes its layer and redraws nothing.
+  const nepal = { lat: 28.2, lng: 84 };
+  const square = [[[[88.5, 21], [90.5, 21], [90.5, 22.2], [88.5, 22.2], [88.5, 21]]]];
+  const three = [
+    { code: "area:delta01", name: "Delta", color: "#5fd38d", fill: 0.6, outline: 2 },
+    { code: "BGD", name: "Bangladesh", color: "#ff9d2e", fill: 0.5, outline: 3 },
+    { code: "NPL", name: "Nepal", color: "#36b3ff", fill: 0.5, outline: 3 }
+  ];
+  const each = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: three, areas: { delta01: square } });
+  if (each.passes.join(",") !== "base,highlight-BGD,highlight-NPL,highlight-area-delta01") problems.push(`three highlights render as ${each.passes.join(",")}`);
+  const eachLayers = await layers();
+  if (eachLayers.map((l) => l.name).join("|") !== "Highlight: Delta|Highlight: Nepal|Highlight: Bangladesh|Basemap" || eachLayers.some((l) => !l.enabled)) problems.push(`layers of three highlights: ${JSON.stringify(eachLayers)}`);
+  const onlyBgd = read(each, "highlight-BGD");
+  const onlyNpl = read(each, "highlight-NPL");
+  const onlyArea = read(each, "highlight-area-delta01");
+  if (at(onlyBgd, dhaka)[3] < 100 || at(onlyBgd, nepal)[3] !== 0) problems.push(`the Bangladesh layer: Dhaka ${at(onlyBgd, dhaka)}, Nepal ${at(onlyBgd, nepal)}`);
+  if (at(onlyNpl, nepal)[3] < 100 || at(onlyNpl, dhaka)[3] !== 0) problems.push(`the Nepal layer: Nepal ${at(onlyNpl, nepal)}, Dhaka ${at(onlyNpl, dhaka)}`);
+  if (at(onlyArea, { lat: 21.6, lng: 89.5 })[3] < 100 || at(onlyArea, dhaka)[3] !== 0) problems.push(`the area layer: inside ${at(onlyArea, { lat: 21.6, lng: 89.5 })}, Dhaka ${at(onlyArea, dhaka)}`);
+  const without = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [three[0], three[1]], areas: { delta01: square } });
+  const withoutLayers = await layers();
+  if (without.rendered !== 0) problems.push(`removing one highlight redrew ${without.rendered} frames`);
+  if (withoutLayers.map((l) => l.pass).join(",") !== "highlight-area-delta01,highlight-BGD,base") problems.push(`layers after removing Nepal: ${JSON.stringify(withoutLayers)}`);
+  // One layer for all: the separate layers give way to a single one, and back again.
+  const merged = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: three, areas: { delta01: square }, highlightLayers: "one" });
+  const mergedLayers = await layers();
+  const all = read(merged, "highlight");
+  if (merged.passes.join(",") !== "base,highlight" || mergedLayers.map((l) => l.pass).join(",") !== "highlight,base") problems.push(`one layer for all: passes ${merged.passes.join(",")}, layers ${JSON.stringify(mergedLayers)}`);
+  if (at(all, dhaka)[3] < 100 || at(all, nepal)[3] < 100) problems.push(`the single layer misses a highlight: Dhaka ${at(all, dhaka)}, Nepal ${at(all, nepal)}`);
+  const storeFolders = fs().readdirSync(merged.storeRoot);
+  if (storeFolders.some((n) => n.startsWith("highlight-NPL "))) problems.push(`sequence folders of a removed highlight stay on disk: ${storeFolders.filter((n) => n.startsWith("highlight-"))}`);
+  await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [], areas: {} });
+  if ((await layers()).map((l) => l.pass).join(",") !== "base") problems.push("highlight layers stay after the last highlight was removed");
+
   // Custom areas: a polygon with a hole, imported as GeoJSON, thinned, highlighted and stored with the map.
   const ring = (cx: number, cy: number, r: number, n: number) => Array.from({ length: n + 1 }, (_, i) => [cx + r * Math.cos((2 * Math.PI * (i % n)) / n), cy + r * Math.sin((2 * Math.PI * (i % n)) / n)]);
   const importedArea = importGeoJson({ type: "Feature", properties: { name: "Bay zone" }, geometry: { type: "Polygon", coordinates: [ring(88, 16, 2.5, 3000), ring(88, 16, 1, 800)] } }, "zone.geojson").areas[0];
   const geometry = simplifyPolygons(importedArea.polygons, AREA_MAX_POINTS);
   const areaHighlights = [{ code: "area:bayzone01", name: "Bay zone", color: "#5fd38d", fill: 0.6, outline: 2 }];
   const withArea = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: areaHighlights, areas: { bayzone01: geometry } });
-  const areaPass = read(withArea, "highlight");
+  const areaPass = read(withArea, "highlight-area-bayzone01");
   const inRing = at(areaPass, { lat: 16, lng: 89.8 });
   const inHole = at(areaPass, { lat: 16, lng: 88 });
   const outsideArea = at(areaPass, { lat: 16, lng: 92 });
@@ -229,7 +263,7 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   if (picked) {
     const provinceGeometry = simplifyPolygons(picked.polygons, AREA_MAX_POINTS);
     const withProvince = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, highlights: [{ code: `area:${picked.id}`, name: picked.name, color: "#ff5fa2", fill: 0.6, outline: 2 }], areas: { [picked.id]: provinceGeometry } });
-    const provincePass = read(withProvince, "highlight");
+    const provincePass = read(withProvince, `highlight-area-${picked.id}`);
     const inProvince = at(provincePass, sylhetCity);
     if (inProvince[3] < 120 || inProvince[0] < 200) problems.push(`inside the highlighted province the pass is ${inProvince}`);
     if (at(provincePass, dhaka)[3] !== 0 || at(provincePass, delhi)[3] !== 0) problems.push(`the province highlight reaches Dhaka ${at(provincePass, dhaka)} or Delhi ${at(provincePass, delhi)}`);
@@ -253,7 +287,7 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
         highlights: [{ code: `area:${paris.id}`, name: paris.name, color: "#ff5fa2", fill: 0.5, outline: 4 }],
         areas: { [paris.id]: simplifyPolygons(paris.polygons, AREA_MAX_POINTS) }
       });
-      const rgba = read(overRegion, "highlight");
+      const rgba = read(overRegion, `highlight-area-${paris.id}`);
       let solid = 0;
       let soft = 0;
       for (let i = 3; i < rgba.length; i += 4) {
@@ -284,7 +318,7 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
     sheet.width = size.width;
     sheet.height = size.height;
     const context = sheet.getContext("2d")!;
-    for (const pass of ["base", "highlight"]) {
+    for (const pass of sample.passes) {
       const file = path().join(sample.sequences.find((q) => q.pass === pass)!.folder, sequenceFileName(0));
       context.drawImage(await createImageBitmap(new Blob([fs().readFileSync(file)], { type: "image/png" })), 0, 0);
     }

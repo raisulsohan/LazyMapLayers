@@ -172,6 +172,7 @@ LML.api.setMapSettings = function (args) {
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
     if (args.highlights !== undefined) tag.highlights = args.highlights;
+    if (args.highlightLayers !== undefined) tag.highlightLayers = args.highlightLayers === "one" ? "one" : "each";
     // Polygons of custom areas are large: they sit on their own comment line, like the shot list.
     if (args.areas !== undefined) {
       var hasAreas = false;
@@ -230,6 +231,7 @@ LML.api.listMaps = function () {
             theme: tag.theme || null,
             relief: !!tag.relief,
             highlights: tag.highlights || [],
+            highlightLayers: tag.highlightLayers === "one" ? "one" : "each",
             projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,

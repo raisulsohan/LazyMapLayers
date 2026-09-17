@@ -108,6 +108,36 @@ export class RenderStore {
     return removed;
   }
 
+  /** Deletes the sequence folders and cached images of highlight passes the map no longer has (unless After Effects still uses them). */
+  pruneStaleHighlights(current: readonly string[], inUse: string[]): number {
+    const nodeFs = fs();
+    const used = inUse.map((p) => path().resolve(p).toLowerCase());
+    let removed = 0;
+    const stale = (pass: string) => (pass === "highlight" || pass.startsWith("highlight-")) && !current.includes(pass);
+    const remove = (folder: string) => {
+      const resolved = path().resolve(folder).toLowerCase();
+      if (used.some((u) => u.startsWith(resolved))) return;
+      nodeFs.rmSync(folder, { recursive: true, force: true });
+      removed++;
+    };
+    try {
+      for (const name of nodeFs.readdirSync(this.root)) {
+        const match = /^(highlight(?:-[A-Za-z0-9-]+)?) (?:final|preview) [0-9]+$/.exec(name);
+        if (match && stale(match[1])) remove(path().join(this.root, name));
+      }
+      for (const name of nodeFs.readdirSync(path().join(this.root, "cache"))) {
+        if (!stale(name)) continue;
+        // Cached images are kept while a sequence of that pass is still in use (Undo may bring it back).
+        if (nodeFs.readdirSync(this.root).some((n) => n.startsWith(`${name} `))) continue;
+        remove(path().join(this.root, "cache", name));
+        for (const file of [...this.known]) if (file.startsWith(path().join(this.root, "cache", name))) this.known.delete(file);
+      }
+    } catch {
+      // Housekeeping only.
+    }
+    return removed;
+  }
+
   /** Bytes used by the cache (sequence folders are links and add nothing). */
   cacheBytes(): number {
     let total = 0;

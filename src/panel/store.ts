@@ -52,6 +52,7 @@ export type MapEntry = {
   /** The map's look (core/style/themes.ts). */
   theme: string | null;
   relief: boolean;
+  highlightLayers?: "each" | "one";
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -186,6 +187,7 @@ function showMap(entry: MapEntry): void {
   themeId.value = themeById(entry.theme).id;
   reliefOn.value = !!entry.relief;
   highlights.value = normaliseHighlights(entry.highlights);
+  highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
   // The polygons of custom areas are read separately: they can be large, and most maps have none.
   if (highlights.value.some((h) => h.code.startsWith(AREA_PREFIX))) {
@@ -281,7 +283,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -545,8 +547,20 @@ export function toggleAreaHighlight(area: ImportedArea): void {
     return;
   }
   void setHighlights(toggleHighlight(highlights.value, code, area.name), had ? areas.value : { ...areas.value, [code.slice(AREA_PREFIX.length)]: geometry });
-  log(had ? `${area.name} is no longer highlighted` : `${area.name} highlighted: render to get it on the Highlight layer above the basemap`, "ok");
+  log(had ? `${area.name} is no longer highlighted` : `${area.name} highlighted: render to get it as its own layer above the basemap`, "ok");
 }
+
+/** "each": every highlight renders as its own After Effects layer. "one": a single layer holds them all. */
+export const highlightLayers = signal<"each" | "one">("each");
+
+export const changeHighlightLayers = (next: "each" | "one") =>
+  run("highlight layers", async () => {
+    highlightLayers.value = next;
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, highlightLayers: next });
+      await readMaps();
+    }
+  });
 
 /** What a click of the highlight tool picks: whole countries, or their provinces. */
 export const highlightLevel = signal<"country" | "province">("country");
@@ -561,7 +575,7 @@ export function toggleProvinceHighlight(province: Province): void {
   }
   const geometry = simplifyPolygons(province.polygons, AREA_MAX_POINTS);
   void setHighlights(toggleHighlight(highlights.value, code, province.name), had ? areas.value : { ...areas.value, [province.id]: geometry });
-  log(had ? `${province.name} is no longer highlighted` : `${province.name} highlighted: render to get it on the Highlight layer above the basemap`, "ok");
+  log(had ? `${province.name} is no longer highlighted` : `${province.name} highlighted: render to get it as its own layer above the basemap`, "ok");
 }
 
 /** A province from a search result (its country and id). */
@@ -660,7 +674,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value }, entry.mapCompName);
   tab.value = "render";
 }
 

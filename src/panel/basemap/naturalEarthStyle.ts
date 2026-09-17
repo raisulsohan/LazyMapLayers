@@ -22,6 +22,8 @@ export type WorldImagery = {
 export const COUNTRY_HIT_LAYER = "country-hit";
 
 export const AREAS_SOURCE = "lml-areas";
+/** Style metadata of a highlight layer: the code of its highlight. */
+export const HIGHLIGHT_METADATA_KEY = "lml:highlight";
 export const SATELLITE_SOURCE = "lml-satellite";
 export const RELIEF_SOURCE = "lml-relief";
 
@@ -163,15 +165,17 @@ export function naturalEarthStyle(
     if (custom && !options.areas?.[areaIdOf(h.code)]) continue;
     const only = (custom ? ["==", ["get", "id"], areaIdOf(h.code)] : ["==", ["get", "adm0_a3"], h.code]) as unknown as boolean;
     const from = custom ? { source: AREAS_SOURCE } : { source, "source-layer": "countries" };
+    // The highlight's code lets a render draw this highlight alone (one After Effects layer each).
+    const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: h.code };
     if (h.fill > 0) {
-      layers.push({ id: `highlight-fill-${i}`, type: "fill", metadata: group("highlight"), ...from, filter: only, paint: { "fill-color": h.color, "fill-opacity": h.fill, "fill-antialias": true } } as LayerSpecification);
+      layers.push({ id: `highlight-fill-${i}`, type: "fill", metadata: own, ...from, filter: only, paint: { "fill-color": h.color, "fill-opacity": h.fill, "fill-antialias": true } } as LayerSpecification);
     }
     if (h.outline > 0) {
       layers.push(
         {
           id: `highlight-glow-${i}`,
           type: "line",
-          metadata: group("highlight"),
+          metadata: own,
           ...from,
           filter: only,
           layout: { "line-join": "round", "line-cap": "round" },
@@ -180,7 +184,7 @@ export function naturalEarthStyle(
         {
           id: `highlight-line-${i}`,
           type: "line",
-          metadata: group("highlight"),
+          metadata: own,
           ...from,
           filter: only,
           layout: { "line-join": "round", "line-cap": "round" },
