@@ -5,7 +5,8 @@
 // holds and fades out between two frames.
 
 import { leaderPathExpression, anchoredPositionExpression, routePathExpression, travellerExpressions } from "../../core/ae/labelExpressions.ts";
-import { simplifyLine } from "../../core/geo/simplify.ts";
+import { paceKeys, type TimedLine } from "../../core/geo/pace.ts";
+import { prepareRouteLine } from "../../core/geo/routeLine.ts";
 import { greatCircle } from "../../core/geo/greatCircle.ts";
 import type { LngLat } from "../../core/geo/mercator.ts";
 import { scriptOf, SCRIPT_FONTS } from "../../core/labels/language.ts";
@@ -63,17 +64,30 @@ export type RouteLineOptions = {
   width?: number;
   /** Adds an arrow that travels along the line while it draws on. */
   traveller?: boolean;
+  /** True for the outline of an area: long legs stay straight on the flat map instead of following the great circle. */
+  outline?: boolean;
+  /** The line's recorded times: it draws on at the pace of the recording (long stops shortened) instead of evenly. */
+  pace?: TimedLine;
 };
 
 /**
  * Any line (an imported track, a road, an area's outline) as a route layer that follows the map and
  * draws on with Trim Paths, with an optional traveller that runs along it at the same pace.
  */
-export async function addRouteLine(mapId: string, line: LngLat[], options: RouteLineOptions): Promise<{ layers: string[]; expressionErrors: string[]; points: number }> {
+export async function addRouteLine(mapId: string, line: LngLat[], options: RouteLineOptions): Promise<{ layers: string[]; expressionErrors: string[]; points: number; keys: number }> {
   const info = await callHost<Info>("renderInfo", { mapId });
   const scale = info.height / 1080;
-  const light = simplifyLine(line, ROUTE_MAX_POINTS);
+  const prepared = prepareRouteLine(line, { maxPoints: ROUTE_MAX_POINTS, geodesic: !options.outline });
+  const light = prepared.points;
   const points = light.map((p) => [p.lat, p.lng, 0]);
+  // Even pace: two eased keys. Recorded pace: the turning points of the recording, as linear keys.
+  const keys: [number, number][] = options.pace
+    ? paceKeys(options.pace, prepared, { startFrame: options.startFrame, endFrame: options.endFrame })
+    : [
+        [options.startFrame, 0],
+        [options.endFrame, 100]
+      ];
+  const linearKeys = keys.length > 2;
   const items: Record<string, unknown>[] = [
     {
       type: "path",
@@ -82,10 +96,8 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       data: { from: [light[0].lng, light[0].lat], to: [light[light.length - 1].lng, light[light.length - 1].lat] },
       pathExpression: routePathExpression(points),
       stroke: { color: options.color ?? [1, 0.78, 0.25], width: (options.width ?? 4) * scale },
-      trimKeys: [
-        [options.startFrame, 0],
-        [options.endFrame, 100]
-      ],
+      trimKeys: keys,
+      linearKeys,
       glow: { radius: 18 * scale, intensity: 0.8 }
     }
   ];
@@ -96,15 +108,13 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       kind: "traveller",
       name: `Traveller: ${options.name}`,
       expressions: travellerExpressions(points),
-      progressKeys: [
-        [options.startFrame, 0],
-        [options.endFrame, 100]
-      ],
+      progressKeys: keys,
+      linearKeys,
       size: 16 * scale
     });
   }
   const made = await callHostWithJobFile<{ layers: string[]; expressionErrors: string[] }>("addOverlays", { mapId, undoName: "Add route", items });
-  return { ...made, points: light.length };
+  return { ...made, points: light.length, keys: keys.length };
 }
 
 export type CalloutOptions = {

@@ -39,8 +39,9 @@ LML.overlays.linkToMap = function (layer, mapLayer) {
 };
 
 /**
- * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity? }, trimKeys?, opacityKeys?, glow?, data? }
- * data (small, such as a route's two ends) is kept in the layer's tag.
+ * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity? }, trimKeys?, linearKeys?, opacityKeys?, glow?, data? }
+ * data (small, such as a route's two ends) is kept in the layer's tag. linearKeys leaves the trim keys
+ * linear (a recorded pace arrives as many keys that must not ease in and out one by one).
  */
 LML.overlays.addPath = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
@@ -63,7 +64,7 @@ LML.overlays.addPath = function (args) {
         var trim = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Filter - Trim");
         var end = trim.property("ADBE Vector Trim End");
         LML.overlays.keyFrames(end, mapLayer, args.trimKeys);
-        LML.overlays.ease(end);
+        if (!args.linearKeys) LML.overlays.ease(end);
     }
     if (args.opacityKeys && args.opacityKeys.length) {
         LML.overlays.keyFrames(layer.property("ADBE Transform Group").property("ADBE Opacity"), mapLayer, args.opacityKeys);
@@ -146,7 +147,7 @@ LML.overlays.addText = function (args) {
  * a "Progress" slider. People who want their own artwork parent it to this layer and switch its
  * Contents off; their layers are never touched.
  * args: { mapId, kind, name, expressions: { position, rotation, opacity }, progressKeys: [[frame, value]],
- *         size, color, strokeColor }
+ *         linearKeys?, size, color, strokeColor }
  */
 LML.overlays.addTraveller = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
@@ -161,7 +162,7 @@ LML.overlays.addTraveller = function (args) {
     var progress = layer.property("ADBE Effect Parade").property("Progress").property(1);
     if (args.progressKeys && args.progressKeys.length) {
         LML.overlays.keyFrames(progress, mapLayer, args.progressKeys);
-        LML.overlays.ease(progress);
+        if (!args.linearKeys) LML.overlays.ease(progress);
     }
 
     // An arrow that points to the right, which is "forward" for the rotation expression.

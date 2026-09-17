@@ -39,16 +39,21 @@ function keepFlags(points: Point[], tolerance: number): Uint8Array {
   return keep;
 }
 
+/** A line with longitudes made continuous across the antimeridian (no jump at ±180). */
+export function continuousLine(line: LngLat[]): LngLat[] {
+  const out: LngLat[] = [];
+  for (const p of line) out.push({ lat: p.lat, lng: out.length ? unwrapLongitudeNear(p.lng, out[out.length - 1].lng) : p.lng });
+  return out;
+}
+
 /**
- * The line with at most `maxPoints` points: the tolerance starts at a tiny fraction of the line's
- * extent and doubles until the line is light enough. Longitudes stay continuous across the
- * antimeridian. Lines that are short already come back unchanged.
+ * Indices of the points a line keeps when thinned to at most `maxPoints`: the tolerance starts at a
+ * tiny fraction of the line's extent and grows until the line is light enough. Lines that are short
+ * already keep every point.
  */
-export function simplifyLine(line: LngLat[], maxPoints: number): LngLat[] {
-  if (line.length <= Math.max(2, maxPoints)) return line;
-  const continuous: LngLat[] = [];
-  for (const p of line) continuous.push({ lat: p.lat, lng: continuous.length ? unwrapLongitudeNear(p.lng, continuous[continuous.length - 1].lng) : p.lng });
-  const world = continuous.map((p) => lngLatToWorld(p, 0));
+export function simplifyLineIndices(line: LngLat[], maxPoints: number): number[] {
+  if (line.length <= Math.max(2, maxPoints)) return line.map((_, i) => i);
+  const world = continuousLine(line).map((p) => lngLatToWorld(p, 0));
   let minX = Infinity;
   let maxX = -Infinity;
   let minY = Infinity;
@@ -62,14 +67,33 @@ export function simplifyLine(line: LngLat[], maxPoints: number): LngLat[] {
   let tolerance = Math.max(1e-12, Math.hypot(maxX - minX, maxY - minY) / 20000);
   for (let round = 0; round < 40; round++) {
     const keep = keepFlags(world, tolerance);
-    let count = 0;
-    for (let i = 0; i < keep.length; i++) count += keep[i];
-    if (count <= maxPoints) return continuous.filter((_, i) => keep[i] === 1);
+    const indices: number[] = [];
+    for (let i = 0; i < keep.length; i++) if (keep[i] === 1) indices.push(i);
+    if (indices.length <= maxPoints) return indices;
     tolerance *= 1.6;
   }
   // A pathological line: fall back to even sampling.
   const step = (line.length - 1) / (maxPoints - 1);
-  return Array.from({ length: maxPoints }, (_, i) => continuous[Math.round(i * step)]);
+  return Array.from({ length: maxPoints }, (_, i) => Math.round(i * step));
+}
+
+/**
+ * The line with at most `maxPoints` points (Douglas–Peucker). Longitudes stay continuous across the
+ * antimeridian. Lines that are short already come back unchanged.
+ */
+export function simplifyLine(line: LngLat[], maxPoints: number): LngLat[] {
+  if (line.length <= Math.max(2, maxPoints)) return line;
+  const continuous = continuousLine(line);
+  return simplifyLineIndices(line, maxPoints).map((i) => continuous[i]);
+}
+
+/** Indices of the points a curve of (x, y) values keeps within a tolerance (Douglas–Peucker). */
+export function simplifyCurveIndices(points: Point[], tolerance: number): number[] {
+  if (points.length <= 2) return points.map((_, i) => i);
+  const keep = keepFlags(points, tolerance);
+  const indices: number[] = [];
+  for (let i = 0; i < keep.length; i++) if (keep[i] === 1) indices.push(i);
+  return indices;
 }
 
 /**
@@ -100,17 +124,22 @@ export function simplifyPolygons(polygons: number[][][][], maxPoints: number): n
   return out.map((polygon) => (polygon[0] ? polygon.filter(Boolean) : [])).filter((polygon) => polygon.length > 0);
 }
 
-/** Length of a line in kilometres along the ground (haversine per segment). */
-export function lineLengthKm(line: LngLat[]): number {
+/** Kilometres along the ground from the first point to each point of a line (haversine per segment). */
+export function cumulativeKm(line: LngLat[]): number[] {
   const R = 6371.0088;
-  let total = 0;
+  const out: number[] = line.length ? [0] : [];
   for (let i = 1; i < line.length; i++) {
     const a = line[i - 1];
     const b = line[i];
     const dLat = ((b.lat - a.lat) * Math.PI) / 180;
     const dLng = ((b.lng - a.lng) * Math.PI) / 180;
     const h = Math.sin(dLat / 2) ** 2 + Math.cos((a.lat * Math.PI) / 180) * Math.cos((b.lat * Math.PI) / 180) * Math.sin(dLng / 2) ** 2;
-    total += 2 * R * Math.asin(Math.min(1, Math.sqrt(h)));
+    out.push(out[i - 1] + 2 * R * Math.asin(Math.min(1, Math.sqrt(h))));
   }
-  return total;
+  return out;
+}
+
+/** Length of a line in kilometres along the ground. */
+export function lineLengthKm(line: LngLat[]): number {
+  return line.length ? cumulativeKm(line)[line.length - 1] : 0;
 }

@@ -148,6 +148,7 @@ export function RegionSheetView(): JSX.Element | null {
 /** What an imported file holds: every line can be framed, drawn as a route, given a traveller, or flown along. */
 export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | null {
   const [seconds, setSeconds] = useState(5);
+  const [recordedPace, setRecordedPace] = useState(false);
   const data = imported.value;
   if (!importSheetOpen.value || !data) return null;
   const hasMap = !!selected.value;
@@ -163,10 +164,10 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
           <button class="small-button" title="Frame this line in the preview" onClick={() => fitLine(line.points)}>
             Fit
           </button>
-          <button class="small-button" disabled={busy.value || !hasMap} title="A route layer that follows the map and draws on from the current time" onClick={() => void drawImportedLine(line, seconds, false)}>
+          <button class="small-button" disabled={busy.value || !hasMap} title="A route layer that follows the map and draws on from the current time" onClick={() => void drawImportedLine(line, seconds, false, recordedPace)}>
             Draw
           </button>
-          <button class="small-button" disabled={busy.value || !hasMap} title="The route, plus an arrow that travels along it and turns with it. Parent your own artwork to the Traveller layer." onClick={() => void drawImportedLine(line, seconds, true)}>
+          <button class="small-button" disabled={busy.value || !hasMap} data-id={`import-arrow-${i}`} title="The route, plus an arrow that travels along it and turns with it. Parent your own artwork to the Traveller layer." onClick={() => void drawImportedLine(line, seconds, true, recordedPace)}>
             Draw + arrow
           </button>
           <button class="small-button" disabled={!hasMap} title="Adds shots that move the camera along this line (Shots tab; Play shows it at once)" onClick={() => addRouteShot(line, seconds)}>
@@ -204,6 +205,12 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
           <input type="number" min={0.5} step={0.5} value={seconds} onChange={(e) => setSeconds(Math.max(0.5, Number((e.target as HTMLInputElement).value) || 5))} />
           <span class="muted">s</span>
         </label>
+        {data.lines.some((line) => line.times) && (
+          <label class="check" title="Lines that were recorded with times (GPS tracks, flight logs) draw on at the pace of the recording: fast where it was fast, slow where it was slow, with long stops shortened. Off: an even pace.">
+            <input type="checkbox" data-id="recorded-pace" checked={recordedPace} onChange={(e) => setRecordedPace((e.target as HTMLInputElement).checked)} />
+            <span>Recorded pace</span>
+          </label>
+        )}
         {data.places.length > 0 && (
           <button class="small-button" disabled={busy.value || !hasMap} onClick={() => void pinImportedPlaces(data.places)}>
             Pin {data.places.length} {data.places.length === 1 ? "place" : "places"}
@@ -213,7 +220,7 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
         <button class="small-button" disabled={busy.value} onClick={props.pickFile}>
           Another file…
         </button>
-        <button class="small-button" onClick={() => (importSheetOpen.value = false)}>
+        <button class="small-button" data-id="import-close" onClick={() => (importSheetOpen.value = false)}>
           Close
         </button>
       </div>
@@ -237,7 +244,7 @@ export function HighlightSheetView(): JSX.Element | null {
           Provinces
         </button>
       </div>
-      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML or GeoJSON file and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
+      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />

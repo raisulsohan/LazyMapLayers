@@ -10,8 +10,10 @@ export type ImportedLine = {
   /** True for the outline of an area (a polygon's outer ring). */
   closed: boolean;
   lengthKm: number;
-  /** Seconds from the first point, when the file carries times (GPS tracks); same length as points. */
+  /** Seconds from the first point at which each point was reached, when the file carries times (GPS tracks). */
   times?: number[];
+  /** Seconds at which each point was left: later than `times` where the recording stood still. */
+  leaves?: number[];
 };
 
 export type ImportedPlace = { name: string; lat: number; lng: number };
@@ -25,16 +27,24 @@ type Position = number[];
 
 const validPosition = (p: unknown): p is Position => Array.isArray(p) && Number.isFinite(p[0]) && Number.isFinite(p[1]) && Math.abs(p[1] as number) <= 90;
 
-function toPoints(coordinates: unknown): LngLat[] {
-  if (!Array.isArray(coordinates)) return [];
-  const out: LngLat[] = [];
-  for (const p of coordinates) {
-    if (!validPosition(p)) continue;
-    const last = out[out.length - 1];
-    if (last && last.lng === p[0] && last.lat === p[1]) continue;
-    out.push({ lng: p[0], lat: p[1] });
-  }
-  return out;
+/** The valid points of a coordinate list without immediate repeats; `first` and `last` are the raw indices each point stands for. */
+function toPoints(coordinates: unknown): { points: LngLat[]; first: number[]; last: number[] } {
+  const points: LngLat[] = [];
+  const first: number[] = [];
+  const last: number[] = [];
+  if (!Array.isArray(coordinates)) return { points, first, last };
+  coordinates.forEach((p, i) => {
+    if (!validPosition(p)) return;
+    const previous = points[points.length - 1];
+    if (previous && previous.lng === p[0] && previous.lat === p[1]) {
+      last[last.length - 1] = i;
+      return;
+    }
+    points.push({ lng: p[0], lat: p[1] });
+    first.push(i);
+    last.push(i);
+  });
+  return { points, first, last };
 }
 
 function nameOf(properties: Record<string, unknown> | null | undefined, fallback: string): string {
@@ -46,18 +56,39 @@ function nameOf(properties: Record<string, unknown> | null | undefined, fallback
   return fallback;
 }
 
-/** Track times as seconds from the start (togeojson puts GPX times into coordinateProperties.times). */
-function timesOf(properties: Record<string, unknown> | null | undefined, count: number, part: number): number[] | undefined {
+/** Seconds for a time written as a number (milliseconds, or seconds when small) or as a date. */
+export function toSeconds(value: unknown): number {
+  if (typeof value === "number") return Math.abs(value) > 1e11 ? value / 1000 : value;
+  const text = String(value ?? "").trim();
+  if (!text) return NaN;
+  if (/^-?\d+(\.\d+)?$/.test(text)) return toSeconds(Number(text));
+  return Date.parse(text) / 1000;
+}
+
+/**
+ * Arrival and departure of each kept point as seconds from the start, from one raw time per raw
+ * coordinate (togeojson puts GPX times into coordinateProperties.times). Undefined when times are
+ * missing, unreadable or run backwards.
+ */
+export function trackTimes(rawTimes: unknown, rawCount: number, first: number[], last: number[]): { times: number[]; leaves?: number[] } | undefined {
+  if (!Array.isArray(rawTimes) || rawTimes.length !== rawCount || first.length < 2) return undefined;
+  const seconds = rawTimes.map(toSeconds);
+  const times = first.map((i) => seconds[i]);
+  const leaves = last.map((i) => seconds[i]);
+  if (times.some((s) => !Number.isFinite(s)) || leaves.some((s) => !Number.isFinite(s))) return undefined;
+  const start = times[0];
+  for (let i = 0; i < times.length; i++) {
+    times[i] -= start;
+    leaves[i] -= start;
+    if (leaves[i] < times[i] || (i > 0 && times[i] < leaves[i - 1])) return undefined;
+  }
+  if (!(leaves[leaves.length - 1] > 0)) return undefined;
+  return leaves.some((s, i) => s > times[i]) ? { times, leaves } : { times };
+}
+
+function timesOf(properties: Record<string, unknown> | null | undefined, part: number): unknown {
   const raw = (properties?.coordinateProperties as { times?: unknown } | undefined)?.times ?? properties?.coordTimes;
-  let list: unknown = raw;
-  if (Array.isArray(raw) && Array.isArray(raw[0])) list = raw[part];
-  if (!Array.isArray(list) || list.length !== count) return undefined;
-  const seconds = list.map((t) => (typeof t === "number" ? t / 1000 : Date.parse(String(t)) / 1000));
-  if (seconds.some((s) => !Number.isFinite(s))) return undefined;
-  const first = seconds[0];
-  const out = seconds.map((s) => s - first);
-  for (let i = 1; i < out.length; i++) if (out[i] < out[i - 1]) return undefined;
-  return out[out.length - 1] > 0 ? out : undefined;
+  return Array.isArray(raw) && Array.isArray(raw[0]) ? raw[part] : raw;
 }
 
 export function importGeoJson(data: unknown, fileName = "Import"): Imported {
@@ -74,13 +105,13 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
   collect(data);
 
   const addLine = (coordinates: unknown, name: string, closed: boolean, properties: Record<string, unknown> | null | undefined, part: number) => {
-    const points = toPoints(coordinates);
+    const { points, first, last } = toPoints(coordinates);
     if (points.length < 2) {
       result.skipped++;
       return;
     }
     const rawCount = Array.isArray(coordinates) ? coordinates.length : 0;
-    result.lines.push({ name, points, closed, lengthKm: lineLengthKm(points), times: points.length === rawCount ? timesOf(properties, rawCount, part) : undefined });
+    result.lines.push({ name, points, closed, lengthKm: lineLengthKm(points), ...(closed ? {} : trackTimes(timesOf(properties, part), rawCount, first, last)) });
   };
 
   const addArea = (polygons: unknown, name: string) => {
