@@ -155,11 +155,23 @@ function StatusLine(): JSX.Element {
           <div class="progress">
             <div class="bar-fill" style={{ width: `${Math.round((100 * p.done) / Math.max(1, p.total))}%` }} />
             <span>
-              {p.label} {p.total > 1 ? `${Math.round((100 * p.done) / p.total)}%` : "…"}
+              {p.label} {p.total <= 1 ? "…" : p.total > 1000 ? `${Math.round((100 * p.done) / p.total)}%` : `${p.done} of ${p.total}`}
             </span>
           </div>
         ) : (
           <span class="status-text">{busy.value ? "Working…" : last?.text ?? hostInfo.value}</span>
+        )}
+        {p?.cancel && (
+          <button
+            class="small-button"
+            data-id="cancel-progress"
+            onClick={(e) => {
+              e.stopPropagation();
+              p.cancel?.();
+            }}
+          >
+            Cancel
+          </button>
         )}
         <Icon name={logOpen.value ? "chevronDown" : "chevronRight"} size={11} />
       </div>

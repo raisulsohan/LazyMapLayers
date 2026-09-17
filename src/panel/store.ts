@@ -53,7 +53,7 @@ export type MapEntry = {
   expressionEngine: string | null;
 };
 
-export type Progress = { label: string; done: number; total: number } | null;
+export type Progress = { label: string; done: number; total: number; cancel?: () => void } | null;
 export type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
 export type Screen = "main" | "maps" | "newMap" | "settings";
 export type Tab = "shots" | "render";
@@ -96,6 +96,10 @@ export const regionSheet = signal<RegionSheet | null>(null);
 export const jobs = signal<QueueJob[]>([]);
 export const flightSeconds = signal(6);
 export const labelLanguage = signal("local+en");
+/** How many names Auto labels may place: the most important ones come first. */
+export const LABEL_DENSITIES = { few: { label: "Few (up to 20)", max: 20 }, normal: { label: "Normal (up to 45)", max: 45 }, many: { label: "Many (up to 120)", max: 120 } } as const;
+export type LabelDensity = keyof typeof LABEL_DENSITIES;
+export const labelDensity = signal<LabelDensity>("normal");
 export const liveLink = signal(false);
 /** Preview names and lines at their rendered size instead of enlarged to stay readable. */
 export const exactLook = signal(false);
@@ -472,11 +476,31 @@ export const runAutoLabels = () =>
   run("labels", async () => {
     const mapId = selectedId.value;
     if (!mapId) return;
-    progress.value = { label: "Placing labels over the timeline", done: 0, total: 1 };
+    const stopper = new AbortController();
+    const cancel = () => stopper.abort();
+    progress.value = { label: "Choosing names for the whole timeline", done: 0, total: 1, cancel };
     const choice = labelLanguage.value;
     const fixed = choice !== "local" && choice !== "local+en";
-    const result = await autoLabels(mapId, { language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" }, english: choice === "local+en", theme: themeId.value });
-    log(`labels: ${result.labels} placed over the timeline (${result.layers} layers, ${result.removed} old layers replaced) in ${result.seconds.toFixed(1)} s`, result.expressionErrors.length ? "fail" : "ok");
+    const result = await autoLabels(mapId, {
+      language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" },
+      english: choice === "local+en",
+      theme: themeId.value,
+      maxLabels: LABEL_DENSITIES[labelDensity.value].max,
+      signal: stopper.signal,
+      // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
+      onProgress: (done, total) => (progress.value = { label: "Adding names", done, total, cancel })
+    });
+    const summary = `${result.labels} of ${result.planned} names added (${result.layers} layers, ${result.removed} old layers replaced) in ${result.seconds.toFixed(1)} s`;
+    if (result.cancelled) log(`labels cancelled: ${summary}. The names added so far stay; Remove labels takes them away`, "muted");
+    else log(`labels: ${summary}`, result.expressionErrors.length ? "fail" : "ok");
+  });
+
+export const removeLabels = () =>
+  run("remove labels", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) return;
+    const result = await callHost<{ removed: number }>("removeLabels", { mapId });
+    log(result.removed ? `removed ${result.removed} label layers (one undo step)` : "this map has no labels from Auto labels", result.removed ? "ok" : "muted");
   });
 
 export const animateBorders = () =>

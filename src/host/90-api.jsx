@@ -37,8 +37,21 @@ LML.api.addCameraRig = function (args) {
 };
 
 LML.api.addLabels = function (args) {
-    return LML.withUndo("Auto labels", function () {
+    return LML.withUndo(args.undoName || "Auto labels", function () {
         return LML.labels.addLabels(args);
+    });
+};
+
+/** Ends a batched label build that was cancelled or failed (brings the scene back into the viewer). */
+LML.api.finishLabels = function () {
+    return LML.labels.finish();
+};
+
+/** Removes every label Auto labels made for a map, in one undo step. */
+LML.api.removeLabels = function (args) {
+    var scene = LML.pins.findMapLayer(args.mapId).containingComp;
+    return LML.withUndo("Remove labels", function () {
+        return { removed: LML.labels.removeTagged(scene, args.mapId, "label") };
     });
 };
 

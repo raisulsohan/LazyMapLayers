@@ -22,7 +22,7 @@ import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
 import { runShotTests } from "./shotTests.ts";
-import { runHighlightTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
+import { runHighlightTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
 import { extensionRoot } from "./cep.ts";
 
@@ -256,6 +256,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.TH1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`TH1 failed: ${results.TH1_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("LB1")) {
+    try {
+      results.LB1_labels = await runLabelTimingTest(log);
+    } catch (error) {
+      results.LB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`LB1 failed: ${results.LB1_error}`, "fail");
     }
   }
 

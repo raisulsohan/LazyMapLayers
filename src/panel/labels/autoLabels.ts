@@ -21,6 +21,10 @@ export type AutoLabelOptions = {
   maxLabels?: number;
   /** The map's look: labels take their colours from it (light text on dark maps, dark on light ones). */
   theme?: string | null;
+  /** Called after every batch of labels built in After Effects. */
+  onProgress?: (done: number, total: number) => void;
+  /** Stops after the batch in progress; the labels built so far stay. */
+  signal?: AbortSignal;
   /** Place labels fade away above this zoom, where the map shows the city itself. */
   placeMaxZoom?: number;
   /**
@@ -30,7 +34,24 @@ export type AutoLabelOptions = {
   keepOut?: { lat: number; lng: number; fromFrame: number; toFrame: number; dx: number; dy: number; width: number; height: number }[];
 };
 
-export type AutoLabelResult = { candidates: number; labels: number; layers: number; removed: number; expressionErrors: string[]; seconds: number; timings: Record<string, number> };
+export type AutoLabelResult = {
+  candidates: number;
+  labels: number;
+  layers: number;
+  removed: number;
+  expressionErrors: string[];
+  seconds: number;
+  timings: Record<string, number>;
+  hostTimings: Record<string, number>;
+  /** Labels the placement chose; fewer were built when the build was cancelled. */
+  planned: number;
+  cancelled: boolean;
+  /** The longest single call into After Effects, in milliseconds (how long it was busy at most). */
+  longestCallMs: number;
+};
+
+/** Labels per call into After Effects: small enough that it never blocks for more than a second or two. */
+export const LABEL_BATCH = 8;
 
 type TextStyle = { size: number; color: number[]; haloColor: number[]; haloWidth: number; fonts: string[]; tracking: number; rtl: boolean };
 
@@ -182,7 +203,38 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       }
     };
   });
-  const result = await callHostWithJobFile<{ labels: number; layers: number; removed: number; expressionErrors: string[] }>("addLabels", { mapId, labels });
+  // Built in small batches, so After Effects stays responsive and the build can be cancelled.
+  type Batch = { labels: number; layers: number; removed: number; expressionErrors: string[]; timings?: Record<string, number> };
+  const total = { labels: 0, layers: 0, removed: 0, expressionErrors: [] as string[], hostTimings: {} as Record<string, number> };
+  const batches = Math.max(1, Math.ceil(labels.length / LABEL_BATCH));
+  let cancelled = false;
+  let longestCallMs = 0;
+  try {
+    for (let b = 0; b < batches; b++) {
+      if (options.signal?.aborted) {
+        cancelled = true;
+        break;
+      }
+      const callStarted = performance.now();
+      const part = await callHostWithJobFile<Batch>("addLabels", {
+        mapId,
+        labels: labels.slice(b * LABEL_BATCH, (b + 1) * LABEL_BATCH),
+        first: b === 0,
+        last: b === batches - 1,
+        undoName: batches > 1 ? `Auto labels (${b + 1} of ${batches})` : "Auto labels"
+      });
+      longestCallMs = Math.max(longestCallMs, performance.now() - callStarted);
+      total.labels += part.labels;
+      total.layers += part.layers;
+      total.removed += part.removed;
+      total.expressionErrors.push(...part.expressionErrors);
+      for (const [step, ms] of Object.entries(part.timings ?? {})) total.hostTimings[step] = (total.hostTimings[step] ?? 0) + ms;
+      options.onProgress?.(total.labels, labels.length);
+    }
+  } finally {
+    // A cancelled or failed build still brings the scene back into the viewer.
+    if (cancelled || total.labels < labels.length) await callHost("finishLabels").catch(() => undefined);
+  }
   lap("host");
-  return { candidates: prepared.length, ...result, seconds: (performance.now() - started) / 1000, timings };
+  return { candidates: prepared.length, ...total, planned: labels.length, cancelled, longestCallMs: Math.round(longestCallMs), seconds: (performance.now() - started) / 1000, timings };
 }

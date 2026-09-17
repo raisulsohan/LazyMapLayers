@@ -306,3 +306,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   country (to animate them apart) and provinces or custom regions (they need boundary data, Phase 4)
   come later. In the preview, highlight sizes are not enlarged like other lines, because they are
   part of the picture.
+
+## D21 — Labels are built in batches (2026-09-18)
+
+- **Context.** Auto labels sent every label to the host in one call. With the world flight's 140 labels
+  (307 layers) After Effects was blocked for 47 seconds with no progress and no way out. Sohan asked
+  why so many names had to be placed at once: they do not.
+- **Measured (LB1, 60 labels, 143 layers).** Creating a layer costs about 15 ms, the Layer Control and
+  the expression about 12 ms, styling text about 7 ms; reading the expression error back is not the
+  cost. One big call took 7.8 s, the same work in eight calls 4.8 s; the demo's 140 labels went from
+  48.9 s to 14.2 s, with no call longer than 1.1 s.
+- **Decision.** The panel sends labels in batches of eight (`LABEL_BATCH`). The first batch removes the
+  old labels and takes the scene out of the viewer, the last brings it back; `finishLabels` does that
+  for a cancelled or failed build. The status line shows "Adding names 16 of 45" with Cancel. The
+  Labels sheet offers Few (20), Normal (45, the default) or Many (120) names and Remove labels.
+- **Consequences.** Every batch is its own undo step ("Auto labels (2 of 6)"): After Effects cannot
+  keep one undo group open across calls. Remove labels and running Auto labels again both clear all
+  labels in one step, which is what people need in practice.

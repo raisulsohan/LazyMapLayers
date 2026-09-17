@@ -8,8 +8,9 @@ import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../
 import { THEMES } from "../core/style/themes.ts";
 import { basemapStyle, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
-import { evalScript, fs, path } from "./cep.ts";
+import { callHost, evalScript, fs, path } from "./cep.ts";
 import { hasImagery } from "./imagery/packs.ts";
+import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import { runRenderJob } from "./render/renderJob.ts";
@@ -208,4 +209,39 @@ export async function runHighlightTest(log: SpikeLog): Promise<Record<string, un
   log(`HL1 highlight pass: Dhaka ${inside.join(",")}, own layer switched on, base untouched, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
   return { passed, inside, problems };
+}
+
+// LB1: auto labels arrive in small batches. No single call may keep After Effects busy for long, a
+// cancelled build stops early and leaves the viewer on the scene, and Remove labels clears them all.
+export async function runLabelTimingTest(log: SpikeLog): Promise<Record<string, unknown>> {
+  const problems: string[] = [];
+  const view: View = { center: { lat: 48, lng: 12 }, zoom: 4.3, bearing: 0, pitch: 0 };
+  const map = await createMapComp({ name: "LB1 labels", width: 1920, height: 1080, duration: 6, frameRate: 25, view, newScene: true });
+  let calls = 0;
+  const result = await autoLabels(map.id, { maxLabels: 60, onProgress: () => calls++ });
+  if (result.expressionErrors.length) problems.push(`expression errors: ${result.expressionErrors.slice(0, 3).join("; ")}`);
+  if (result.labels !== result.planned || result.cancelled) problems.push(`built ${result.labels} of ${result.planned} labels`);
+  if (calls < 2) problems.push(`only ${calls} batches`);
+  if (result.longestCallMs > 3000) problems.push(`one call kept After Effects busy for ${result.longestCallMs} ms`);
+
+  // Cancel after the first batch.
+  const stopper = new AbortController();
+  const cancelled = await autoLabels(map.id, { maxLabels: 60, signal: stopper.signal, onProgress: () => stopper.abort() });
+  if (!cancelled.cancelled || cancelled.labels >= cancelled.planned) problems.push(`cancelling built ${cancelled.labels} of ${cancelled.planned} labels`);
+  const state = JSON.parse(
+    await evalScript(`(function () { var l = LML.pins.findMapLayer(${JSON.stringify(map.id)}); var scene = l.containingComp, n = 0; for (var i = 1; i <= scene.numLayers; i++) { var t = LML.tag.read(scene.layer(i)); if (t && t.kind === "label") n++; } return LML.json.stringify({ labelLayers: n, sceneInViewer: app.project.activeItem === scene, pending: LML.labels.pending !== null }); })()`)
+  ) as { labelLayers: number; sceneInViewer: boolean; pending: boolean };
+  if (state.labelLayers !== cancelled.layers) problems.push(`${state.labelLayers} label layers after cancelling, expected ${cancelled.layers} (the old ones are replaced)`);
+  if (!state.sceneInViewer || state.pending) problems.push(`after cancelling the viewer is ${state.sceneInViewer ? "on" : "not on"} the scene, pending ${state.pending}`);
+
+  const removed = await callHost<{ removed: number }>("removeLabels", { mapId: map.id });
+  if (removed.removed !== cancelled.layers) problems.push(`Remove labels removed ${removed.removed} of ${cancelled.layers} layers`);
+
+  const passed = problems.length === 0;
+  log(
+    `LB1 labels: ${result.labels} labels (${result.layers} layers) in ${result.seconds.toFixed(1)} s over ${calls} calls, longest ${result.longestCallMs} ms; host ${JSON.stringify(result.hostTimings)}; ${problems.length} problems`,
+    passed ? "ok" : "fail"
+  );
+  for (const problem of problems) log(`  ${problem}`, "fail");
+  return { passed, labels: result.labels, layers: result.layers, seconds: result.seconds, calls, longestCallMs: result.longestCallMs, host: result.hostTimings, problems };
 }
