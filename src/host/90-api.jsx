@@ -71,6 +71,7 @@ LML.api.addOverlays = function (args) {
             // No chained ?: here: ExtendScript evaluates chained conditional operators wrongly.
             var result;
             if (item.type === "path") result = LML.overlays.addPath(item);
+            else if (item.type === "traveller") result = LML.overlays.addTraveller(item);
             else if (item.type === "box") result = LML.overlays.addBox(item);
             else result = LML.overlays.addText(item);
             for (var e = 0; e < result.expressionErrors.length; e++) errors.push(result.expressionErrors[e]);

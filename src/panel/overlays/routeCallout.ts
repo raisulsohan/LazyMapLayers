@@ -4,7 +4,8 @@
 // callout is a leader line from a place to a rounded box with a title and a subtitle; it draws on,
 // holds and fades out between two frames.
 
-import { leaderPathExpression, anchoredPositionExpression, routePathExpression } from "../../core/ae/labelExpressions.ts";
+import { leaderPathExpression, anchoredPositionExpression, routePathExpression, travellerExpressions } from "../../core/ae/labelExpressions.ts";
+import { simplifyLine } from "../../core/geo/simplify.ts";
 import { greatCircle } from "../../core/geo/greatCircle.ts";
 import type { LngLat } from "../../core/geo/mercator.ts";
 import { scriptOf, SCRIPT_FONTS } from "../../core/labels/language.ts";
@@ -49,6 +50,61 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
       }
     ]
   });
+}
+
+/** Expressions project every point on every frame, so long tracks are thinned to this many points. */
+export const ROUTE_MAX_POINTS = 300;
+
+export type RouteLineOptions = {
+  name: string;
+  startFrame: number;
+  endFrame: number;
+  color?: number[];
+  width?: number;
+  /** Adds an arrow that travels along the line while it draws on. */
+  traveller?: boolean;
+};
+
+/**
+ * Any line (an imported track, a road, an area's outline) as a route layer that follows the map and
+ * draws on with Trim Paths, with an optional traveller that runs along it at the same pace.
+ */
+export async function addRouteLine(mapId: string, line: LngLat[], options: RouteLineOptions): Promise<{ layers: string[]; expressionErrors: string[]; points: number }> {
+  const info = await callHost<Info>("renderInfo", { mapId });
+  const scale = info.height / 1080;
+  const light = simplifyLine(line, ROUTE_MAX_POINTS);
+  const points = light.map((p) => [p.lat, p.lng, 0]);
+  const items: Record<string, unknown>[] = [
+    {
+      type: "path",
+      kind: "route",
+      name: options.name,
+      data: { from: [light[0].lng, light[0].lat], to: [light[light.length - 1].lng, light[light.length - 1].lat] },
+      pathExpression: routePathExpression(points),
+      stroke: { color: options.color ?? [1, 0.78, 0.25], width: (options.width ?? 4) * scale },
+      trimKeys: [
+        [options.startFrame, 0],
+        [options.endFrame, 100]
+      ],
+      glow: { radius: 18 * scale, intensity: 0.8 }
+    }
+  ];
+  if (options.traveller) {
+    // Listed after the route, so it sits above it.
+    items.push({
+      type: "traveller",
+      kind: "traveller",
+      name: `Traveller: ${options.name}`,
+      expressions: travellerExpressions(points),
+      progressKeys: [
+        [options.startFrame, 0],
+        [options.endFrame, 100]
+      ],
+      size: 16 * scale
+    });
+  }
+  const made = await callHostWithJobFile<{ layers: string[]; expressionErrors: string[] }>("addOverlays", { mapId, undoName: "Add route", items });
+  return { ...made, points: light.length };
 }
 
 export type CalloutOptions = {

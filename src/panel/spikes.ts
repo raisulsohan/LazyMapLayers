@@ -21,6 +21,7 @@ import { runGlobeEndToEnd, runGlobeTests } from "./globeTests.ts";
 import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
+import { runRouteTests } from "./routeTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
@@ -265,6 +266,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB1 failed: ${results.LB1_error}`, "fail");
+    }
+  }
+
+  if (wants("RT1")) {
+    try {
+      results.RT1_routes = await runRouteTests(log);
+    } catch (error) {
+      results.RT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`RT1 failed: ${results.RT1_error}`, "fail");
     }
   }
 

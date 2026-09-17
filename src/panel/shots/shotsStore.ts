@@ -7,6 +7,7 @@
 import { computed, signal } from "@preact/signals";
 import type { View } from "../../core/camera/camera.ts";
 import { DEFAULT_MOVE, bakeShots, buildTimeline, newShotId, normaliseShotList, suggestedMoveSeconds, viewAtFrame, type Move, type Shot, type ShotList } from "../../core/camera/shots.ts";
+import { simplifyLine } from "../../core/geo/simplify.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
 import { callHost, callHostWithJobFile, fs, isInCep, path, userDataDir } from "../cep.ts";
 import { captureThumbnail, compView, showCompView } from "../preview.ts";
@@ -154,6 +155,47 @@ export function addShotFromPreview(): void {
   commit({ v: 1, start, shots });
   selectedShot.value = id;
   void snapThumb(id);
+}
+
+/**
+ * Shots that move the camera along a line: the first shot sits on the line's start (unless the list
+ * already ends there), the second on its end, joined by a level "Along route" move over the line.
+ */
+export function addRouteShot(line: { name: string; points: { lat: number; lng: number }[] }, seconds: number): void {
+  const view = compView();
+  if (!view || !selected.value || line.points.length < 2) {
+    log("create or select a map first", "muted");
+    return;
+  }
+  const light = simplifyLine(line.points, 160);
+  const list = shotList.value;
+  const ids = list.shots.map((s) => s.id);
+  const shots = [...list.shots];
+  const at = (p: { lat: number; lng: number }): View => ({ center: { lat: p.lat, lng: p.lng }, zoom: view.zoom, bearing: view.bearing, pitch: view.pitch });
+  const last = shots[shots.length - 1];
+  const start = light[0];
+  const startsHere = last && Math.abs(last.view.center.lat - start.lat) < 1e-4 && Math.abs(last.view.center.lng - start.lng) < 1e-4;
+  if (!startsHere) {
+    const id = newShotId(ids);
+    ids.push(id);
+    const from = last ? timeline.value.shots[shots.length - 1]?.departure ?? last.view : null;
+    shots.push({ id, name: `${line.name} start`, view: at(start), hold: 1, orbit: 0, push: 0, spin: 0, holdEasing: { id: "smooth" }, move: { ...DEFAULT_MOVE, easing: { id: "smooth" }, seconds: from ? suggestedMoveSeconds(from, at(start), viewport()) : DEFAULT_MOVE.seconds } });
+  }
+  const id = newShotId(ids);
+  shots.push({
+    id,
+    name: `${line.name} end`,
+    view: at(light[light.length - 1]),
+    hold: 1,
+    orbit: 0,
+    push: 0,
+    spin: 0,
+    holdEasing: { id: "smooth" },
+    move: { kind: "route", seconds, easing: { id: "smooth" }, height: "normal", pitchDip: false, route: { line: light.map((p) => [p.lng, p.lat] as [number, number]), level: true, followBearing: false } }
+  });
+  commit(normaliseShotList({ v: 1, start: list.shots.length ? list.start : Math.max(0, selected.value.time), shots }));
+  selectedShot.value = id;
+  log(`camera move along "${line.name}" added to the shot list: press Play to see it, Apply to key it`, "ok");
 }
 
 export function updateShotFromPreview(id: string): void {
