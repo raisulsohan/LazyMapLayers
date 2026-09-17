@@ -1,6 +1,19 @@
 # Changelog
 
-## Unreleased — Phase 0 (foundation and spikes)
+## Unreleased — Phase 1 (camera rig and pins), in progress
+
+- **Pinned layers.** `addPin` creates a marker shape layer linked to a map through a Layer
+  Control effect, with these effects: Latitude, Longitude, Scale with Map, Rotate with Map,
+  Reference Zoom.
+- **Pin expressions.** Generated from core maths. They follow the animated camera, pitch and
+  bearing, and the map layer's own transform. They survive renames, and a pin behind the camera is
+  hidden.
+- **Street-level precision.** Exact double coordinates in the expressions work around float32
+  slider precision.
+- **In-AE alignment test P1.** Worst error 0.006 px across 112 comparisons.
+- **Fixed.** Views are read at the scene comp's time.
+
+## Phase 0 (foundation and spikes)
 
 - **Project scaffold.**
   - CEP manifest for AE 24+.

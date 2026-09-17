@@ -106,6 +106,7 @@ LML.map.setViewAtTime = function (layer, view, time) {
     }
 };
 
+/** The controls live on the map layer, so `time` is the scene comp's time, not the map comp's. */
 LML.map.readViewAtTime = function (layer, time) {
     var read = function (name) {
         var prop = LML.map.controlValueProperty(layer, name);
