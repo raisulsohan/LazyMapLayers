@@ -228,3 +228,27 @@ test("imagery colours the land and water passes while the land polygons keep the
   assert.deepEqual([0, 1, 2, 3].map((p) => out.landMatte![p * 4 + 3]), [255, 0, 0, 0]);
   assert.deepEqual([0, 1, 2, 3].map((p) => out.waterMatte![p * 4 + 3]), [0, 255, 255, 255]);
 });
+
+test("every highlight can be its own pass: drawn alone, held out by buildings, named safely", async () => {
+  const { highlightPassId, isHighlightPass } = await import("../../src/core/render/passes.ts");
+  assert.equal(highlightPassId("BGD"), "highlight-BGD");
+  assert.equal(highlightPassId("area:bgd2488"), "highlight-area-bgd2488");
+  assert.ok(isHighlightPass("highlight") && isHighlightPass("highlight-BGD") && !isHighlightPass("highlights") && !isHighlightPass("base"));
+
+  // A render of one highlight draws the layers of that highlight alone; the single pass draws them all.
+  assert.equal(groupVisibleIn("highlight-BGD", "highlight", { labels: false, highlight: "BGD" }), true);
+  assert.equal(groupVisibleIn("highlight-BGD", "highlight", { labels: false, highlight: "NPL" }), false);
+  assert.equal(groupVisibleIn("highlight-BGD", "land", { labels: false }), false);
+  assert.equal(groupVisibleIn("highlight-area-bgd2488", "highlight", { labels: false, highlight: "area:bgd2488" }), true);
+  assert.equal(groupVisibleIn("highlight", "highlight", { labels: false, highlight: "NPL" }), true);
+  assert.equal(groupVisibleIn("base", "highlight", { labels: true, highlight: "BGD" }), false);
+
+  assert.deepEqual(rendersFor(["base", "highlight-BGD", "highlight-area-x1"], true), ["base", "buildings", "highlight-BGD", "highlight-area-x1"]);
+  assert.deepEqual(rendersFor(["highlight-NPL"], false), ["highlight-NPL"]);
+
+  const pixel = (r: number, g: number, b: number, a: number) => new Uint8Array([r, g, b, a]);
+  const composed = composePasses({ "highlight-BGD": pixel(200, 100, 0, 200), "highlight-NPL": pixel(0, 0, 255, 255), buildings: pixel(9, 9, 9, 255) }, ["highlight-BGD", "highlight-NPL"], 1);
+  assert.deepEqual(Array.from(composed["highlight-BGD"]!), [0, 0, 0, 0], "a building holds the highlight out");
+  const open = composePasses({ "highlight-BGD": pixel(200, 100, 0, 200) }, ["highlight-BGD"], 1);
+  assert.deepEqual(Array.from(open["highlight-BGD"]!), [200, 100, 0, 200]);
+});

@@ -400,3 +400,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Zip files.** KMZ and zipped shapefiles are unpacked with fflate (only .kml, .shp, .dbf, .prj and
   .cpg entries); shapefiles are parsed with shpjs's `parseShp`/`parseDbf` directly, because its own
   unzip needs a browser feature that After Effects' Chromium 99 lacks.
+
+## D26 — One render pass per highlight (2026-09-18)
+
+- **Decision.** Highlights stay raster passes (the renderer clips them correctly on the globe, at any
+  pitch, with holes and islands; shape layers driven by expressions would project hundreds of points
+  per frame inside After Effects). By default every highlight is its own pass, `highlight-<code>`
+  (safe as a folder name), drawn from the style layers that carry its code in metadata
+  `lml:highlight`. The map setting `highlightLayers: "one"` keeps the single `highlight` pass.
+- **Cost.** A pass per highlight means a draw, a read-back and a PNG per highlight and frame. Each
+  pass is keyed by its own layers and its own area polygons (layer ids left out, because they count
+  the highlights), so editing one highlight redraws one pass, and the base pass never depends on
+  highlights or on the polygons of areas.
+- **In After Effects.** The panel names the highlight passes a map has now; the host removes the
+  layers (and unused footage) of any other highlight pass, places new country highlights above the
+  older ones and areas above countries. Passes of equal rank import in the order the panel sent,
+  because ExtendScript's sort is not stable. Sequence folders and cached images of highlights that
+  are gone are deleted once After Effects no longer uses them.

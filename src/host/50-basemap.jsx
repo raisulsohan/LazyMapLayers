@@ -11,11 +11,17 @@ LML.basemap.PASS_ORDER = ["base", "land", "water", "boundaries", "roads", "build
 /** Passes that show right away; the others are switched off until the user needs them. */
 LML.basemap.VISIBLE_PASSES = { base: true, highlight: true };
 
+/** "highlight" holds every highlight; "highlight-<code>" holds one (countries below areas). */
+LML.basemap.isHighlightPass = function (pass) {
+    return pass === "highlight" || String(pass).indexOf("highlight-") === 0;
+};
+
 LML.basemap.passOrder = function (pass) {
     for (var i = 0; i < LML.basemap.PASS_ORDER.length; i++) {
         if (LML.basemap.PASS_ORDER[i] === pass) return i;
     }
-    return LML.basemap.PASS_ORDER.length;
+    if (LML.basemap.isHighlightPass(pass)) return LML.basemap.PASS_ORDER.length + (String(pass).indexOf("highlight-area-") === 0 ? 1 : 0);
+    return LML.basemap.PASS_ORDER.length + 2;
 };
 
 /** Whether any camera control is keyframed or driven by an expression. */
@@ -185,7 +191,7 @@ LML.basemap.importPass = function (mapComp, mapId, sequence, quality, stamp) {
     if (!layer) {
         created = true;
         layer = mapComp.layers.add(footage);
-        layer.name = pass === "base" ? "Basemap" : sequence.label + (sequence.kind === "matte" ? "" : " pass");
+        layer.name = pass === "base" ? "Basemap" : sequence.label + (sequence.kind === "matte" || (sequence.kind === "highlight" && pass !== "highlight") ? "" : " pass");
         LML.tag.write(layer, { kind: "basemap", v: 2, mapId: mapId, pass: pass });
         if (pass === "base") {
             layer.moveToEnd();
@@ -199,14 +205,16 @@ LML.basemap.importPass = function (mapComp, mapId, sequence, quality, stamp) {
                 var t = LML.tag.read(other);
                 if (!t || t.kind !== "basemap" || other === layer) continue;
                 var order = LML.basemap.passOrder(t.pass || "base");
-                if (order < LML.basemap.passOrder(pass) && order > belowOrder) {
+                // A new highlight goes above the highlights of its kind that are there already.
+                var under = LML.basemap.isHighlightPass(pass) ? order <= LML.basemap.passOrder(pass) : order < LML.basemap.passOrder(pass);
+                if (under && order > belowOrder) {
                     below = other;
                     belowOrder = order;
                 }
             }
             if (below) layer.moveBefore(below);
             else layer.moveToEnd();
-            layer.enabled = LML.basemap.VISIBLE_PASSES[pass] === true;
+            layer.enabled = LML.basemap.VISIBLE_PASSES[pass] === true || LML.basemap.isHighlightPass(pass);
         }
     }
     LML.basemap.withUnlocked(layer, function () {
@@ -285,32 +293,41 @@ LML.basemap.ensureAttribution = function (mapLayer, text) {
 
 /**
  * args: { mapId, quality: "preview" | "final", stamp, sequences: [{ pass, label, kind, firstFramePath }],
- *         attribution: string | null, dropPasses: [pass] }
- * dropPasses removes the tagged layer (and its footage, when nothing else uses it) of passes the map
- * no longer has, such as the highlight pass after the last highlight was removed.
+ *         attribution: string | null, highlightPasses: [pass] }
+ * highlightPasses lists the highlight passes the map has now: the tagged layer of any other highlight
+ * pass (and its footage, when nothing else uses it) is removed, such as a highlight that was taken
+ * off the map, or the single layer after switching to one layer each.
  */
 LML.basemap.importPasses = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var mapComp = mapLayer.source;
     var imported = [];
     // Base first, so new pass layers find it when they position themselves.
-    var sequences = args.sequences.slice(0);
+    // Passes of the same rank (several highlights) keep the order the panel sent; this sort is not stable.
+    var sequences = [];
+    for (var n = 0; n < args.sequences.length; n++) sequences.push({ sequence: args.sequences[n], index: n });
     sequences.sort(function (a, b) {
-        return LML.basemap.passOrder(a.pass) - LML.basemap.passOrder(b.pass);
+        var byPass = LML.basemap.passOrder(a.sequence.pass) - LML.basemap.passOrder(b.sequence.pass);
+        return byPass !== 0 ? byPass : a.index - b.index;
     });
     for (var i = 0; i < sequences.length; i++) {
-        imported.push(LML.basemap.importPass(mapComp, args.mapId, sequences[i], args.quality, args.stamp));
+        imported.push(LML.basemap.importPass(mapComp, args.mapId, sequences[i].sequence, args.quality, args.stamp));
     }
     var dropped = [];
-    var drop = args.dropPasses || [];
-    for (var d = 0; d < drop.length; d++) {
-        var stale = LML.basemap.findPassLayer(mapComp, drop[d]);
-        if (!stale || drop[d] === "base") continue;
-        var footage = stale.source instanceof FootageItem ? stale.source : null;
-        stale.locked = false;
-        stale.remove();
-        if (footage && LML.tag.read(footage) && footage.usedIn.length === 0) footage.remove();
-        dropped.push(drop[d]);
+    if (args.highlightPasses) {
+        var keep = {};
+        for (var k = 0; k < args.highlightPasses.length; k++) keep[args.highlightPasses[k]] = true;
+        for (var d = mapComp.numLayers; d >= 1; d--) {
+            var stale = mapComp.layer(d);
+            var staleTag = LML.tag.read(stale);
+            if (!staleTag || staleTag.kind !== "basemap" || staleTag.mapId !== args.mapId) continue;
+            if (!LML.basemap.isHighlightPass(staleTag.pass) || keep[staleTag.pass] === true) continue;
+            var footage = stale.source instanceof FootageItem ? stale.source : null;
+            stale.locked = false;
+            stale.remove();
+            if (footage && LML.tag.read(footage) && footage.usedIn.length === 0) footage.remove();
+            dropped.push(staleTag.pass);
+        }
     }
     var attribution = LML.basemap.ensureAttribution(mapLayer, args.attribution);
     return { passes: imported, attribution: attribution, dropped: dropped };

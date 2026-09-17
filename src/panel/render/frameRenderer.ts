@@ -43,6 +43,12 @@ type HideableLayer = { isHidden: (zoom?: number, roundMinZoom?: boolean) => bool
 
 export const GROUP_METADATA_KEY = "lml:group";
 
+/** The code of the highlight a style layer belongs to, or null. */
+export function layerHighlight(layer: { metadata?: unknown }): string | null {
+  const code = (layer.metadata as Record<string, unknown> | undefined)?.["lml:highlight"];
+  return typeof code === "string" ? code : null;
+}
+
 export function layerGroup(layer: { metadata?: unknown }): LayerGroup {
   const metadata = layer.metadata as Record<string, unknown> | undefined;
   const group = metadata?.[GROUP_METADATA_KEY];
@@ -60,6 +66,7 @@ export class FrameRenderer {
   private container: HTMLDivElement | null = null;
   private reader: GpuReader | null = null;
   private groups = new Map<string, LayerGroup>();
+  private highlightOf = new Map<string, string | null>();
   private hidden = new Set<string>();
   private visibleRender: string | null = null;
   private animation: Record<string, number> = {};
@@ -113,7 +120,10 @@ export class FrameRenderer {
     if (map.getCanvas().width !== this.canvasWidth || map.getCanvas().height !== this.canvasHeight) {
       throw new Error(`canvas is ${map.getCanvas().width}x${map.getCanvas().height}, expected ${this.canvasWidth}x${this.canvasHeight} (GPU size limit?)`);
     }
-    for (const layer of style.layers) this.groups.set(layer.id, layerGroup(layer));
+    for (const layer of style.layers) {
+      this.groups.set(layer.id, layerGroup(layer));
+      this.highlightOf.set(layer.id, layerHighlight(layer));
+    }
     this.installGroupHiding();
     this.reader = new GpuReader(this.gl());
   }
@@ -149,7 +159,7 @@ export class FrameRenderer {
     const signature = `${render}:${labels}`;
     if (this.visibleRender === signature) return;
     this.hidden.clear();
-    for (const [id, group] of this.groups) if (!groupVisibleIn(render, group, { labels })) this.hidden.add(id);
+    for (const [id, group] of this.groups) if (!groupVisibleIn(render, group, { labels, highlight: this.highlightOf.get(id) })) this.hidden.add(id);
     this.visibleRender = signature;
   }
 

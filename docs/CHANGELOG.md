@@ -44,6 +44,11 @@
   pick the province under it instead of the country. Neighbouring provinces share exactly the same
   border, so two of them never show a gap. A country's outlines are read only when first needed
   (Bangladesh: 15 KB).
+- **Every highlight is its own layer.** A render gives each highlighted country, province or area
+  its own layer in the map comp ("Highlight: Bangladesh"), areas above countries, so they can fade
+  in one after another or be styled one by one. Changing or removing one highlight redraws only
+  that layer; the others come from the cache. **One layer for all highlights** in the Highlight
+  sheet brings back a single layer, which renders faster when a map has many.
 - **More files: KMZ, CSV and shapefiles.** The import button also reads KMZ (Google Earth), zipped
   shapefiles (a .prj inside is honoured, so projected data lands in the right place) and lone .shp
   files, and CSV or TSV tables. A table's columns are found by their headings (lat, latitude, lon,

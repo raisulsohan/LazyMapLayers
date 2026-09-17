@@ -29,7 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
-import { highlightLevel } from "../store.ts";
+import { changeHighlightLayers, highlightLayers, highlightLevel } from "../store.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
@@ -244,7 +244,7 @@ export function HighlightSheetView(): JSX.Element | null {
           Provinces
         </button>
       </div>
-      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get the highlights as one layer above the basemap: fade it, colour it or add a glow in After Effects.</div>
+      <div class="muted small">Click a country or province on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Districts or any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get every highlight as its own layer above the basemap: fade them in one after another, colour them or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />
@@ -267,6 +267,12 @@ export function HighlightSheetView(): JSX.Element | null {
             <span class="muted">px</span>
           </label>
         </div>
+      )}
+      {list.length > 1 && (
+        <label class="check" title="Off: every highlight renders as its own layer, so each can be timed and styled alone. On: one layer holds them all, which renders faster when a map has many highlights.">
+          <input type="checkbox" data-id="highlight-one-layer" checked={highlightLayers.value === "one"} disabled={busy.value} onChange={(e) => void changeHighlightLayers((e.target as HTMLInputElement).checked ? "one" : "each")} />
+          <span>One layer for all highlights</span>
+        </label>
       )}
       <div class="sheet-row">
         <button class="small-button" onClick={() => (tool.value = "none")}>
