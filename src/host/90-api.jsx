@@ -17,6 +17,12 @@ LML.api.createMapComp = function (args) {
     });
 };
 
+LML.api.addPin = function (args) {
+    return LML.withUndo("Add pin", function () {
+        return LML.pins.addPin(args);
+    });
+};
+
 LML.api.listMaps = function () {
     var layers = LML.map.findMapLayers();
     var out = [];
@@ -28,7 +34,7 @@ LML.api.listMaps = function () {
             sceneCompId: comp.id,
             sceneCompName: comp.name,
             layerIndex: layer.index,
-            view: LML.map.readViewAtTime(layer, comp.time - layer.startTime)
+            view: LML.map.readViewAtTime(layer, comp.time)
         });
     }
     return out;

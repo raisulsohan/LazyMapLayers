@@ -32,6 +32,28 @@ Effects, runs the host spikes, opens the panel, runs the renderer spikes and qui
   is cheap enough to measure every candidate. Create layers only for labels that survive placement,
   and batch the creation behind a progress bar.
 
+## P1 — Pins in After Effects against the camera maths: PASS (2026-09-17)
+
+- **Pins.** `src/core/ae/pinExpressions.ts` generates the expressions for position, scale, rotation
+  and opacity. `LML.api.addPin` builds the shape layer, its effects and a Layer Control link to
+  the map layer.
+- **Test.** `src/panel/alignment.ts` animates the camera from Paris at zoom 11.3 (bearing 25°,
+  pitch 45°) to the Eiffel Tower at zoom 16.8 (bearing −60°, pitch 70°). It places 14 pins across
+  both views and compares each pin's evaluated AE position with the core projection of its exact
+  coordinates. The core projection uses the camera values AE reports at that time and goes through
+  `sourcePointToComp`.
+
+| Case | Comparisons | Worst error |
+|---|---|---|
+| Animated camera, 5 times | 70 | 0.0061 px |
+| Map layer moved, scaled to 55 % and rotated −12° | 28 | 0.0002 px |
+| After renaming the map layer and its comp | 14 | 0.0042 px |
+
+- No expression errors.
+- **Precision.** Slider Controls are float32, so the exact double coordinates are baked into each
+  expression. They are used while the slider still holds their float32 rounding. Unit tests show
+  that float32 alone would miss by more than 0.5 px at zoom 20.
+
 ## H1 — Host API through the real panel bridge: PASS 9/9 (2026-09-17)
 
 - `src/panel/smoke.ts` calls the host exactly as the UI does:

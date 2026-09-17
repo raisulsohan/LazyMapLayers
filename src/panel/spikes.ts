@@ -13,6 +13,7 @@ import { naturalEarthStyle } from "./basemap/naturalEarthStyle.ts";
 import { protomapsStyle } from "./basemap/protomapsStyle.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import { runHostSmoke } from "./smoke.ts";
+import { runAlignment } from "./alignment.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -147,6 +148,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.H1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`H1 failed: ${results.H1_error}`, "fail");
+    }
+  }
+
+  if (wants("P1")) {
+    try {
+      results.P1_alignment = await runAlignment(log);
+    } catch (error) {
+      results.P1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`P1 failed: ${results.P1_error}`, "fail");
     }
   }
 
