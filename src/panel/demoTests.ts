@@ -44,8 +44,14 @@ export async function runDemoTest(log: SpikeLog, options: { width: number; heigh
       scene.saveFrameToPng(${time}, new File(${JSON.stringify(file)}));
       return "1";
     })()`);
-    for (let wait = 0; wait < 150 && !fs().existsSync(file); wait++) await new Promise((r) => setTimeout(r, 100));
-    await new Promise((r) => setTimeout(r, 300));
+    // After Effects writes the PNG in the background; wait until the file stops growing.
+    let lastSize = -1;
+    for (let wait = 0; wait < 300; wait++) {
+      await new Promise((r) => setTimeout(r, 200));
+      const size = fs().existsSync(file) ? fs().statSync(file).size : -1;
+      if (size > 0 && size === lastSize) break;
+      lastSize = size;
+    }
     if (fs().existsSync(file)) {
       const image = decodePng(new Uint8Array(fs().readFileSync(file)));
       saved.push(`${time}s ${image.width}x${image.height}`);

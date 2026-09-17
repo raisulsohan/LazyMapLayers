@@ -174,9 +174,9 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     }
   }
 
-  if (only && only.includes("D1")) {
+  if (only && (only.includes("D1") || only.includes("D1-4K"))) {
     try {
-      results.D1_demo = await runDemoTest(log);
+      results.D1_demo = await runDemoTest(log, only.includes("D1-4K") ? { width: 3840, height: 2160 } : { width: 1920, height: 1080 });
     } catch (error) {
       results.D1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`D1 failed: ${results.D1_error}`, "fail");
