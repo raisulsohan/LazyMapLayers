@@ -17,3 +17,6 @@ data/generated/
 
 # Local scratch
 .tmp*
+
+# Settings that other extensions (aescripts panels) write into the working folder of After Effects
+/invalidParam/
