@@ -14,6 +14,9 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
   const labels = options.labels ?? true;
   const buildings3d = options.buildings3d ?? true;
   const kindIs = (...kinds: string[]) => ["in", ["get", "kind"], ["literal", kinds]] as unknown as boolean;
+  // OSM outlines tagged building=no only frame their building parts (the Eiffel Tower's 330 m
+  // outline, for one); drawing them would hide the parts inside a solid block.
+  const buildingFilter = ["all", kindIs("building", "building_part"), ["!=", ["coalesce", ["get", "kind_detail"], ""], "no"]] as unknown as boolean;
 
   const style: StyleSpecification = {
     version: 8,
@@ -27,8 +30,8 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
     },
     light: { anchor: "viewport", color: "#ffffff", intensity: 0.35, position: [1.2, 210, 30] },
     layers: [
-      { id: "background", type: "background", metadata: group("background"), paint: { "background-color": "#0a1726" } },
-      { id: "earth", type: "fill", metadata: group("land"), source: OSM_SOURCE, "source-layer": "earth", paint: { "fill-color": "#17222e" } },
+      { id: "background", type: "background", metadata: group("background"), paint: { "background-color": "#0b1a2b" } },
+      { id: "earth", type: "fill", metadata: group("land"), source: OSM_SOURCE, "source-layer": "earth", paint: { "fill-color": "#1d2a36" } },
       {
         id: "landcover",
         type: "fill",
@@ -55,7 +58,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
         filter: kindIs("pedestrian", "school", "university", "college", "hospital", "industrial", "commercial", "railway"),
         paint: { "fill-color": "#1c2733" }
       },
-      { id: "water", type: "fill", metadata: group("water"), source: OSM_SOURCE, "source-layer": "water", paint: { "fill-color": "#0a1726" } },
+      { id: "water", type: "fill", metadata: group("water"), source: OSM_SOURCE, "source-layer": "water", paint: { "fill-color": "#0b1a2b" } },
       {
         id: "boundaries",
         type: "line",
@@ -121,7 +124,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
             source: OSM_SOURCE,
             "source-layer": "buildings",
             minzoom: 12,
-            filter: kindIs("building", "building_part"),
+            filter: buildingFilter,
             // Buildings fade in and rise between zoom 12 and 13 instead of popping in.
             paint: {
               "fill-extrusion-color": ["interpolate", ["linear"], ["coalesce", ["get", "height"], 8], 0, "#223245", 60, "#3a5570", 300, "#7fb7e6"],
@@ -137,7 +140,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
             source: OSM_SOURCE,
             "source-layer": "buildings",
             minzoom: 12,
-            filter: kindIs("building", "building_part"),
+            filter: buildingFilter,
             paint: { "fill-color": "#223245", "fill-opacity": ["interpolate", ["linear"], ["zoom"], 12, 0, 12.6, 1] }
           }
     ]
@@ -159,7 +162,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
         "text-letter-spacing": 0.08,
         "text-max-width": 8
       },
-      paint: { "text-color": "#d7e3ee", "text-halo-color": "#0a1726", "text-halo-width": 1.4 }
+      paint: { "text-color": "#d7e3ee", "text-halo-color": "#0b1a2b", "text-halo-width": 1.4 }
     });
   }
   return style;

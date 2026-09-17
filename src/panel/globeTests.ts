@@ -6,7 +6,7 @@
 
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../core/camera/camera.ts";
-import { projectPoint } from "../core/camera/globe.ts";
+import { GLOBE_TO_MERCATOR, globeProjectionSpec, projectPoint } from "../core/camera/globe.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import type { SpikeLog } from "./spikes.ts";
 
@@ -16,7 +16,7 @@ const HEIGHT = 1080;
 function dotStyle(): StyleSpecification {
   return {
     version: 8,
-    projection: { type: "globe" },
+    projection: globeProjectionSpec() as StyleSpecification["projection"],
     sources: { dot: { type: "geojson", data: { type: "FeatureCollection", features: [] } } },
     layers: [
       { id: "earth", type: "background", paint: { "background-color": "#203040" } },
@@ -47,7 +47,7 @@ export async function runGlobeTests(log: SpikeLog): Promise<Record<string, unkno
     for (let i = 0; i < 300; i++) {
       const view: View = {
         center: { lng: random() * 360 - 180, lat: random() * 150 - 75 },
-        zoom: 1 + random() * 10,
+        zoom: 1 + random() * (GLOBE_TO_MERCATOR.from - 1),
         bearing: random() * 360 - 180,
         pitch: random() * 60
       };
@@ -72,7 +72,7 @@ export async function runGlobeTests(log: SpikeLog): Promise<Record<string, unkno
       const transition = i % 2 === 1;
       const view: View = {
         center: { lng: random() * 360 - 180, lat: random() * 140 - 70 },
-        zoom: transition ? 11 + random() : 1.5 + random() * 9,
+        zoom: transition ? GLOBE_TO_MERCATOR.from + random() * (GLOBE_TO_MERCATOR.to - GLOBE_TO_MERCATOR.from) : 1.5 + random() * (GLOBE_TO_MERCATOR.from - 1.5),
         bearing: random() * 360 - 180,
         pitch: random() * 55
       };
@@ -143,6 +143,7 @@ export async function runGlobeEndToEnd(log: SpikeLog): Promise<Record<string, un
   const keys: [number, View][] = [
     [0, { center: { lng: -40, lat: 25 }, zoom: 1.6, bearing: 0, pitch: 0 }],
     [1.2, { center: { lng: 25, lat: 40 }, zoom: 2.8, bearing: 0, pitch: 10 }],
+    [1.7, { center: { lng: 2.3522, lat: 48.8566 }, zoom: 7.5, bearing: 20, pitch: 30 }],
     [2.0, { center: { lng: 2.3522, lat: 48.8566 }, zoom: 11.5, bearing: 20, pitch: 40 }],
     [2.4, { center: { lng: 2.34, lat: 48.85 }, zoom: 12.6, bearing: 30, pitch: 50 }]
   ];

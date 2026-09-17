@@ -31,7 +31,7 @@ for (const projection of ["mercator", "globe"] as const) {
     for (let i = 0; i < 400; i++) {
       const raw: View = {
         center: { lng: random() * 360 - 180, lat: random() * 150 - 75 },
-        zoom: i % 4 === 0 ? 11 + random() : random() * 16,
+        zoom: i % 4 === 0 ? 7 + random() : random() * 16,
         bearing: random() * 360 - 180,
         pitch: random() * 70
       };

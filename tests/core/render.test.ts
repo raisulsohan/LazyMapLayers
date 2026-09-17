@@ -170,3 +170,23 @@ test("pop detection flags isolated jumps, not motion, starts or stops", () => {
   const b = Uint8Array.of(3, 3, 3, 0, 10, 10, 10, 255);
   assert.equal(meanAbsDifference(a, b), 1.5);
 });
+
+test("animated style values are part of the frame key and of stillness", () => {
+  const still = { center: { lat: 1, lng: 2 }, zoom: 3, bearing: 0, pitch: 0 };
+  const a = frameKey(context, "base", [{ ...still, animation: { bordersDraw: 10 } }], 0);
+  const b = frameKey(context, "base", [{ ...still, animation: { bordersDraw: 20 } }], 0);
+  assert.notEqual(a, b);
+  // Without animation values the key stays what it was before animations existed.
+  assert.equal(frameKey(context, "base", [still], 0), frameKey(context, "base", [{ ...still }], 0));
+});
+
+test("regions fade in once the frame is about as large as the region", async () => {
+  const { regionFadeZooms, EARLIEST_REGION_ZOOM } = await import("../../src/core/tiles/regionFade.ts");
+  const paris = regionFadeZooms({ west: 2.2, south: 48.8, east: 2.48, north: 48.92 }, { width: 1920, height: 1080 });
+  assert.ok(Math.abs(paris.to - 12.23) < 0.05, `paris ${paris.to}`);
+  assert.ok(Math.abs(paris.to - paris.from - 0.8) < 1e-9);
+  const country = regionFadeZooms({ west: -5, south: 42, east: 8, north: 51 }, { width: 1920, height: 1080 });
+  assert.equal(country.to, EARLIEST_REGION_ZOOM);
+  const uhd = regionFadeZooms({ west: 2.2, south: 48.8, east: 2.48, north: 48.92 }, { width: 3840, height: 2160 });
+  assert.ok(Math.abs(uhd.to - paris.to - 1) < 1e-9, "a 4K frame covers the same area one zoom level later");
+});

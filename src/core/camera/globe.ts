@@ -10,9 +10,11 @@
 //
 // Mercator. The closed form of core/camera/camera.ts, extended with height above the ground.
 //
-// Transition. MapLibre's "globe" projection is a globe up to zoom 11 and Mercator from zoom 12. In
-// between, its shaders mix the two clip-space positions by globeness = 12 - zoom, and divide
-// afterwards; this module does the same, so points match the rendered pixels at every zoom.
+// Transition. Our styles use a globe up to zoom 7 and Mercator from zoom 8 (MapLibre's own "globe"
+// preset switches at 11 to 12; the curvature is already invisible by zoom 7, and switching early keeps
+// city detail out of the transition). In between, MapLibre's shaders mix the two clip-space positions
+// by globeness and divide afterwards; this module does the same, so points match the rendered pixels at
+// every zoom.
 
 import { cameraToCenterDistance, type View, type Viewport } from "./camera.ts";
 import { lngLatToWorld, unwrapLongitudeNear, type LngLat } from "../geo/mercator.ts";
@@ -22,7 +24,12 @@ export type MapProjection = "mercator" | "globe";
 /** MapLibre's earth radius in metres (used for globe altitude and Mercator pixels per metre). */
 export const EARTH_RADIUS_M = 6371008.8;
 
-export const GLOBE_TO_MERCATOR = { from: 11, to: 12 } as const;
+export const GLOBE_TO_MERCATOR = { from: 7, to: 8 } as const;
+
+/** The MapLibre style projection for the globe, with our transition zooms. */
+export function globeProjectionSpec(): { type: unknown[] } {
+  return { type: ["interpolate", ["linear"], ["zoom"], GLOBE_TO_MERCATOR.from, "vertical-perspective", GLOBE_TO_MERCATOR.to, "mercator"] };
+}
 
 const DEG = Math.PI / 180;
 
@@ -115,8 +122,30 @@ function globeClip(view: View, viewport: Viewport, point: LngLat, altitudeMeters
 }
 
 /**
+ * Whether a screen pixel shows the planet (its view ray meets a sphere of `shrink` times the globe
+ * radius). Only meaningful while the map is fully a globe; during the transition and on the flat map
+ * every pixel counts as map.
+ */
+export function pixelOnGlobe(view: View, viewport: Viewport, x: number, y: number, shrink = 1): boolean {
+  if (globeness(view.zoom) < 1) return true;
+  const d = cameraToCenterDistance(viewport);
+  const r = globeRadiusPixels(view);
+  const st = Math.sin(view.pitch * DEG);
+  const ct = Math.cos(view.pitch * DEG);
+  const cy = -r * st;
+  const cz = -r * ct - d;
+  const dx = (x - viewport.width / 2) / d;
+  const dy = -(y - viewport.height / 2) / d;
+  const dz = -1;
+  const length = Math.hypot(dx, dy, dz);
+  const along = (cy * dy + cz * dz) / length;
+  const distanceSq = cy * cy + cz * cz - along * along;
+  return along > 0 && distanceSq <= (r * shrink) ** 2;
+}
+
+/**
  * Projects a geographic point (optionally above the ground) to screen pixels, for the Mercator or the
- * globe projection. With the globe projection, zooms between 11 and 12 mix both like MapLibre does.
+ * globe projection. With the globe projection, the transition zooms mix both like MapLibre does.
  */
 export function projectPoint(view: View, viewport: Viewport, point: LngLat, options: { projection?: MapProjection; altitudeMeters?: number } = {}): ProjectedPoint3 {
   const altitude = options.altitudeMeters ?? 0;

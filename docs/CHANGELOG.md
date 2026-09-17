@@ -10,6 +10,23 @@
   local north.
 - **Tests.** G1 (globe maths against MapLibre, CPU and rendered pixels) and G2 (globe pins in After
   Effects' own render).
+- **Fly here.** Keys a smooth van Wijk–Nuij flight with Easy Ease from the camera at the current time
+  to the preview view, one key per frame. The pitch fades out while the camera is high above both
+  ends. Flights chain: the time indicator moves to the end.
+- **World and regions in one map.** Downloaded OpenStreetMap regions sit on top of the offline world
+  map and fade in once the frame fits inside them; several regions can be used together.
+- **Animated borders.** A "Borders Draw-on" slider on the map layer draws country borders on, frame
+  exact, in the renders.
+- **Auto labels.** Country and city names in the local language (with English subtitles) as After
+  Effects text layers, placed over the whole timeline without overlaps or flicker, with fonts picked
+  per writing system.
+- **Routes and callouts.** Great-circle routes that arc above the globe and draw on with Trim Paths;
+  callouts with a leader line, a box, a title and a subtitle.
+- **World flight demo** (`src/panel/demo/worldFlight.ts`, test D1): a 36-second globe-to-Paris-to-
+  Tokyo flight with borders, labels, pins, callouts and a route, built and rendered in about 2 minutes
+  at 1080p.
+- **Fixed.** Chained conditional operators in host scripts (ExtendScript evaluates them wrongly);
+  the ES3 check now rejects them.
 
 ## Unreleased — Phase 2 (frame renderer and passes), done
 
