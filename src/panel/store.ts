@@ -19,6 +19,7 @@ import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
+import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
 import { placeIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
@@ -384,8 +385,12 @@ export function previewClicked(position: { lat: number; lng: number }, event: Mo
   if (active === "highlight") {
     // The tool stays on, so several countries can be clicked in a row (Esc ends it).
     const country = countryAt(point);
-    if (country) toggleCountryHighlight(country.code, country.name);
-    else log("no country there (click on land)", "muted");
+    if (!country) log("no country there (click on land)", "muted");
+    else if (highlightLevel.value === "province") {
+      const province = provinceAt(country.code, position);
+      if (province) toggleProvinceHighlight(province);
+      else log(`no province of ${country.name} there`, "muted");
+    } else toggleCountryHighlight(country.code, country.name);
     return;
   }
   if (!selectedId.value) {
@@ -539,6 +544,29 @@ export function toggleAreaHighlight(area: ImportedArea): void {
   }
   void setHighlights(toggleHighlight(highlights.value, code, area.name), had ? areas.value : { ...areas.value, [code.slice(AREA_PREFIX.length)]: geometry });
   log(had ? `${area.name} is no longer highlighted` : `${area.name} highlighted: render to get it on the Highlight layer above the basemap`, "ok");
+}
+
+/** What a click of the highlight tool picks: whole countries, or their provinces. */
+export const highlightLevel = signal<"country" | "province">("country");
+
+/** Highlights a province (or removes it again): its polygons come from the bundled province data. */
+export function toggleProvinceHighlight(province: Province): void {
+  const code = `${AREA_PREFIX}${province.id}`;
+  const had = highlights.value.some((h) => h.code === code);
+  if (!had && Object.keys(areas.value).length >= MAX_AREAS) {
+    log(`a map can highlight up to ${MAX_AREAS} provinces and custom areas`, "muted");
+    return;
+  }
+  const geometry = simplifyPolygons(province.polygons, AREA_MAX_POINTS);
+  void setHighlights(toggleHighlight(highlights.value, code, province.name), had ? areas.value : { ...areas.value, [province.id]: geometry });
+  log(had ? `${province.name} is no longer highlighted` : `${province.name} highlighted: render to get it on the Highlight layer above the basemap`, "ok");
+}
+
+/** A province from a search result (its country and id). */
+export function toggleProvinceById(country: string, id: string): void {
+  const province = provincesOf(country).find((p) => p.id === id);
+  if (province) toggleProvinceHighlight(province);
+  else log("the province data for that country is missing from this build", "fail");
 }
 
 export function toggleCountryHighlight(code: string, name: string): void {

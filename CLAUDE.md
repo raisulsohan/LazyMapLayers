@@ -69,4 +69,5 @@ npm test                  # core unit tests (node --test)
 npm run verify            # tests, typecheck, dev build, ES3 host check, ES3 expression check
 npm run ae:spikes -- --only SH1   # in-AE tests (ask Sohan first); --ui drives the panel (U1)
 node tools/serve-panel.mjs        # the panel's interface in a normal browser, without After Effects
+npm run data:provinces            # rebuilds the province data (needs the Natural Earth admin-1 zip in .cache/ne)
 ```

@@ -19,6 +19,7 @@
     "build:dev": "node tools/build.mjs --dev",
     "data:natural-earth": "node tools/prepare-natural-earth.ts --max-zoom 6",
     "data:world-overlays": "node tools/prepare-world-overlays.ts",
+    "data:provinces": "node tools/prepare-admin1.ts",
     "install:dev": "node tools/install-dev.mjs",
     "verify": "npm test && npm run typecheck && npm run build:dev && npm run check:host && npm run check:expressions",
     "ae:spikes": "node tools/ae-spikes.mjs"

@@ -96,6 +96,8 @@ Requirements: Windows or macOS, Node.js 24+, After Effects 2024 or newer with
 ```
 npm install
 node tools/prepare-natural-earth.ts     # needs the Natural Earth zips in .cache/ne (see the script header)
+node tools/prepare-world-overlays.ts    # borders and names for draw-on borders, labels and search
+node tools/prepare-admin1.ts            # provinces for search and highlights (ne_10m_admin_1_states_provinces.zip)
 npm run verify                          # unit tests, typecheck, build, ExtendScript checks
 npm run install:dev                     # link dist/ into the CEP extensions folder
 npm run ae:spikes                       # optional: run the in-AE test suite (starts After Effects)

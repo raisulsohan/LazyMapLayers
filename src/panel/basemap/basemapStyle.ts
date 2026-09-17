@@ -177,8 +177,9 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     const tierOf = (name: string) => tiers[name] ?? { fadeIn: { from: REGION_FADE.from, to: REGION_FADE.to }, fadeOut: null };
     // Natural Earth lines and labels give way where the first region's detail is complete.
     const worldFade = regions.map((name) => tierOf(name).fadeIn).reduce((a, b) => (b.to < a.to ? b : a));
+    // Highlights are not part of the hand-over: they stay whole at every zoom, above the regions.
     const worldLayers = world.layers.map((layer) => {
-      if (layer.type === "background" || layer.type === "fill") return layer;
+      if (layer.type === "background" || layer.type === "fill" || groupOf(layer) === "highlight") return layer;
       return { ...rampOpacity(layer, worldFade.from, worldFade.to, false), maxzoom: worldFade.to } as LayerSpecification;
     });
     const sources = { ...world.sources };
@@ -212,8 +213,9 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       sources,
       light,
       layers: [
-        ...worldLayers.filter((l) => groupOf(l) !== "labels"),
+        ...worldLayers.filter((l) => groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
         ...regionLayers.filter((l) => groupOf(l) !== "labels"),
+        ...worldLayers.filter((l) => groupOf(l) === "highlight"),
         ...worldLayers.filter((l) => groupOf(l) === "labels"),
         ...regionLayers.filter((l) => groupOf(l) === "labels")
       ]

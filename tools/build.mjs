@@ -2,7 +2,7 @@
 //   dist/CSXS/manifest.xml
 //   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
-//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json}
+//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, admin1-index.json, admin1/*.json}
 //   dist/LICENSE
 //
 //   node tools/build.mjs [--dev] [--minify] [--out <folder>]
@@ -110,6 +110,13 @@ async function main() {
     if (fs.existsSync(file)) copy(file, path.join(dist, "data", overlay));
     else console.warn(`warning: data/generated/${overlay} missing; run node tools/prepare-world-overlays.ts`);
   }
+  // Provinces: an index for search and one file of polygons per country, read on demand.
+  const provinces = path.join(root, "data", "generated", "admin1");
+  const provinceIndex = path.join(root, "data", "generated", "admin1-index.json");
+  if (fs.existsSync(provinceIndex) && fs.existsSync(provinces)) {
+    copy(provinceIndex, path.join(dist, "data", "admin1-index.json"));
+    for (const name of fs.readdirSync(provinces)) copy(path.join(provinces, name), path.join(dist, "data", "admin1", name));
+  } else console.warn("warning: data/generated/admin1 missing; run node tools/prepare-admin1.ts");
 
   const size = (f) => (fs.statSync(path.join(dist, f)).size / 1024).toFixed(0) + " KB";
   console.log(
