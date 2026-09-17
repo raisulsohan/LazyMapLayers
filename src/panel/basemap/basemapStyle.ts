@@ -15,7 +15,7 @@ import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from
 import { naturalEarthStyle } from "./naturalEarthStyle.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
-import { regionFadeZooms } from "../../core/tiles/regionFade.ts";
+import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
@@ -37,11 +37,16 @@ export type BasemapStyleOptions = {
   viewport?: { width: number; height: number };
 };
 
-/** Water polygons from region tiles below this zoom can be triangulated wrongly (wedges across rivers). */
-export const REGION_WATER_MIN_ZOOM = 12;
+/**
+ * Water polygons from region tiles of zoom 12 and below can be triangulated wrongly (wedges across
+ * rivers), so they wait for zoom 13 tiles; rivers and canals show as lines before that. Regions with no
+ * tiles past zoom 12 never draw water polygons (the sea still shows between their land polygons).
+ */
+export const REGION_WATER_MIN_ZOOM = 13;
+const WATER_POLYGON_LAYER = "water";
 
-/** A region file's bounds from its PMTiles v3 header (read synchronously), or null. */
-export function regionBounds(name: string): Bbox | null {
+/** A region file's bounds and maximum zoom from its PMTiles v3 header (read synchronously), or null. */
+export function regionHeader(name: string): { bounds: Bbox; maxZoom: number } | null {
   try {
     const nodeFs = fs();
     const fd = nodeFs.openSync(regionArchivePath(name), "r");
@@ -49,7 +54,10 @@ export function regionBounds(name: string): Bbox | null {
     nodeFs.readSync(fd, header, 0, 127, 0);
     nodeFs.closeSync(fd);
     const view = new DataView(header.buffer);
-    return { west: view.getInt32(102, true) / 1e7, south: view.getInt32(106, true) / 1e7, east: view.getInt32(110, true) / 1e7, north: view.getInt32(114, true) / 1e7 };
+    return {
+      bounds: { west: view.getInt32(102, true) / 1e7, south: view.getInt32(106, true) / 1e7, east: view.getInt32(110, true) / 1e7, north: view.getInt32(114, true) / 1e7 },
+      maxZoom: header[101]
+    };
   } catch {
     return null;
   }
@@ -69,13 +77,28 @@ const OPACITY_PROPERTY: Partial<Record<LayerSpecification["type"], string>> = {
 
 /** Multiplies a layer's constant opacity by a zoom ramp; layers with zoom-dependent opacity only get the zoom limit. */
 function rampOpacity(layer: LayerSpecification, from: number, to: number, fadeIn: boolean): LayerSpecification {
+  return fadeIn ? rampWindow(layer, { from, to }, null) : rampWindow(layer, null, { from, to });
+}
+
+/**
+ * Fades a layer in over `fadeIn` and out over `fadeOut` (either may be null), and limits its zoom range
+ * to match. A constant opacity is folded into the ramps; a zoom-dependent one keeps its own curve.
+ */
+function rampWindow(layer: LayerSpecification, fadeIn: ZoomRamp | null, fadeOut: ZoomRamp | null): LayerSpecification {
+  const limited = { ...layer } as LayerSpecification & { minzoom?: number; maxzoom?: number };
+  if (fadeIn && (limited.minzoom ?? 0) < fadeIn.from) limited.minzoom = fadeIn.from;
+  if (fadeOut) limited.maxzoom = Math.min(limited.maxzoom ?? 24, fadeOut.to);
   const key = OPACITY_PROPERTY[layer.type];
-  if (!key) return layer;
+  if (!key) return limited;
   const paint = { ...((layer as { paint?: Record<string, unknown> }).paint ?? {}) };
   const current = paint[key] ?? 1;
-  if (typeof current !== "number") return layer;
-  paint[key] = fadeIn ? ["interpolate", ["linear"], ["zoom"], from, 0, to, current] : ["interpolate", ["linear"], ["zoom"], from, current, to, 0];
-  return { ...layer, paint } as LayerSpecification;
+  if (typeof current !== "number") return limited;
+  const stops: number[] = [];
+  if (fadeIn) stops.push(fadeIn.from, 0, fadeIn.to, current);
+  if (fadeOut) stops.push(Math.max(fadeOut.from, stops.length ? stops[stops.length - 2] + 1e-3 : fadeOut.from), current, Math.max(fadeOut.to, (stops.length ? stops[stops.length - 2] : fadeOut.from) + 2e-3), 0);
+  if (!stops.length) return limited;
+  paint[key] = ["interpolate", ["linear"], ["zoom"], ...stops];
+  return { ...limited, paint } as LayerSpecification;
 }
 
 export function worldOverlayPath(name: "borders.geojson" | "labels.json"): string {
@@ -127,12 +150,14 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (regions.length) {
     const groupOf = (l: LayerSpecification) => (l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"];
     const viewport = options.viewport ?? { width: 1920, height: 1080 };
-    const fades = regions.map((name) => {
-      const bounds = regionBounds(name);
-      return bounds ? regionFadeZooms(bounds, viewport) : { from: REGION_FADE.from, to: REGION_FADE.to };
-    });
+    const headers = regions.map((name) => ({ name, header: regionHeader(name) }));
+    const tiers = regionTiers(
+      headers.filter((h) => h.header).map((h) => ({ name: h.name, bounds: h.header!.bounds, maxZoom: h.header!.maxZoom })),
+      viewport
+    );
+    const tierOf = (name: string) => tiers[name] ?? { fadeIn: { from: REGION_FADE.from, to: REGION_FADE.to }, fadeOut: null };
     // Natural Earth lines and labels give way where the first region's detail is complete.
-    const worldFade = fades.reduce((a, b) => (b.to < a.to ? b : a));
+    const worldFade = regions.map((name) => tierOf(name).fadeIn).reduce((a, b) => (b.to < a.to ? b : a));
     const worldLayers = world.layers.map((layer) => {
       if (layer.type === "background" || layer.type === "fill") return layer;
       return { ...rampOpacity(layer, worldFade.from, worldFade.to, false), maxzoom: worldFade.to } as LayerSpecification;
@@ -146,11 +171,18 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       // Several regions: one source each, layer ids made unique.
       const sourceId = index === 0 ? "osm" : `osm-${name}`;
       for (const [id, source] of Object.entries(region.sources)) sources[id === "osm" ? sourceId : id] = source;
+      const tier = tierOf(name);
+      const maxZoom = headers[index].header?.maxZoom ?? 15;
       for (const layer of region.layers) {
         if (layer.type === "background") continue;
-        const fade = groupOf(layer) === "water" ? { from: Math.max(REGION_WATER_MIN_ZOOM, fades[index].from), to: Math.max(REGION_WATER_MIN_ZOOM + 0.6, fades[index].to) } : fades[index];
+        const group = groupOf(layer);
+        const polygons = layer.id === WATER_POLYGON_LAYER;
+        if (polygons && maxZoom < REGION_WATER_MIN_ZOOM) continue;
+        const fadeIn = polygons ? { from: Math.max(REGION_WATER_MIN_ZOOM, tier.fadeIn.from), to: Math.max(REGION_WATER_MIN_ZOOM + 0.5, tier.fadeIn.to) } : tier.fadeIn;
+        // A wider region keeps its land and water under a detailed one, but hands over its lines.
+        const fadeOut = tier.fadeOut && group !== "land" && group !== "water" ? tier.fadeOut : null;
         const minzoom = (layer as { minzoom?: number }).minzoom ?? 0;
-        const faded = minzoom >= fade.to ? layer : ({ ...rampOpacity(layer, fade.from, fade.to, true), minzoom: fade.from } as LayerSpecification);
+        const faded = rampWindow(layer, minzoom >= fadeIn.to ? null : fadeIn, fadeOut);
         // Region layer ids carry the region name, so they never clash with the world layers.
         regionLayers.push({ ...faded, id: `${layer.id}@${name}`, source: sourceId } as LayerSpecification);
       }

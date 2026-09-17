@@ -19,3 +19,38 @@ export function regionFadeZooms(bounds: Bbox, viewport: { width: number; height:
   const to = Math.max(EARLIEST_REGION_ZOOM, Math.min(LATEST_REGION_ZOOM, Math.max(fitsWidth, fitsHeight)));
   return { from: to - REGION_FADE_LENGTH, to };
 }
+
+export type RegionInfo = { name: string; bounds: Bbox; maxZoom: number };
+
+export type ZoomRamp = { from: number; to: number };
+
+export type RegionTier = {
+  /** Where the region's layers fade in. */
+  fadeIn: ZoomRamp;
+  /**
+   * Where the region's detail lines (roads, borders, buildings, labels) fade out because a more
+   * detailed region inside it takes over; its land and water stay to fill the far field.
+   */
+  fadeOut: ZoomRamp | null;
+};
+
+const contains = (outer: Bbox, inner: Bbox) => inner.west >= outer.west && inner.east <= outer.east && inner.south >= outer.south && inner.north <= outer.north;
+
+/** Fade zooms for regions used together, such as a wide region around a city at zoom 12 and the city at zoom 15. */
+export function regionTiers(regions: RegionInfo[], viewport: { width: number; height: number }): Record<string, RegionTier> {
+  const fadeIns = new Map(regions.map((r) => [r.name, regionFadeZooms(r.bounds, viewport)]));
+  const out: Record<string, RegionTier> = {};
+  for (const region of regions) {
+    const fadeIn = fadeIns.get(region.name)!;
+    const inner = regions.filter((other) => other !== region && other.maxZoom > region.maxZoom && contains(region.bounds, other.bounds));
+    let fadeOut: ZoomRamp | null = null;
+    if (inner.length) {
+      const from = Math.min(...inner.map((r) => fadeIns.get(r.name)!.from));
+      const to = Math.min(...inner.map((r) => fadeIns.get(r.name)!.to));
+      // Never fade out before the region has fully faded in.
+      fadeOut = from >= fadeIn.to ? { from, to } : { from: fadeIn.to, to: Math.max(fadeIn.to + 0.3, to) };
+    }
+    out[region.name] = { fadeIn, fadeOut };
+  }
+  return out;
+}

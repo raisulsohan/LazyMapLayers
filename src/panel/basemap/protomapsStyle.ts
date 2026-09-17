@@ -59,6 +59,21 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
         paint: { "fill-color": "#1c2733" }
       },
       { id: "water", type: "fill", metadata: group("water"), source: OSM_SOURCE, "source-layer": "water", paint: { "fill-color": "#0b1a2b" } },
+      // Rivers and canals as lines: they read at every zoom, including the zooms where water polygons
+      // from low-zoom tiles are unreliable.
+      {
+        id: "waterways",
+        type: "line",
+        metadata: group("water"),
+        source: OSM_SOURCE,
+        "source-layer": "water",
+        filter: ["all", ["==", ["geometry-type"], "LineString"], ["in", ["get", "kind"], ["literal", ["river", "canal"]]]] as unknown as boolean,
+        layout: { "line-cap": "round", "line-join": "round" },
+        paint: {
+          "line-color": "#0b1a2b",
+          "line-width": ["interpolate", ["exponential", 1.8], ["zoom"], 8, ["match", ["get", "kind"], "river", 0.8, 0.4], 12, ["match", ["get", "kind"], "river", 4, 1.5], 15, ["match", ["get", "kind"], "river", 18, 5]]
+        }
+      },
       {
         id: "boundaries",
         type: "line",

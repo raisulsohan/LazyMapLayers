@@ -14,7 +14,9 @@
   to the preview view, one key per frame. The pitch fades out while the camera is high above both
   ends. Flights chain: the time indicator moves to the end.
 - **World and regions in one map.** Downloaded OpenStreetMap regions sit on top of the offline world
-  map and fade in once the frame fits inside them; several regions can be used together.
+  map and fade in once the frame fits inside them; several regions can be used together, and a wide
+  region around a city hands over to the detailed city region inside it. Rivers and canals are drawn
+  as lines, so no broken water polygons show at low zoom.
 - **Animated borders.** A "Borders Draw-on" slider on the map layer draws country borders on, frame
   exact, in the renders.
 - **Auto labels.** Country and city names in the local language (with English subtitles) as After
