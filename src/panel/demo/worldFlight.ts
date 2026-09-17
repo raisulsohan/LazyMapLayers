@@ -55,12 +55,16 @@ export async function buildWorldFlight(options: WorldFlightOptions, log: (line: 
   const fps = options.frameRate ?? 25;
   const viewport = { width, height };
   const second = options.second ?? TOKYO;
-  const secondView: View = options.secondZoom ? { ...second.view, zoom: options.secondZoom, pitch: Math.min(second.view.pitch, 35) } : second.view;
+  // Views are framed for 1080 lines; taller comps zoom in by the same factor, so 4K shows the same shot.
+  const zoomOffset = Math.log2(height / 1080);
+  const framed = (view: View): View => ({ ...view, zoom: view.zoom + zoomOffset });
+  const parisView = framed(PARIS.view);
+  const secondView: View = framed(options.secondZoom ? { ...second.view, zoom: options.secondZoom, pitch: Math.min(second.view.pitch, 35) } : second.view);
   // A globe that fills about two thirds of the frame height.
   const globeZoom = Math.log2(((height * 0.36 * 2 * Math.PI) / 512) * Math.cos(30 * (Math.PI / 180)));
   const space1: View = { center: { lat: 24, lng: -32 }, zoom: globeZoom, bearing: 0, pitch: 0 };
   const space2: View = { center: { lat: 34, lng: -4 }, zoom: globeZoom + 0.25, bearing: 0, pitch: 0 };
-  const orbitEnd: View = { ...PARIS.view, bearing: PARIS.view.bearing + 40, zoom: PARIS.view.zoom + 0.15 };
+  const orbitEnd: View = { ...parisView, bearing: parisView.bearing + 40, zoom: parisView.zoom + 0.15 };
   const duration = 36;
 
   log("creating the map comp");
@@ -71,8 +75,8 @@ export async function buildWorldFlight(options: WorldFlightOptions, log: (line: 
   const linear = (t: number) => t;
   const segments: FlightKey[][] = [
     flightKeys(space1, space2, viewport, { duration: 6, frameRate: fps, startTime: 0, easing: linear, pitchDip: false }),
-    flightKeys(space2, PARIS.view, viewport, { duration: 10, frameRate: fps, startTime: 6 }),
-    flightKeys(PARIS.view, orbitEnd, viewport, { duration: 5, frameRate: fps, startTime: 16, easing: linear, pitchDip: false }),
+    flightKeys(space2, parisView, viewport, { duration: 10, frameRate: fps, startTime: 6 }),
+    flightKeys(parisView, orbitEnd, viewport, { duration: 5, frameRate: fps, startTime: 16, easing: linear, pitchDip: false }),
     flightKeys(orbitEnd, secondView, viewport, { duration: 12, frameRate: fps, startTime: 21 })
   ];
   // Segments share their boundary frames; keep the first copy of each.
@@ -100,7 +104,7 @@ export async function buildWorldFlight(options: WorldFlightOptions, log: (line: 
     [PARIS, 16.2, 21.4],
     [second, 32.2, 36]
   ] as [City, number, number][]) {
-    const pin = await addPin(map.id, city, { name: city.name, style: { radius: 9, color: [1, 0.55, 0.2], strokeColor: [1, 1, 1], strokeWidth: 3 } });
+    const pin = await addPin(map.id, city, { name: city.name, style: { radius: 9 * (height / 1080), color: [1, 0.55, 0.2], strokeColor: [1, 1, 1], strokeWidth: 3 * (height / 1080) } });
     errors.push(...pin.expressionErrors);
     await callHost("keyLayer", {
       mapId: map.id,
@@ -126,7 +130,7 @@ export async function buildWorldFlight(options: WorldFlightOptions, log: (line: 
       [second, 32.2, 36]
     ] as [City, number, number][]
   ).map(([city, show, hide]) => ({ lat: city.lat, lng: city.lng, fromFrame: f(show) - 12, toFrame: f(hide) + 12, dx: -40 * s, dy: -260 * s, width: 520 * s, height: 300 * s }));
-  const labels = await autoLabels(map.id, { placeMaxZoom: 9.5, maxLabels: 140, keepOut });
+  const labels = await autoLabels(map.id, { placeMaxZoom: 9.5 + zoomOffset, maxLabels: 140, keepOut });
   errors.push(...labels.expressionErrors);
   lap(`labels: ${labels.labels} (${labels.layers} layers) from ${labels.candidates} candidates in ${labels.seconds.toFixed(1)} s`);
   return { mapId: map.id, sceneName: map.sceneCompName, frames: duration * fps, labels, expressionErrors: errors };

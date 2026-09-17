@@ -21,6 +21,9 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { startDevAutomation } from "./devAutomation.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
+import { autoLabels } from "./labels/autoLabels.ts";
+import { buildWorldFlight } from "./demo/worldFlight.ts";
+import { NAME_LANGUAGES, type NameLanguage } from "../core/labels/language.ts";
 
 type LogKind = "ok" | "fail" | "muted";
 type LogLine = { text: string; kind?: LogKind };
@@ -70,7 +73,20 @@ function previewStyle(source: BasemapSource, projection: MapProjection): StyleSp
 }
 
 const sourceKey = (s: BasemapSource) => (s.kind === "region" ? `region:${s.name}` : s.kind === "regions" ? `regions:${s.names.join("+")}` : "world");
-const sourceFromKey = (key: string): BasemapSource => (key.startsWith("region:") ? { kind: "region", name: key.slice(7) } : { kind: "world" });
+const sourceFromKey = (key: string): BasemapSource =>
+  key.startsWith("regions:") ? { kind: "regions", names: key.slice(8).split("+") } : key.startsWith("region:") ? { kind: "region", name: key.slice(7) } : { kind: "world" };
+
+/** Every downloaded region, wide ones (fewer zoom levels) first so detailed ones draw on top. */
+const allRegions = (list: RegionInfo[]): BasemapSource => ({
+  kind: "regions",
+  names: [...list].sort((a, b) => (a.maxZoom ?? 15) - (b.maxZoom ?? 15) || a.name.localeCompare(b.name)).map((r) => r.name)
+});
+
+const LABEL_LANGUAGES: { value: string; label: string }[] = [
+  { value: "local+en", label: "Local language + English" },
+  { value: "local", label: "Local language only" },
+  ...NAME_LANGUAGES.map((code) => ({ value: code, label: `All in ${code}` }))
+];
 
 function App() {
   const mapNode = useRef<HTMLDivElement>(null);
@@ -84,6 +100,7 @@ function App() {
   const [basemap, setBasemap] = useState<BasemapSource>({ kind: "world" });
   const [projection, setProjection] = useState<MapProjection>("mercator");
   const [flightSeconds, setFlightSeconds] = useState(6);
+  const [labelLanguage, setLabelLanguage] = useState("local+en");
   const [progress, setProgress] = useState<Progress>(null);
   const [regionSheet, setRegionSheet] = useState<RegionSheet | null>(null);
   const [settingsOpen, setSettingsOpen] = useState(false);
@@ -309,6 +326,40 @@ function App() {
       await refreshMaps();
     });
 
+  const runAutoLabels = () =>
+    run("labels", async () => {
+      const mapId = selectedRef.current;
+      if (!mapId) return;
+      setProgress({ label: "Placing labels over the timeline", done: 0, total: 1 });
+      const fixed = labelLanguage !== "local" && labelLanguage !== "local+en";
+      const result = await autoLabels(mapId, {
+        language: fixed ? { kind: "fixed", language: labelLanguage as NameLanguage } : { kind: "local" },
+        english: labelLanguage === "local+en"
+      });
+      log(`labels: ${result.labels} placed over the timeline (${result.layers} layers, ${result.removed} old layers replaced) in ${result.seconds.toFixed(1)} s`, result.expressionErrors.length ? "fail" : "ok");
+    });
+
+  const animateBorders = () =>
+    run("borders", async () => {
+      const list = await callHost<MapEntry[]>("listMaps");
+      const entry = list.find((m) => m.mapId === selectedRef.current);
+      if (!entry) return;
+      await callHost("setControlKeys", { mapId: entry.mapId, name: "Borders Draw-on", times: [entry.time, entry.time + 4], values: [0, 100] });
+      log(`borders draw on from ${entry.time.toFixed(2)} s over 4 s (the "Borders Draw-on" slider on the map layer; render to see it)`, "ok");
+    });
+
+  const buildSample = () =>
+    run("sample", async () => {
+      const wanted = ["paris-wide", "paris", "tokyo-wide", "tokyo"].filter((name) => regions.some((r) => r.name === name));
+      setProgress({ label: "Building the world flight sample", done: 0, total: 1 });
+      const demo = await buildWorldFlight(
+        { basemap: wanted.length ? { kind: "regions", names: wanted } : { kind: "world" }, secondZoom: wanted.includes("tokyo") ? undefined : 5.2 },
+        (line) => log(`sample: ${line}`, "muted")
+      );
+      log(`world flight sample built in "${demo.sceneName}": render it to see the basemap`, demo.expressionErrors.length ? "fail" : "ok");
+      await refreshMaps(true);
+    });
+
   const renderBasemap = (quality: RenderQuality) => {
     if (!selected) return;
     const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings;
@@ -408,9 +459,10 @@ function App() {
                 {r.name} ({mb(r.sizeBytes)})
               </option>
             ))}
+            {regions.length > 1 && <option value={sourceKey(allRegions(regions))}>All downloaded regions (world plus {regions.length})</option>}
           </select>
         </label>
-        <label class="check" title="MapLibre globe: a planet at low zoom that becomes the flat map by zoom 12">
+        <label class="check" title="MapLibre globe: a planet at low zoom that becomes the flat map by zoom 8">
           <input type="checkbox" checked={projection === "globe"} disabled={busy} onChange={(e) => void changeProjection((e.target as HTMLInputElement).checked ? "globe" : "mercator")} />
           Globe
         </label>
@@ -536,6 +588,26 @@ function App() {
         </button>
         <button class="primary" disabled={!selected} onClick={() => renderBasemap("final")} title="Full resolution with the render settings. Only frames that changed are drawn again.">
           Render
+        </button>
+      </div>
+
+      <div class="toolbar secondary">
+        <button disabled={busy || !selected} onClick={runAutoLabels} title="Country and city names placed over the whole timeline as editable text layers">
+          Auto labels
+        </button>
+        <select value={labelLanguage} disabled={busy || !selected} onChange={(e) => setLabelLanguage((e.target as HTMLSelectElement).value)} title="Label language">
+          {LABEL_LANGUAGES.map((l) => (
+            <option key={l.value} value={l.value}>
+              {l.label}
+            </option>
+          ))}
+        </select>
+        <button disabled={busy || !selected} onClick={animateBorders} title="Draw country borders on over 4 seconds from the current time">
+          Animate borders
+        </button>
+        <span class="spacer" />
+        <button disabled={busy} onClick={buildSample} title="A globe-to-Paris-to-Tokyo flight with borders, labels, pins, callouts and a route">
+          World flight sample
         </button>
       </div>
 
