@@ -171,6 +171,15 @@ LML.api.setMapSettings = function (args) {
     if (args.render !== undefined) tag.render = args.render;
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
+    if (args.sky !== undefined) tag.sky = !!args.sky;
+    if (args.terrain !== undefined) {
+        tag.terrain = args.terrain;
+        // The sliders linked layers read; a map without terrain gets a height of 0, so its layers stay flat.
+        var height = args.terrain && typeof args.terrain.height === "number" ? args.terrain.height : 0;
+        var ground = args.terrain && typeof args.terrain.ground === "number" ? args.terrain.ground : 0;
+        LML.map.setControlValue(layer, "Terrain Height", height);
+        LML.map.setControlValue(layer, "Ground Level", ground);
+    }
     if (args.highlights !== undefined) tag.highlights = args.highlights;
     if (args.highlightLayers !== undefined) tag.highlightLayers = args.highlightLayers === "one" ? "one" : "each";
     // Polygons of custom areas are large: they sit on their own comment line, like the shot list.
@@ -230,6 +239,17 @@ LML.api.listMaps = function () {
             render: tag.render || null,
             theme: tag.theme || null,
             relief: !!tag.relief,
+            sky: tag.sky !== false,
+            terrain: (function () {
+                if (!tag.terrain) return null;
+                // The sliders win over the tag: they may have been edited or keyed in After Effects.
+                var t = { pack: tag.terrain.pack, shade: tag.terrain.shade, height: tag.terrain.height, ground: tag.terrain.ground };
+                var h = LML.map.controlValue(layer, "Terrain Height");
+                var g = LML.map.controlValue(layer, "Ground Level");
+                if (h !== null) t.height = h;
+                if (g !== null) t.ground = g;
+                return t;
+            })(),
             highlights: tag.highlights || [],
             highlightLayers: tag.highlightLayers === "one" ? "one" : "each",
             projection: LML.map.projectionOf(layer),

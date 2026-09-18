@@ -44,6 +44,22 @@
   pick the province under it instead of the country. Neighbouring provinces share exactly the same
   border, so two of them never show a gap. A country's outlines are read only when first needed
   (Bangladesh: 15 KB).
+- **3D terrain and shaded slopes.** The Look sheet has a **Terrain** row: download an elevation
+  pack for the area in the preview (open elevation data through Mapterhorn: the Copernicus 30 m
+  model and national surveys, cut out of a 355 GB planet archive so only your area comes down, size
+  shown before the download; Everest at full detail is 20 MB, Paris 3 MB). With a pack, **Shaded
+  slopes** draws sharp hillshading at any zoom, and **3D height** raises the ground into real
+  mountains (1× true to scale, up to 4×), in the preview and in every render, with the sky above the
+  horizon. Pins, labels, callouts, routes and travellers made with a pack sit on the ground: a pin on
+  Everest's peak lands within half a pixel of where the render draws the peak. The height and the
+  ground level live in two sliders on the map layer (**Terrain Height**, **Ground Level**); key
+  Terrain Height and the mountains rise frame by frame, in the render and in After Effects alike.
+  Renders that use a pack add "Terrain: © Mapterhorn" to the data credit layer.
+- **Sky above the horizon.** A tilted flat map now ends in the look's sky and haze instead of
+  black. It belongs to the base pass (and the water pass, which holds the background); every other
+  pass stays clear above the horizon, and on the globe the atmosphere no longer leaks into the roads,
+  boundaries or highlight passes. **Sky above the horizon** in the Look sheet switches it off, which
+  leaves the sky transparent for one of your own.
 - **Districts, counties and departments.** In the Highlight tool, **Districts** makes a click pick
   the second-level unit under it. A country's districts are downloaded once, when you ask: the panel
   shows what geoBoundaries (open data) offers for the country you clicked, with its source, licence

@@ -16,6 +16,7 @@ import type { Imported } from "../core/data/importLines.ts";
 import { simplifyLine } from "../core/geo/simplify.ts";
 import type { Areas, Highlight } from "../core/style/highlights.ts";
 import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
+import type { TerrainSetting } from "../core/style/terrain.ts";
 import { COUNTRY_HIT_LAYER } from "./basemap/naturalEarthStyle.ts";
 import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { ensureMaplibreWorker, regionArchivePath } from "./basemap/maplibreSetup.ts";
@@ -44,7 +45,7 @@ const BY_USER = { lmlByUser: true };
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
 /** What the preview shows now, so the style can be rebuilt when the panel is resized. */
-export type Look = { theme: string | null; relief: boolean; highlights?: Highlight[]; areas?: Areas };
+export type Look = { theme: string | null; relief: boolean; highlights?: Highlight[]; areas?: Areas; sky?: boolean; terrain?: TerrainSetting | null };
 let shown: { source: BasemapSource; projection: MapProjection; look: Look } = { source: { kind: "world" }, projection: "mercator", look: { theme: null, relief: false } };
 /** False shows sizes exactly as they render (tiny in a small panel). */
 let readable = true;
@@ -98,7 +99,7 @@ function withImportOverlay(style: StyleSpecification): StyleSpecification {
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
   if (!isInCep()) return withImportOverlay(BLANK_STYLE);
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  const style = scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, countryHits: true }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  const style = scaleStyleSizes(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, countryHits: true, sky: look.sky, terrain: look.terrain }), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
   return withImportOverlay(style);
 }
 
@@ -174,6 +175,8 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
       fadeDuration: 0
     });
     const m = map;
+    // With 3D terrain the centre point stays at the map's ground level, where the camera maths counts from.
+    m.setCenterClampedToGround(false);
     m.on("move", () => events.onView(toCompView(m)));
     m.on("load", () => events.onView(toCompView(m)));
     m.on("moveend", (e) => {
@@ -228,6 +231,7 @@ export function setPreviewStyle(source: BasemapSource, projection: MapProjection
   shown = { source, projection, look };
   styledFactor = sizeFactor();
   map?.setStyle(previewStyle(source, projection, look));
+  map?.setCenterElevation((look.terrain?.ground ?? 0) * (look.terrain?.height ?? 0));
 }
 
 /** Shows a view of the comp. `animate` glides there (for search results); otherwise it jumps. */

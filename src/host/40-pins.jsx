@@ -70,6 +70,8 @@ LML.pins.addPin = function (args) {
     mapLink.property(1).setValue(mapLayer.index);
     LML.pins.addEffect(layer, "ADBE Slider Control", "Latitude", args.lat);
     LML.pins.addEffect(layer, "ADBE Slider Control", "Longitude", args.lng);
+    // The ground's elevation at the pin (from the map's elevation pack), for 3D terrain.
+    if (typeof args.elevation === "number") LML.pins.addEffect(layer, "ADBE Slider Control", "Elevation (m)", args.elevation);
     var transform = layer.property("ADBE Transform Group");
     var errors = [];
     if (args.threeD) {

@@ -52,6 +52,14 @@ export const PASS_INFO: Record<(typeof PASS_IDS)[number] | "highlight", { label:
   highlight: { label: "Highlight", kind: "color" }
 };
 
+/**
+ * The sky above the horizon and the globe's atmosphere belong to the background: they show in the base
+ * render and in the water fill (which holds the background), and in no other render.
+ */
+export function skyVisibleIn(render: RenderId): boolean {
+  return render === "base" || render === "waterFill";
+}
+
 /** Groups drawn by each render. The base render draws every group except labels unless asked. */
 // Imagery (satellite pictures, shaded relief) covers land and sea alike, so it colours the land and
 // water passes, while "landShapes" (the land polygons alone) says where the land is.

@@ -131,11 +131,14 @@ docs/          plan, decisions, spike results, changelog, release steps
   their own open licence, shown in the panel before a download) for district boundaries, which are
   downloaded per country when you ask for them. Runfola, D. et al. (2020), geoBoundaries: A global
   database of political administrative boundaries, PLoS ONE 15(4).
+- **[Mapterhorn](https://mapterhorn.com)** (open elevation tiles built from the Copernicus 30 m
+  model and national open data, "© Mapterhorn"; the sources and their licences are listed at
+  mapterhorn.com/attribution) for elevation packs, which are downloaded per area when you ask.
 - **[MapLibre GL JS](https://maplibre.org)** (BSD-3-Clause), **[PMTiles](https://github.com/protomaps/PMTiles)**
   (BSD-3-Clause), and the other open-source packages listed in `package.json`.
 
 LazyMapLayers is an independent project. It is not affiliated with or endorsed by Adobe, Protomaps,
-OpenStreetMap, NASA or geoBoundaries.
+OpenStreetMap, NASA, geoBoundaries or Mapterhorn.
 
 ## License
 

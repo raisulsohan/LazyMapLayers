@@ -37,6 +37,8 @@ export function addPin(
     /** A 3D layer on the ground plane of the map's 3D camera (see addCameraRig). */
     threeD?: boolean;
     altitude?: number;
+    /** The ground's elevation at the pin in metres (from the map's elevation pack), for 3D terrain. */
+    elevation?: number;
     style?: { radius?: number; color?: [number, number, number]; fill?: boolean; strokeColor?: [number, number, number]; strokeWidth?: number };
   } = {}
 ): Promise<AddedPin> {
@@ -50,6 +52,7 @@ export function addPin(
     style: options.style,
     threeD: options.threeD ?? false,
     altitude: options.altitude ?? 0,
+    elevation: options.elevation,
     expressions: options.threeD ? { position: pin3dPositionExpression(position.lat, position.lng) } : pinExpressions(position.lat, position.lng)
   });
 }

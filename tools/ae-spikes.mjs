@@ -170,6 +170,21 @@ async function runUiScenario() {
   await idle();
   await sleep(1500);
   await shot("07-look-daylight");
+  // Terrain: the Paris elevation pack (when TR1 has downloaded it) with shaded slopes and 3D height.
+  const packs = await panel.evaluate(`[...${control("terrain-pack")}.options].map((o) => o.value)`);
+  console.log(`U1 elevation packs: ${JSON.stringify(packs)}`);
+  if (packs.includes("paris")) {
+    await panel.evaluate(`(() => { const s = ${control("terrain-pack")}; s.value = "paris"; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+    await idle();
+    await panel.evaluate(`(() => { const s = ${control("terrain-height")}; s.value = "15"; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+    await idle();
+    await sleep(1500);
+    await shot("07d-terrain");
+    const terrainState = await panel.evaluate("JSON.stringify(window.lmlDebug.store.terrain.value)");
+    console.log(`U1 terrain: ${terrainState}`);
+    await panel.evaluate(`(() => { const s = ${control("terrain-pack")}; s.value = ""; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+    await idle();
+  }
   await click("look");
   await click("tool-highlight");
   await sleep(300);

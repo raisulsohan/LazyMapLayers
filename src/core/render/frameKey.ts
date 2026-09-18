@@ -5,7 +5,7 @@
 // held shots render once, and a cancelled render resumes where it stopped.
 
 /** Bump when a renderer change alters output pixels, so old cache entries stop matching. */
-export const RENDERER_VERSION = "lml-render-2";
+export const RENDERER_VERSION = "lml-render-3";
 
 /** JSON with object keys sorted, so equal values always serialise to the same text. */
 export function canonicalJson(value: unknown): string {

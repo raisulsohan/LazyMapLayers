@@ -11,7 +11,9 @@ import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
 import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreSetup.ts";
-import { basemapStyle, regionNames, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import { basemapStyle, regionNames, terrainUsable, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
+import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
 import { AREAS_SOURCE } from "../basemap/naturalEarthStyle.ts";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
@@ -34,6 +36,10 @@ export type RenderJobSpec = {
   areas?: Areas;
   /** "each" (default): every highlight is its own pass and layer. "one": a single pass holds them all. */
   highlightLayers?: "each" | "one";
+  /** The sky above the horizon of a tilted flat map (default on). */
+  sky?: boolean;
+  /** The elevation pack and the strength of the shaded slopes. */
+  terrain?: TerrainSetting | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -63,6 +69,8 @@ export type RenderJobResult = {
   imported: { passes: { pass: string; layerName: string; main: string; hasProxy: boolean; useProxy: boolean; created: boolean }[]; attribution: { state: string } };
   stamp: string;
   storeRoot: string;
+  /** Frames in which the camera was inside the mountains and MapLibre lifted it: linked layers drift there. */
+  cameraLifted: number;
 };
 
 export class RenderCancelled extends Error {
@@ -93,9 +101,9 @@ function archivesOf(basemap: BasemapSource): string[] {
   return [naturalEarthArchivePath(), ...regionNames(basemap).map((name) => regionArchivePath(name))];
 }
 
-function dataFingerprint(basemap: BasemapSource): string {
+function dataFingerprint(basemap: BasemapSource, terrain: TerrainSetting | null): string {
   return keyOf(
-    archivesOf(basemap).map((file) => {
+    [...archivesOf(basemap), ...(terrain ? [terrainArchivePath(terrain.pack)] : [])].map((file) => {
       const stat = fs().statSync(file);
       return { file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) };
     })
@@ -139,7 +147,11 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)) });
+  // A pack that is not on this computer renders flat rather than failing the job. With keyed terrain
+  // sliders the style needs the terrain as soon as any frame lifts the ground.
+  let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
+  if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), sky: spec.sky, terrain });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -147,7 +159,9 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const opaqueBackground = info.projection !== "globe" && style.layers.some(
     (l) => l.type === "background" && (l.paint?.["background-opacity"] ?? 1) === 1 && !(l.layout?.visibility === "none") && !l.minzoom && !l.maxzoom
   );
-  const opaquePasses: PassId[] = opaqueBackground ? ["base"] : [];
+  // Without a sky, what lies above the horizon of a tilted view is transparent, so the base pass keeps its alpha.
+  const horizonMayShow = spec.sky === false && cameras.some((samples) => samples.some((view) => view.pitch > 55));
+  const opaquePasses: PassId[] = opaqueBackground && !horizonMayShow ? ["base"] : [];
   // Highlight passes follow the map's highlights: present while there are any, dropped when not. In
   // style order (countries, then areas), which is also their stacking order in After Effects.
   const highlightLayers = style.layers.filter((l) => layerGroup(l) === "highlight");
@@ -180,7 +194,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const context: FrameKeyContext = {
     // Without the highlights' layers and the polygons of highlighted areas, which only they draw.
     style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
-    data: dataFingerprint(spec.basemap),
+    data: dataFingerprint(spec.basemap, terrain),
     width: geometry.width,
     height: geometry.height,
     supersample: geometry.supersample,
@@ -217,6 +231,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
 
   let rendered = 0;
   let renderMs = 0;
+  let cameraLifted = 0;
   if (work.length) {
     const pool = sharedEncodePool();
     const renderer = new FrameRenderer({
@@ -225,7 +240,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       pixelRatio: geometry.pixelRatio,
       supersample: geometry.supersample,
       style,
-      antialias: geometry.canvasWidth * geometry.canvasHeight <= 40_000_000
+      antialias: geometry.canvasWidth * geometry.canvasHeight <= 40_000_000,
+      terrain: terrain ? { ground: terrain.ground, height: terrain.height } : undefined
     });
     const writes: Promise<void>[] = [];
     let writeError: Error | null = null;
@@ -269,6 +285,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       }
       await Promise.all(writes);
     } finally {
+      cameraLifted = renderer.cameraLifted;
       renderer.destroy();
     }
     renderMs = performance.now() - renderStarted;
@@ -291,7 +308,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
-    attribution: [regionNames(spec.basemap).length ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });
@@ -318,6 +335,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     sequences,
     imported,
     stamp,
-    storeRoot: store.root
+    storeRoot: store.root,
+    cameraLifted
   };
 }
