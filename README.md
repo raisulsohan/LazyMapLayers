@@ -21,7 +21,7 @@ Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy sui
 Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
 Effects 2026; the macOS installer has not been tried on a Mac yet.
 
-1. Download `LazyMapLayers-v0.1.1.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
+1. Download `LazyMapLayers-v0.2.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.
 3. Windows: double-click **Install LazyMapLayers.bat**. macOS: double-click
    **Install LazyMapLayers (macOS).command** (if macOS refuses, right-click it and choose Open).
@@ -52,7 +52,26 @@ built to be free **and** to give better final frames.
 | Data | Offline Natural Earth world data, OpenStreetMap detail for any region you download, open terrain and imagery. |
 | Undo | Every panel action is one Ctrl+Z. |
 
-## What works today (0.1)
+## What works today (0.2)
+
+- **Shot list.** Build the camera from shots: **+ Shot** takes the view in the preview; between
+  shots a Fly, Straight, Along route or Cut move with a duration, flight height and easing; **Play**
+  runs it in the preview; **Apply to timeline** writes the keys in one undo step. The preview is the
+  exact frame.
+- **Looks.** Midnight, Satellite (NASA Blue Marble), Daylight, Atlas, Blueprint, Mono and Paper, with
+  optional shaded relief; one palette colours the map, regions, the globe's haze, borders and labels.
+- **3D terrain.** Download an elevation pack for an area (open data through Mapterhorn), then shaded
+  slopes and real 3D mountains with the sky above the horizon; pins, labels and routes sit on the
+  ground, and a keyed Terrain Height slider makes the mountains rise.
+- **Highlights.** Countries, provinces (4,589 built in), districts (downloaded per country from
+  geoBoundaries) and shapes from your own files, each rendered as its own layer above the basemap.
+- **Search.** Countries, provinces, districts and cities in 26 languages, or coordinates, offline.
+- **Import.** GPX, KML, KMZ, GeoJSON, CSV and shapefiles: routes that draw on (at the recorded pace
+  of a GPS track if you like), a traveller that rides the line, pins for places, areas to highlight,
+  and camera moves along a line.
+- **Auto labels in batches.** Names arrive a few at a time with progress and cancel; three densities.
+
+### From 0.1
 
 - **Globe to street level.** A Globe checkbox per map: a turning planet with an atmosphere at low
   zoom that becomes the flat map by zoom 8, and **Fly here** keys one continuous flight to the

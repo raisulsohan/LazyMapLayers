@@ -1,5 +1,5 @@
 @echo off
-rem LazyMapLayers - removes the panel. Downloaded map regions, the render queue
+rem LazyMapLayers - removes the panel. Downloaded data (regions, imagery, terrain, districts), the render queue
 rem and renders made without a saved project are removed too, but only if you
 rem say so. Renders next to your saved projects stay where they are.
 
@@ -31,8 +31,8 @@ echo Removed the panel.
 :data
 if not exist "%DATA%" goto :done
 echo.
-echo LazyMapLayers keeps downloaded map regions, the render queue and
-echo renders of unsaved projects in
+echo LazyMapLayers keeps downloaded map regions, imagery, elevation packs,
+echo district boundaries, the render queue and renders of unsaved projects in
 echo   %DATA%
 echo Keep them if you might install LazyMapLayers again.
 choice /c YN /m "Delete them as well"
@@ -41,7 +41,7 @@ rmdir /s /q "%DATA%"
 if exist "%DATA%" (
   echo [!] Could not remove it - close After Effects and try again.
 ) else (
-  echo Removed the downloaded regions and renders.
+  echo Removed the downloaded data and renders.
 )
 
 :done
