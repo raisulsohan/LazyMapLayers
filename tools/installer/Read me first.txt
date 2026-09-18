@@ -1,7 +1,8 @@
 ============================================================
-  LAZYMAPLAYERS 0.1
+  LAZYMAPLAYERS 0.2
   Free map animation for After Effects: globe to street level,
-  labels, routes and callouts, rendered frame-exact
+  3D terrain, looks, labels, routes, highlights, rendered
+  frame-exact
 ============================================================
 
 WHAT YOU NEED
@@ -32,66 +33,118 @@ INSTALL
 ------------------------------------------------------------
 YOUR FIRST MAP IN A MINUTE
 ------------------------------------------------------------
-  1. Click "World flight sample". It builds a 36-second scene:
-     the globe turns while borders draw on, the camera flies to
-     Paris, then along a route to Tokyo, with labels, pins and
-     callouts.
+  1. Open the maps list (the button at the top left) and click
+     "Build the world flight sample". It builds a 36-second
+     scene: the globe turns while borders draw on, the camera
+     flies to Paris, then along a route to Tokyo, with labels,
+     pins and callouts.
   2. Click "Render". The map is rendered for every frame and
      imported into the map comp.
   3. Press play (or render with After Effects as usual).
 
   For the street-level ending, move the preview over Paris,
-  click "Download this area...", name it  paris , and do the
-  same for Tokyo ( tokyo ). Then build the sample again.
+  click the download button (arrow, top right), name it  paris ,
+  and do the same for Tokyo ( tokyo ). Then build the sample
+  again.
 
 
 ------------------------------------------------------------
 MAKING YOUR OWN MAP
 ------------------------------------------------------------
+  Maps list        (top left) your maps, "New map", the sample.
   New map          adds a map comp to the comp you have open, at
                    its size (or to a new scene).
+  Preview          the exact frame: drag to move, scroll to
+                   zoom, right-drag to rotate and tilt.
   Basemap          World (offline) or downloaded regions.
   Globe            a planet at low zoom that becomes the flat
                    map by zoom 8.
-  Preview          drag to move, scroll to zoom, right-drag to
-                   rotate and tilt.
-  Keyframe view    sets a camera keyframe at the current time.
-  Fly here         keys one smooth flight from the camera at
-                   the current time to the preview (pick the
-                   length next to it). Flights chain.
-  Match AE         shows the camera at the current time.
-  3D camera        adds an After Effects camera that matches
-                   the map, so 3D layers sit on the ground.
-  Alt+click        drops a pin.  Alt+Shift+click: a 3D pin.
-  Auto labels      country and city names in the local
-                   language, as editable text layers that never
-                   overlap or flicker.
+  Search           a country, province, district, city or
+                   "lat, lng", offline, in 26 languages.
+
+  CAMERA
+  Shots tab        "+ Shot" takes the view in the preview. Two
+                   shots make a move: Fly, Straight, Along route
+                   or Cut, with a duration and an easing. "Play"
+                   runs it in the preview. "Apply to timeline"
+                   writes the keys (one undo).
+  Keyframe view    keys the preview's view at the current time.
+  Fly here         keys one smooth flight from the camera at the
+                   current time to the preview.
+  Live link        while on, moving the preview moves the map at
+                   the current time.
+  3D camera        adds an After Effects camera that matches the
+                   map, so 3D layers sit on the ground.
+
+  TOOLS (the row of icons)
+  Pin, 3D pin      click, then click a place (or Alt+click the
+                   map; Alt+Shift+click for a 3D pin).
+  Callout          a leader line with a title box next to a place.
+  Route            a great-circle line between two places.
+  Highlight        click countries, provinces or districts on the
+                   map; each renders as its own layer above the
+                   basemap. Districts are downloaded per country
+                   when you first ask for them.
+  Import           GPX, KML, KMZ, GeoJSON, CSV or a zipped
+                   shapefile: draw lines as routes (with an arrow
+                   that rides along, at the recorded pace of a
+                   GPS track if you like), pin places, highlight
+                   areas, or fly the camera along a line.
+  Auto labels      country and city names in the local language,
+                   as editable text layers that never overlap or
+                   flicker. Pick how many.
   Animate borders  draws the borders on over 4 seconds.
-  Render preview   half resolution, fast.
+  Look             Midnight, Satellite, Daylight, Atlas,
+                   Blueprint, Mono, Paper; shaded relief; the sky
+                   above the horizon; terrain (below).
+
+  RENDER
+  Preview          half resolution, fast.
   Render           full quality. Only frames that changed are
                    drawn again.
-  (gear)           supersampling, motion blur, passes and
-                   mattes for this map.
+  Render tab       supersampling, motion blur, passes and mattes
+                   for this map.
 
   Every panel action is one Ctrl+Z (Cmd+Z).
 
 
 ------------------------------------------------------------
-MAP DATA
+TERRAIN
 ------------------------------------------------------------
-  The world map (Natural Earth) is inside the panel and works
-  offline.
+  In the Look sheet, "Terrain > Download..." fetches an elevation
+  pack for the area in the preview (open elevation data through
+  Mapterhorn; the size is shown first). With a pack:
+    Shaded slopes  sharp hillshading at any zoom.
+    3D height      real mountains, 1x true to scale or more.
+                   Pins, labels and routes made with the pack sit
+                   on the ground. Key the map layer's "Terrain
+                   Height" slider and the mountains rise.
 
-  "Download this area..." fetches OpenStreetMap detail (roads,
-  buildings, water) for the area in the preview from the free
-  Protomaps planet build. The panel shows the size before
-  anything is downloaded. Regions are saved in
-    Windows  %APPDATA%\LazyMapLayers\regions
-    macOS    ~/Library/Application Support/LazyMapLayers/regions
 
-  OpenStreetMap data must be credited. Rendering a region adds
-  a "(c) OpenStreetMap contributors" text layer to the scene
-  once; keep it, or credit OpenStreetMap in your video.
+------------------------------------------------------------
+MAP DATA AND DOWNLOADS
+------------------------------------------------------------
+  The world map (Natural Earth) and the provinces of every
+  country are inside the panel and work offline. Everything
+  else is downloaded only when you ask, and the size is shown
+  first:
+    - OpenStreetMap detail for an area (the download button):
+      roads, buildings, water, from the free Protomaps planet
+      build.
+    - Satellite pictures (NASA Blue Marble, 20 MB) and shaded
+      relief (Natural Earth, 48 MB): Look sheet.
+    - District boundaries per country (geoBoundaries, open
+      data): Highlight tool > Districts.
+    - Elevation packs (Mapterhorn, open data): Look sheet.
+  Downloads are saved in
+    Windows  %APPDATA%\LazyMapLayers
+    macOS    ~/Library/Application Support/LazyMapLayers
+
+  Credits: rendering an OpenStreetMap region, district
+  boundaries or terrain adds one small credit text layer to
+  the scene ("(c) OpenStreetMap contributors", "Boundaries:
+  geoBoundaries", "Terrain: (c) Mapterhorn"). Keep it, or put
+  the credit in your video's end titles.
 
 
 ------------------------------------------------------------
@@ -122,7 +175,7 @@ UNINSTALL
 ------------------------------------------------------------
   Windows: double-click  "Uninstall LazyMapLayers.bat"
   macOS:   double-click  "Uninstall LazyMapLayers (macOS).command"
-  Both ask before deleting downloaded regions.
+  Both ask before deleting downloaded data.
 
 
 ------------------------------------------------------------
@@ -136,7 +189,7 @@ SUPPORT
   https://github.com/raisulsohan/LazyMapLayers
 
   Map data: Natural Earth (public domain), OpenStreetMap
-  contributors (ODbL) through Protomaps. Rendering: MapLibre
-  GL JS (BSD-3-Clause).
-
-  Feel free to share it with friends.
+  contributors (ODbL) through Protomaps, NASA Blue Marble
+  (public domain), geoBoundaries (open licences per country),
+  Mapterhorn (open elevation data). Rendering: MapLibre GL JS
+  (BSD-3-Clause).

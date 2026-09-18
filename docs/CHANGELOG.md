@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased — Phase 3: cinematic camera and the new panel
+## 0.2.0 — cinematic camera, looks, terrain, highlights, districts and more files (2026-09-18)
 
 - **Shot list.** Build the camera from shots instead of keyframing five controls:
   - **+ Shot** adds the view in the preview. Each shot has a hold time and can orbit, push in or (on a
@@ -27,8 +27,7 @@
   sources: **Satellite** (NASA Blue Marble, a seventh look; best for continents and countries, zoom 0
   to 5) and **Shaded relief** (Natural Earth; a checkbox in the Look sheet that lays mountains and
   valleys over the land of any other look). With imagery, the Land and Water passes carry the picture
-  and the mattes still follow the land's outline exactly. The packs are built on the development
-  machine for now; downloading them from inside the panel comes next.
+  and the mattes still follow the land's outline exactly.
 - **Highlight countries.** Click the highlight tool and then countries on the map, or the highlight
   button next to a country in the search results. Each gets a colour; fill and outline are adjustable.
   Highlights render as their own **Highlight** layer above a basemap that stays clean, switched on, so
