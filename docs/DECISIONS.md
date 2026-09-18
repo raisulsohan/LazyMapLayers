@@ -478,3 +478,15 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   from the DEM tiles of the current zoom, so a place's elevation can differ by tens of metres between
   zoom levels (a pixel or two on screen); with terrain in the style every frame is resampled through
   the terrain, so a keyed height at 0 is a little softer than a render without terrain.
+
+## D29 — Imagery packs are published as a GitHub release (2026-09-18)
+
+- **Decision.** The satellite and relief packs (D19) live as assets of a release of the project's own
+  repository tagged `imagery-1` ("Imagery packs 1", not marked Latest, so the software release stays
+  the one people install from). The panel knows each pack's URL, size and SHA-256
+  (`src/panel/imagery/packs.ts`) and refuses a download that does not match, so a broken or changed
+  file can never be used by mistake. A new build of a pack gets a new tag (`imagery-2`) and new
+  constants; old panels keep working against the old tag.
+- **Why a release.** Release assets are free, fast (GitHub's CDN), versioned and need no server of
+  our own; the repository itself stays small. IM1 (online, named only) downloads the satellite pack
+  and compares it with the installed one: 20 MB in about 5 s here.

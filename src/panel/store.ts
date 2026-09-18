@@ -32,6 +32,7 @@ import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImpor
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
 import { samplerFor } from "./elevation.ts";
+import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 
 export type LogKind = "ok" | "fail" | "muted";
@@ -692,6 +693,24 @@ export const changeRelief = (on: boolean) =>
       await callHost("setMapSettings", { mapId: selectedId.value, relief: on });
       await readMaps();
     }
+  });
+
+/** Bumped when an imagery pack arrives, so the Look sheet redraws. */
+export const imageryVersion = signal(0);
+
+/** Downloads a satellite or relief pack from the project's GitHub release into the user data folder. */
+export const downloadImageryPack = (pack: ImageryPack) =>
+  run("download imagery", async () => {
+    const info = IMAGERY_INFO[pack];
+    const stopper = new AbortController();
+    const cancel = () => stopper.abort();
+    const label = `Downloading ${info.label}`;
+    progress.value = { label, done: 0, total: info.bytes, cancel };
+    const started = performance.now();
+    await downloadImagery(pack, { signal: stopper.signal, onProgress: (done, total) => (progress.value = { label, done, total, cancel }) });
+    imageryVersion.value++;
+    setPreviewStyle(basemap.value, projection.value, look());
+    log(`${info.label} installed (${mb(info.bytes)} in ${((performance.now() - started) / 1000).toFixed(1)} s) · ${info.attribution}`, "ok");
   });
 
 export const changeSky = (on: boolean) =>

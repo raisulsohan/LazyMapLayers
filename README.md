@@ -126,7 +126,9 @@ docs/          plan, decisions, spike results, changelog, release steps
   "© OpenStreetMap contributors".
 - **[NASA Blue Marble Next Generation](https://visibleearth.nasa.gov/collection/1484/blue-marble)**
   (public domain; NASA Earth Observatory) for the optional satellite imagery pack, and Natural Earth's
-  shaded relief for the optional relief pack.
+  shaded relief for the optional relief pack. Both packs are published as assets of the
+  [Imagery packs release](https://github.com/raisulsohan/LazyMapLayers/releases/tag/imagery-1) and
+  downloaded from the panel when you ask.
 - **[geoBoundaries](https://www.geoboundaries.org)** (open release; each country's boundaries under
   their own open licence, shown in the panel before a download) for district boundaries, which are
   downloaded per country when you ask for them. Runfola, D. et al. (2020), geoBoundaries: A global

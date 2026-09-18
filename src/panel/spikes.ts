@@ -25,7 +25,7 @@ import { runDistrictTest } from "./districtTests.ts";
 import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runShotTests } from "./shotTests.ts";
-import { runHighlightTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
+import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
 import { extensionRoot } from "./cep.ts";
 
@@ -297,6 +297,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.TS1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`TS1 failed: ${results.TS1_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("IM1")) {
+    try {
+      results.IM1_imageryDownload = await runImageryDownloadTest(log);
+    } catch (error) {
+      results.IM1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`IM1 failed: ${results.IM1_error}`, "fail");
     }
   }
 
