@@ -28,9 +28,9 @@ import {
 import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
-import { hasImagery } from "../imagery/packs.ts";
+import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet } from "../store.ts";
-import { changeSky, changeTerrain, groundAtCentre, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
+import { changeSky, changeTerrain, downloadImageryPack, groundAtCentre, imageryVersion, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
@@ -59,6 +59,7 @@ function ThemeSwatch(props: { theme: Theme }): JSX.Element {
 /** The map's look: six themes that colour the world map, regions, the globe's haze and new labels. */
 export function LookSheetView(): JSX.Element | null {
   if (!lookSheetOpen.value) return null;
+  void imageryVersion.value;
   const satellitePack = hasImagery("blue-marble");
   const reliefPack = hasImagery("relief");
   const current = THEMES.find((t) => t.id === themeId.value);
@@ -81,6 +82,18 @@ export function LookSheetView(): JSX.Element | null {
           </button>
         ))}
       </div>
+      {(["blue-marble", "relief"] as const)
+        .filter((pack) => !hasImagery(pack))
+        .map((pack) => (
+          <div key={pack} class="sheet-row import-row">
+            <span class="grow" title={`${IMAGERY_INFO[pack].attribution}. Downloaded once from the project's GitHub page into your data folder; then it works offline.`}>
+              {pack === "blue-marble" ? "Satellite pictures" : "Shaded relief"} <span class="muted">· {mb(IMAGERY_INFO[pack].bytes)}, once</span>
+            </span>
+            <button class="small-button" data-id={`imagery-${pack}`} disabled={busy.value} onClick={() => void downloadImageryPack(pack)}>
+              Download
+            </button>
+          </div>
+        ))}
       <label class="check" title={reliefPack ? "Mountains and valleys as soft shadows over the land (Natural Earth shaded relief)" : "Needs the shaded relief pack, which is not installed yet"}>
         <input type="checkbox" checked={reliefOn.value && !current?.satellite} disabled={busy.value || !reliefPack || !!current?.satellite} onChange={(e) => void changeRelief((e.target as HTMLInputElement).checked)} />
         Shaded relief {current?.satellite ? "(the satellite picture has its own)" : ""}

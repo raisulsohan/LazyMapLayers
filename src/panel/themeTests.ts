@@ -16,7 +16,7 @@ import { searchPlaces } from "../core/search/placeSearch.ts";
 import { callHost, callHostWithJobFile, evalScript, fs, path } from "./cep.ts";
 import { provinceAt, provincesOf } from "./data/admin1.ts";
 import { placeIndex } from "./data/worldLabels.ts";
-import { hasImagery } from "./imagery/packs.ts";
+import { downloadImagery, hasImagery, IMAGERY_INFO, imageryPath } from "./imagery/packs.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
@@ -366,4 +366,23 @@ export async function runLabelTimingTest(log: SpikeLog): Promise<Record<string, 
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
   return { passed, labels: result.labels, layers: result.layers, seconds: result.seconds, calls, longestCallMs: result.longestCallMs, host: result.hostTimings, problems };
+}
+
+/** IM1: the published imagery packs download from GitHub, checked by size and checksum (online; runs only when named). */
+export async function runImageryDownloadTest(log: SpikeLog): Promise<Record<string, unknown>> {
+  const problems: string[] = [];
+  const started = performance.now();
+  const into = path().join(spikeDir(), "im1-blue-marble.pmtiles");
+  fs().rmSync(into, { force: true });
+  let last = 0;
+  const file = await downloadImagery("blue-marble", { into, onProgress: (done) => (last = done) });
+  const seconds = (performance.now() - started) / 1000;
+  const size = fs().statSync(file).size;
+  if (size !== IMAGERY_INFO["blue-marble"].bytes || last !== size) problems.push(`downloaded ${size} bytes, progress ended at ${last}`);
+  if (hasImagery("blue-marble") && Buffer.compare(fs().readFileSync(file), fs().readFileSync(imageryPath("blue-marble"))) !== 0) problems.push("the published pack differs from the installed one");
+  fs().rmSync(file, { force: true });
+  const passed = problems.length === 0;
+  log(`IM1 imagery download: ${(size / 1048576).toFixed(1)} MB in ${seconds.toFixed(1)} s, ${problems.length} problems`, passed ? "ok" : "fail");
+  for (const problem of problems) log(`  ${problem}`, "fail");
+  return { passed, size, seconds, problems };
 }

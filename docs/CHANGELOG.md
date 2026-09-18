@@ -44,6 +44,10 @@
   pick the province under it instead of the country. Neighbouring provinces share exactly the same
   border, so two of them never show a gap. A country's outlines are read only when first needed
   (Bangladesh: 15 KB).
+- **Satellite and relief packs download from the panel.** The Look sheet offers the two imagery
+  packs when they are missing: **Satellite pictures** (NASA Blue Marble, 20 MB) and **Shaded
+  relief** (Natural Earth, 48 MB), downloaded once from the project's GitHub page ("Imagery packs 1"
+  release) into your data folder, checked by size and checksum, then used offline.
 - **3D terrain and shaded slopes.** The Look sheet has a **Terrain** row: download an elevation
   pack for the area in the preview (open elevation data through Mapterhorn: the Copernicus 30 m
   model and national surveys, cut out of a 355 GB planet archive so only your area comes down, size
