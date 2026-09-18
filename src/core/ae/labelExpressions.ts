@@ -9,11 +9,11 @@ function num(value: number): string {
   return Number.isFinite(value) ? String(value) : "0";
 }
 
-/** Position of a layer attached to a geographic point, offset by (dx, dy) map comp pixels. */
-export function anchoredPositionExpression(lat: number, lng: number, dx: number, dy: number, marker = LABEL_MARKER): string {
+/** Position of a layer attached to a geographic point (at `elevation` metres on 3D terrain), offset by (dx, dy) map comp pixels. */
+export function anchoredPositionExpression(lat: number, lng: number, dx: number, dy: number, marker = LABEL_MARKER, elevation = 0): string {
   return `${marker} (generated)
 var map = effect("Map")(1);
-${projectionPrelude()}var p = lmlProject(${num(lat)}, ${num(lng)}, 0);
+${projectionPrelude()}var p = lmlProject(${num(lat)}, ${num(lng)}, lmlGround(${num(elevation)}));
 var c = map.toComp([p.x + ${num(dx)}, p.y + ${num(dy)}]);
 [c[0], c[1]];`;
 }
@@ -21,7 +21,8 @@ var c = map.toComp([p.x + ${num(dx)}, p.y + ${num(dy)}]);
 export const ROUTE_MARKER = "// LazyMapLayers route";
 
 /**
- * A shape path through geographic points, lifted by an arc: `points` are [lat, lng, altitude m].
+ * A shape path through geographic points, lifted by an arc: `points` are [lat, lng, altitude m] or
+ * [lat, lng, altitude m, ground elevation m] (the elevation follows the map's 3D terrain).
  * Points hidden behind the planet take the position of the nearest visible point before them (or,
  * at the start, after them), so the path never jumps across the screen; trim the path with Trim
  * Paths to draw it on.
@@ -33,7 +34,7 @@ var map = effect("Map")(1);
 ${projectionPrelude()}var pts = ${data};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
-  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2]));
+  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
   if (first < 0 && projected[i].visible) first = i;
 }
 var out = [], last = null, p = null;
@@ -57,10 +58,10 @@ createPath(out, [], [], false);`;
  * A callout leader: from the place, diagonally by (dx, dy) map comp pixels, then horizontally by
  * `length` (negative for a leader that runs left).
  */
-export function leaderPathExpression(lat: number, lng: number, dx: number, dy: number, length: number): string {
+export function leaderPathExpression(lat: number, lng: number, dx: number, dy: number, length: number, elevation = 0): string {
   return `${ROUTE_MARKER} callout leader (generated)
 var map = effect("Map")(1);
-${projectionPrelude()}var p = lmlProject(${num(lat)}, ${num(lng)}, 0);
+${projectionPrelude()}var p = lmlProject(${num(lat)}, ${num(lng)}, lmlGround(${num(elevation)}));
 createPath([fromComp(map.toComp([p.x, p.y])), fromComp(map.toComp([p.x + ${num(dx)}, p.y + ${num(dy)}])), fromComp(map.toComp([p.x + ${num(dx + length)}, p.y + ${num(dy)}]))], [], [], false);`;
 }
 
@@ -70,7 +71,7 @@ export const TRAVELLER_EFFECTS = { map: "Map", progress: "Progress", rotate: "Ro
 
 /**
  * A layer that travels along a route: position, rotation and opacity expressions driven by a
- * "Progress" slider. `points` are [lat, lng, altitude m], the same ones the route's path uses.
+ * "Progress" slider. `points` are [lat, lng, altitude m(, ground elevation m)], the same ones the route's path uses.
  *
  * Progress counts along the route as it is drawn on screen in that frame, exactly like Trim Paths
  * counts along the route layer's path: with the same keys the traveller rides the tip of the line,
@@ -80,14 +81,14 @@ export const TRAVELLER_EFFECTS = { map: "Map", progress: "Progress", rotate: "Ro
  */
 export function travellerExpressions(points: number[][]): { position: string; rotation: string; opacity: string } {
   const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 ** digits;
-  const data = JSON.stringify(points.map((p) => [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1)]));
+  const data = JSON.stringify(points.map((p) => (p.length > 3 ? [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1), round(p[3], 1)] : [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1)])));
   // The same polyline as routePathExpression builds (hidden points collapse onto visible neighbours),
   // in comp pixels, with its running length.
   const path = `var map = effect(${JSON.stringify(TRAVELLER_EFFECTS.map)})(1);
 ${projectionPrelude()}var pts = ${data};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
-  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2]));
+  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
   if (first < 0 && projected[i].visible) first = i;
 }
 var line = [], run = [0], last = null, p = null;

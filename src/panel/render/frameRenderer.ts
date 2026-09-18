@@ -10,7 +10,7 @@ import * as maplibregl from "maplibre-gl";
 import type { StyleSpecification } from "maplibre-gl";
 import type { View } from "../../core/camera/camera.ts";
 import { flipAndUnpremultiply } from "../../core/image/png.ts";
-import { groupVisibleIn, type LayerGroup, type RenderId } from "../../core/render/passes.ts";
+import { groupVisibleIn, skyVisibleIn, type LayerGroup, type RenderId } from "../../core/render/passes.ts";
 import { ensureMaplibreWorker } from "../basemap/maplibreSetup.ts";
 import { BORDERS_DRAW_LAYER, LAYER_COLOR_KEY, bordersGradient } from "../basemap/basemapStyle.ts";
 import type { AnimatedView } from "../../core/render/plan.ts";
@@ -29,6 +29,12 @@ export type FrameRendererOptions = {
   antialias?: boolean;
   /** Vertical field of view in degrees. MapLibre's default is about 36.87. */
   fovDegrees?: number;
+  /**
+   * 3D terrain: the height (exaggeration) and ground level (metres) the map's sliders hold when they
+   * are not keyed. Keyed values arrive per frame in the view's animation ("terrainHeight",
+   * "groundLevel"). The centre stays at ground × height, the level the camera maths counts from.
+   */
+  terrain?: { ground: number; height: number };
 };
 
 export type RenderedFrame = {
@@ -69,6 +75,10 @@ export class FrameRenderer {
   private highlightOf = new Map<string, string | null>();
   private hidden = new Set<string>();
   private visibleRender: string | null = null;
+  /** True while a render must not show the sky or the globe's atmosphere (every render but the base and the water fill). */
+  private skyHidden = false;
+  /** Frames in which MapLibre moved the camera out of the mountains (its picture then differs from the maths of linked layers). */
+  cameraLifted = 0;
   private animation: Record<string, number> = {};
 
   constructor(options: FrameRendererOptions) {
@@ -109,7 +119,8 @@ export class FrameRenderer {
       fadeDuration: 0,
       canvasContextAttributes: { antialias: this.options.antialias ?? true, preserveDrawingBuffer: true },
       maxPitch: 85,
-      renderWorldCopies: true
+      renderWorldCopies: true,
+      centerClampedToGround: false
     });
     this.map = map;
     if (this.options.fovDegrees !== undefined) map.setVerticalFieldOfView(this.options.fovDegrees);
@@ -125,6 +136,7 @@ export class FrameRenderer {
       this.highlightOf.set(layer.id, layerHighlight(layer));
     }
     this.installGroupHiding();
+    this.installSkyHiding();
     this.reader = new GpuReader(this.gl());
   }
 
@@ -154,12 +166,36 @@ export class FrameRenderer {
     }
   }
 
+  /**
+   * The sky and the globe's atmosphere are not style layers, so MapLibre would draw them into every
+   * render: a roads or highlight pass would carry its own copy of the sky. They belong to the picture's
+   * background, so only the base render and the water fill (which holds the background) show them.
+   * Like group hiding, this reaches into MapLibre's painter (maplibre-gl is pinned; R1 covers it).
+   */
+  private installSkyHiding(): void {
+    type Draw = (...args: unknown[]) => void;
+    const painter = (this.maplibre as unknown as { painter?: { drawFunctions?: Record<string, Draw> } }).painter;
+    const shared = painter?.drawFunctions;
+    if (!painter || !shared || typeof shared.sky !== "function" || typeof shared.atmosphere !== "function") throw new Error("this MapLibre build draws the sky in a way the renderer does not know");
+    // A copy for this map alone: the preview map keeps the functions all maps share.
+    painter.drawFunctions = {
+      ...shared,
+      sky: (...args: unknown[]) => {
+        if (!this.skyHidden) shared.sky(...args);
+      },
+      atmosphere: (...args: unknown[]) => {
+        if (!this.skyHidden) shared.atmosphere(...args);
+      }
+    };
+  }
+
   /** Shows only the layers that belong to a render. */
   private showRender(render: RenderId, labels: boolean): void {
     const signature = `${render}:${labels}`;
     if (this.visibleRender === signature) return;
     this.hidden.clear();
     for (const [id, group] of this.groups) if (!groupVisibleIn(render, group, { labels, highlight: this.highlightOf.get(id) })) this.hidden.add(id);
+    this.skyHidden = !skyVisibleIn(render);
     this.visibleRender = signature;
   }
 
@@ -169,9 +205,16 @@ export class FrameRenderer {
     const started = performance.now();
     maplibregl.setNow(timeMs);
     this.applyAnimation(view.animation);
-    map.jumpTo({ center: [view.center.lng, view.center.lat], zoom: view.zoom, bearing: view.bearing, pitch: view.pitch });
+    const height = view.animation?.terrainHeight ?? this.options.terrain?.height ?? 0;
+    const ground = view.animation?.groundLevel ?? this.options.terrain?.ground ?? 0;
+    const terrain = (map as unknown as { terrain?: { exaggeration: number } | null }).terrain;
+    if (terrain && terrain.exaggeration !== height) terrain.exaggeration = height;
+    // With 3D terrain MapLibre would lift the centre onto the ground; the elevation given here keeps it where the camera maths expects it.
+    map.jumpTo({ center: [view.center.lng, view.center.lat], zoom: view.zoom, bearing: view.bearing, pitch: view.pitch, elevation: ground * height });
+    if (terrain && (Math.abs(map.getZoom() - view.zoom) > 1e-6 || Math.abs(map.getPitch() - view.pitch) > 1e-6)) this.cameraLifted++;
     // Tiles are chosen with every layer visible, so each render of this camera uses the same tiles.
     this.hidden.clear();
+    this.skyHidden = false;
     this.visibleRender = null;
     await this.waitForTiles();
     return performance.now() - started;
@@ -201,6 +244,7 @@ export class FrameRenderer {
     await this.setView(view, timeMs);
     const t1 = performance.now();
     this.hidden.clear();
+    this.skyHidden = false;
     this.visibleRender = "all";
     this.maplibre.redraw();
     const t2 = performance.now();

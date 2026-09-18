@@ -177,7 +177,7 @@ export class RenderQueue {
           });
           job.status = "done";
           const seconds = (result.totalMs / 1000).toFixed(1);
-          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s`;
+          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s${result.cameraLifted ? ` · the camera was inside the mountains in ${result.cameraLifted} frames (raise it or lower Terrain Height; pins drift there)` : ""}`;
         } catch (error) {
           if (error instanceof RenderCancelled) {
             job.status = "cancelled";

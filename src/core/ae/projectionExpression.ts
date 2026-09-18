@@ -2,7 +2,9 @@
 // core/camera/globe.ts, for pins, labels and routes. The snippet expects `map` (the map layer, reached
 // through a Layer Control effect) and defines:
 //
-//   lmlView                         the camera controls at the current time
+//   lmlView                         the camera controls at the current time (with the terrain's
+//                                   height and ground level, 0 on maps without 3D terrain)
+//   lmlGround(elevation)            metres above the map's ground level, as the terrain shows them
 //   lmlProject(lat, lng, altitude)  -> { x, y, w, visible, k } in map comp pixels
 //
 // k is the map scale at the point relative to the view centre (1 at the centre of a flat, unpitched
@@ -26,7 +28,11 @@ export const MAP_CONTROL_NAMES = {
   zoom: "Zoom",
   bearing: "Bearing",
   pitch: "Pitch",
-  globe: "Globe"
+  globe: "Globe",
+  /** 3D terrain: how much the elevation is exaggerated (0 for a flat map). */
+  terrainHeight: "Terrain Height",
+  /** 3D terrain: the elevation in metres the camera counts from (the map centre's ground). */
+  groundLevel: "Ground Level"
 } as const;
 
 function num(value: number): string {
@@ -59,9 +65,15 @@ export function projectionPrelude(): string {
   const control = (name: string) => `map.effect(${q(name)})(1).value`;
   return `var lmlView = (function () {
   var globe = 0;
+  var height = 0, ground = 0;
   try { globe = ${control(MAP_CONTROL_NAMES.globe)} ? 1 : 0; } catch (err) { globe = 0; }
-  return { lat: ${control(MAP_CONTROL_NAMES.latitude)}, lng: ${control(MAP_CONTROL_NAMES.longitude)}, zoom: ${control(MAP_CONTROL_NAMES.zoom)}, bearing: ${control(MAP_CONTROL_NAMES.bearing)}, pitch: ${control(MAP_CONTROL_NAMES.pitch)}, globe: globe };
+  try { height = ${control(MAP_CONTROL_NAMES.terrainHeight)}; } catch (err2) { height = 0; }
+  try { ground = ${control(MAP_CONTROL_NAMES.groundLevel)}; } catch (err3) { ground = 0; }
+  return { lat: ${control(MAP_CONTROL_NAMES.latitude)}, lng: ${control(MAP_CONTROL_NAMES.longitude)}, zoom: ${control(MAP_CONTROL_NAMES.zoom)}, bearing: ${control(MAP_CONTROL_NAMES.bearing)}, pitch: ${control(MAP_CONTROL_NAMES.pitch)}, globe: globe, height: height, ground: ground };
 })();
+function lmlGround(elevation) {
+  return ((elevation || 0) - lmlView.ground) * lmlView.height;
+}
 function lmlProject(lat, lng, altitude) {
   var DEG = Math.PI / 180, MAXLAT = ${num(MAX_LATITUDE)}, EARTH = ${num(EARTH_RADIUS_M)};
   var v = lmlView, W = map.source.width, H = map.source.height, D = H / 2 / ${num(Math.tan(DEFAULT_FOV_RAD / 2))};

@@ -21,7 +21,9 @@ export const PIN_EFFECTS = {
   longitude: "Longitude",
   scaleWithMap: "Scale with Map",
   rotateWithMap: "Rotate with Map",
-  referenceZoom: "Reference Zoom"
+  referenceZoom: "Reference Zoom",
+  /** The ground's elevation at the pin in metres, so it sits on 3D terrain; pins made before terrain lack it. */
+  elevation: "Elevation (m)"
 } as const;
 
 export const EXPRESSION_MARKER = "// LazyMapLayers pin";
@@ -48,7 +50,9 @@ ${froundSource()}function lmlPick(slider, exact) {
 }
 var lat = lmlPick(effect(${JSON.stringify(PIN_EFFECTS.latitude)})(1).value, ${num(lat)});
 var lng = lmlPick(effect(${JSON.stringify(PIN_EFFECTS.longitude)})(1).value, ${num(lng)});
-${projectionPrelude()}var pin = lmlProject(lat, lng, 0);
+${projectionPrelude()}var elev = 0;
+try { elev = effect(${JSON.stringify(PIN_EFFECTS.elevation)})(1).value; } catch (err4) { elev = 0; }
+var pin = lmlProject(lat, lng, lmlGround(elev));
 var zoom = lmlView.zoom, bearing = lmlView.bearing;
 `;
 }
@@ -67,7 +71,7 @@ scaled;`,
     // meridians converge towards the poles.
     rotation: `${base}var turn = (function () {
   if (!lmlView.globe) return -bearing;
-  var north = lmlProject(Math.min(89.9, lat + 0.01), lng, 0);
+  var north = lmlProject(Math.min(89.9, lat + 0.01), lng, lmlGround(elev));
   return Math.atan2(north.x - pin.x, pin.y - north.y) * 180 / Math.PI;
 })();
 effect(${JSON.stringify(PIN_EFFECTS.rotateWithMap)})(1).value ? value + turn : value;`,

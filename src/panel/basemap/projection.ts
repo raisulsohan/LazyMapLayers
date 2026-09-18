@@ -7,8 +7,27 @@ import type { StyleSpecification } from "maplibre-gl";
 import { globeProjectionSpec, type MapProjection } from "../../core/camera/globe.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
-export function withProjection(style: StyleSpecification, projection: MapProjection, theme: Theme = themeById(null)): StyleSpecification {
-  if (projection !== "globe") return { ...style, projection: { type: "mercator" } };
+/**
+ * `sky` (default on) fills what lies above the horizon of a tilted flat map with the look's sky; off
+ * leaves it transparent, for a sky of your own in After Effects. The globe always has its atmosphere.
+ */
+export function withProjection(style: StyleSpecification, projection: MapProjection, theme: Theme = themeById(null), sky = true): StyleSpecification {
+  if (projection !== "globe") {
+    const flat: StyleSpecification = { ...style, projection: { type: "mercator" } };
+    if (!sky) return flat;
+    return {
+      ...flat,
+      sky: {
+        "sky-color": theme.sky.sky,
+        "horizon-color": theme.sky.horizon,
+        "fog-color": theme.sky.fog,
+        "sky-horizon-blend": 0.7,
+        "horizon-fog-blend": 0.6,
+        "fog-ground-blend": 0.85,
+        "atmosphere-blend": 0
+      }
+    };
+  }
   return {
     ...style,
     projection: globeProjectionSpec() as StyleSpecification["projection"],

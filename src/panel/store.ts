@@ -15,6 +15,7 @@ import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
+import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
@@ -29,6 +30,8 @@ import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
+import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
+import { samplerFor } from "./elevation.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 
 export type LogKind = "ok" | "fail" | "muted";
@@ -53,6 +56,8 @@ export type MapEntry = {
   /** The map's look (core/style/themes.ts). */
   theme: string | null;
   relief: boolean;
+  sky?: boolean;
+  terrain?: TerrainSetting | null;
   highlightLayers?: "each" | "one";
   highlights: Highlight[];
   view: View;
@@ -61,7 +66,8 @@ export type MapEntry = {
 };
 
 export type Progress = { label: string; done: number; total: number; cancel?: () => void } | null;
-export type RegionSheet = { name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
+/** The download sheet, for an OpenStreetMap region or for an elevation pack of the area in the preview. */
+export type RegionSheet = { kind: "region" | "terrain"; name: string; maxZoom: number; bbox: Bbox; planned?: { plan: ExtractPlan; url: string; build: string } };
 export type Screen = "main" | "maps" | "newMap" | "settings";
 export type Tab = "shots" | "render";
 /** A tool waits for clicks on the preview: a place for a pin or a callout, two places for a route. */
@@ -71,6 +77,8 @@ export type ToolSheet = { kind: "callout"; place: { lat: number; lng: number }; 
 export const LARGE_DOWNLOAD_BYTES = 200 * 1048576;
 export const MAX_DOWNLOAD_BYTES = 2048 * 1048576;
 export const DETAIL_ZOOMS = [10, 11, 12, 13, 14, 15];
+/** Elevation tiles are 512 px wide: zoom 12 is about 20 m per pixel, which is what the open 30 m models hold. */
+export const TERRAIN_DETAIL_ZOOMS = [7, 8, 9, 10, 11, 12];
 
 export const LABEL_LANGUAGES: { value: string; label: string }[] = [
   { value: "local+en", label: "Local language + English" },
@@ -90,6 +98,11 @@ export const projection = signal<MapProjection>("mercator");
 export const themeId = signal<string>(DEFAULT_THEME_ID);
 /** Shaded relief over the land (needs the relief imagery pack). */
 export const reliefOn = signal(false);
+/** The sky above the horizon of a tilted flat map. */
+export const skyOn = signal(true);
+/** The map's elevation pack and shading, and the packs on this computer. */
+export const terrain = signal<TerrainSetting | null>(null);
+export const terrainPacks = signal<TerrainPackInfo[]>([]);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -98,7 +111,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value });
+const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -187,6 +200,8 @@ function showMap(entry: MapEntry): void {
   projection.value = entry.projection ?? "mercator";
   themeId.value = themeById(entry.theme).id;
   reliefOn.value = !!entry.relief;
+  skyOn.value = entry.sky !== false;
+  terrain.value = normaliseTerrain(entry.terrain);
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -284,7 +299,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -357,6 +372,17 @@ export const addCamera = () =>
     if (selectedId.value) await ensureCamera(selectedId.value);
   });
 
+/** The ground's elevation at places, from the selected map's elevation pack (zeros without one). */
+async function groundElevations(places: { lat: number; lng: number }[]): Promise<number[]> {
+  const sampler = samplerFor(terrain.value);
+  if (!sampler) return places.map(() => 0);
+  try {
+    return await sampler.elevations(places);
+  } finally {
+    sampler.close();
+  }
+}
+
 export async function addPinAt(position: { lat: number; lng: number }, threeD = false): Promise<void> {
   const mapId = selectedId.value;
   if (!mapId) {
@@ -365,7 +391,8 @@ export async function addPinAt(position: { lat: number; lng: number }, threeD = 
   }
   await run("add pin", async () => {
     if (threeD) await ensureCamera(mapId);
-    const added = await addPin(mapId, position, { name: threeD ? String(pinCounter++) : `Pin ${pinCounter++}`, threeD });
+    const [elevation] = await groundElevations([position]);
+    const added = await addPin(mapId, position, { name: threeD ? String(pinCounter++) : `Pin ${pinCounter++}`, threeD, elevation: terrain.value ? elevation : undefined });
     if (added.expressionErrors.length) log(`pin expression problems: ${added.expressionErrors.join("; ")}`, "fail");
     else log(`added ${added.name} at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`, "ok");
   });
@@ -445,10 +472,10 @@ export const confirmToolSheet = () =>
         log("a callout needs a title", "muted");
         return;
       }
-      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames });
+      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames });
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value });
       log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
@@ -484,7 +511,7 @@ export const drawImportedLine = (line: ImportedLine, seconds: number, traveller:
     const start = currentMapFrame(entry);
     const frames = Math.max(1, Math.round(seconds * entry.frameRate));
     const pace = recordedPace && line.times ? { points: line.points, times: line.times, leaves: line.leaves } : undefined;
-    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace });
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value });
     const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
     const paced = pace ? ` at its recorded pace (${made.keys} keys, long stops shortened)` : "";
     log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
@@ -498,10 +525,11 @@ export const pinImportedPlaces = (places: ImportedPlace[]) =>
       return;
     }
     const some = places.slice(0, 40);
+    const elevations = await groundElevations(some);
     let done = 0;
     for (const place of some) {
       progress.value = { label: "Adding pins", done, total: some.length };
-      await addPin(mapId, place, { name: place.name });
+      await addPin(mapId, place, { name: place.name, elevation: terrain.value ? elevations[done] : undefined });
       done++;
     }
     log(`added ${done} pins${places.length > some.length ? ` (the first ${some.length} of ${places.length})` : ""}`, "ok");
@@ -666,6 +694,50 @@ export const changeRelief = (on: boolean) =>
     }
   });
 
+export const changeSky = (on: boolean) =>
+  run("sky", async () => {
+    skyOn.value = on;
+    setPreviewStyle(basemap.value, projection.value, look());
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, sky: on });
+      await readMaps();
+    }
+  });
+
+/** The ground's elevation at the map's centre, rounded to 10 m (the level a 3D map's camera counts from). */
+export async function groundAtCentre(): Promise<number> {
+  const centre = compView()?.center;
+  if (!centre) return 0;
+  const [elevation] = await groundElevations([centre]).catch(() => [0]);
+  return Math.round(elevation / 10) * 10;
+}
+
+/** Picks the map's elevation pack (null for a flat map), the strength of its shading, or the 3D height and ground level. */
+export const changeTerrain = (next: TerrainSetting | null) =>
+  run("terrain", async () => {
+    const before = terrain.value;
+    let wanted = normaliseTerrain(next);
+    // Switching 3D on: the ground level starts at the map centre's elevation, so the camera keeps its height above the ground there.
+    if (wanted && wanted.height > 0 && !(before && before.height > 0) && wanted.ground === 0) {
+      terrain.value = { ...wanted, height: 0 };
+      wanted = { ...wanted, ground: await groundAtCentre() };
+    }
+    terrain.value = wanted;
+    setPreviewStyle(basemap.value, projection.value, look());
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, terrain: terrain.value });
+      await readMaps();
+    }
+  });
+
+export async function refreshTerrainPacks(): Promise<void> {
+  try {
+    terrainPacks.value = await listTerrainPacks();
+  } catch (error) {
+    fail("listing elevation packs", error);
+  }
+}
+
 export const changeProjection = (next: MapProjection) =>
   run("projection", async () => {
     projection.value = next;
@@ -690,6 +762,7 @@ export const runAutoLabels = () =>
       english: choice === "local+en",
       theme: themeId.value,
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
+      terrain: terrain.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
       onProgress: (done, total) => (progress.value = { label: "Adding names", done, total, cancel })
@@ -739,7 +812,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -769,7 +842,18 @@ export function openRegionSheet(): void {
   const bbox = { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) };
   // Start with the most detail that stays around a city-sized download (a few thousand tiles).
   const maxZoom = [...DETAIL_ZOOMS].reverse().find((z) => tilesUpTo(bbox, z) <= 3000) ?? DETAIL_ZOOMS[0];
-  regionSheet.value = { name: safeRegionName(suggestName() ?? ""), maxZoom, bbox };
+  regionSheet.value = { kind: "region", name: safeRegionName(suggestName() ?? ""), maxZoom, bbox };
+}
+
+/** The same sheet for an elevation pack of the area in the preview. */
+export function openTerrainSheet(): void {
+  const map = previewMap();
+  if (!map) return;
+  const b = map.getBounds();
+  const bbox = { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) };
+  // Elevation tiles are heavy (about 150 KB each): start where the download stays around 50 MB.
+  const maxZoom = [...TERRAIN_DETAIL_ZOOMS].reverse().find((z) => tilesUpTo(bbox, z) <= 350) ?? TERRAIN_DETAIL_ZOOMS[0];
+  regionSheet.value = { kind: "terrain", name: safeRegionName(suggestName() ?? ""), maxZoom, bbox };
 }
 
 export const checkRegionSize = () =>
@@ -777,7 +861,7 @@ export const checkRegionSize = () =>
     const sheet = regionSheet.value;
     if (!sheet) return;
     progress.value = { label: "Checking size", done: 0, total: 1 };
-    const planned = await planRegion(sheet.bbox, sheet.maxZoom);
+    const planned = sheet.kind === "terrain" ? { ...(await planTerrain(sheet.bbox, sheet.maxZoom)), build: "Mapterhorn" } : await planRegion(sheet.bbox, sheet.maxZoom);
     regionSheet.value = { ...sheet, planned };
   });
 
@@ -786,6 +870,17 @@ export const startRegionDownload = () =>
     const sheet = regionSheet.value;
     if (!sheet?.planned) return;
     const name = safeRegionName(sheet.name || `region-${Date.now()}`);
+    if (sheet.kind === "terrain") {
+      progress.value = { label: "Downloading elevation", done: 0, total: sheet.planned.plan.tileBytes };
+      await downloadTerrain(name, sheet.planned, (done, total) => (progress.value = { label: "Downloading elevation", done, total }));
+      log(`downloaded elevation pack "${name}" (${mb(sheet.planned.plan.tileBytes)}) · © Mapterhorn (open elevation data)`, "ok");
+      regionSheet.value = null;
+      await refreshTerrainPacks();
+      terrain.value = normaliseTerrain({ pack: name, shade: terrain.value?.shade ?? DEFAULT_SHADE });
+      setPreviewStyle(basemap.value, projection.value, look());
+      if (selectedId.value) await callHost("setMapSettings", { mapId: selectedId.value, terrain: terrain.value });
+      return;
+    }
     progress.value = { label: "Downloading", done: 0, total: sheet.planned.plan.tileBytes };
     await downloadRegion(name, sheet.planned, (done, total) => (progress.value = { label: "Downloading", done, total }));
     log(`downloaded region "${name}" (${mb(sheet.planned.plan.tileBytes)}) · © OpenStreetMap contributors`, "ok");
@@ -822,6 +917,7 @@ export function startStore(): () => void {
     .catch((error) => fail("host not ready", error));
   void refreshMaps(true);
   void refreshRegions();
+  void refreshTerrainPacks();
   renderQueue.load();
   jobs.value = [...renderQueue.jobs];
   const stopQueue = renderQueue.subscribe((event) => {

@@ -442,3 +442,39 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   adm0_a3 with four known differences (Kosovo, South Sudan, Palestine, Western Sahara).
 - **Tests.** DS1 goes online, so it runs only when named (`npm run ae:spikes -- --only DS1`); the unit
   tests cover the thinning (shared borders stay identical), ids, search records and codes.
+
+## D28 — Terrain and sky (2026-09-18)
+
+- **Elevation data.** Mapterhorn's planet archive (Terrarium-encoded 512 px WebP tiles to zoom 12,
+  built from Copernicus GLO-30 and national open data; every source allows commercial use with
+  credit, "© Mapterhorn") is a PMTiles file that supports range requests, so an elevation pack is cut
+  out with the same extractor as an OpenStreetMap region (`src/panel/terrain.ts`,
+  `<user data>/terrain/<name>.pmtiles`): the exact size is known before anything large moves. There
+  is no bundled world terrain: at world scale the Natural Earth relief pack already shades the land,
+  and a global elevation pack would be hundreds of megabytes.
+- **Shaded slopes** are a MapLibre hillshade layer in the "imagery" group (part of the base, land and
+  water passes, never of the mattes), placed above the last layer that colours the ground and below
+  everything drawn on it, in the look's own tones and softened (`hillshadePaint`). Deterministic
+  (TR1 draws the same frame twice).
+- **3D terrain keeps the camera maths.** MapLibre lifts the centre point onto the ground whenever
+  terrain is on (`jumpTo` sets the centre's elevation from the terrain, and `centerClampedToGround`
+  keeps it there). The renderer and the preview hold the centre at `ground × height` instead
+  (`jumpTo({ elevation })`, `setCenterClampedToGround(false)`), so the camera is the flat-map camera
+  and every linked layer projects a place at altitude `(elevation − ground) × height`: the pin on
+  Everest's peak is 0.5 px from the rendered peak (TR1). The renderer counts the frames in which
+  MapLibre still moved the camera out of the mountains and the render summary says so.
+- **Elevation of linked layers.** Pins get an "Elevation (m)" slider, 3D pins too; labels, callouts,
+  routes and travellers carry their elevations in their expressions (`src/panel/elevation.ts` reads
+  the pack at its top zoom and samples bilinearly, as MapLibre does). The map layer's "Terrain
+  Height" and "Ground Level" sliders are animation controls the renderer samples per frame and the
+  expressions read at their time, so a keyed height moves render and layers together. Layers made
+  before a pack was chosen have no elevation and stay at sea level.
+- **Sky** is MapLibre's sky for the flat map (the look's colours; off leaves it transparent, and the
+  base pass then keeps its alpha). Sky and atmosphere are drawn by the painter, not by style layers,
+  so `FrameRenderer` wraps the painter's sky and atmosphere draw functions and lets only the base
+  render and the water fill show them (`skyVisibleIn`). `RENDERER_VERSION` moved to lml-render-3 for
+  it.
+- **Limits.** A pack ends at its edge (download an area larger than the frame); MapLibre draws terrain
+  from the DEM tiles of the current zoom, so a place's elevation can differ by tens of metres between
+  zoom levels (a pixel or two on screen); with terrain in the style every frame is resampled through
+  the terrain, so a keyed height at 0 is a little softer than a render without terrain.

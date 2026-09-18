@@ -129,6 +129,31 @@ for (const globe of [false, true]) {
   }
 }
 
+// 3D terrain: the map's height and ground level lift pins, labels, leaders, routes and travellers.
+for (let i = 0; i < 12; i++) {
+  const view = randomView(false);
+  const terrain = { "Terrain Height": [0, 1, 1.5, 2.5][i % 4], "Ground Level": [0, 1200, 4300, -20][(i >> 2) % 4] };
+  const map = mapFor(view, false, terrain);
+  const comp = { width: map.width, height: map.height };
+  const spread = 40 / 2 ** Math.max(0, view.zoom - 1);
+  const pin = near(view, spread);
+  const own = { Map: "MAP" as const, Latitude: float32(pin.lat), Longitude: float32(pin.lng), "Scale with Map": 1, "Rotate with Map": i % 2, "Reference Zoom": 8, "Elevation (m)": random() * 8000 };
+  const e = pinExpressions(pin.lat, pin.lng);
+  add(`pin position on terrain ${i}`, e.position, { own, map, comp, value: [0, 0] });
+  add(`pin rotation on terrain ${i}`, e.rotation, { own, map, comp, value: 5 });
+  const label = near(view, spread);
+  add(`label on terrain ${i}`, anchoredPositionExpression(label.lat, label.lng, 12, -30, undefined, random() * 5000), { own: { Map: "MAP" }, map, comp, value: [0, 0] });
+  add(`leader on terrain ${i}`, leaderPathExpression(label.lat, label.lng, 40, -60, 120, random() * 5000), { own: { Map: "MAP" }, map, comp, value: null });
+  const a = near(view, spread * 4);
+  const b = near(view, spread * 4);
+  const route = greatCircle({ lat: a.lat, lng: a.lng }, { lat: b.lat, lng: b.lng }, 24, 0).map((p, k) => [p.lat, p.lng, p.altitude, 2000 + Math.sin(k) * 1500]);
+  add(`route on terrain ${i}`, routePathExpression(route), { own: { Map: "MAP" }, map, comp, value: null });
+  const traveller = travellerExpressions(route);
+  const travellerOwn = { Map: "MAP" as const, Progress: float32(random() * 100), "Rotate along Route": 1 };
+  add(`traveller position on terrain ${i}`, traveller.position, { own: travellerOwn, map, comp, value: [0, 0] });
+  add(`traveller rotation on terrain ${i}`, traveller.rotation, { own: travellerOwn, map, comp, value: 10 }, 1e-5);
+}
+
 // A route whose start is behind the planet, and one entirely hidden.
 {
   const view: View = { center: { lat: 20, lng: 0 }, zoom: 1.5, bearing: 0, pitch: 0 };
@@ -165,6 +190,18 @@ for (let i = 0; i < 20; i++) {
     comp: scene,
     value: [0, 0, 0]
   });
+  // The same pin on 3D terrain: the map's height and ground level lift it by its elevation.
+  if (i % 2 === 0) {
+    const lifted = mapFor(view, false, { "3D Origin Latitude": frame.origin.lat, "3D Origin Longitude": frame.origin.lng, "3D Reference Zoom": frame.referenceZoom, "Terrain Height": 1 + random(), "Ground Level": random() * 3000 });
+    lifted.width = scene.width;
+    lifted.height = scene.height;
+    add(`3D pin on terrain ${i}`, pin3dPositionExpression(pin.lat, pin.lng), {
+      own: { Map: "MAP", Latitude: float32(pin.lat), Longitude: float32(pin.lng), "Altitude (m)": random() * 500, "Elevation (m)": random() * 6000 },
+      map: lifted,
+      comp: scene,
+      value: [0, 0, 0]
+    });
+  }
 }
 
 fs.mkdirSync(path.dirname(out), { recursive: true });

@@ -19,7 +19,9 @@ import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeById, type Theme } from "../../core/style/themes.ts";
 import type { Areas, Highlight } from "../../core/style/highlights.ts";
+import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
+import { hasTerrainPack, terrainArchivePath } from "../terrain.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
 
@@ -47,7 +49,18 @@ export type BasemapStyleOptions = {
   areas?: Areas;
   /** Adds an invisible layer of country shapes, so the preview can tell which country was clicked. */
   countryHits?: boolean;
+  /** The sky above the horizon of a tilted flat map (default on; off leaves it transparent). */
+  sky?: boolean;
+  /** The map's elevation pack and how strongly slopes are shaded; ignored when the pack is not on this computer. */
+  terrain?: TerrainSetting | null;
 };
+
+export const HILLSHADE_SOURCE = "lml-hillshade";
+/** 3D terrain reads the pack through its own source (MapLibre asks for that). */
+export const TERRAIN_SOURCE = "lml-terrain-3d";
+
+/** True when the terrain setting names a pack that is installed here. */
+export const terrainUsable = (terrain: TerrainSetting | null | undefined): terrain is TerrainSetting => !!terrain && hasTerrainPack(terrain.pack);
 
 /**
  * Water polygons from region tiles of zoom 12 and below can be triangulated wrongly (wedges across
@@ -221,7 +234,33 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       ]
     };
   }
-  style = withProjection(style, options.projection ?? "mercator", theme);
+  if (terrainUsable(options.terrain) && options.terrain.height > 0) {
+    // 3D terrain: the ground rises by the pack's elevation times the height. The centre point is held at
+    // ground × height by whoever moves the camera (the renderer and the preview), see core/ae/projectionExpression.ts.
+    style = {
+      ...style,
+      sources: { ...style.sources, [TERRAIN_SOURCE]: { type: "raster-dem", url: registerLocalArchive(`lml-terrain-${options.terrain.pack}`, terrainArchivePath(options.terrain.pack)), encoding: "terrarium", tileSize: 512 } },
+      terrain: { source: TERRAIN_SOURCE, exaggeration: options.terrain.height }
+    };
+  }
+  if (terrainUsable(options.terrain) && options.terrain.shade > 0) {
+    // Shaded slopes from the elevation pack, above the ground's colours and below everything drawn on it.
+    // They count as imagery: part of the base, land and water passes, never of the mattes.
+    const layers = style.layers.slice();
+    layers.splice(hillshadeIndex(layers.map((l) => String((l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"] ?? "overlay"))), 0, {
+      id: "hillshade",
+      type: "hillshade",
+      metadata: { "lml:group": "imagery" },
+      source: HILLSHADE_SOURCE,
+      paint: hillshadePaint(theme, options.terrain.shade)
+    } as LayerSpecification);
+    style = {
+      ...style,
+      sources: { ...style.sources, [HILLSHADE_SOURCE]: { type: "raster-dem", url: registerLocalArchive(`lml-terrain-${options.terrain.pack}`, terrainArchivePath(options.terrain.pack)), encoding: "terrarium", tileSize: 512, attribution: "© Mapterhorn" } },
+      layers
+    };
+  }
+  style = withProjection(style, options.projection ?? "mercator", theme, options.sky !== false);
   if (options.markers?.length) {
     style.sources["lml-markers"] = {
       type: "geojson",

@@ -22,6 +22,7 @@ import { runExpressionEngineTest } from "./engineTests.ts";
 import { runDemoTest } from "./demoTests.ts";
 import { runDiagnostics } from "./diagnostics.ts";
 import { runDistrictTest } from "./districtTests.ts";
+import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
@@ -277,6 +278,25 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.DS1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`DS1 failed: ${results.DS1_error}`, "fail");
+    }
+  }
+
+  // TR1 downloads elevation packs when they are missing, so it runs only when asked for by name.
+  if (only && only.includes("TR1")) {
+    try {
+      results.TR1_terrain = await runTerrainTest(log);
+    } catch (error) {
+      results.TR1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`TR1 failed: ${results.TR1_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("TS1")) {
+    try {
+      results.TS1_terrainSpike = await runTerrainSpike(log);
+    } catch (error) {
+      results.TS1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`TS1 failed: ${results.TS1_error}`, "fail");
     }
   }
 

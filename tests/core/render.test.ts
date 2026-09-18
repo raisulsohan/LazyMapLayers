@@ -252,3 +252,10 @@ test("every highlight can be its own pass: drawn alone, held out by buildings, n
   const open = composePasses({ "highlight-BGD": pixel(200, 100, 0, 200) }, ["highlight-BGD"], 1);
   assert.deepEqual(Array.from(open["highlight-BGD"]!), [200, 100, 0, 200]);
 });
+
+test("the sky belongs to the base and water renders alone", async () => {
+  const { skyVisibleIn } = await import("../../src/core/render/passes.ts");
+  assert.equal(skyVisibleIn("base"), true);
+  assert.equal(skyVisibleIn("waterFill"), true);
+  for (const render of ["land", "landShapes", "waterShapes", "boundaries", "roads", "buildings", "highlight", "highlight-BGD"] as const) assert.equal(skyVisibleIn(render), false, render);
+});

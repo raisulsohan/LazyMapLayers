@@ -14,8 +14,35 @@ LML.map.CONTROLS = [
 
 LML.map.GLOBE_CONTROL = "Globe";
 
-/** Style animations driven by sliders on the map layer (0 to 100). The renderer reads them per frame. */
-LML.map.ANIMATION_CONTROLS = [{ name: "Borders Draw-on", key: "bordersDraw" }];
+/**
+ * Sliders on the map layer that the renderer reads per frame: the border draw-on (0 to 100) and the
+ * 3D terrain's height (an exaggeration; 0 keeps the map flat) and ground level (metres). Linked layers
+ * read the same two terrain sliders, so keyed mountains rise in the render and in After Effects alike.
+ */
+LML.map.ANIMATION_CONTROLS = [
+    { name: "Borders Draw-on", key: "bordersDraw" },
+    { name: "Terrain Height", key: "terrainHeight" },
+    { name: "Ground Level", key: "groundLevel" }
+];
+
+/** Sets a slider on the map layer to a plain value (created when missing); keys on it are kept. */
+LML.map.setControlValue = function (layer, name, value) {
+    var prop = LML.map.controlValueProperty(layer, name);
+    if (!prop) {
+        var effect = layer.property("ADBE Effect Parade").addProperty("ADBE Slider Control");
+        effect.name = name;
+        prop = effect.property(1);
+    }
+    if (prop.numKeys > 0) return false;
+    prop.setValue(value);
+    return true;
+};
+
+/** The plain value of a slider on the map layer at the layer's start, or null when it is missing. */
+LML.map.controlValue = function (layer, name) {
+    var prop = LML.map.controlValueProperty(layer, name);
+    return prop ? prop.valueAtTime(layer.startTime, false) : null;
+};
 
 /** The animation controls present on a map layer, in ANIMATION_CONTROLS order. */
 LML.map.animationControlsOf = function (layer) {

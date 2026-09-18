@@ -43,7 +43,9 @@ export const PIN3D_EFFECTS = {
   map: PIN_EFFECTS.map,
   latitude: PIN_EFFECTS.latitude,
   longitude: PIN_EFFECTS.longitude,
-  altitude: "Altitude (m)"
+  altitude: "Altitude (m)",
+  /** The ground's elevation at the pin in metres, so it sits on 3D terrain (0 on flat maps). */
+  elevation: PIN_EFFECTS.elevation
 } as const;
 
 export const RIG_MARKER = "// LazyMapLayers 3D camera";
@@ -233,5 +235,9 @@ var lat = lmlPick(effect(${q(PIN3D_EFFECTS.latitude)})(1).value, ${num(lat)});
 var lng = lmlPick(effect(${q(PIN3D_EFFECTS.longitude)})(1).value, ${num(lng)});
 ${groundPrelude()}var g = ground(lat, lng);
 var perMeter = S / (2 * Math.PI * ${num(MAPLIBRE_EARTH_RADIUS_M)} * Math.cos(Math.max(-MAXLAT, Math.min(MAXLAT, lat)) * DEG));
-[g[0], g[1], -effect(${q(PIN3D_EFFECTS.altitude)})(1).value * perMeter];`;
+var height = 0, groundLevel = 0, elev = 0;
+try { height = map.effect(${q(MAP_CONTROL_NAMES.terrainHeight)})(1).value; } catch (err) { height = 0; }
+try { groundLevel = map.effect(${q(MAP_CONTROL_NAMES.groundLevel)})(1).value; } catch (err2) { groundLevel = 0; }
+try { elev = effect(${q(PIN3D_EFFECTS.elevation)})(1).value; } catch (err3) { elev = 0; }
+[g[0], g[1], -(effect(${q(PIN3D_EFFECTS.altitude)})(1).value + (elev - groundLevel) * height) * perMeter];`;
 }

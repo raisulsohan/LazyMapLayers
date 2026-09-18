@@ -6,7 +6,9 @@ import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNa
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
 import { hexToRgb, mixHex, themeById } from "../../core/style/themes.ts";
+import type { TerrainSetting } from "../../core/style/terrain.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
+import { samplerFor } from "../elevation.ts";
 import { loadWorldLabels, type WorldLabel } from "../data/worldLabels.ts";
 import { readCameras, type RenderInfo } from "../render/renderJob.ts";
 
@@ -27,6 +29,8 @@ export type AutoLabelOptions = {
   signal?: AbortSignal;
   /** Place labels fade away above this zoom, where the map shows the city itself. */
   placeMaxZoom?: number;
+  /** The map's terrain: labels made with an elevation pack sit on the ground of 3D terrain. */
+  terrain?: TerrainSetting | null;
   /**
    * Areas labels must avoid, such as pins and callouts: a box relative to a place (map comp pixels),
    * between two frames.
@@ -182,8 +186,13 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     .slice(0, options.maxLabels ?? 150);
   const fade = Math.round(info.frameRate * 0.4);
 
-  const labels = kept.map(({ track, label }) => {
+  const sampler = samplerFor(options.terrain);
+  const elevations = sampler ? await sampler.elevations(kept.map(({ label }) => label.record)) : kept.map(() => 0);
+  sampler?.close();
+  lap("elevation");
+  const labels = kept.map(({ track, label }, index) => {
     const { record } = label;
+    const elevation = elevations[index];
     const peak = record.kind === "country" ? 85 : 100;
     const keys = opacityKeys(track, fade).map(([frame, value]) => [frame, (value * peak) / 100]);
     return {
@@ -197,9 +206,9 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       sub: label.sub,
       dotStyle: { radius: 4.5 * scale, color: colors.place, strokeColor: colors.halo, strokeWidth: 2 * scale },
       expressions: {
-        main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy),
-        sub: label.subtitle ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy) : null,
-        dot: anchoredPositionExpression(record.lat, record.lng, 0, 0)
+        main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
+        sub: label.subtitle ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
+        dot: anchoredPositionExpression(record.lat, record.lng, 0, 0, undefined, elevation)
       }
     };
   });

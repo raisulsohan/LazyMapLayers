@@ -30,6 +30,8 @@ import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
 import { changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet } from "../store.ts";
+import { changeSky, changeTerrain, groundAtCentre, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
+import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
@@ -60,6 +62,7 @@ export function LookSheetView(): JSX.Element | null {
   const satellitePack = hasImagery("blue-marble");
   const reliefPack = hasImagery("relief");
   const current = THEMES.find((t) => t.id === themeId.value);
+  const terrainSetting = terrain.value;
   return (
     <div class="sheet" data-id="look-sheet">
       <div class="sheet-title">Look</div>
@@ -82,6 +85,60 @@ export function LookSheetView(): JSX.Element | null {
         <input type="checkbox" checked={reliefOn.value && !current?.satellite} disabled={busy.value || !reliefPack || !!current?.satellite} onChange={(e) => void changeRelief((e.target as HTMLInputElement).checked)} />
         Shaded relief {current?.satellite ? "(the satellite picture has its own)" : ""}
       </label>
+      <label class="check" title="Fills what lies above the horizon of a tilted map with this look's sky. Off leaves it transparent, for a sky of your own in After Effects. The globe always has its atmosphere.">
+        <input type="checkbox" data-id="sky" checked={skyOn.value} disabled={busy.value} onChange={(e) => void changeSky((e.target as HTMLInputElement).checked)} />
+        Sky above the horizon
+      </label>
+      <div class="sheet-row import-row">
+        <span title="Shaded slopes from real elevation data, sharp at any zoom. An elevation pack is downloaded once for an area (open data through Mapterhorn) and then works offline.">Terrain</span>
+        <select
+          class="grow"
+          data-id="terrain-pack"
+          value={terrainSetting?.pack ?? ""}
+          disabled={busy.value}
+          onChange={(e) => {
+            const pack = (e.target as HTMLSelectElement).value;
+            void changeTerrain(pack ? { pack, shade: terrainSetting?.shade ?? DEFAULT_SHADE, height: terrainSetting?.height ?? 0, ground: 0 } : null);
+          }}
+        >
+          <option value="">Flat (no elevation pack)</option>
+          {terrainSetting && !terrainPacks.value.some((p) => p.name === terrainSetting.pack) && <option value={terrainSetting.pack}>{terrainSetting.pack} (not on this computer)</option>}
+          {terrainPacks.value.map((p) => (
+            <option key={p.name} value={p.name}>
+              {p.name} ({mb(p.sizeBytes)})
+            </option>
+          ))}
+        </select>
+        <button class="small-button" data-id="terrain-download" disabled={busy.value} title="Downloads an elevation pack for the area in the preview" onClick={() => { lookSheetOpen.value = false; openTerrainSheet(); }}>
+          Download…
+        </button>
+      </div>
+      {terrainSetting && (
+        <label class="num-field" title="How strongly slopes are shaded (0 switches the shading off)">
+          <span>Shaded slopes</span>
+          <input type="range" min={0} max={100} step={5} value={Math.round(terrainSetting.shade * 100)} disabled={busy.value} onChange={(e) => void changeTerrain({ ...terrainSetting, shade: Number((e.target as HTMLInputElement).value) / 100 })} />
+          <span class="muted">{Math.round(terrainSetting.shade * 100)} %</span>
+        </label>
+      )}
+      {terrainSetting && (
+        <label class="num-field" title="Mountains rise in 3D: 1 is true to scale, more exaggerates them, 0 keeps the map flat. Pins, labels and routes made with this pack sit on the ground. The value lives in the map layer's Terrain Height slider, which can be keyed.">
+          <span>3D height</span>
+          <input type="range" min={0} max={MAX_HEIGHT * 10} step={1} data-id="terrain-height" value={Math.round(terrainSetting.height * 10)} disabled={busy.value} onChange={(e) => void changeTerrain({ ...terrainSetting, height: Number((e.target as HTMLInputElement).value) / 10 })} />
+          <span class="muted">{terrainSetting.height > 0 ? `${terrainSetting.height.toFixed(1)}×` : "flat"}</span>
+        </label>
+      )}
+      {terrainSetting && terrainSetting.height > 0 && (
+        <div class="sheet-row import-row">
+          <label class="num-field grow" title="The elevation the camera counts from (the map layer's Ground Level slider). Set it to the ground at the map's centre, so the camera keeps its usual height above the ground there.">
+            <span>Ground level</span>
+            <input type="number" min={-500} max={9000} step={10} data-id="terrain-ground" value={terrainSetting.ground} disabled={busy.value} onChange={(e) => void changeTerrain({ ...terrainSetting, ground: Number((e.target as HTMLInputElement).value) || 0 })} />
+            <span class="muted">m</span>
+          </label>
+          <button class="small-button" disabled={busy.value} title="Reads the ground's elevation at the map's centre from the elevation pack" onClick={() => void groundAtCentre().then((ground) => changeTerrain({ ...terrainSetting, ground }))}>
+            From the centre
+          </button>
+        </div>
+      )}
       <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels made from now on match it.</div>
     </div>
   );
@@ -90,11 +147,12 @@ export function LookSheetView(): JSX.Element | null {
 export function RegionSheetView(): JSX.Element | null {
   const sheet = regionSheet.value;
   if (!sheet) return null;
-  const taken = !!sheet.name && regions.value.some((r) => r.name === safeRegionName(sheet.name));
+  const isTerrain = sheet.kind === "terrain";
+  const taken = !!sheet.name && (isTerrain ? terrainPacks.value : regions.value).some((r) => r.name === safeRegionName(sheet.name));
   const bytes = sheet.planned?.plan.tileBytes ?? 0;
   return (
     <div class="sheet" data-id="region-sheet">
-      <div class="sheet-title">Download the area in the preview</div>
+      <div class="sheet-title">{isTerrain ? "Download elevation for the area in the preview" : "Download the area in the preview"}</div>
       <div class="sheet-row">
         <input
           placeholder="Region name, e.g. paris"
@@ -107,7 +165,7 @@ export function RegionSheetView(): JSX.Element | null {
           }}
         />
         <select value={sheet.maxZoom} onChange={(e) => (regionSheet.value = { ...sheet, maxZoom: Number((e.target as HTMLSelectElement).value), planned: undefined })}>
-          {DETAIL_ZOOMS.map((z) => (
+          {(isTerrain ? TERRAIN_DETAIL_ZOOMS : DETAIL_ZOOMS).map((z) => (
             <option key={z} value={z}>
               Detail to zoom {z} (≈{compactNumber(tilesUpTo(sheet.bbox, z))} tiles)
             </option>
@@ -115,18 +173,18 @@ export function RegionSheetView(): JSX.Element | null {
         </select>
       </div>
       <div class="muted small">
-        Area {sheet.bbox.west.toFixed(3)}, {sheet.bbox.south.toFixed(3)} → {sheet.bbox.east.toFixed(3)}, {sheet.bbox.north.toFixed(3)} · OpenStreetMap data (© OpenStreetMap contributors) from the newest Protomaps planet build
+        Area {sheet.bbox.west.toFixed(3)}, {sheet.bbox.south.toFixed(3)} → {sheet.bbox.east.toFixed(3)}, {sheet.bbox.north.toFixed(3)} · {isTerrain ? "Open elevation data (Copernicus 30 m model and national surveys) through Mapterhorn, © Mapterhorn" : "OpenStreetMap data (© OpenStreetMap contributors) from the newest Protomaps planet build"}
       </div>
       {sheet.planned && (
         <div class="small">
-          {sheet.planned.plan.tiles.length} tiles · <strong>{mb(bytes)}</strong> to download (build {sheet.planned.build})
+          {sheet.planned.plan.tiles.length} tiles · <strong>{mb(bytes)}</strong> to download ({isTerrain ? "from " : "build "}{sheet.planned.build})
         </div>
       )}
       {sheet.planned && bytes > MAX_DOWNLOAD_BYTES && <div class="warning small">Too large to download in one go ({mb(bytes)}). Zoom the preview in to the area you need, or pick less detail.</div>}
       {sheet.planned && bytes > LARGE_DOWNLOAD_BYTES && bytes <= MAX_DOWNLOAD_BYTES && (
         <div class="warning small">This is a large download ({mb(bytes)}). For one city, zoom the preview in until the city fills it, or pick less detail.</div>
       )}
-      {taken && <div class="warning small">A region named "{safeRegionName(sheet.name)}" already exists. Downloading replaces it.</div>}
+      {taken && <div class="warning small">{isTerrain ? "An elevation pack" : "A region"} named "{safeRegionName(sheet.name)}" already exists. Downloading replaces it.</div>}
       <div class="sheet-row">
         {!sheet.planned ? (
           <button disabled={busy.value} onClick={() => void checkRegionSize()}>
@@ -134,7 +192,7 @@ export function RegionSheetView(): JSX.Element | null {
           </button>
         ) : (
           <button class={taken || bytes > LARGE_DOWNLOAD_BYTES ? "danger" : "primary"} disabled={busy.value || bytes > MAX_DOWNLOAD_BYTES} onClick={() => void startRegionDownload()}>
-            {taken ? "Replace existing region" : "Download"}
+            {taken ? (isTerrain ? "Replace existing pack" : "Replace existing region") : "Download"}
           </button>
         )}
         <button disabled={busy.value} onClick={() => (regionSheet.value = null)}>
