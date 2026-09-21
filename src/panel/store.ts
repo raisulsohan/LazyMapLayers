@@ -548,7 +548,7 @@ export const confirmToolSheet = () =>
         log("a callout needs a title", "muted");
         return;
       }
-      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value });
+      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, template: currentLabelTemplate.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
       const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, dash: routeDashed.value ? ROUTE_DASH : 0 });

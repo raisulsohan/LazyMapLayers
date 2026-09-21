@@ -619,3 +619,6 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **What it does not do.** Labels already in the comp are not moved: the zones apply the next time
   names are placed, as everything else about the label template does. LB3 covers it in After
   Effects, U1 covers the sheet and the overlay.
+- **A callout takes the template's font, not its colours.** A callout sits on its own box, so its
+  text colour has to read on that box and keeps following the look; the font follows the template,
+  so one map reads as one piece of design (ST1).

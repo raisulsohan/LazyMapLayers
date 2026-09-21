@@ -3,6 +3,7 @@
 
 import type { View } from "../core/camera/camera.ts";
 import { resolveLayerStyle, styleRgb } from "../core/style/layerStyle.ts";
+import { NO_LABEL_OVERRIDE, resolveLabelTemplate } from "../core/labels/labelTemplate.ts";
 import { themeById } from "../core/style/themes.ts";
 import { callHost, evalScript } from "./cep.ts";
 import { addPin, createMapComp } from "./mapApi.ts";
@@ -68,7 +69,14 @@ export async function runStyleTest(log: SpikeLog): Promise<Record<string, unknow
     ],
     { name: "Styled route", startFrame: 0, endFrame: 25, style: paperStyle }
   );
-  await addCallout(map.id, { lat: 48.85, lng: 2.4 }, "Paris", "France", { inFrame: 0, outFrame: 40, style: paperStyle });
+  // A callout is typeset in the font the names use, so one map reads as one piece of design.
+  const calloutFont = "MyriadPro-Regular";
+  await addCallout(map.id, { lat: 48.85, lng: 2.4 }, "Paris", "France", {
+    inFrame: 0,
+    outFrame: 40,
+    style: paperStyle,
+    template: resolveLabelTemplate(themeById("paper"), { ...NO_LABEL_OVERRIDE, font: calloutFont })
+  });
 
   const accent = styleRgb(paperStyle.accent);
   const pins = await layerColours(map.id, "pin");
@@ -82,6 +90,19 @@ export async function runStyleTest(log: SpikeLog): Promise<Record<string, unknow
   const box = callout.find((l) => l.name.includes("box"));
   if (!leader || !near(leader.stroke, accent)) problems.push(`the callout leader is ${JSON.stringify(leader?.stroke)}`);
   if (!box || !near(box.fill, styleRgb(paperStyle.panel))) problems.push(`the callout box is ${JSON.stringify(box?.fill)}, expected ${styleRgb(paperStyle.panel)}`);
+  const calloutFonts = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = [];
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "callout") continue;
+        var properties = layer.property("ADBE Text Properties");
+        if (properties) out.push(properties.property("ADBE Text Document").value.font);
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as string[];
+  if (!calloutFonts.length || calloutFonts.some((font) => font !== calloutFont)) problems.push(`the callout is set in ${JSON.stringify(calloutFonts)}, expected ${calloutFont}`);
 
   // A dark look glows, and its accent differs.
   const midnight = resolveLayerStyle(themeById("midnight"));

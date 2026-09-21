@@ -11,6 +11,7 @@ import { prepareRouteLine } from "../../core/geo/routeLine.ts";
 import { greatCircle } from "../../core/geo/greatCircle.ts";
 import type { LngLat } from "../../core/geo/mercator.ts";
 import { scriptOf, SCRIPT_FONTS } from "../../core/labels/language.ts";
+import { templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { resolveLayerStyle, styleRgb, type LayerStyle } from "../../core/style/layerStyle.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
 import { themeById } from "../../core/style/themes.ts";
@@ -114,6 +115,8 @@ export type RouteLineOptions = {
   pace?: TimedLine;
   terrain?: TerrainSetting | null;
   style?: LayerStyle;
+  /** The map's label template: a callout is typeset in the same font as the names. */
+  template?: LabelTemplate | null;
 };
 
 /**
@@ -187,6 +190,8 @@ export type CalloutOptions = {
   side?: "right" | "left";
   terrain?: TerrainSetting | null;
   style?: LayerStyle;
+  /** The map's label template: a callout is typeset in the same font as the names. */
+  template?: LabelTemplate | null;
 };
 
 export async function addCallout(mapId: string, place: LngLat, title: string, subtitle: string, options: CalloutOptions): Promise<{ layers: string[]; expressionErrors: string[] }> {
@@ -223,12 +228,17 @@ export async function addCallout(mapId: string, place: LngLat, title: string, su
     [to, 100],
     ...out(0)
   ];
+  // The colours stay the look's own: they have to read on the callout's box, not on the map.
+  const fontsFor = (script: ReturnType<typeof scriptOf>, bold: boolean) => {
+    const fonts = bold ? SCRIPT_FONTS[script].bold : SCRIPT_FONTS[script].regular;
+    return options.template ? templateFonts(options.template, fonts, script) : fonts;
+  };
   const textStyle = (size: number, script: ReturnType<typeof scriptOf>, bold: boolean, color: number[]) => ({
     size,
     color,
     haloColor: [0, 0, 0],
     haloWidth: 0,
-    fonts: bold ? SCRIPT_FONTS[script].bold : SCRIPT_FONTS[script].regular,
+    fonts: fontsFor(script, bold),
     tracking: bold ? 0 : 40,
     rtl: script === "arabic" || script === "hebrew"
   });
