@@ -91,3 +91,123 @@ LML.api.readLabelStyle = function (args) {
     }
     throw LML.util.error("NO_TEXT_LAYER", "Select a text layer in " + scene.name + " first");
 };
+
+/** A point in a layer's own space, moved into the comp it sits in (2D transform, parents included). */
+LML.style.throughTransform = function (point, layer, time) {
+    var transform = layer.property("ADBE Transform Group");
+    var anchor = transform.property("ADBE Anchor Point").valueAtTime(time, false);
+    var position = transform.property("ADBE Position").valueAtTime(time, false);
+    var scale = transform.property("ADBE Scale").valueAtTime(time, false);
+    var rotation = 0;
+    try {
+        rotation = transform.property("ADBE Rotate Z").valueAtTime(time, false);
+    } catch (eR) {
+        rotation = 0;
+    }
+    var radians = (rotation * Math.PI) / 180;
+    var cos = Math.cos(radians);
+    var sin = Math.sin(radians);
+    var x = (point[0] - anchor[0]) * (scale[0] / 100);
+    var y = (point[1] - anchor[1]) * (scale[1] / 100);
+    return [position[0] + x * cos - y * sin, position[1] + x * sin + y * cos];
+};
+
+/** The other way round: a point in a comp, moved into a layer's own space. */
+LML.style.intoLayer = function (point, layer, time) {
+    var transform = layer.property("ADBE Transform Group");
+    var anchor = transform.property("ADBE Anchor Point").valueAtTime(time, false);
+    var position = transform.property("ADBE Position").valueAtTime(time, false);
+    var scale = transform.property("ADBE Scale").valueAtTime(time, false);
+    var rotation = 0;
+    try {
+        rotation = transform.property("ADBE Rotate Z").valueAtTime(time, false);
+    } catch (eR) {
+        rotation = 0;
+    }
+    var radians = (-rotation * Math.PI) / 180;
+    var cos = Math.cos(radians);
+    var sin = Math.sin(radians);
+    var dx = point[0] - position[0];
+    var dy = point[1] - position[1];
+    var x = dx * cos - dy * sin;
+    var y = dx * sin + dy * cos;
+    return [x / (scale[0] / 100 || 1) + anchor[0], y / (scale[1] / 100 || 1) + anchor[1]];
+};
+
+/**
+ * The bounds of the selected layers as fractions of the map frame, with the seconds they are on
+ * screen, for the keep-out zones. args: { mapId }
+ */
+LML.api.readLayerBounds = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var mapComp = mapLayer.source;
+    var selected = scene.selectedLayers;
+    var out = [];
+    for (var i = 0; i < selected.length; i++) {
+        var layer = selected[i];
+        if (layer === mapLayer || !layer.sourceRectAtTime) continue;
+        var start = Math.max(layer.inPoint, 0);
+        var end = Math.min(layer.outPoint, scene.duration);
+        if (end <= start) continue;
+        // Halfway through, so a layer that animates is measured where it has settled.
+        var time = (start + end) / 2;
+        var rect = null;
+        try {
+            rect = layer.sourceRectAtTime(time, false);
+        } catch (eRect) {
+            rect = null;
+        }
+        if (!rect || rect.width <= 0 || rect.height <= 0) continue;
+        var corners = [
+            [rect.left, rect.top],
+            [rect.left + rect.width, rect.top],
+            [rect.left, rect.top + rect.height],
+            [rect.left + rect.width, rect.top + rect.height]
+        ];
+        var left = null;
+        var top = null;
+        var right = null;
+        var bottom = null;
+        for (var c = 0; c < corners.length; c++) {
+            var point = LML.style.throughTransform(corners[c], layer, time);
+            var owner = layer.parent;
+            while (owner) {
+                point = LML.style.throughTransform(point, owner, time);
+                owner = owner.parent;
+            }
+            point = LML.style.intoLayer(point, mapLayer, time);
+            if (left === null || point[0] < left) left = point[0];
+            if (right === null || point[0] > right) right = point[0];
+            if (top === null || point[1] < top) top = point[1];
+            if (bottom === null || point[1] > bottom) bottom = point[1];
+        }
+        var x = left / mapComp.width;
+        var y = top / mapComp.height;
+        var width = (right - left) / mapComp.width;
+        var height = (bottom - top) / mapComp.height;
+        // Clip to the frame; a layer entirely outside it holds nothing back.
+        if (x + width <= 0 || y + height <= 0 || x >= 1 || y >= 1) continue;
+        if (x < 0) {
+            width = width + x;
+            x = 0;
+        }
+        if (y < 0) {
+            height = height + y;
+            y = 0;
+        }
+        var whole = start <= 0.0001 && end >= scene.duration - 0.0001;
+        out.push({
+            id: "layer:" + layer.index + ":" + layer.name,
+            name: layer.name,
+            x: x,
+            y: y,
+            width: Math.min(width, 1 - x),
+            height: Math.min(height, 1 - y),
+            from: whole ? null : start,
+            to: whole ? null : end
+        });
+    }
+    if (!out.length) throw LML.util.error("NO_LAYER_BOUNDS", "Select the layers the names must keep away from in " + scene.name + " first");
+    return out;
+};

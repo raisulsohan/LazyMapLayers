@@ -129,6 +129,14 @@ function toCompView(m: maplibregl.Map): View {
 }
 
 
+let overlay: HTMLElement | null = null;
+
+/** An element laid over the preview, framed exactly like the comp (the keep-out zones are drawn in it). */
+export function setPreviewOverlay(node: HTMLElement | null): void {
+  overlay = node;
+  layout();
+}
+
 function layout(): void {
   if (!wrap || !box) return;
   const availableWidth = wrap.clientWidth;
@@ -142,6 +150,12 @@ function layout(): void {
   box.style.transform = `scale(${next})`;
   box.style.left = `${Math.floor((availableWidth - comp.width * next) / 2)}px`;
   box.style.top = `${Math.floor((availableHeight - comp.height * next) / 2)}px`;
+  if (overlay) {
+    overlay.style.left = box.style.left;
+    overlay.style.top = box.style.top;
+    overlay.style.width = `${Math.round(comp.width * next)}px`;
+    overlay.style.height = `${Math.round(comp.height * next)}px`;
+  }
   if (!map) {
     scale = next;
     return;

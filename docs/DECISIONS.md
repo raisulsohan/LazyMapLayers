@@ -598,3 +598,24 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   halo and font of the selected text layer, in the 1080-line pixels the panel stores.
 - **Capitals are a request, not a rule.** `caps` only turns country names, and only in scripts that
   have capitals. LB2 covers all of this in After Effects.
+
+## D37 — Keep-out zones (2026-09-22)
+
+- **Fractions of the frame, not pixels.** A zone is stored as x, y, width and height between 0 and 1
+  (`src/core/labels/keepOut.ts`), so the same map keeps its zones at 1080p and at 4K, and a comp
+  resized later does not leave them behind. Five presets cover where titles usually go: lower third,
+  top bar, left third, right third, middle band.
+- **A layer can be the zone.** `LML.api.readLayerBounds` measures the selected layers halfway
+  through the time they are on screen (`sourceRectAtTime` through their own transform and every
+  parent, then back into the map layer's space), and clips them to the frame. A layer that is only
+  on screen for a while blocks names only for those seconds, from its in point to its out point, so
+  a lower third that appears at 1 s costs nothing before it. Rotation is taken as the bounding box
+  of the turned rectangle: names keep away from a little more than the layer itself, never less.
+- **The placement already knew how.** `placeLabels` takes `keepOut(frame)`; the zones are simply
+  boxes it starts each frame with, so a name that cannot go anywhere else is dropped rather than
+  moved, and hysteresis and the minimum time on screen still hold.
+- **Seen before it is built.** The panel draws the zones over the preview, in screen pixels
+  (`setPreviewOverlay`), so the outline and the name stay readable however small the preview is.
+- **What it does not do.** Labels already in the comp are not moved: the zones apply the next time
+  names are placed, as everything else about the label template does. LB3 covers it in After
+  Effects, U1 covers the sheet and the overlay.

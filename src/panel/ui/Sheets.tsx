@@ -30,7 +30,8 @@ import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
-import { changeLabelTemplate, currentLabelTemplate, labelTemplateFollows, pickUpLabelStyle } from "../store.ts";
+import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
+import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -617,6 +618,45 @@ export function LabelsSheetView(): JSX.Element | null {
         </button>
       </div>
       {labels.font && <div class="muted small">Latin names use {labels.font}.</div>}
+      <div class="section-title">Keep the names out of</div>
+      <div class="sheet-row chips">
+        {KEEP_OUT_PRESETS.map((preset) => (
+          <button
+            key={preset.id}
+            class={`chip ${hasZone(keepOut.value, preset.id) ? "on" : ""}`}
+            data-id={`keep-out-${preset.id}`}
+            disabled={busy.value}
+            title={`No name is placed in the ${preset.name.toLowerCase()} of the frame`}
+            onClick={() => void toggleKeepOutPreset(preset)}
+          >
+            {preset.name}
+          </button>
+        ))}
+      </div>
+      <div class="sheet-row">
+        <button
+          class="small-button"
+          data-id="keep-out-layers"
+          disabled={busy.value}
+          title="Takes the bounds of the layers selected in After Effects. Names keep away from them for as long as those layers are on screen."
+          onClick={() => void keepOutFromLayers()}
+        >
+          From the selected layers
+        </button>
+      </div>
+      {keepOut.value
+        .filter((zone) => !KEEP_OUT_PRESETS.some((preset) => preset.id === zone.id))
+        .map((zone) => (
+          <div class="sheet-row" key={zone.id}>
+            <span class="grow small" title={`${Math.round(zone.width * 100)} x ${Math.round(zone.height * 100)} % of the frame`}>
+              {zone.name}
+              {zone.from !== null && <span class="muted"> · {zone.from.toFixed(1)}-{(zone.to ?? 0).toFixed(1)} s</span>}
+            </span>
+            <button class="small-button" data-id={`keep-out-remove-${zone.id}`} disabled={busy.value} title="Stop keeping names away from this" onClick={() => void removeKeepOut(zone.id)}>
+              Remove
+            </button>
+          </div>
+        ))}
       <div class="sheet-row">
         <button
           class="primary"

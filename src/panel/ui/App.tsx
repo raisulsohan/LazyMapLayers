@@ -2,7 +2,7 @@
 
 import type { JSX } from "preact";
 import { useEffect, useRef } from "preact/hooks";
-import { initPreview, resetNorth, setCompZoom, setPreviewReadable, zoomPreviewBy } from "../preview.ts";
+import { initPreview, resetNorth, setCompZoom, setPreviewOverlay, setPreviewReadable, zoomPreviewBy } from "../preview.ts";
 import { play, playing, startShots, stop as stopPlayback } from "../shots/shotsStore.ts";
 import {
   addCamera,
@@ -18,6 +18,7 @@ import {
   importSheetOpen,
   imported,
   jobs,
+  keepOut,
   keyframeView,
   liveLink,
   log,
@@ -226,6 +227,12 @@ function StatusLine(): JSX.Element {
 export function App(): JSX.Element {
   const wrapNode = useRef<HTMLDivElement>(null);
   const boxNode = useRef<HTMLDivElement>(null);
+  const zoneNode = useRef<HTMLDivElement>(null);
+
+  useEffect(() => {
+    setPreviewOverlay(zoneNode.current);
+    return () => setPreviewOverlay(null);
+  }, []);
 
   useEffect(() => {
     if (!wrapNode.current || !boxNode.current) return;
@@ -277,6 +284,17 @@ export function App(): JSX.Element {
         <LookSheetView />
         <div class={`map-wrap ${tool.value !== "none" ? "armed" : ""}`} ref={wrapNode}>
           <div id="map" ref={boxNode} />
+          <div class="zones" ref={zoneNode}>
+            {keepOut.value.map((zone) => (
+              <div
+                key={zone.id}
+                class="zone"
+                style={{ left: `${zone.x * 100}%`, top: `${zone.y * 100}%`, width: `${zone.width * 100}%`, height: `${zone.height * 100}%` }}
+              >
+                <span>{zone.name}</span>
+              </div>
+            ))}
+          </div>
           <div class="map-overlay top-left">
             <IconButton icon="target" id="match-ae" title="Show the camera of the current time in After Effects" disabled={busy.value || !selected.value} onClick={() => void matchAe()} />
             <IconButton

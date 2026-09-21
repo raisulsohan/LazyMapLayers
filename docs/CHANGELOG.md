@@ -9,6 +9,11 @@
   click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
   the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
   names.
+- **Keep the names out of your titles.** Under **Keep the names out of** in the Labels sheet, one
+  click blocks the lower third, the top bar, a side third or the middle of the frame, and **From the
+  selected layers** blocks whatever your own layers cover — only for the seconds those layers are on
+  screen. The blocked areas are drawn over the preview, so you see what is left before you place the
+  names.
 
 - **Comet trails and dashed lines.** Two switches next to a route: **Comet** adds a bright head
   that chases the tip of the line as it draws on (the same path trimmed at both ends, so it follows

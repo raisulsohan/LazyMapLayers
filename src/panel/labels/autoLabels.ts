@@ -3,6 +3,7 @@
 
 import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
+import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import { resolveLabelTemplate, templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
@@ -39,6 +40,8 @@ export type AutoLabelOptions = {
    * between two frames.
    */
   keepOut?: { lat: number; lng: number; fromFrame: number; toFrame: number; dx: number; dy: number; width: number; height: number }[];
+  /** Parts of the frame names must stay out of, such as the band a lower third sits in. */
+  zones?: KeepOutZone[];
 };
 
 export type AutoLabelResult = {
@@ -163,6 +166,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   if (options.places ?? true) data.places.forEach(add);
 
   lap("prepare");
+  const frameZones = zoneBoxes(options.zones ?? [], { width: info.width, height: info.height }, info.frameRate, cameras.length);
   const tracks = placeLabels(
     prepared.map((p) => p.candidate),
     cameras,
@@ -173,7 +177,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       padding: 6 * scale,
       minFrames: Math.round(info.frameRate * 0.8),
       keepOut: (frame) => {
-        const boxes: Box[] = [];
+        const boxes: Box[] = zonesOnFrame(frameZones, frame).slice();
         for (const area of options.keepOut ?? []) {
           if (frame < area.fromFrame || frame >= area.toFrame) continue;
           const p = projectPoint(cameras[frame], { width: info.width, height: info.height }, area, { projection: info.projection });

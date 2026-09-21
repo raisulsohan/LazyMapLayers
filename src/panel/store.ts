@@ -16,6 +16,7 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { addZones, normaliseKeepOut, togglePreset, type KeepOutPreset, type KeepOutZone } from "../core/labels/keepOut.ts";
 import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
 import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
@@ -68,6 +69,7 @@ export type MapEntry = {
   highlightLayers?: "each" | "one";
   layerStyle?: LayerStyleOverride | null;
   labelTemplate?: LabelTemplateOverride | null;
+  keepOut?: KeepOutZone[] | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -121,6 +123,8 @@ export const layerStyleFollowsLook = computed(() => followsTheLook(layerStyle.va
 export const labelTemplate = signal<LabelTemplateOverride>(NO_LABEL_OVERRIDE);
 export const currentLabelTemplate = computed(() => resolveLabelTemplate(themeById(themeId.value), labelTemplate.value));
 export const labelTemplateFollows = computed(() => labelTemplateFollowsLook(labelTemplate.value));
+/** Parts of the frame the names stay out of, such as the band a lower third sits in. */
+export const keepOut = signal<KeepOutZone[]>([]);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -228,6 +232,7 @@ function showMap(entry: MapEntry): void {
   terrain.value = normaliseTerrain(entry.terrain);
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
+  keepOut.value = normaliseKeepOut(entry.keepOut);
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -325,7 +330,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value, labelTemplate: labelTemplate.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value, labelTemplate: labelTemplate.value, keepOut: keepOut.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -905,6 +910,30 @@ export const pickUpLabelStyle = () =>
     log(`new labels follow "${found.from}": ${found.font ?? "its font"} at ${found.size} px${found.color ? `, ${found.color}` : ""}. Latin, Cyrillic and Greek names use that font; other scripts keep fonts that shape them correctly`, "ok");
   });
 
+const storeKeepOut = async (next: KeepOutZone[]) => {
+  keepOut.value = next;
+  if (selectedId.value) {
+    await callHost("setMapSettings", { mapId: selectedId.value, keepOut: next });
+    await readMaps();
+  }
+};
+
+/** Turns one of the usual title areas on or off. */
+export const toggleKeepOutPreset = (preset: KeepOutPreset) => run("keep-out zone", () => storeKeepOut(togglePreset(keepOut.value, preset)));
+
+/** Keeps names away from the layers selected in After Effects, for as long as they are on screen. */
+export const keepOutFromLayers = () =>
+  run("keep-out from layers", async () => {
+    if (!selectedId.value) return;
+    const found = await callHost<KeepOutZone[]>("readLayerBounds", { mapId: selectedId.value });
+    const zones = normaliseKeepOut(found);
+    if (!zones.length) return;
+    await storeKeepOut(addZones(keepOut.value, zones));
+    log(`names will keep away from ${zones.map((zone) => zone.name).join(", ")}`, "ok");
+  });
+
+export const removeKeepOut = (id: string) => run("keep-out zone", () => storeKeepOut(keepOut.value.filter((zone) => zone.id !== id)));
+
 export const changeSky = (on: boolean) =>
   run("sky", async () => {
     skyOn.value = on;
@@ -975,6 +1004,7 @@ export const runAutoLabels = () =>
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,
       template: currentLabelTemplate.value,
+      zones: keepOut.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
       onProgress: (done, total) => (progress.value = { label: "Adding names", done, total, cancel })

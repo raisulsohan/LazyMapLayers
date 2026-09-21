@@ -250,6 +250,26 @@ async function runUiScenario() {
   console.log(`U1 attach sheet: ${JSON.stringify(attachText)} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   await shot("07f-attach");
   await click("tool-attach");
+  // Labels: the template and the keep-out zones (the zones are drawn over the preview).
+  await click("tool-labels");
+  await sleep(400);
+  await panel.evaluate(`(() => { const i = ${control("label-size")}; i.value = "28"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await click("keep-out-lower-third");
+  await idle();
+  await click("keep-out-top-bar");
+  await idle();
+  const zones = await panel.evaluate("JSON.stringify(window.lmlDebug.store.keepOut.value.map((z) => z.id + \" \" + z.width + \"x\" + z.height))");
+  const template = await panel.evaluate("JSON.stringify(window.lmlDebug.store.currentLabelTemplate.value)");
+  const drawn = await panel.evaluate(
+    "(() => { const z = document.querySelector('.zones'), m = document.getElementById('map').getBoundingClientRect(), r = z.getBoundingClientRect(); return JSON.stringify({ zones: z.children.length, over: Math.round(r.x) + ',' + Math.round(r.y) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height), map: Math.round(m.x) + ',' + Math.round(m.y) + ' ' + Math.round(m.width) + 'x' + Math.round(m.height) }); })()"
+  );
+  console.log(`U1 label template: ${template}`);
+  console.log(`U1 keep-out zones: ${zones} overlay: ${drawn}`);
+  await shot("07g-labels");
+  await click("keep-out-top-bar");
+  await idle();
+  await click("tool-labels");
   // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
   const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];
   // Slow for the first third of the rows, fast after it.
