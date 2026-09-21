@@ -1,7 +1,7 @@
 // Expressions for label, dot and route layers linked to a map (ES3: both expression engines, see
 // projectionExpression.ts).
 
-import { projectionPrelude } from "./projectionExpression.ts";
+import { compTransformSource, projectionPrelude } from "./projectionExpression.ts";
 
 export const LABEL_MARKER = "// LazyMapLayers label";
 
@@ -27,11 +27,11 @@ export const ROUTE_MARKER = "// LazyMapLayers route";
  * at the start, after them), so the path never jumps across the screen; trim the path with Trim
  * Paths to draw it on.
  */
-export function routePathExpression(points: number[][]): string {
+export function routePathExpression(points: number[][], options: { closed?: boolean; marker?: string } = {}): string {
   const data = JSON.stringify(points.map((p) => p.map((v) => Math.round(v * 1e6) / 1e6)));
-  return `${ROUTE_MARKER} (generated)
+  return `${options.marker ?? ROUTE_MARKER} (generated)
 var map = effect("Map")(1);
-${projectionPrelude()}var pts = ${data};
+${projectionPrelude()}${compTransformSource()}var pts = ${data};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
   projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
@@ -48,10 +48,10 @@ for (i = 0; i < pts.length; i++) {
   } else {
     p = null;
   }
-  if (p) last = fromComp(map.toComp([p.x, p.y]));
+  if (p) last = lmlFromComp(lmlToComp([p.x, p.y]));
   out.push(last);
 }
-createPath(out, [], [], false);`;
+createPath(out, [], [], ${options.closed ? "true" : "false"});`;
 }
 
 /**
@@ -85,7 +85,7 @@ export function travellerExpressions(points: number[][]): { position: string; ro
   // The same polyline as routePathExpression builds (hidden points collapse onto visible neighbours),
   // in comp pixels, with its running length.
   const path = `var map = effect(${JSON.stringify(TRAVELLER_EFFECTS.map)})(1);
-${projectionPrelude()}var pts = ${data};
+${projectionPrelude()}${compTransformSource({ fromComp: false })}var pts = ${data};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
   projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
@@ -102,7 +102,7 @@ for (i = 0; i < pts.length; i++) {
   } else {
     p = null;
   }
-  if (p) last = map.toComp([p.x, p.y]);
+  if (p) last = lmlToComp([p.x, p.y]);
   line.push(last);
   if (i > 0) run.push(run[i - 1] + Math.sqrt((line[i][0] - line[i - 1][0]) * (line[i][0] - line[i - 1][0]) + (line[i][1] - line[i - 1][1]) * (line[i][1] - line[i - 1][1])));
 }

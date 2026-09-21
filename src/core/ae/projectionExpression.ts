@@ -61,6 +61,36 @@ export function froundSource(): string {
 `;
 }
 
+/**
+ * lmlToComp(p) and lmlFromComp(p): the map layer's toComp and this layer's fromComp, as plain maths.
+ *
+ * Both are measured once per frame instead of being asked of After Effects for every point of a route
+ * of points on every frame. Both transforms are affine while the layers are 2D, so each one is
+ * measured once per frame from three points and then applied with two multiplications and two
+ * additions. A fourth point checks the transform really is affine (a 3D layer has perspective, which
+ * is not); when it is not, the calls go to After Effects as before.
+ */
+export function compTransformSource(options: { fromComp?: boolean } = {}): string {
+  const own = options.fromComp === false ? "" : `var lmlOwnT = lmlAffine(function (p) { return fromComp(p); });
+function lmlFromComp(p) {
+  if (!lmlOwnT[6]) return fromComp(p);
+  return [lmlOwnT[0] + p[0] * lmlOwnT[2] + p[1] * lmlOwnT[4], lmlOwnT[1] + p[0] * lmlOwnT[3] + p[1] * lmlOwnT[5]];
+}
+`;
+  return `function lmlAffine(f) {
+  var o = f([0, 0]), x = f([1, 0]), y = f([0, 1]), c = f([1, 1]);
+  var t = [o[0], o[1], x[0] - o[0], x[1] - o[1], y[0] - o[0], y[1] - o[1], 1];
+  if (Math.abs(t[0] + t[2] + t[4] - c[0]) > 1e-6 || Math.abs(t[1] + t[3] + t[5] - c[1]) > 1e-6) t[6] = 0;
+  return t;
+}
+var lmlMapT = lmlAffine(function (p) { return map.toComp(p); });
+function lmlToComp(p) {
+  if (!lmlMapT[6]) return map.toComp(p);
+  return [lmlMapT[0] + p[0] * lmlMapT[2] + p[1] * lmlMapT[4], lmlMapT[1] + p[0] * lmlMapT[3] + p[1] * lmlMapT[5]];
+}
+${own}`;
+}
+
 export function projectionPrelude(): string {
   const control = (name: string) => `map.effect(${q(name)})(1).value`;
   return `var lmlView = (function () {

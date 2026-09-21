@@ -218,6 +218,13 @@ async function runUiScenario() {
   await click("level-country");
   const highlighted = await panel.evaluate("window.lmlDebug.store.highlights.value.map((h) => h.name)");
   console.log(`U1 highlights: ${JSON.stringify(highlighted)}`);
+  // France as an editable shape layer, drawn on over four seconds.
+  await click("shape-draw-on");
+  await click("shape-FRA");
+  await idle();
+  const shapeLog = await panel.evaluate("window.lmlDebug.log().slice(-1)[0]");
+  console.log(`U1 shape layer: ${JSON.stringify(shapeLog)}`);
+  await shot("07e-shape");
   await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
   // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
   const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];

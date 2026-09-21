@@ -11,6 +11,7 @@ import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
 import { anchoredPositionExpression, leaderPathExpression, routePathExpression, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
+import { shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
 import type { View } from "../src/core/camera/camera.ts";
 import { greatCircle } from "../src/core/geo/greatCircle.ts";
@@ -126,6 +127,16 @@ for (const globe of [false, true]) {
     add(`traveller position ${kind} ${i}`, traveller.position, { own: travellerOwn, map, comp, value: [0, 0] });
     add(`traveller rotation ${kind} ${i}`, traveller.rotation, { own: travellerOwn, map, comp, value: 10 }, 1e-5);
     add(`traveller opacity ${kind} ${i}`, traveller.opacity, { own: travellerOwn, map, comp, value: 90 });
+
+    // A feature as a shape layer: one closed path per ring, with a hole inside the outer ring, and the
+    // rings on 3D terrain every third time.
+    const centre = near(view, spread);
+    const radius = spread / 4;
+    const circle = (r: number) => Array.from({ length: 24 }, (_, k) => [centre.lng + r * Math.cos((k / 24) * 2 * Math.PI), centre.lat + r * Math.sin((k / 24) * 2 * Math.PI)]);
+    const lifted = i % 3 === 0;
+    const outline = shapePathExpressions(shapeRings([[[...circle(radius), [centre.lng + radius, centre.lat]], circle(radius / 3)]], () => (lifted ? 1500 : 0)));
+    const shapeMap = mapFor(view, globe, { "Terrain Height": lifted ? 1.4 : 0, "Ground Level": 500 });
+    outline.forEach((code, part) => add(`shape ring ${part} ${kind} ${i}`, code, { own: { Map: "MAP" }, map: shapeMap, comp: { width: shapeMap.width, height: shapeMap.height }, value: null }));
   }
 }
 

@@ -46,3 +46,39 @@ export function simplifyTogether(features: AreaFeature[], pointsPerFeature: numb
   }
   return features.map((_, i) => toPolygons(light[i]?.geometry ?? null));
 }
+
+/** Ground area of a ring, in square degrees at the equator (the shoelace area, narrowed towards the poles). */
+export function ringArea(ring: number[][]): number {
+  let twice = 0;
+  let lat = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+    twice += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+    lat += ring[i][1];
+  }
+  return Math.abs(twice / 2) * Math.cos(((lat / Math.max(1, ring.length)) * Math.PI) / 180);
+}
+
+/**
+ * One feature's polygons for a shape layer: the largest polygons within a budget of rings (one path
+ * each in After Effects), thinned to a budget of points. Points go by the area they cover, so a
+ * crenulated coastline loses its detail evenly instead of keeping the tip of every fjord as a spike,
+ * and islands too small to matter disappear rather than becoming triangles.
+ */
+export function simplifyFeature(polygons: number[][][][], maxPoints: number, maxRings = 40): number[][][][] {
+  const usable = polygons.filter((polygon) => polygon.length && polygon[0].length >= 4);
+  if (!usable.length) return [];
+  const largest = usable
+    .map((polygon) => ({ polygon, area: ringArea(polygon[0]) }))
+    .sort((a, b) => b.area - a.area);
+  const kept: number[][][][] = [];
+  let rings = 0;
+  for (const entry of largest) {
+    if (kept.length && rings + entry.polygon.length > maxRings) break;
+    kept.push(entry.polygon);
+    rings += entry.polygon.length;
+  }
+  const total = kept.reduce((n, polygon) => n + polygon.reduce((m, ring) => m + ring.length, 0), 0);
+  if (total <= maxPoints) return kept;
+  const feature: AreaFeature = { type: "Feature", properties: null, geometry: { type: "MultiPolygon", coordinates: kept } };
+  return simplifyTogether([feature], maxPoints)[0] ?? [];
+}

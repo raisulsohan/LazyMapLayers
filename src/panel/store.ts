@@ -14,7 +14,7 @@ import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
-import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
+import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
@@ -22,12 +22,14 @@ import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
 import { districtAt, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
+import { countryOutline } from "./data/countries.ts";
 import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
+import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
@@ -640,6 +642,45 @@ export const downloadDistricts = () =>
     districtSets.value++;
     districtPrompt.value = null;
     log(`${set.units.length} ${set.unit} boundaries of ${set.countryName} installed in ${((performance.now() - started) / 1000).toFixed(1)} s (${set.source}; ${set.license}). Click one on the map, or search its name`, "ok");
+  });
+
+/** While on, a shape layer's outline draws on over four seconds from the current time. */
+export const shapeDrawOn = signal(false);
+
+/** The outline of a highlight: a country from the bundled outlines, anything else from the map's own areas. */
+function outlineFor(code: string): number[][][][] | null {
+  if (isAreaCode(code)) return areas.value[areaIdOf(code)] ?? null;
+  return countryOutline(code)?.polygons ?? null;
+}
+
+/** Adds a highlighted country, province, district or area as an editable After Effects shape layer. */
+export const addHighlightShape = (highlight: Highlight) =>
+  run("shape layer", async () => {
+    const list = await readMaps();
+    const entry = list.find((m) => m.mapId === selectedId.value);
+    if (!entry) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const polygons = outlineFor(highlight.code);
+    if (!polygons) {
+      log(`no outline for "${highlight.name}" in this build`, "fail");
+      return;
+    }
+    const made = await addFeatureShape(
+      entry.mapId,
+      { name: highlight.name, polygons, code: highlight.code },
+      {
+        color: highlight.color,
+        fill: highlight.fill,
+        outline: highlight.outline,
+        startFrame: currentMapFrame(entry),
+        drawFrames: shapeDrawOn.value ? Math.round(4 * entry.frameRate) : 0,
+        terrain: terrain.value
+      }
+    );
+    const drawn = shapeDrawOn.value ? ` and draws on from ${entry.time.toFixed(2)} s over 4 s` : "";
+    log(`"${highlight.name}" added as a shape layer (${made.rings} ${made.rings === 1 ? "path" : "paths"}, ${made.points} points)${drawn}. It follows the map; restyle it like any shape layer`, made.expressionErrors.length ? "fail" : "ok");
   });
 
 export function removeDistrictSet(iso: string): void {

@@ -65,6 +65,9 @@ built to be free **and** to give better final frames.
   ground, and a keyed Terrain Height slider makes the mountains rise.
 - **Highlights.** Countries, provinces (4,589 built in), districts (downloaded per country from
   geoBoundaries) and shapes from your own files, each rendered as its own layer above the basemap.
+- **Shape layers.** Any highlighted country, province, district or imported area can be added to the
+  comp as an editable After Effects shape layer: real paths that follow the map, with a fill, a
+  stroke and an optional draw-on.
 - **Search.** Countries, provinces, districts and cities in 26 languages, or coordinates, offline.
 - **Import.** GPX, KML, KMZ, GeoJSON, CSV and shapefiles: routes that draw on (at the recorded pace
   of a GPS track if you like), a traveller that rides the line, pins for places, areas to highlight,

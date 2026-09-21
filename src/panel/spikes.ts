@@ -24,6 +24,7 @@ import { runDiagnostics } from "./diagnostics.ts";
 import { runDistrictTest } from "./districtTests.ts";
 import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
+import { runShapeTest } from "./shapeTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
@@ -306,6 +307,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.IM1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`IM1 failed: ${results.IM1_error}`, "fail");
+    }
+  }
+
+  if (wants("SL1")) {
+    try {
+      results.SL1_shapes = await runShapeTest(log);
+    } catch (error) {
+      results.SL1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SL1 failed: ${results.SL1_error}`, "fail");
     }
   }
 

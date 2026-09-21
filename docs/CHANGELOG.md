@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **Any outline as an editable shape layer.** Next to every highlight in the Highlight sheet there
+  is now a **Shape** button: it adds that country, province, district or imported area to the comp as
+  an ordinary After Effects shape layer. Real paths, a fill and a stroke you can restyle, trim,
+  animate or parent by hand, and they follow the map at every frame: the drawn outline covers the
+  country the renderer draws to 98 %. Holes stay holes (Lesotho inside South Africa), the outline
+  sits on the ground of 3D terrain, and **Shape layers draw on** trims them on over four seconds
+  from the current time. Country outlines are part of the panel (Natural Earth, 258 countries).
+- Outlines are thinned by how much shape each point carries, so a crenulated coastline (Norway,
+  Canada) keeps its character instead of growing spikes where fjords collapse.
+- Routes, travellers and outlines ask After Effects for its layer transforms once per frame instead
+  of once per point, which cuts hundreds of calls per frame from every linked layer.
+
 ## 0.2.0 — cinematic camera, looks, terrain, highlights, districts and more files (2026-09-18)
 
 - **Shot list.** Build the camera from shots instead of keyframing five controls:

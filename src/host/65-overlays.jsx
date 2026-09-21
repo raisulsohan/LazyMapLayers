@@ -189,6 +189,81 @@ LML.overlays.addTraveller = function (args) {
     return { name: layer.name, index: layer.index, expressionErrors: errors };
 };
 
+/**
+ * A map feature as an editable shape layer: one closed path per ring of the outline, all in one group,
+ * with an even-odd fill (so holes stay holes) and a stroke. Everything is an ordinary shape layer
+ * property, so the layer can be restyled and animated in After Effects by hand afterwards.
+ * args: { mapId, kind, name, paths: [expression], fill: { color, opacity } | null,
+ *         stroke: { color, width, dash } | null, trimKeys?, opacityKeys?, glow?, data? }
+ */
+LML.overlays.addShape = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var errors = [];
+    var layer = scene.layers.addShape();
+    layer.name = args.name;
+    LML.overlays.linkToMap(layer, mapLayer);
+    var group = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
+    group.name = "Outline";
+    var contents = group.property("ADBE Vectors Group");
+    for (var i = 0; i < args.paths.length; i++) {
+        var shape = contents.addProperty("ADBE Vector Shape - Group");
+        shape.name = args.paths.length > 1 ? "Ring " + (i + 1) : "Path";
+        LML.pins.setExpression(shape.property("ADBE Vector Shape"), args.paths[i], errors, args.name + " ring " + (i + 1));
+    }
+    if (args.fill) {
+        var fill = contents.addProperty("ADBE Vector Graphic - Fill");
+        fill.property("ADBE Vector Fill Color").setValue(args.fill.color);
+        fill.property("ADBE Vector Fill Opacity").setValue(args.fill.opacity);
+        try {
+            // Even-odd: a ring inside another ring is a hole, whichever way its points run.
+            fill.property("ADBE Vector Fill Rule").setValue(2);
+        } catch (e) {
+            // Older versions keep the non-zero rule; islands still fill.
+        }
+    }
+    if (args.stroke && args.stroke.width > 0) {
+        var stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
+        stroke.property("ADBE Vector Stroke Color").setValue(args.stroke.color);
+        stroke.property("ADBE Vector Stroke Width").setValue(args.stroke.width);
+        stroke.property("ADBE Vector Stroke Line Cap").setValue(2);
+        stroke.property("ADBE Vector Stroke Line Join").setValue(2);
+        if (args.stroke.dash > 0) {
+            try {
+                var dashes = stroke.property("ADBE Vector Stroke Dashes");
+                dashes.addProperty("ADBE Vector Stroke Dash 1").setValue(args.stroke.dash);
+                dashes.addProperty("ADBE Vector Stroke Gap 1").setValue(args.stroke.dash);
+            } catch (e2) {
+                // A solid stroke is a fine fallback.
+            }
+        }
+    }
+    if (args.trimKeys && args.trimKeys.length) {
+        // On the group, so every ring draws on together.
+        var trim = group.property("ADBE Vectors Group").addProperty("ADBE Vector Filter - Trim");
+        var end = trim.property("ADBE Vector Trim End");
+        LML.overlays.keyFrames(end, mapLayer, args.trimKeys);
+        if (!args.linearKeys) LML.overlays.ease(end);
+    }
+    if (args.opacityKeys && args.opacityKeys.length) {
+        LML.overlays.keyFrames(layer.property("ADBE Transform Group").property("ADBE Opacity"), mapLayer, args.opacityKeys);
+    }
+    if (args.glow) {
+        try {
+            var glow = layer.property("ADBE Effect Parade").addProperty("ADBE Glo2");
+            glow.property("ADBE Glo2-0003").setValue(args.glow.radius);
+            glow.property("ADBE Glo2-0004").setValue(args.glow.intensity);
+        } catch (e3) {
+            // Glow is decoration only.
+        }
+    }
+    layer.moveBefore(mapLayer);
+    var shapeTag = { kind: args.kind, v: 1, mapId: args.mapId, name: args.name };
+    if (args.data) shapeTag.data = args.data;
+    LML.tag.write(layer, shapeTag);
+    return { name: layer.name, index: layer.index, expressionErrors: errors };
+};
+
 /** Removes the tagged overlays of a kind for a map (for regeneration). */
 LML.overlays.removeKind = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);

@@ -29,7 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
-import { changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet } from "../store.ts";
+import { addHighlightShape, changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet, shapeDrawOn } from "../store.ts";
 import { changeSky, changeTerrain, downloadImageryPack, groundAtCentre, imageryVersion, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -365,11 +365,26 @@ export function HighlightSheetView(): JSX.Element | null {
         <div key={h.code} class="sheet-row highlight-row">
           <input type="color" value={h.color} title="Colour" onChange={(e) => void setHighlights(list.map((x) => (x.code === h.code ? { ...x, color: (e.target as HTMLInputElement).value } : x)))} />
           <span class="grow">{h.name}</span>
+          <button
+            class="small-button"
+            data-id={`shape-${h.code}`}
+            disabled={busy.value}
+            title="Adds this outline as an editable After Effects shape layer: real paths that follow the map, with a fill and a stroke you can restyle, animate or trim by hand."
+            onClick={() => void addHighlightShape(h)}
+          >
+            Shape
+          </button>
           <button class="small-button" title="Remove this highlight" onClick={() => void setHighlights(list.filter((x) => x.code !== h.code))}>
             ✕
           </button>
         </div>
       ))}
+      {list.length > 0 && (
+        <label class="check" title="A shape layer's outline draws on with Trim Paths over four seconds from the current time.">
+          <input type="checkbox" data-id="shape-draw-on" checked={shapeDrawOn.value} onChange={(e) => (shapeDrawOn.value = (e.target as HTMLInputElement).checked)} />
+          <span>Shape layers draw on</span>
+        </label>
+      )}
       {first && (
         <div class="sheet-row">
           <label class="num-field" title="How solid the fill is (0 for an outline only)">

@@ -490,3 +490,25 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Why a release.** Release assets are free, fast (GitHub's CDN), versioned and need no server of
   our own; the repository itself stays small. IM1 (online, named only) downloads the satellite pack
   and compares it with the installed one: 20 MB in about 5 s here.
+
+## D30 — Map features as shape layers (2026-09-18)
+
+- **Decision.** A highlight (country, province, district, imported area) can be added to the comp as a
+  normal shape layer: one closed path per ring inside one group, an even-odd fill so holes stay holes,
+  a stroke, and optional Trim Paths for a draw-on. Every path carries the same projection expression
+  the routes use, so the outline follows the camera; nothing about the layer is special, so people can
+  restyle, retime, parent or pick-whip it like any shape layer they made themselves.
+- **Country outlines are bundled** (`tools/prepare-countries.ts`, `data/countries/<ADM0>.json`,
+  258 countries, 2.5 MB, simplified inside one topology so neighbours share their border). Provinces,
+  districts and imported areas already carry their polygons with the map, so shape layers use those.
+- **Thinning.** Douglas–Peucker keeps outliers, which turns Norway's fjords and Canada's inlets into
+  spikes. `simplifyFeature` instead keeps the largest polygons within a budget of rings (40, one path
+  each) and drops points by the area they carry (topojson's Visvalingam weights, the same maths the
+  bundled data is built with), which loses detail evenly. The budget is 900 points across the layer.
+- **Cost.** A shape layer of 22 paths and 487 points adds no measurable time to a rendered frame
+  (SL1 renders the same frame with the layer on and off). The path expressions now measure the map
+  layer's `toComp` and the layer's own `fromComp` once per frame — both are affine while the layers
+  are 2D, and a fourth sample point checks that before the shortcut is used — instead of calling into
+  After Effects twice per point. RT1 still matches core maths to 5e-11 px.
+- **Limits.** The outline is thinned once, for the whole layer, so a close-up of a coastline is
+  coarser than the rendered basemap under it. Islands beyond the ring budget are dropped.

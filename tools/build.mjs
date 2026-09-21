@@ -2,7 +2,7 @@
 //   dist/CSXS/manifest.xml
 //   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
-//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, admin1-index.json, admin1/*.json}
+//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, admin1-index.json, admin1/*.json, countries/*.json}
 //   dist/LICENSE
 //
 //   node tools/build.mjs [--dev] [--minify] [--out <folder>]
@@ -117,6 +117,11 @@ async function main() {
     copy(provinceIndex, path.join(dist, "data", "admin1-index.json"));
     for (const name of fs.readdirSync(provinces)) copy(path.join(provinces, name), path.join(dist, "data", "admin1", name));
   } else console.warn("warning: data/generated/admin1 missing; run node tools/prepare-admin1.ts");
+  // Country outlines, read when a country becomes a shape layer.
+  const countries = path.join(root, "data", "generated", "countries");
+  if (fs.existsSync(countries)) {
+    for (const name of fs.readdirSync(countries)) copy(path.join(countries, name), path.join(dist, "data", "countries", name));
+  } else console.warn("warning: data/generated/countries missing; run node tools/prepare-countries.ts");
 
   const size = (f) => (fs.statSync(path.join(dist, f)).size / 1024).toFixed(0) + " KB";
   console.log(
