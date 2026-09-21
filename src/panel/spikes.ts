@@ -26,6 +26,7 @@ import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
+import { runStyleTest } from "./styleTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
@@ -317,6 +318,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.AT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`AT1 failed: ${results.AT1_error}`, "fail");
+    }
+  }
+
+  if (wants("ST1")) {
+    try {
+      results.ST1_layerStyle = await runStyleTest(log);
+    } catch (error) {
+      results.ST1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`ST1 failed: ${results.ST1_error}`, "fail");
     }
   }
 

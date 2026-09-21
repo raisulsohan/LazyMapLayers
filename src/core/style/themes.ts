@@ -34,6 +34,8 @@ export type Theme = {
   text: string;
   textCountry: string;
   halo: string;
+  /** The colour of the layers the panel generates: pins, routes, callout leaders and outlines. */
+  accent: string;
   sky: { sky: string; horizon: string; fog: string };
   /** The land and sea come from satellite imagery (an optional pack) instead of flat colours. */
   satellite?: boolean;
@@ -68,6 +70,7 @@ export const THEMES: Theme[] = [
     text: "#eef3f8",
     textCountry: "#c9d6e2",
     halo: "#07111f",
+    accent: "#ffc740",
     sky: { sky: "#16324f", horizon: "#4f8fc4", fog: "#07111f" }
   }),
   theme({
@@ -97,6 +100,7 @@ export const THEMES: Theme[] = [
     text: "#ffffff",
     textCountry: "#f3f3f3",
     halo: "#0a0f14",
+    accent: "#ffd166",
     sky: { sky: "#0d2440", horizon: "#5f9bd1", fog: "#0a1c30" }
   }),
   theme({
@@ -125,6 +129,7 @@ export const THEMES: Theme[] = [
     text: "#2a2a33",
     textCountry: "#4a4658",
     halo: "#ffffff",
+    accent: "#e2582a",
     sky: { sky: "#8fc4ea", horizon: "#d9eefa", fog: "#f4f1e8" }
   }),
   theme({
@@ -153,6 +158,7 @@ export const THEMES: Theme[] = [
     text: "#2d2a26",
     textCountry: "#4b4438",
     halo: "#ffffff",
+    accent: "#b03a2e",
     sky: { sky: "#9fcdec", horizon: "#e2f1fa", fog: "#efe9da" }
   }),
   theme({
@@ -181,6 +187,7 @@ export const THEMES: Theme[] = [
     text: "#ffffff",
     textCountry: "#d6e9ff",
     halo: "#0a3566",
+    accent: "#ffd400",
     sky: { sky: "#0a3566", horizon: "#3c7fc9", fog: "#0a3566" }
   }),
   theme({
@@ -209,6 +216,7 @@ export const THEMES: Theme[] = [
     text: "#f2f2f4",
     textCountry: "#c4c4c9",
     halo: "#0e0e0f",
+    accent: "#ff4f4f",
     sky: { sky: "#1c1c1f", horizon: "#5a5a5f", fog: "#0e0e0f" }
   }),
   theme({
@@ -237,6 +245,7 @@ export const THEMES: Theme[] = [
     text: "#3d2f1f",
     textCountry: "#5c4630",
     halo: "#f0e6cc",
+    accent: "#c1440e",
     sky: { sky: "#cdbf9f", horizon: "#efe5cb", fog: "#f0e6cc" }
   })
 ];

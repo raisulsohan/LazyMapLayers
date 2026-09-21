@@ -30,7 +30,7 @@ import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
-import { changeSky, changeTerrain, downloadImageryPack, groundAtCentre, imageryVersion, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
+import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
@@ -64,6 +64,7 @@ export function LookSheetView(): JSX.Element | null {
   const reliefPack = hasImagery("relief");
   const current = THEMES.find((t) => t.id === themeId.value);
   const terrainSetting = terrain.value;
+  const style = currentLayerStyle.value;
   return (
     <div class="sheet" data-id="look-sheet">
       <div class="sheet-title">Look</div>
@@ -152,7 +153,28 @@ export function LookSheetView(): JSX.Element | null {
           </button>
         </div>
       )}
-      <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels made from now on match it.</div>
+      <div class="section-title">Pins, routes and callouts</div>
+      <div class="sheet-row import-row">
+        <input type="color" data-id="layer-accent" value={style.accent} disabled={busy.value} title="The colour of the layers the panel makes from now on" onChange={(e) => void changeLayerStyle({ accent: (e.target as HTMLInputElement).value })} />
+        <label class="num-field" title="Line width in 1080-line pixels, scaled to the comp">
+          <span>Line</span>
+          <input type="number" min={0} max={40} step={0.5} data-id="layer-stroke" value={style.stroke} disabled={busy.value} onChange={(e) => void changeLayerStyle({ stroke: Number((e.target as HTMLInputElement).value) })} />
+          <span class="muted">px</span>
+        </label>
+        <label class="check" title="A soft glow around routes and callout leaders (it reads on dark maps, less on light ones)">
+          <input type="checkbox" data-id="layer-glow" checked={style.glow} disabled={busy.value} onChange={(e) => void changeLayerStyle({ glow: (e.target as HTMLInputElement).checked })} />
+          <span>Glow</span>
+        </label>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="layer-style-pick" disabled={busy.value} title="Takes the colour and line width of the layer selected in After Effects" onClick={() => void pickUpLayerStyle()}>
+          From the selected layer
+        </button>
+        <button class="small-button" data-id="layer-style-reset" disabled={busy.value || layerStyleFollowsLook.value} title="Back to the colours of this look" onClick={() => void changeLayerStyle({ accent: null, stroke: null, glow: null })}>
+          Follow the look
+        </button>
+      </div>
+      <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels, pins, routes and callouts made from now on match it.</div>
     </div>
   );
 }

@@ -540,3 +540,25 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - The runner now remembers which instances were open before it started, waits 150 s (not 45 s) before
   asking for the panel, and at the end closes only the instance it started itself. An After Effects
   the user opened is never touched.
+
+## D33 — One style for the layers the panel makes (2026-09-22)
+
+- **Decision.** The look owns the colours. Every theme has an `accent`, and `resolveLayerStyle` turns
+  a theme plus a per-map override into the concrete style the panel uses: accent, panel colour (the
+  callout box), text and soft text, line width (4 px at 1080 lines) and glow (on for dark looks).
+  Hard-coded colours are gone from routes, callouts and pins.
+- **Override per map, stored with the map.** `layerStyle` in the map layer's tag holds only what the
+  user changed; a null field follows the look, so changing the look still restyles everything the
+  user did not pin down. "Follow the look" clears the override.
+- **Pick-up.** `LML.api.readLayerStyle` reads the first selected layer that has a colour: a shape
+  layer's fill (or its stroke), or a text layer's fill, and the stroke width converted to the 1080-line
+  pixels the panel stores. That is the Phase 5 "style pick-up from an existing layer".
+- **What it does not do.** Layers already in the comp keep the style they were made with; the panel
+  never restyles the user's work behind their back. ST1 covers the colours in After Effects.
+
+## D34 — The in-AE runner starts After Effects reliably (2026-09-22)
+
+- Launching After Effects while the previous instance is still shutting down makes the new one exit
+  within seconds, which looked like "After Effects is not running any more" and killed the run. The
+  runner now waits for the old process to go, waits three seconds more, retries the launch once if
+  nothing appeared after 30 seconds, and only gives up after four minutes.

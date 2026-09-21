@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Pins, routes and callouts follow the look.** Every look now carries an accent colour (gold on
+  Midnight, ink red on Paper, yellow on Blueprint), and the layers the panel makes take it: a pin's
+  dot, a route and its arrow, a callout's leader, box and text. Dark looks glow, light ones do not.
+  The Look sheet has a **Pins, routes and callouts** row to override the colour, the line width and
+  the glow for one map, **From the selected layer** to take the colour and width of a layer you
+  styled yourself, and **Follow the look** to go back.
 - **Your own layers on a place.** A new tool in the panel: select your layers in After Effects
   (an icon, a photo, a precomp, text), click the place on the map, and they stay on it while the
   camera moves. They get the controls a pin has (Latitude, Longitude, Elevation, Grow with the map,

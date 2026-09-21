@@ -16,6 +16,7 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
@@ -34,6 +35,7 @@ import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImpor
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
 import { samplerFor } from "./elevation.ts";
+import { styleRgb } from "../core/style/layerStyle.ts";
 import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 
@@ -62,6 +64,7 @@ export type MapEntry = {
   sky?: boolean;
   terrain?: TerrainSetting | null;
   highlightLayers?: "each" | "one";
+  layerStyle?: LayerStyleOverride | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -106,6 +109,11 @@ export const skyOn = signal(true);
 /** The map's elevation pack and shading, and the packs on this computer. */
 export const terrain = signal<TerrainSetting | null>(null);
 export const terrainPacks = signal<TerrainPackInfo[]>([]);
+/** How the layers this map generates look; what is not set follows the map's look. */
+export const layerStyle = signal<LayerStyleOverride>(NO_OVERRIDE);
+/** The colours, stroke and glow the next pin, route, callout or traveller really gets. */
+export const currentLayerStyle = computed(() => resolveLayerStyle(themeById(themeId.value), layerStyle.value));
+export const layerStyleFollowsLook = computed(() => followsTheLook(layerStyle.value));
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -205,6 +213,7 @@ function showMap(entry: MapEntry): void {
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
   terrain.value = normaliseTerrain(entry.terrain);
+  layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -302,7 +311,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -395,7 +404,7 @@ export async function addPinAt(position: { lat: number; lng: number }, threeD = 
   await run("add pin", async () => {
     if (threeD) await ensureCamera(mapId);
     const [elevation] = await groundElevations([position]);
-    const added = await addPin(mapId, position, { name: threeD ? String(pinCounter++) : `Pin ${pinCounter++}`, threeD, elevation: terrain.value ? elevation : undefined });
+    const added = await addPin(mapId, position, { name: threeD ? String(pinCounter++) : `Pin ${pinCounter++}`, threeD, elevation: terrain.value ? elevation : undefined, style: { color: styleRgb(currentLayerStyle.value.accent) } });
     if (added.expressionErrors.length) log(`pin expression problems: ${added.expressionErrors.join("; ")}`, "fail");
     else log(`added ${added.name} at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`, "ok");
   });
@@ -520,10 +529,10 @@ export const confirmToolSheet = () =>
         log("a callout needs a title", "muted");
         return;
       }
-      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value });
+      const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value });
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value });
       log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
@@ -559,7 +568,7 @@ export const drawImportedLine = (line: ImportedLine, seconds: number, traveller:
     const start = currentMapFrame(entry);
     const frames = Math.max(1, Math.round(seconds * entry.frameRate));
     const pace = recordedPace && line.times ? { points: line.points, times: line.times, leaves: line.leaves } : undefined;
-    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value });
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value, style: currentLayerStyle.value });
     const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
     const paced = pace ? ` at its recorded pace (${made.keys} keys, long stops shortened)` : "";
     log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
@@ -577,7 +586,7 @@ export const pinImportedPlaces = (places: ImportedPlace[]) =>
     let done = 0;
     for (const place of some) {
       progress.value = { label: "Adding pins", done, total: some.length };
-      await addPin(mapId, place, { name: place.name, elevation: terrain.value ? elevations[done] : undefined });
+      await addPin(mapId, place, { name: place.name, elevation: terrain.value ? elevations[done] : undefined, style: { color: styleRgb(currentLayerStyle.value.accent) } });
       done++;
     }
     log(`added ${done} pins${places.length > some.length ? ` (the first ${some.length} of ${places.length})` : ""}`, "ok");
@@ -797,6 +806,27 @@ export const downloadImageryPack = (pack: ImageryPack) =>
     imageryVersion.value++;
     setPreviewStyle(basemap.value, projection.value, look());
     log(`${info.label} installed (${mb(info.bytes)} in ${((performance.now() - started) / 1000).toFixed(1)} s) · ${info.attribution}`, "ok");
+  });
+
+/** Changes how the layers this map generates look (null in a field means "follow the look"). */
+export const changeLayerStyle = (next: Partial<LayerStyleOverride>) =>
+  run("layer style", async () => {
+    layerStyle.value = normaliseLayerStyle({ ...layerStyle.value, ...next });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, layerStyle: layerStyle.value });
+      await readMaps();
+    }
+  });
+
+/** Takes the colour and stroke of the layer selected in After Effects for the layers the panel makes. */
+export const pickUpLayerStyle = () =>
+  run("style from a layer", async () => {
+    if (!selectedId.value) return;
+    const found = await callHost<{ accent: string; stroke: number | null; from: string }>("readLayerStyle", { mapId: selectedId.value });
+    layerStyle.value = normaliseLayerStyle({ ...layerStyle.value, accent: found.accent, stroke: found.stroke ?? layerStyle.value.stroke });
+    await callHost("setMapSettings", { mapId: selectedId.value, layerStyle: layerStyle.value });
+    await readMaps();
+    log(`new pins, routes and callouts take their colour ${found.accent} from "${found.from}"`, "ok");
   });
 
 export const changeSky = (on: boolean) =>

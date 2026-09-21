@@ -10,12 +10,17 @@ import { prepareRouteLine } from "../../core/geo/routeLine.ts";
 import { greatCircle } from "../../core/geo/greatCircle.ts";
 import type { LngLat } from "../../core/geo/mercator.ts";
 import { scriptOf, SCRIPT_FONTS } from "../../core/labels/language.ts";
+import { resolveLayerStyle, styleRgb, type LayerStyle } from "../../core/style/layerStyle.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
+import { themeById } from "../../core/style/themes.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
 import { measure } from "../labels/autoLabels.ts";
 
 type Info = { width: number; height: number; frameRate: number };
+
+/** The look of the layers the panel generates; without one, the default look's. */
+const styleOf = (style: LayerStyle | undefined) => style ?? resolveLayerStyle(themeById(null));
 
 export type RouteOptions = {
   name?: string;
@@ -26,6 +31,8 @@ export type RouteOptions = {
   /** Arc height at the middle, as a fraction of the route length. */
   arc?: number;
   points?: number;
+  /** Colour, stroke and glow of the generated layers (the map's look, unless the user changed it). */
+  style?: LayerStyle;
   /** The map's terrain: with an elevation pack the route follows the ground of 3D terrain. */
   terrain?: TerrainSetting | null;
 };
@@ -46,6 +53,7 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
   const scale = info.height / 1080;
   const route = greatCircle(from, to, options.points ?? 96, options.arc ?? 0.08);
   const ground = await groundOf(options.terrain, route);
+  const look = styleOf(options.style);
   const name = options.name ?? "Route";
   return callHostWithJobFile("addOverlays", {
     mapId,
@@ -58,12 +66,12 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
         // The two ends, so a camera move can follow this route later.
         data: { from: [from.lng, from.lat], to: [to.lng, to.lat] },
         pathExpression: routePathExpression(route.map((p, i) => [p.lat, p.lng, p.altitude, ground[i]])),
-        stroke: { color: options.color ?? [1, 0.78, 0.25], width: (options.width ?? 4) * scale },
+        stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale },
         trimKeys: [
           [options.startFrame, 0],
           [options.endFrame, 100]
         ],
-        glow: { radius: 18 * scale, intensity: 0.8 }
+        glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
       }
     ]
   });
@@ -85,6 +93,7 @@ export type RouteLineOptions = {
   /** The line's recorded times: it draws on at the pace of the recording (long stops shortened) instead of evenly. */
   pace?: TimedLine;
   terrain?: TerrainSetting | null;
+  style?: LayerStyle;
 };
 
 /**
@@ -96,6 +105,7 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
   const scale = info.height / 1080;
   const prepared = prepareRouteLine(line, { maxPoints: ROUTE_MAX_POINTS, geodesic: !options.outline });
   const light = prepared.points;
+  const look = styleOf(options.style);
   const ground = await groundOf(options.terrain, light);
   const points = light.map((p, i) => [p.lat, p.lng, 0, ground[i]]);
   // Even pace: two eased keys. Recorded pace: the turning points of the recording, as linear keys.
@@ -113,10 +123,10 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       name: options.name,
       data: { from: [light[0].lng, light[0].lat], to: [light[light.length - 1].lng, light[light.length - 1].lat] },
       pathExpression: routePathExpression(points),
-      stroke: { color: options.color ?? [1, 0.78, 0.25], width: (options.width ?? 4) * scale },
+      stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale },
       trimKeys: keys,
       linearKeys,
-      glow: { radius: 18 * scale, intensity: 0.8 }
+      glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
     }
   ];
   if (options.traveller) {
@@ -128,6 +138,8 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       expressions: travellerExpressions(points),
       progressKeys: keys,
       linearKeys,
+      color: styleRgb(look.accent),
+      strokeColor: styleRgb(look.panel),
       size: 16 * scale
     });
   }
@@ -140,12 +152,14 @@ export type CalloutOptions = {
   outFrame: number;
   side?: "right" | "left";
   terrain?: TerrainSetting | null;
+  style?: LayerStyle;
 };
 
 export async function addCallout(mapId: string, place: LngLat, title: string, subtitle: string, options: CalloutOptions): Promise<{ layers: string[]; expressionErrors: string[] }> {
   const info = await callHost<Info>("renderInfo", { mapId });
   const s = info.height / 1080;
   const [elevation] = await groundOf(options.terrain, [place]);
+  const look = styleOf(options.style);
   const titleScript = scriptOf(title);
   const subtitleScript = scriptOf(subtitle);
   const titleSize = Math.round(34 * s);
@@ -193,7 +207,7 @@ export async function addCallout(mapId: string, place: LngLat, title: string, su
         kind: "callout",
         name: `Callout leader: ${title}`,
         pathExpression: leaderPathExpression(place.lat, place.lng, dx, dy, length, elevation),
-        stroke: { color: [0.21, 0.7, 1], width: 2.5 * s },
+        stroke: { color: styleRgb(look.accent), width: look.stroke * 0.6 * s },
         trimKeys: [
           [i, 0],
           [i + 10, 100]
@@ -207,7 +221,7 @@ export async function addCallout(mapId: string, place: LngLat, title: string, su
         positionExpression: anchoredPositionExpression(place.lat, place.lng, boxCenterX, boxCenterY, undefined, elevation),
         size: [boxWidth, boxHeight],
         radius: 8 * s,
-        color: [0.03, 0.07, 0.11],
+        color: styleRgb(look.panel),
         opacity: 88,
         scaleKeys: [
           [i + 8, [0, 100]],
@@ -220,7 +234,7 @@ export async function addCallout(mapId: string, place: LngLat, title: string, su
         kind: "callout",
         name: `Callout title: ${title}`,
         text: title,
-        style: textStyle(titleSize, titleScript, true, [1, 1, 1]),
+        style: textStyle(titleSize, titleScript, true, styleRgb(look.text)),
         positionExpression: anchoredPositionExpression(place.lat, place.lng, boxCenterX, titleBaseline, undefined, elevation),
         opacityKeys: fadeIn(i + 13, i + 20)
       },
@@ -229,7 +243,7 @@ export async function addCallout(mapId: string, place: LngLat, title: string, su
         kind: "callout",
         name: `Callout subtitle: ${title}`,
         text: subtitle,
-        style: textStyle(subtitleSize, subtitleScript, false, [0.62, 0.8, 0.95]),
+        style: textStyle(subtitleSize, subtitleScript, false, styleRgb(look.textSoft)),
         positionExpression: anchoredPositionExpression(place.lat, place.lng, boxCenterX, subtitleBaseline, undefined, elevation),
         opacityKeys: fadeIn(i + 16, i + 23)
       }

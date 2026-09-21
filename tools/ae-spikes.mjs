@@ -184,6 +184,9 @@ async function runUiScenario() {
   await idle();
   await sleep(1500);
   await shot("07-look-daylight");
+  // The layers the panel makes follow the look, and the panel says so.
+  const layerStyle = await panel.evaluate(`JSON.stringify({ accent: ${control("layer-accent")}.value, stroke: window.lmlDebug.store.currentLayerStyle.value.stroke, follows: window.lmlDebug.store.layerStyleFollowsLook.value })`);
+  console.log(`U1 layer style: ${layerStyle}`);
   // Terrain: the Paris elevation pack (when TR1 has downloaded it) with shaded slopes and 3D height.
   const packs = await panel.evaluate(`[...${control("terrain-pack")}.options].map((o) => o.value)`);
   console.log(`U1 elevation packs: ${JSON.stringify(packs)}`);
@@ -339,17 +342,27 @@ async function main() {
   // Start After Effects normally (no -r: a script given at launch can end the session with it).
   const guiExe = path.join(path.dirname(aeExe), "AfterFX.exe");
   console.log(`starting After Effects: ${guiExe}`);
+  // An After Effects that is still shutting down makes the next launch exit at once, so wait it out.
+  for (let i = 0; i < 20 && aeRunning(); i++) await sleep(1500);
+  await sleep(3000);
   otherPids = aePids();
   spawn(guiExe, [], { detached: true, stdio: "ignore" }).unref();
 
   const started = Date.now();
   const elapsed = () => `${Math.round((Date.now() - started) / 1000)} s`;
   let openRequested = false;
+  let relaunched = false;
   let uiStarted = false;
   let lastStatus = "";
   while (Date.now() - started < timeoutMs) {
     await sleep(3000);
     const alive = fs.existsSync(heartbeatFile);
+    // A launch that exits at once (it happens when the previous instance was still closing) gets one more try.
+    if (!alive && !relaunched && Date.now() - started > 30000 && !aeRunning()) {
+      console.log(`${elapsed()}: After Effects did not start; trying once more`);
+      spawn(guiExe, [], { detached: true, stdio: "ignore" }).unref();
+      relaunched = true;
+    }
     if (!alive && !openRequested && Date.now() - started > 150000 && aeRunning()) {
       console.log(`${elapsed()}: panel not open yet, asking After Effects to open it`);
       spawn(aeExe, ["-r", path.join(root, "tools", "ae", "open-panel.jsx")], { detached: true, stdio: "ignore" }).unref();
@@ -374,7 +387,7 @@ async function main() {
       lastStatus = status;
     }
     if (panelDone && !running) break;
-    if (!running && Date.now() - started > 60000) {
+    if (!running && Date.now() - started > 240000) {
       console.log(`${elapsed()}: After Effects is not running any more`);
       break;
     }
