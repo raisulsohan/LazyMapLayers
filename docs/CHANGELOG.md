@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Your own layers on a place.** A new tool in the panel: select your layers in After Effects
+  (an icon, a photo, a precomp, text), click the place on the map, and they stay on it while the
+  camera moves. They get the controls a pin has (Latitude, Longitude, Elevation, Grow with the map,
+  Turn with the map), and nothing else about them changes: their size, their comment and any
+  expression you wrote yourself are kept, and **Unlink selected** puts them back exactly as they
+  were. A layer lands within 0.008 px of the place the camera maths gives.
 - **Any outline as an editable shape layer.** Next to every highlight in the Highlight sheet there
   is now a **Shape** button: it adds that country, province, district or imported area to the comp as
   an ordinary After Effects shape layer. Real paths, a fill and a stroke you can restyle, trim,

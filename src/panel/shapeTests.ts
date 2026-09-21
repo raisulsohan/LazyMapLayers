@@ -26,8 +26,16 @@ async function sceneFrame(mapId: string, name: string): Promise<{ rgba: Uint8Arr
   const file = path().join(spikeDir(), `${name}.png`).split(String.fromCharCode(92)).join("/");
   fs().rmSync(file, { force: true });
   await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp.saveFrameToPng(0, new File(${JSON.stringify(file)})); return "1"; })()`);
-  for (let i = 0; i < 80 && !fs().existsSync(file); i++) await new Promise((r) => setTimeout(r, 250));
-  if (!fs().existsSync(file)) throw new Error(`After Effects did not save ${name}.png`);
+  // After Effects writes the file while we watch, so wait until it stops growing.
+  let size = -1;
+  for (let i = 0; i < 120; i++) {
+    await new Promise((r) => setTimeout(r, 250));
+    if (!fs().existsSync(file)) continue;
+    const now = fs().statSync(file).size;
+    if (now > 0 && now === size) break;
+    size = now;
+  }
+  if (!fs().existsSync(file) || size <= 0) throw new Error(`After Effects did not save ${name}.png`);
   const decoded = decodePng(new Uint8Array(fs().readFileSync(file)));
   return { rgba: decoded.rgba, width: decoded.width };
 }

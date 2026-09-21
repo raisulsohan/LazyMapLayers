@@ -512,3 +512,31 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   After Effects twice per point. RT1 still matches core maths to 5e-11 px.
 - **Limits.** The outline is thinned once, for the whole layer, so a close-up of a coastline is
   coarser than the rendered basemap under it. Islands beyond the ring budget are dropped.
+
+## D31 — The user's own layers attached to a place (2026-09-22)
+
+- **Decision.** The attach tool gives a layer the same effects and expressions a pin has
+  (`pinExpressions`), so there is no second projection path to keep right: Map link, Latitude,
+  Longitude, Elevation (m), Scale with Map, Rotate with Map, Reference Zoom.
+- **Hard rule 3 still holds.** These are the only layers the panel touches that it did not make, and
+  it touches them only when the user asks. It writes its tag on the comment's first line and keeps
+  the user's own text under it; it never touches a property the user already drives with an
+  expression (the tag lists the properties it did take, and Unlink restores only those); it never
+  moves, renames or deletes the layer. Unlink removes the effects, the expressions and the tag.
+- **Where the selection comes from.** After Effects owns the selection, so the panel reads it
+  (`selectionInfo`) instead of keeping its own list: the sheet shows how many layers are selected in
+  the map's scene and how many of them are attached already, and refreshes when the panel regains
+  focus. Layers LazyMapLayers generated are skipped.
+- **AT1** checks the lot in After Effects: 0.008 px from the place, 0.004 px after the camera moves,
+  the user's own rotation expression and comment kept, unlink clean, and unlinking one layer leaves
+  the other attached.
+
+## D32 — The in-AE test runner closes only its own After Effects (2026-09-22)
+
+- A run that was interrupted left After Effects open, and the next run then refused to start; worse,
+  the runner's fallback ("the panel is not open yet, ask After Effects to open it") sent a second
+  script to that instance, which answered with a warning dialog, and a modal dialog stops After
+  Effects quitting at all.
+- The runner now remembers which instances were open before it started, waits 150 s (not 45 s) before
+  asking for the panel, and at the end closes only the instance it started itself. An After Effects
+  the user opened is never touched.

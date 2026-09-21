@@ -22,10 +22,24 @@ const aeExe = process.env.LML_AFTERFX ?? "C:\\Program Files\\Adobe\\Adobe After 
 const spikeDir = path.join(os.tmpdir(), "LazyMapLayers", "spikes");
 const timeoutMs = Number(process.env.LML_SPIKE_TIMEOUT_MS ?? 15 * 60 * 1000);
 
-function aeRunning() {
-  const out = execFileSync("tasklist", ["/FO", "CSV", "/NH"], { encoding: "utf8" });
-  return /"AfterFX\.(exe|com)"/i.test(out);
+/** Process ids of every running After Effects. */
+function aePids() {
+  const out = execFileSync("tasklist", ["/FO", "CSV", "/NH", "/FI", "IMAGENAME eq AfterFX.exe"], { encoding: "utf8" });
+  const pids = [];
+  for (const row of out.split(String.fromCharCode(10))) {
+    const fields = row.split(String.fromCharCode(34) + "," + String.fromCharCode(34));
+    const pid = fields.length > 1 && /AfterFX/i.test(fields[0]) ? Number(fields[1]) : NaN;
+    if (Number.isFinite(pid) && pid > 0) pids.push(pid);
+  }
+  return pids;
 }
+
+function aeRunning() {
+  return aePids().length > 0;
+}
+
+/** The instances that were already open when this run started: it never touches those. */
+let otherPids = [];
 
 function writeSolidSequence(dir, width, height, frames, colorAt) {
   fs.rmSync(dir, { recursive: true, force: true });
@@ -226,6 +240,13 @@ async function runUiScenario() {
   console.log(`U1 shape layer: ${JSON.stringify(shapeLog)}`);
   await shot("07e-shape");
   await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
+  // The attach tool reads what is selected in After Effects (nothing, here).
+  await click("tool-attach");
+  await sleep(800);
+  const attachText = await panel.evaluate(`${control("attach-selection")}.textContent`);
+  console.log(`U1 attach sheet: ${JSON.stringify(attachText)} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await shot("07f-attach");
+  await click("tool-attach");
   // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
   const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];
   // Slow for the first third of the rows, fast after it.
@@ -318,6 +339,7 @@ async function main() {
   // Start After Effects normally (no -r: a script given at launch can end the session with it).
   const guiExe = path.join(path.dirname(aeExe), "AfterFX.exe");
   console.log(`starting After Effects: ${guiExe}`);
+  otherPids = aePids();
   spawn(guiExe, [], { detached: true, stdio: "ignore" }).unref();
 
   const started = Date.now();
@@ -328,7 +350,7 @@ async function main() {
   while (Date.now() - started < timeoutMs) {
     await sleep(3000);
     const alive = fs.existsSync(heartbeatFile);
-    if (!alive && !openRequested && Date.now() - started > 45000 && aeRunning()) {
+    if (!alive && !openRequested && Date.now() - started > 150000 && aeRunning()) {
       console.log(`${elapsed()}: panel not open yet, asking After Effects to open it`);
       spawn(aeExe, ["-r", path.join(root, "tools", "ae", "open-panel.jsx")], { detached: true, stdio: "ignore" }).unref();
       openRequested = true;
@@ -378,6 +400,20 @@ async function main() {
   console.log(fs.existsSync(results) ? fs.readFileSync(results, "utf8") : "no panel results");
   const panelLog = path.join(spikeDir, "..", "panel.log");
   if (fs.existsSync(panelLog)) console.log("\npanel.log:\n" + fs.readFileSync(panelLog, "utf8"));
+  // The instance this run started must not outlive it: a leftover blocks every later run, and its
+  // project is the throwaway one the tests built.
+  const mine = aePids().filter((pid) => !otherPids.includes(pid));
+  if (mine.length) {
+    console.log(String.fromCharCode(10) + "After Effects did not quit by itself; closing the test instance (" + mine.join(", ") + ").");
+    for (const pid of mine) {
+      try {
+        execFileSync("taskkill", ["/F", "/PID", String(pid)], { stdio: "ignore" });
+      } catch {
+        // Already gone, or Windows refused: the next run reports it.
+      }
+    }
+    for (let n = 0; n < 10 && aePids().some((pid) => mine.includes(pid)); n++) await sleep(500);
+  }
   console.log(aeRunning() ? "\nAfter Effects is still running." : "\nAfter Effects has quit.");
 }
 

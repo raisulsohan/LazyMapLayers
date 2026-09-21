@@ -45,7 +45,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { AttachSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { IMPORT_ACCEPT } from "../data/importFile.ts";
 import { ShotsTab } from "./ShotsTab.tsx";
 
@@ -87,6 +87,14 @@ function ToolRow(): JSX.Element {
       <IconButton icon="pin3d" id="tool-pin3d" title="3D pin that lies on the ground under the matched 3D camera (or Alt+Shift+click the map)" disabled={off} active={tool.value === "pin3d"} onClick={() => armTool("pin3d")} />
       <IconButton icon="callout" id="tool-callout" title="Callout: a leader line with a title box next to a place" disabled={off} active={tool.value === "callout"} onClick={() => armTool("callout")} />
       <IconButton icon="route" id="tool-route" title="Route: a great-circle line between two places that draws on" disabled={off} active={tool.value === "route"} onClick={() => armTool("route")} />
+      <IconButton
+        icon="attach"
+        id="tool-attach"
+        title="Attach your own layers to a place: select them in After Effects, then click the place on the map. They stay on it while the camera moves."
+        disabled={busy.value}
+        active={tool.value === "attach"}
+        onClick={() => armTool("attach")}
+      />
       <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
       <IconButton
         icon="import"
@@ -256,6 +264,7 @@ export function App(): JSX.Element {
         <ToolSheetView />
         <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
         <HighlightSheetView />
+        <AttachSheetView />
         <LabelsSheetView />
         <LookSheetView />
         <div class={`map-wrap ${tool.value !== "none" ? "armed" : ""}`} ref={wrapNode}>

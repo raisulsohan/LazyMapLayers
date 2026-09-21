@@ -108,3 +108,13 @@ LML.tag.findItemById = function (id) {
     }
     return null;
 };
+
+/** Removes the tag line from an item's comment, keeping whatever the user wrote after it. */
+LML.tag.remove = function (item) {
+    var comment = typeof item.comment === "string" ? item.comment : "";
+    if (comment.indexOf(LML.tag.PREFIX) !== 0) return false;
+    var end = LML.tag.lineEnd(comment);
+    var rest = end < 0 ? "" : comment.substring(end + 1);
+    item.comment = rest;
+    return true;
+};

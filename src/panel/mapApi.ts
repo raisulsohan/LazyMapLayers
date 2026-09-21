@@ -57,6 +57,27 @@ export function addPin(
   });
 }
 
+export type AttachResult = { layers: string[]; expressionErrors: string[] };
+/** What is selected in the map's scene right now, and how much of it can be attached. */
+export type SelectionInfo = { scene: string; selected: number; usable: number; attached: number; first: string };
+
+export const selectionInfo = (mapId: string) => callHost<SelectionInfo>("selectionInfo", { mapId });
+
+/** Attaches the layers the user selected in After Effects to a place: they get a pin's controls and expressions. */
+export function attachLayers(mapId: string, position: { lat: number; lng: number }, options: { elevation?: number; scaleWithMap?: boolean; rotateWithMap?: boolean } = {}): Promise<AttachResult> {
+  return callHostWithJobFile<AttachResult>("attachLayers", {
+    mapId,
+    lat: position.lat,
+    lng: position.lng,
+    elevation: options.elevation ?? 0,
+    scaleWithMap: options.scaleWithMap ?? false,
+    rotateWithMap: options.rotateWithMap ?? false,
+    expressions: pinExpressions(position.lat, position.lng)
+  });
+}
+
+export const detachLayers = (mapId: string) => callHost<{ layers: string[] }>("detachLayers", { mapId });
+
 export type AddedCameraRig = {
   created: boolean;
   cameraName: string;

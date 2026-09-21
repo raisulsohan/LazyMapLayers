@@ -26,7 +26,7 @@ import { countryOutline } from "./data/countries.ts";
 import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
-import { addCameraRig, addPin, createMapComp, flyTo, setView } from "./mapApi.ts";
+import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo, selectionInfo, setView, type SelectionInfo } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
@@ -74,7 +74,7 @@ export type RegionSheet = { kind: "region" | "terrain"; name: string; maxZoom: n
 export type Screen = "main" | "maps" | "newMap" | "settings";
 export type Tab = "shots" | "render";
 /** A tool waits for clicks on the preview: a place for a pin or a callout, two places for a route. */
-export type Tool = "none" | "pin" | "pin3d" | "callout" | "route" | "highlight";
+export type Tool = "none" | "pin" | "pin3d" | "callout" | "route" | "highlight" | "attach";
 export type ToolSheet = { kind: "callout"; place: { lat: number; lng: number }; title: string; subtitle: string; seconds: number } | { kind: "route"; from: { lat: number; lng: number }; to: { lat: number; lng: number }; seconds: number };
 
 export const LARGE_DOWNLOAD_BYTES = 200 * 1048576;
@@ -405,7 +405,49 @@ export function armTool(next: Tool): void {
   tool.value = tool.value === next ? "none" : next;
   toolFirstPoint.value = null;
   toolSheet.value = null;
+  if (tool.value === "attach") void refreshSelection();
 }
+
+/** What the user has selected in After Effects, for the attach tool. */
+export const selection = signal<SelectionInfo | null>(null);
+/** Attached layers grow and turn with the map while these are on. */
+export const attachScale = signal(false);
+export const attachRotate = signal(false);
+
+export async function refreshSelection(): Promise<void> {
+  if (!selectedId.value) {
+    selection.value = null;
+    return;
+  }
+  try {
+    selection.value = await selectionInfo(selectedId.value);
+  } catch (error) {
+    selection.value = null;
+    fail("reading the selection in After Effects", error);
+  }
+}
+
+/** Attaches the layers selected in After Effects to a place, so they stay on it while the camera moves. */
+export const attachAt = (position: { lat: number; lng: number }) =>
+  run("attach layers", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) return;
+    const [elevation] = await groundElevations([position]);
+    const made = await attachLayers(mapId, position, { elevation: terrain.value ? elevation : 0, scaleWithMap: attachScale.value, rotateWithMap: attachRotate.value });
+    await refreshSelection();
+    if (made.expressionErrors.length) log(`attach problems: ${made.expressionErrors.slice(0, 3).join("; ")}`, "fail");
+    else log(`${made.layers.length} ${made.layers.length === 1 ? "layer" : "layers"} attached at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}: ${made.layers.slice(0, 3).join(", ")}${made.layers.length > 3 ? "…" : ""}. Move them with their Latitude and Longitude sliders`, "ok");
+  });
+
+/** Puts the selected attached layers back as they were. */
+export const detachSelected = () =>
+  run("unlink layers", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) return;
+    const undone = await detachLayers(mapId);
+    await refreshSelection();
+    log(undone.layers.length ? `${undone.layers.length} ${undone.layers.length === 1 ? "layer is" : "layers are"} back as they were: ${undone.layers.slice(0, 3).join(", ")}` : "none of the selected layers is attached to this map", undone.layers.length ? "ok" : "muted");
+  });
 
 /** A click on the preview: Alt+click pins as before; otherwise the armed tool gets the place. */
 export function previewClicked(position: { lat: number; lng: number }, event: MouseEvent, point: { x: number; y: number }): void {
@@ -440,7 +482,10 @@ export function previewClicked(position: { lat: number; lng: number }, event: Mo
     tool.value = "none";
     return;
   }
-  if (active === "pin" || active === "pin3d") {
+  if (active === "attach") {
+    tool.value = "none";
+    void attachAt(position);
+  } else if (active === "pin" || active === "pin3d") {
     tool.value = "none";
     void addPinAt(position, active === "pin3d");
   } else if (active === "callout") {
@@ -991,7 +1036,10 @@ export function startStore(): () => void {
     } else if (job.status === "failed") log(`${job.mapName}: render failed: ${job.error}`, "fail");
     else if (job.status === "cancelled") log(`${job.mapName}: render cancelled (rendered frames are kept; Resume continues)`, "muted");
   });
-  const onFocus = () => void refreshMaps();
+  const onFocus = () => {
+    void refreshMaps();
+    if (tool.value === "attach") void refreshSelection();
+  };
   window.addEventListener("focus", onFocus);
   // The file listed in the Import sheet is drawn over the preview while the sheet is open.
   const stopImportOverlay = effect(() => setPreviewImport(importSheetOpen.value ? imported.value : null));

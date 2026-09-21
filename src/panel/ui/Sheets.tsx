@@ -29,7 +29,7 @@ import { safeRegionName } from "../regions.ts";
 import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
-import { addHighlightShape, changeHighlightLayers, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, removeDistrictSet, shapeDrawOn } from "../store.ts";
+import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
 import { changeSky, changeTerrain, downloadImageryPack, groundAtCentre, imageryVersion, openTerrainSheet, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -414,11 +414,61 @@ export function HighlightSheetView(): JSX.Element | null {
   );
 }
 
+/** The attach tool: what is selected in After Effects, how it will follow the map, and Unlink. */
+export function AttachSheetView(): JSX.Element | null {
+  if (tool.value !== "attach") return null;
+  const info = selection.value;
+  return (
+    <div class="sheet" data-id="attach-sheet">
+      <div class="sheet-title">Attach your layers to a place</div>
+      <div class="muted small">
+        Select your own layers in After Effects (icons, photos, precomps, text), then click the place on the map. They get Latitude and Longitude sliders and stay on that place while the camera moves. Everything else about the layer stays yours.
+      </div>
+      <div class="sheet-row import-row">
+        <span class="grow small" data-id="attach-selection">
+          {info ? (
+            info.usable ? (
+              <>
+                {info.usable} {info.usable === 1 ? "layer" : "layers"} selected in {info.scene}
+                {info.attached ? <span class="muted"> · {info.attached} already attached</span> : null}
+              </>
+            ) : (
+              <span class="muted">Nothing usable selected in {info.scene}</span>
+            )
+          ) : (
+            <span class="muted">Select a map first</span>
+          )}
+        </span>
+        <button class="small-button" data-id="attach-refresh" disabled={busy.value} title="Reads the selection in After Effects again" onClick={() => void refreshSelection()}>
+          Refresh
+        </button>
+      </div>
+      <label class="check" title="The layer's own size is multiplied by the map's zoom, so it grows as the camera comes closer (like a pin that scales with the map).">
+        <input type="checkbox" data-id="attach-scale" checked={attachScale.value} onChange={(e) => (attachScale.value = (e.target as HTMLInputElement).checked)} />
+        <span>Grow with the map</span>
+      </label>
+      <label class="check" title="The layer turns with the map's bearing, so it keeps its direction on the ground.">
+        <input type="checkbox" data-id="attach-rotate" checked={attachRotate.value} onChange={(e) => (attachRotate.value = (e.target as HTMLInputElement).checked)} />
+        <span>Turn with the map</span>
+      </label>
+      <div class="sheet-row">
+        <button class="small-button" data-id="attach-detach" disabled={busy.value || !info?.attached} title="Removes the controls and expressions from the selected attached layers and leaves them where they are" onClick={() => void detachSelected()}>
+          Unlink selected
+        </button>
+        <span class="spacer" />
+        <button class="small-button" onClick={() => (tool.value = "none")}>
+          Done
+        </button>
+      </div>
+    </div>
+  );
+}
+
 /** The hint while a tool waits for clicks, and the callout and route sheets once it has its places. */
 export function ToolSheetView(): JSX.Element | null {
   const sheet = toolSheet.value;
   if (!sheet) {
-    if (tool.value === "none" || tool.value === "highlight") return null;
+    if (tool.value === "none" || tool.value === "highlight" || tool.value === "attach") return null;
     const hint =
       tool.value === "route"
         ? toolFirstPoint.value
