@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Comet trails and dashed lines.** Two switches next to a route: **Comet** adds a bright head
+  that chases the tip of the line as it draws on (the same path trimmed at both ends, so it follows
+  every bend), and **Dashed** draws the line as a dashed one. Both work for great-circle routes and
+  for imported tracks, at an even pace or a recorded one.
+- **Save the map as GeoJSON.** A button in the toolbar writes what is on the map back out as a
+  GeoJSON file: pins and attached layers as points, routes as lines, shape layers as polygons,
+  callouts as points with their title, and highlighted areas as polygons. The geography comes from
+  the layers themselves, so a route you moved in After Effects exports where it now is.
 - **Pins, routes and callouts follow the look.** Every look now carries an accent colour (gold on
   Midnight, ink red on Paper, yellow on Blueprint), and the layers the panel makes take it: a pin's
   dot, a route and its arrow, a callout's leader, box and text. Dark looks glow, light ones do not.

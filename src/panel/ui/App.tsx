@@ -24,6 +24,7 @@ import {
   logLines,
   logOpen,
   matchAe,
+  exportGeoJson,
   openRegionSheet,
   previewClicked,
   previewMoved,
@@ -106,6 +107,13 @@ function ToolRow(): JSX.Element {
           if (imported.value) importSheetOpen.value = !importSheetOpen.value;
           else filePicker.current?.click();
         }}
+      />
+      <IconButton
+        icon="copy"
+        id="export-geojson"
+        title="Save what is on this map (pins, routes, outlines, callouts and highlighted areas) as a GeoJSON file"
+        disabled={busy.value || !selected.value}
+        onClick={() => void exportGeoJson()}
       />
       <input
         ref={filePicker}

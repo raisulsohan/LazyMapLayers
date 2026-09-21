@@ -5,6 +5,7 @@
 // holds and fades out between two frames.
 
 import { leaderPathExpression, anchoredPositionExpression, routePathExpression, travellerExpressions } from "../../core/ae/labelExpressions.ts";
+import { cometTailKeys } from "../../core/ae/trimKeys.ts";
 import { paceKeys, type TimedLine } from "../../core/geo/pace.ts";
 import { prepareRouteLine } from "../../core/geo/routeLine.ts";
 import { greatCircle } from "../../core/geo/greatCircle.ts";
@@ -33,6 +34,10 @@ export type RouteOptions = {
   points?: number;
   /** Colour, stroke and glow of the generated layers (the map's look, unless the user changed it). */
   style?: LayerStyle;
+  /** A bright head that runs along the line while it draws on. */
+  comet?: boolean;
+  /** Dash length in 1080-line pixels; 0 for a solid line. */
+  dash?: number;
   /** The map's terrain: with an elevation pack the route follows the ground of 3D terrain. */
   terrain?: TerrainSetting | null;
 };
@@ -55,26 +60,37 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
   const ground = await groundOf(options.terrain, route);
   const look = styleOf(options.style);
   const name = options.name ?? "Route";
-  return callHostWithJobFile("addOverlays", {
-    mapId,
-    undoName: "Add route",
-    items: [
-      {
-        type: "path",
-        kind: "route",
-        name,
-        // The two ends, so a camera move can follow this route later.
-        data: { from: [from.lng, from.lat], to: [to.lng, to.lat] },
-        pathExpression: routePathExpression(route.map((p, i) => [p.lat, p.lng, p.altitude, ground[i]])),
-        stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale },
-        trimKeys: [
-          [options.startFrame, 0],
-          [options.endFrame, 100]
-        ],
-        glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
-      }
-    ]
-  });
+  const path = routePathExpression(route.map((p, i) => [p.lat, p.lng, p.altitude, ground[i]]));
+  const keys: [number, number][] = [
+    [options.startFrame, 0],
+    [options.endFrame, 100]
+  ];
+  const items: Record<string, unknown>[] = [
+    {
+      type: "path",
+      kind: "route",
+      name,
+      // The two ends, so a camera move can follow this route later.
+      data: { from: [from.lng, from.lat], to: [to.lng, to.lat] },
+      pathExpression: path,
+      stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale, dash: (options.dash ?? 0) * scale },
+      trimKeys: keys,
+      glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
+    }
+  ];
+  if (options.comet) {
+    items.push({
+      type: "path",
+      kind: "route",
+      name: `Comet: ${name}`,
+      pathExpression: path,
+      stroke: { color: styleRgb(look.accent), width: (options.width ?? look.stroke) * 1.6 * scale, dash: 0 },
+      trimKeys: keys,
+      trimStartKeys: cometTailKeys(keys),
+      glow: { radius: 26 * scale, intensity: 1.1 }
+    });
+  }
+  return callHostWithJobFile("addOverlays", { mapId, undoName: "Add route", items });
 }
 
 /** Expressions project every point on every frame, so long tracks are thinned to this many points. */
@@ -88,6 +104,10 @@ export type RouteLineOptions = {
   width?: number;
   /** Adds an arrow that travels along the line while it draws on. */
   traveller?: boolean;
+  /** A bright head that runs along the line and fades out behind it, over the drawn line. */
+  comet?: boolean;
+  /** Dash length in 1080-line pixels (the gap matches it); 0 for a solid line. */
+  dash?: number;
   /** True for the outline of an area: long legs stay straight on the flat map instead of following the great circle. */
   outline?: boolean;
   /** The line's recorded times: it draws on at the pace of the recording (long stops shortened) instead of evenly. */
@@ -123,12 +143,26 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       name: options.name,
       data: { from: [light[0].lng, light[0].lat], to: [light[light.length - 1].lng, light[light.length - 1].lat] },
       pathExpression: routePathExpression(points),
-      stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale },
+      stroke: { color: options.color ?? styleRgb(look.accent), width: (options.width ?? look.stroke) * scale, dash: (options.dash ?? 0) * scale },
       trimKeys: keys,
       linearKeys,
       glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
     }
   ];
+  if (options.comet) {
+    // The same path trimmed at both ends: a short bright piece that chases the tip of the line.
+    items.push({
+      type: "path",
+      kind: "route",
+      name: `Comet: ${options.name}`,
+      pathExpression: routePathExpression(points),
+      stroke: { color: styleRgb(look.accent), width: (options.width ?? look.stroke) * 1.6 * scale, dash: 0 },
+      trimKeys: keys,
+      trimStartKeys: cometTailKeys(keys),
+      linearKeys,
+      glow: { radius: 26 * scale, intensity: 1.1 }
+    });
+  }
   if (options.traveller) {
     // Listed after the route, so it sits above it.
     items.push({

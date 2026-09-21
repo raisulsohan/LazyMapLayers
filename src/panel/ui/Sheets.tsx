@@ -33,6 +33,7 @@ import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, de
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
+import { routeComet, routeDashed } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
 
@@ -297,6 +298,14 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
           <span>Duration</span>
           <input type="number" min={0.5} step={0.5} value={seconds} onChange={(e) => setSeconds(Math.max(0.5, Number((e.target as HTMLInputElement).value) || 5))} />
           <span class="muted">s</span>
+        </label>
+        <label class="check" title="A bright head runs along the line while it draws on, like a comet.">
+          <input type="checkbox" data-id="route-comet" checked={routeComet.value} onChange={(e) => (routeComet.value = (e.target as HTMLInputElement).checked)} />
+          <span>Comet</span>
+        </label>
+        <label class="check" title="Draws the line dashed instead of solid.">
+          <input type="checkbox" data-id="route-dashed" checked={routeDashed.value} onChange={(e) => (routeDashed.value = (e.target as HTMLInputElement).checked)} />
+          <span>Dashed</span>
         </label>
         {data.lines.some((line) => line.times) && (
           <label class="check" title="Lines that were recorded with times (GPS tracks, flight logs) draw on at the pace of the recording: fast where it was fast, slow where it was slow, with long stops shortened. Off: an even pace.">

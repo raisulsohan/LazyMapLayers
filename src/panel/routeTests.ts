@@ -8,7 +8,8 @@ import { fitPoints } from "../core/camera/fit.ts";
 import { zipSync } from "fflate";
 import { prepareRouteLine } from "../core/geo/routeLine.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings } from "../core/render/plan.ts";
-import { evalScript, fs, path } from "./cep.ts";
+import { buildGeoJson, type ExportLayer } from "../core/data/geoJsonExport.ts";
+import { callHost, callHostWithJobFile, evalScript, fs, path } from "./cep.ts";
 import { hasImagery } from "./imagery/packs.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import { importFile } from "./data/importFile.ts";
@@ -252,6 +253,47 @@ export async function runRouteTests(log: SpikeLog): Promise<Record<string, unkno
     problems.push(`other formats: ${error instanceof Error ? error.message : String(error)}`);
   }
 
+  // A comet: the same line trimmed at both ends, so a bright head chases the tip.
+  const withComet = await addRouteLine(map.id, line.points.slice(0, 400), { name: "Comet route", startFrame: 25, endFrame: 175, comet: true, dash: 12 });
+  if (withComet.expressionErrors.length) problems.push(`comet expressions: ${withComet.expressionErrors.slice(0, 2).join("; ")}`);
+  const cometState = await host<{ layers: string[]; start: number[]; end: number[]; dash: number }>(`
+    var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, comet = null, dashed = null, names = [];
+    for (var i = 1; i <= scene.numLayers; i++) {
+      var t = LML.tag.read(scene.layer(i));
+      if (!t || t.kind !== "route") continue;
+      names.push(scene.layer(i).name);
+      if (scene.layer(i).name === "Comet: Comet route") comet = scene.layer(i);
+      if (scene.layer(i).name === "Comet route") dashed = scene.layer(i);
+    }
+    var out = { layers: names, start: [], end: [], dash: 0 };
+    if (comet) {
+      var trim = comet.property("ADBE Root Vectors Group").property("ADBE Vector Filter - Trim");
+      out.start = [trim.property("ADBE Vector Trim Start").valueAtTime(1, false), trim.property("ADBE Vector Trim Start").valueAtTime(7, false)];
+      out.end = [trim.property("ADBE Vector Trim End").valueAtTime(1, false), trim.property("ADBE Vector Trim End").valueAtTime(7, false)];
+    }
+    if (dashed) {
+      var stroke = dashed.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property("ADBE Vector Graphic - Stroke");
+      var dashes = stroke.property("ADBE Vector Stroke Dashes");
+      if (dashes.numProperties > 0) out.dash = dashes.property(1).value;
+    }
+    return LML.json.stringify(out);`);
+  if (cometState.layers.indexOf("Comet: Comet route") < 0) problems.push(`the comet layer is missing: ${cometState.layers.join(", ")}`);
+  if (!(cometState.end[1] > cometState.start[1] && cometState.start[1] > 0)) problems.push(`the comet trims ${JSON.stringify(cometState.start)} to ${JSON.stringify(cometState.end)}`);
+  if (!(cometState.dash > 0)) problems.push(`the dashed line has a dash of ${cometState.dash}`);
+
+  // What is on the map, back out as GeoJSON (the file dialog is left to people).
+  const exported = await callHost<ExportLayer[]>("exportLayers", { mapId: map.id });
+  const { geojson, skipped } = buildGeoJson(exported, [], "RT1");
+  const lines = geojson.features.filter((feature) => feature.geometry.type === "LineString");
+  const firstLine = lines[0]?.geometry;
+  if (lines.length < 2) problems.push(`the export holds ${lines.length} lines of ${geojson.features.length} features`);
+  if (!firstLine || firstLine.type !== "LineString" || firstLine.coordinates.length !== made.points) problems.push(`the exported line has ${firstLine && firstLine.type === "LineString" ? firstLine.coordinates.length : "no"} points, the route ${made.points}`);
+  if (firstLine && firstLine.type === "LineString") {
+    const [lng, lat] = firstLine.coordinates[0];
+    if (Math.abs(lat - light[0].lat) > 1e-4 || Math.abs(lng - light[0].lng) > 1e-4) problems.push(`the exported line starts at ${lat}, ${lng} instead of ${light[0].lat}, ${light[0].lng}`);
+  }
+  if (skipped) problems.push(`${skipped} layers could not be exported`);
+
   // A picture of the result for people: the basemap rendered under the half-drawn route and its arrow.
   try {
     const settings = normaliseSettings({ ...DEFAULT_FINAL_SETTINGS, supersample: 1, passes: ["base"] }, DEFAULT_FINAL_SETTINGS);
@@ -265,7 +307,7 @@ export async function runRouteTests(log: SpikeLog): Promise<Record<string, unkno
   }
 
   const passed = problems.length === 0;
-  log(`RT1 routes: GPX with ${count} points thinned to ${made.points}, traveller ${worst.toFixed(3)} px off the track's ends, recorded pace in ${pacedKeys} keys, ${formats}, ${problems.length} problems`, passed ? "ok" : "fail");
+  log(`RT1 routes: GPX with ${count} points thinned to ${made.points}, traveller ${worst.toFixed(3)} px off the track's ends, recorded pace in ${pacedKeys} keys, ${formats}, ${geojson.features.length} features exported, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
   return { passed, points: made.points, worst, pacedKeys, formats, samples: state.samples, problems };
 }

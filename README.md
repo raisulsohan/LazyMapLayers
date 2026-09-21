@@ -65,6 +65,8 @@ built to be free **and** to give better final frames.
   ground, and a keyed Terrain Height slider makes the mountains rise.
 - **Highlights.** Countries, provinces (4,589 built in), districts (downloaded per country from
   geoBoundaries) and shapes from your own files, each rendered as its own layer above the basemap.
+- **Export.** Save what is on the map back out as GeoJSON: pins, routes, outlines, callouts and
+  highlighted areas.
 - **Your own layers on the map.** Select your artwork in After Effects, click a place, and it stays
   there while the camera moves; Unlink puts it back as it was.
 - **Shape layers.** Any highlighted country, province, district or imported area can be added to the

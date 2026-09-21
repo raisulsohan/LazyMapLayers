@@ -562,3 +562,19 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   within seconds, which looked like "After Effects is not running any more" and killed the run. The
   runner now waits for the old process to go, waits three seconds more, retries the launch once if
   nothing appeared after 30 seconds, and only gives up after four minutes.
+
+## D35 — Comets, dashes, and the way back to GeoJSON (2026-09-22)
+
+- **A comet is the same path twice.** The second layer carries the same path expression and the same
+  Trim End keys, with Trim Start keys twelve percent behind (`cometTailKeys` in core), so the head
+  keeps its length however the line is paced and follows every bend without new maths. Dashes are an
+  ordinary stroke dash on the route layer.
+- **Export reads the layers, not the panel's memory.** `LML.api.exportLayers` hands back the tagged
+  layers with their Latitude and Longitude sliders and their path expressions; core's
+  `pointsFromExpression` pulls the baked points out of the expression text and `buildGeoJson` turns
+  the lot into a FeatureCollection. So a pin the user dragged by its sliders, or a route whose points
+  they edited, exports as it is now. A layer whose expression was replaced by hand has no points to
+  read and is counted as skipped.
+- **The file dialog stays in After Effects** (`File.saveDialog` in `LML.api.saveTextFile`), so the
+  panel never writes where the user did not ask. Tests call `exportLayers` and build the GeoJSON, but
+  never the dialog: a modal dialog would hang an automated run.

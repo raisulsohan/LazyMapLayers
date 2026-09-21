@@ -39,7 +39,8 @@ LML.overlays.linkToMap = function (layer, mapLayer) {
 };
 
 /**
- * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity? }, trimKeys?, linearKeys?, opacityKeys?, glow?, data? }
+ * args: { mapId, kind, name, pathExpression, stroke: { color, width, opacity?, dash?, gap? }, trimKeys?,
+ *         trimStartKeys?, linearKeys?, opacityKeys?, glow?, data? }
  * data (small, such as a route's two ends) is kept in the layer's tag. linearKeys leaves the trim keys
  * linear (a recorded pace arrives as many keys that must not ease in and out one by one).
  */
@@ -60,11 +61,28 @@ LML.overlays.addPath = function (args) {
     stroke.property("ADBE Vector Stroke Width").setValue(args.stroke.width);
     stroke.property("ADBE Vector Stroke Line Cap").setValue(2);
     stroke.property("ADBE Vector Stroke Line Join").setValue(2);
-    if (args.trimKeys && args.trimKeys.length) {
+    if (args.stroke.dash > 0) {
+        try {
+            var dashes = stroke.property("ADBE Vector Stroke Dashes");
+            dashes.addProperty("ADBE Vector Stroke Dash 1").setValue(args.stroke.dash);
+            dashes.addProperty("ADBE Vector Stroke Gap 1").setValue(args.stroke.gap > 0 ? args.stroke.gap : args.stroke.dash);
+        } catch (e0) {
+            // A solid line is a fine fallback.
+        }
+    }
+    if ((args.trimKeys && args.trimKeys.length) || (args.trimStartKeys && args.trimStartKeys.length)) {
         var trim = layer.property("ADBE Root Vectors Group").addProperty("ADBE Vector Filter - Trim");
-        var end = trim.property("ADBE Vector Trim End");
-        LML.overlays.keyFrames(end, mapLayer, args.trimKeys);
-        if (!args.linearKeys) LML.overlays.ease(end);
+        if (args.trimKeys && args.trimKeys.length) {
+            var end = trim.property("ADBE Vector Trim End");
+            LML.overlays.keyFrames(end, mapLayer, args.trimKeys);
+            if (!args.linearKeys) LML.overlays.ease(end);
+        }
+        // A comet is the same path trimmed at both ends: the tail follows the head.
+        if (args.trimStartKeys && args.trimStartKeys.length) {
+            var begin = trim.property("ADBE Vector Trim Start");
+            LML.overlays.keyFrames(begin, mapLayer, args.trimStartKeys);
+            if (!args.linearKeys) LML.overlays.ease(begin);
+        }
     }
     if (args.opacityKeys && args.opacityKeys.length) {
         LML.overlays.keyFrames(layer.property("ADBE Transform Group").property("ADBE Opacity"), mapLayer, args.opacityKeys);

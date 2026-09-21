@@ -144,3 +144,56 @@ LML.api.selectionInfo = function (args) {
     }
     return { scene: scene.name, selected: selected.length, usable: usable, attached: attached, first: first };
 };
+
+/**
+ * Everything on a map that can go back out as GeoJSON: pins and attached layers with their place,
+ * routes and outlines with the expressions that hold their points, callouts with their title.
+ * args: { mapId }
+ */
+LML.api.exportLayers = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var kinds = { pin: true, attached: true, route: true, feature: true, callout: true };
+    var out = [];
+    for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.mapId !== args.mapId || kinds[tag.kind] !== true) continue;
+        var item = { kind: tag.kind, name: layer.name, lat: null, lng: null, paths: [] };
+        var lat = LML.attach.effectByName(layer, "Latitude");
+        var lng = LML.attach.effectByName(layer, "Longitude");
+        if (lat && lng) {
+            item.lat = lat.property(1).value;
+            item.lng = lng.property(1).value;
+        }
+        var vectors = layer.property("ADBE Root Vectors Group");
+        if (vectors) {
+            for (var g = 1; g <= vectors.numProperties; g++) {
+                var group = vectors.property(g);
+                if (group.matchName !== "ADBE Vector Group") continue;
+                var contents = group.property("ADBE Vectors Group");
+                for (var c = 1; c <= contents.numProperties; c++) {
+                    var shape = contents.property(c);
+                    if (shape.matchName !== "ADBE Vector Shape - Group") continue;
+                    var path = shape.property("ADBE Vector Shape");
+                    if (path.expressionEnabled && path.expression) item.paths.push(path.expression);
+                }
+            }
+        }
+        // A callout keeps its place on the text and box layers; the leader has it too.
+        if (item.lat === null && tag.kind === "callout" && item.paths.length === 0) continue;
+        out.push(item);
+    }
+    return out;
+};
+
+/** Writes text where the user chooses. args: { text, suggestedName } — returns the path, or null. */
+LML.api.saveTextFile = function (args) {
+    var file = File.saveDialog("Save as", args.suggestedName || "map.geojson");
+    if (!file) return null;
+    file.encoding = "UTF-8";
+    if (!file.open("w")) throw LML.util.error("WRITE_FAILED", "Could not write " + file.fsName);
+    file.write(args.text);
+    file.close();
+    return file.fsName;
+};

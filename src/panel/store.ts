@@ -23,6 +23,7 @@ import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
 import { districtAt, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
+import { buildGeoJson, type ExportLayer } from "../core/data/geoJsonExport.ts";
 import { countryOutline } from "./data/countries.ts";
 import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
 import { buildWorldFlight } from "./demo/worldFlight.ts";
@@ -132,6 +133,12 @@ export const toolSheet = signal<ToolSheet | null>(null);
 export const regionSheet = signal<RegionSheet | null>(null);
 export const jobs = signal<QueueJob[]>([]);
 export const flightSeconds = signal(6);
+/** A bright head that runs along a new route while it draws on. */
+export const routeComet = signal(false);
+/** New routes are drawn as a dashed line. */
+export const routeDashed = signal(false);
+/** Dash length in 1080-line pixels when a route is dashed. */
+export const ROUTE_DASH = 14;
 export const labelLanguage = signal("local+en");
 /** How many names Auto labels may place: the most important ones come first. */
 export const LABEL_DENSITIES = { few: { label: "Few (up to 20)", max: 20 }, normal: { label: "Normal (up to 45)", max: 45 }, many: { label: "Many (up to 120)", max: 120 } } as const;
@@ -532,7 +539,7 @@ export const confirmToolSheet = () =>
       const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value });
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
       log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
@@ -568,7 +575,7 @@ export const drawImportedLine = (line: ImportedLine, seconds: number, traveller:
     const start = currentMapFrame(entry);
     const frames = Math.max(1, Math.round(seconds * entry.frameRate));
     const pace = recordedPace && line.times ? { points: line.points, times: line.times, leaves: line.leaves } : undefined;
-    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value, style: currentLayerStyle.value });
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
     const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
     const paced = pace ? ` at its recorded pace (${made.keys} keys, long stops shortened)` : "";
     log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
@@ -735,6 +742,36 @@ export const addHighlightShape = (highlight: Highlight) =>
     );
     const drawn = shapeDrawOn.value ? ` and draws on from ${entry.time.toFixed(2)} s over 4 s` : "";
     log(`"${highlight.name}" added as a shape layer (${made.rings} ${made.rings === 1 ? "path" : "paths"}, ${made.points} points)${drawn}. It follows the map; restyle it like any shape layer`, made.expressionErrors.length ? "fail" : "ok");
+  });
+
+/** Writes what is on this map (pins, routes, outlines, callouts, highlighted areas) as a GeoJSON file. */
+export const exportGeoJson = () =>
+  run("export", async () => {
+    const entry = (await readMaps()).find((m) => m.mapId === selectedId.value);
+    if (!entry) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const layers = await callHost<ExportLayer[]>("exportLayers", { mapId: entry.mapId });
+    const named = highlights.value.filter((h) => isAreaCode(h.code) && areas.value[areaIdOf(h.code)]);
+    const { geojson, skipped } = buildGeoJson(
+      layers,
+      named.map((h) => ({ name: h.name, polygons: areas.value[areaIdOf(h.code)] })),
+      entry.mapCompName
+    );
+    if (!geojson.features.length) {
+      log("nothing on this map can go out as GeoJSON yet: add pins, routes, outlines or callouts first", "muted");
+      return;
+    }
+    const path = await callHost<string | null>("saveTextFile", { text: JSON.stringify(geojson), suggestedName: `${entry.mapCompName}.geojson` });
+    if (!path) {
+      log("export cancelled", "muted");
+      return;
+    }
+    log(
+      `${geojson.features.length} ${geojson.features.length === 1 ? "feature" : "features"} written to ${path}${skipped ? ` (${skipped} layers had no points left to read)` : ""}`,
+      "ok"
+    );
   });
 
 export function removeDistrictSet(iso: string): void {
