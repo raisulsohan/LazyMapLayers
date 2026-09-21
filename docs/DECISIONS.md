@@ -578,3 +578,23 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **The file dialog stays in After Effects** (`File.saveDialog` in `LML.api.saveTextFile`), so the
   panel never writes where the user did not ask. Tests call `exportLayers` and build the GeoJSON, but
   never the dialog: a modal dialog would hang an automated run.
+
+## D36 — One label template per map (2026-09-22)
+
+- **A template, not a comp.** The category's label templates are comps with `{property}` fields, and
+  every label becomes a precomp: heavy projects, and a change means rebuilding. Ours is a small set
+  of values on the map (`LabelTemplate` in `src/core/labels/labelTemplate.ts`) that every name is
+  built from: colour for cities and for countries, halo colour and width, size, capitals, dots, and
+  a font. Labels stay ordinary text layers, so the user can still restyle one by hand.
+- **The look decides until the user does.** Each field is nullable and falls back to the map's look,
+  so a dark look still gives light names and switching looks restyles everything the user did not
+  pin down. "Follow the look" clears the lot. Country names follow the city size by the ratio they
+  already had (24/21), so one number moves both.
+- **The subtitle is derived, never stored.** The English line under a name is the country colour
+  mixed a quarter towards the halo, so it sits back from the name whatever colour is chosen.
+- **A picked-up font is only used where it can shape the script.** `templateFonts` puts the user's
+  font first for Latin, Cyrillic and Greek and ignores it for Bengali, Arabic, Chinese and the rest,
+  so a brand font never turns a name into boxes. `LML.api.readLabelStyle` reads the colour, size,
+  halo and font of the selected text layer, in the 1080-line pixels the panel stores.
+- **Capitals are a request, not a rule.** `caps` only turns country names, and only in scripts that
+  have capitals. LB2 covers all of this in After Effects.

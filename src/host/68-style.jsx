@@ -46,7 +46,7 @@ LML.style.readFrom = function (layer) {
     return found;
 };
 
-/** args: { mapId } — reads the style of the first selected layer that has one. */
+/** args: { mapId } - reads the style of the first selected layer that has one. */
 LML.api.readLayerStyle = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var scene = mapLayer.containingComp;
@@ -56,4 +56,38 @@ LML.api.readLayerStyle = function (args) {
         if (found) return found;
     }
     throw LML.util.error("NO_STYLE", "Select a shape or text layer with a colour in " + scene.name + " first");
+};
+
+/**
+ * The style of the selected text layer, for the label template: its colour, size, halo and font.
+ * args: { mapId }
+ */
+LML.api.readLabelStyle = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var selected = scene.selectedLayers;
+    for (var i = 0; i < selected.length; i++) {
+        var layer = selected[i];
+        var properties = layer.property("ADBE Text Properties");
+        if (!properties) continue;
+        var doc = properties.property("ADBE Text Document").value;
+        var toPanel = 1080 / scene.height;
+        var found = {
+            from: layer.name,
+            color: doc.applyFill && doc.fillColor ? LML.style.hex(doc.fillColor) : null,
+            size: Math.round(doc.fontSize * toPanel * 10) / 10,
+            haloColor: doc.applyStroke && doc.strokeColor ? LML.style.hex(doc.strokeColor) : null,
+            halo: doc.applyStroke ? Math.round(doc.strokeWidth * toPanel * 10) / 10 : 0,
+            font: doc.font,
+            caps: null
+        };
+        // All-caps is not in every version of the text document.
+        try {
+            if (doc.fontCapsOption !== undefined) found.caps = doc.fontCapsOption === FontCapsOption.FONT_ALL_CAPS;
+        } catch (e) {
+            found.caps = null;
+        }
+        return found;
+    }
+    throw LML.util.error("NO_TEXT_LAYER", "Select a text layer in " + scene.name + " first");
 };

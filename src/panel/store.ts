@@ -16,6 +16,7 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
 import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
@@ -66,6 +67,7 @@ export type MapEntry = {
   terrain?: TerrainSetting | null;
   highlightLayers?: "each" | "one";
   layerStyle?: LayerStyleOverride | null;
+  labelTemplate?: LabelTemplateOverride | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -115,6 +117,10 @@ export const layerStyle = signal<LayerStyleOverride>(NO_OVERRIDE);
 /** The colours, stroke and glow the next pin, route, callout or traveller really gets. */
 export const currentLayerStyle = computed(() => resolveLayerStyle(themeById(themeId.value), layerStyle.value));
 export const layerStyleFollowsLook = computed(() => followsTheLook(layerStyle.value));
+/** How the names on this map look; what is not set follows the map's look. */
+export const labelTemplate = signal<LabelTemplateOverride>(NO_LABEL_OVERRIDE);
+export const currentLabelTemplate = computed(() => resolveLabelTemplate(themeById(themeId.value), labelTemplate.value));
+export const labelTemplateFollows = computed(() => labelTemplateFollowsLook(labelTemplate.value));
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -221,6 +227,7 @@ function showMap(entry: MapEntry): void {
   skyOn.value = entry.sky !== false;
   terrain.value = normaliseTerrain(entry.terrain);
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
+  labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -318,7 +325,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value, labelTemplate: labelTemplate.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -866,6 +873,38 @@ export const pickUpLayerStyle = () =>
     log(`new pins, routes and callouts take their colour ${found.accent} from "${found.from}"`, "ok");
   });
 
+/** Changes how the names on this map look (a null field follows the look). */
+export const changeLabelTemplate = (next: Partial<LabelTemplateOverride>) =>
+  run("label template", async () => {
+    labelTemplate.value = normaliseLabelTemplate({ ...labelTemplate.value, ...next });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, labelTemplate: labelTemplate.value });
+      await readMaps();
+    }
+  });
+
+/** Takes the colour, size, halo and font of the text layer selected in After Effects for new labels. */
+export const pickUpLabelStyle = () =>
+  run("label style from a layer", async () => {
+    if (!selectedId.value) return;
+    const found = await callHost<{ from: string; color: string | null; size: number; haloColor: string | null; halo: number; font: string | null; caps: boolean | null }>("readLabelStyle", {
+      mapId: selectedId.value
+    });
+    labelTemplate.value = normaliseLabelTemplate({
+      ...labelTemplate.value,
+      color: found.color ?? labelTemplate.value.color,
+      countryColor: found.color ?? labelTemplate.value.countryColor,
+      haloColor: found.haloColor ?? labelTemplate.value.haloColor,
+      halo: found.halo,
+      size: found.size,
+      font: found.font,
+      caps: found.caps ?? labelTemplate.value.caps
+    });
+    await callHost("setMapSettings", { mapId: selectedId.value, labelTemplate: labelTemplate.value });
+    await readMaps();
+    log(`new labels follow "${found.from}": ${found.font ?? "its font"} at ${found.size} px${found.color ? `, ${found.color}` : ""}. Latin, Cyrillic and Greek names use that font; other scripts keep fonts that shape them correctly`, "ok");
+  });
+
 export const changeSky = (on: boolean) =>
   run("sky", async () => {
     skyOn.value = on;
@@ -935,6 +974,7 @@ export const runAutoLabels = () =>
       theme: themeId.value,
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,
+      template: currentLabelTemplate.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
       onProgress: (done, total) => (progress.value = { label: "Adding names", done, total, cancel })

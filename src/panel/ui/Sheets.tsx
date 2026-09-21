@@ -30,6 +30,7 @@ import { signal } from "@preact/signals";
 import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
+import { changeLabelTemplate, currentLabelTemplate, labelTemplateFollows, pickUpLabelStyle } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -554,6 +555,7 @@ export function ToolSheetView(): JSX.Element | null {
 
 export function LabelsSheetView(): JSX.Element | null {
   if (!labelsSheetOpen.value) return null;
+  const labels = currentLabelTemplate.value;
   return (
     <div class="sheet" data-id="labels-sheet">
       <div class="sheet-title">Auto labels</div>
@@ -582,6 +584,39 @@ export function LabelsSheetView(): JSX.Element | null {
           </select>
         </label>
       </div>
+      <div class="section-title">How the names look</div>
+      <div class="sheet-row import-row">
+        <input type="color" data-id="label-color" value={labels.color} disabled={busy.value} title="The colour of city names (country names take it too when you pick a style up from a layer)" onChange={(e) => void changeLabelTemplate({ color: (e.target as HTMLInputElement).value, countryColor: (e.target as HTMLInputElement).value })} />
+        <label class="num-field" title="City name size in 1080-line pixels; country names are a little larger">
+          <span>Size</span>
+          <input type="number" min={6} max={200} step={1} data-id="label-size" value={labels.size} disabled={busy.value} onChange={(e) => void changeLabelTemplate({ size: Number((e.target as HTMLInputElement).value) })} />
+          <span class="muted">px</span>
+        </label>
+        <label class="num-field" title="The outline that keeps a name readable over any map (0 for none)">
+          <span>Halo</span>
+          <input type="number" min={0} max={20} step={0.5} data-id="label-halo" value={labels.halo} disabled={busy.value} onChange={(e) => void changeLabelTemplate({ halo: Number((e.target as HTMLInputElement).value) })} />
+          <span class="muted">px</span>
+        </label>
+      </div>
+      <div class="sheet-row import-row">
+        <label class="check" title="Country names in capitals, with the letter spacing that suits them (scripts without capitals are left alone)">
+          <input type="checkbox" data-id="label-caps" checked={labels.caps} disabled={busy.value} onChange={(e) => void changeLabelTemplate({ caps: (e.target as HTMLInputElement).checked })} />
+          <span>Countries in capitals</span>
+        </label>
+        <label class="check" title="The dot that marks a city next to its name">
+          <input type="checkbox" data-id="label-dots" checked={labels.dots} disabled={busy.value} onChange={(e) => void changeLabelTemplate({ dots: (e.target as HTMLInputElement).checked })} />
+          <span>Dots</span>
+        </label>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="label-style-pick" disabled={busy.value} title="Takes the font, size, colour and halo of the text layer selected in After Effects. Latin, Cyrillic and Greek names use that font; other scripts keep fonts that shape them correctly." onClick={() => void pickUpLabelStyle()}>
+          From the selected text layer
+        </button>
+        <button class="small-button" data-id="label-style-reset" disabled={busy.value || labelTemplateFollows.value} title="Back to the names of this look" onClick={() => void changeLabelTemplate({ color: null, countryColor: null, haloColor: null, halo: null, size: null, caps: null, dots: null, font: null })}>
+          Follow the look
+        </button>
+      </div>
+      {labels.font && <div class="muted small">Latin names use {labels.font}.</div>}
       <div class="sheet-row">
         <button
           class="primary"

@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **The names look how you want them.** A **How the names look** row in the Labels sheet sets the
+  colour, the size, the halo and whether country names are in capitals and cities get a dot. Every
+  new label follows it. **From the selected text layer** takes the font, size, colour and halo of a
+  title you styled yourself in After Effects, so the map matches the rest of your project in one
+  click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
+  the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
+  names.
+
 - **Comet trails and dashed lines.** Two switches next to a route: **Comet** adds a bright head
   that chases the tip of the line as it draws on (the same path trimmed at both ends, so it follows
   every bend), and **Dashed** draws the line as a dashed one. Both work for great-circle routes and

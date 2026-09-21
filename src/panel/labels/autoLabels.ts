@@ -3,9 +3,10 @@
 
 import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
+import { resolveLabelTemplate, templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
-import { hexToRgb, mixHex, themeById } from "../../core/style/themes.ts";
+import { hexToRgb, themeById } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
@@ -31,6 +32,8 @@ export type AutoLabelOptions = {
   placeMaxZoom?: number;
   /** The map's terrain: labels made with an elevation pack sit on the ground of 3D terrain. */
   terrain?: TerrainSetting | null;
+  /** How the names look; without one they follow the map's look. */
+  template?: LabelTemplate;
   /**
    * Areas labels must avoid, such as pins and callouts: a box relative to a place (map comp pixels),
    * between two frames.
@@ -95,11 +98,12 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const english = options.english ?? true;
   const placeMaxZoom = options.placeMaxZoom ?? 10;
   const theme = themeById(options.theme);
+  const template = options.template ?? resolveLabelTemplate(theme);
   const colors = {
-    place: hexToRgb(theme.text),
-    country: hexToRgb(theme.textCountry),
-    halo: hexToRgb(theme.halo),
-    subtitle: hexToRgb(mixHex(theme.textCountry, theme.halo, 0.25))
+    place: hexToRgb(template.color),
+    country: hexToRgb(template.countryColor),
+    halo: hexToRgb(template.haloColor),
+    subtitle: hexToRgb(template.subtitleColor)
   };
   const lowestZoom = Math.min(...cameras.map((c) => c.zoom));
   const highestZoom = Math.max(...cameras.map((c) => c.zoom));
@@ -115,20 +119,21 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const { text: raw, subtitle } = labelText(record.names, record.country, record.region, language, english);
     if (!raw) return;
     const script = scriptOf(raw);
-    const text = isCountry && UPPERCASE.includes(script) ? raw.toLocaleUpperCase() : raw;
-    const size = Math.round((isCountry ? 24 : 21) * scale);
-    const tracking = isCountry && UPPERCASE.includes(script) ? 160 : 0;
+    const caps = template.caps && isCountry && UPPERCASE.includes(script);
+    const text = caps ? raw.toLocaleUpperCase() : raw;
+    const size = Math.round((isCountry ? template.countrySize : template.size) * scale);
+    const tracking = caps ? 160 : 0;
     const main: TextStyle = {
       size,
       color: isCountry ? colors.country : colors.place,
       haloColor: colors.halo,
-      haloWidth: Math.max(2, Math.round(3 * scale)),
-      fonts: SCRIPT_FONTS[script].bold,
+      haloWidth: template.halo > 0 ? Math.max(1, Math.round(template.halo * scale)) : 0,
+      fonts: templateFonts(template, SCRIPT_FONTS[script].bold, script),
       tracking,
       rtl: RTL.includes(script)
     };
     const subScript = subtitle ? scriptOf(subtitle) : "latin";
-    const sub: TextStyle = { ...main, size: Math.round(size * 0.62), color: colors.subtitle, fonts: SCRIPT_FONTS[subScript].regular, tracking: 20, rtl: RTL.includes(subScript) };
+    const sub: TextStyle = { ...main, size: Math.round(size * 0.62), color: colors.subtitle, fonts: templateFonts(template, SCRIPT_FONTS[subScript].regular, subScript), tracking: 20, rtl: RTL.includes(subScript) };
     const mainWidth = measure(text, script, size, 600, tracking);
     const subWidth = subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0;
     const width = Math.max(mainWidth, subWidth) + main.haloWidth * 2;
@@ -148,7 +153,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       height,
       anchor: isCountry ? "center" : "right",
       offset,
-      markerRadius: isCountry ? 0 : 5 * scale,
+      markerRadius: isCountry || !template.dots ? 0 : 5 * scale,
       minZoom,
       maxZoom
     };
@@ -201,7 +206,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       text: label.text,
       subtitle: label.subtitle,
       keys,
-      dot: record.kind === "place",
+      dot: record.kind === "place" && template.dots,
       main: label.main,
       sub: label.sub,
       dotStyle: { radius: 4.5 * scale, color: colors.place, strokeColor: colors.halo, strokeWidth: 2 * scale },

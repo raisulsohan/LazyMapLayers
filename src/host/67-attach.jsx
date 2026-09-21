@@ -187,7 +187,7 @@ LML.api.exportLayers = function (args) {
     return out;
 };
 
-/** Writes text where the user chooses. args: { text, suggestedName } — returns the path, or null. */
+/** Writes text where the user chooses. args: { text, suggestedName } - returns the path, or null. */
 LML.api.saveTextFile = function (args) {
     var file = File.saveDialog("Save as", args.suggestedName || "map.geojson");
     if (!file) return null;
