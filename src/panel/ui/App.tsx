@@ -19,6 +19,8 @@ import {
   imported,
   jobs,
   keepOut,
+  dataSheetOpen,
+  dataTable,
   osmData,
   osmSheetOpen,
   keyframeView,
@@ -49,7 +51,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { AttachSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { AttachSheetView, DataSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { IMPORT_ACCEPT } from "../data/importFile.ts";
 import { ShotsTab } from "./ShotsTab.tsx";
 
@@ -109,6 +111,17 @@ function ToolRow(): JSX.Element {
         onClick={() => {
           if (imported.value) importSheetOpen.value = !importSheetOpen.value;
           else filePicker.current?.click();
+        }}
+      />
+      <IconButton
+        icon="chart"
+        id="tool-data"
+        title="Numbers on the map: import a CSV with a country column and a column of numbers, and every country is filled with the colour of its step"
+        disabled={busy.value}
+        active={dataSheetOpen.value}
+        onClick={() => {
+          if (dataTable.value) dataSheetOpen.value = !dataSheetOpen.value;
+          else document.querySelector<HTMLInputElement>('input[type="file"]')?.click();
         }}
       />
       <IconButton
@@ -287,6 +300,7 @@ export function App(): JSX.Element {
         <SearchBar />
         <RegionSheetView />
         <ToolSheetView />
+        <DataSheetView />
         <OsmSheetView />
         <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
         <HighlightSheetView />

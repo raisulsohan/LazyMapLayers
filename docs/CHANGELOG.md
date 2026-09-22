@@ -9,6 +9,12 @@
   click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
   the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
   names.
+- **Your numbers on the map.** Import a CSV with a country column and a column of numbers and every
+  country is filled with the colour of its step, as one layer above the basemap. Countries are found
+  by name in any of the 26 languages the panel carries, by ISO code (two letters, three letters or
+  the number), or by the code the map itself uses; rows that match nothing are listed instead of
+  being coloured on a guess. Five colour ramps, three to nine steps, even steps or equal counts, and
+  a legend in the sheet.
 - **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
   puts every highlighted country, province, district or imported area together as a single shape
   with the borders between them gone (the European Union as one outline, not twenty-seven);

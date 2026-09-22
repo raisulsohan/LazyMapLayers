@@ -678,3 +678,39 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   than naming the country the preview happens to show.
 - **Tested.** Unit tests on squares, holes, real provinces and real countries; U1 merges France with
   a province, grows it by 25 km and adds a circle in the real panel.
+
+## D40 — Numbers on the map: a CSV joined to the countries (2026-09-22)
+
+- **A CSV without coordinates is not a mistake.** It used to be refused; now, when it has a column of
+  text and a column of numbers, it opens the Data sheet instead and colours the map
+  (`src/core/data/dataTable.ts`).
+- **One layer, a colour per country.** A choropleth as many highlights would mean two hundred style
+  layers, two hundred render passes and two hundred layers in After Effects. Instead the style gets
+  a single fill layer whose colour is a `match` on the country code (`src/core/style/dataFill.ts`),
+  in the highlight group, so the existing machinery renders it as one pass named after the column
+  ("Data: People (millions)") and leaves it out of the base pass.
+- **The codes come from the data, never from memory.** `tools/prepare-country-codes.ts` reads
+  Natural Earth's own admin-0 table and writes `data/generated/country-codes.json`: the map's code,
+  the ISO two letter, three letter and numeric codes, and every spelling the source holds. Natural
+  Earth leaves ISO_A2 and ISO_A3 at -99 for a few countries (France among them), so the "_EH" and
+  World Bank fields are used as fallbacks. 258 countries, 245 with a two-letter code.
+- **A table joins by anything it says** (`src/core/data/join.ts`): the map code, an ISO code, or any
+  name the bundled data holds - in any of the 26 languages the labels carry, so a table written in
+  Bengali, Japanese, Arabic or French joins as readily as an English one. Keys are compared without
+  case, Latin accents or punctuation; the marks of other scripts are letters and are kept, because
+  dropping the vowel signs of Bengali or Hindi would turn a name into a different word.
+- **Nothing is coloured on a guess.** Keys are taken in three rounds - the country's own code, then
+  other codes, then names - so Clipperton Island carrying France's ISO code cannot take "FRA" from
+  France. A key that two countries answer to equally is dropped from the lookup, and its row is
+  reported as ambiguous rather than coloured. Rows that found nothing are listed in the sheet.
+- **A comma with exactly three digits after it groups thousands** (1,428 is one thousand four
+  hundred), and any other single comma is a decimal point (52,52). Both conventions appear in real
+  tables and this is the reading that is right far more often.
+- **Steps.** Even steps keep the distances honest; equal counts (quantiles) give every step about as
+  many countries, which shows the order when a few huge numbers would flatten everything else. Five
+  ramps, three to nine steps, and a legend in the sheet.
+- **Countries only, for now.** The world tiles carry country codes; provinces and districts do not
+  join yet. Said in the sheet rather than half done.
+- **Tested.** Unit tests for the table, the join against the real bundled data and the scale; DT1 in
+  After Effects joins four countries (one by its Japanese name, one by code), renders the pass and
+  checks the colours on the map itself; U1 does the same through the panel.

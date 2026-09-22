@@ -18,6 +18,7 @@ import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeById, type Theme } from "../../core/style/themes.ts";
+import type { DataFill } from "../../core/style/dataFill.ts";
 import type { Areas, Highlight } from "../../core/style/highlights.ts";
 import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
@@ -46,6 +47,8 @@ export type BasemapStyleOptions = {
   relief?: boolean;
   /** Highlighted countries and custom areas (their own render pass), and the areas' polygons. */
   highlights?: Highlight[];
+  /** Numbers on the map: a colour per country (a choropleth). */
+  data?: DataFill | null;
   areas?: Areas;
   /** Adds an invisible layer of country shapes, so the preview can tell which country was clicked. */
   countryHits?: boolean;
@@ -175,7 +178,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   const imagery: WorldImagery = {};
   if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
-  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, countryHits: options.countryHits });
+  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, countryHits: options.countryHits });
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
   let style = world;
   const regions = regionNames(basemap);

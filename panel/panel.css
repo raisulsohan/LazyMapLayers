@@ -909,3 +909,25 @@ select.compact {
   line-height: 14px;
   white-space: nowrap;
 }
+
+/* The legend of the numbers on the map, in the Data sheet. */
+.legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 4px 10px;
+  font-size: 11px;
+  color: var(--muted);
+}
+
+.legend-step {
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+}
+
+.legend-swatch {
+  width: 12px;
+  height: 12px;
+  border-radius: 2px;
+  border: 1px solid rgba(255, 255, 255, 0.15);
+}

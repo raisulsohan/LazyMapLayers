@@ -2,7 +2,8 @@
 //   dist/CSXS/manifest.xml
 //   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
-//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, admin1-index.json, admin1/*.json, countries/*.json}
+//   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, country-codes.json, admin1-index.json,
+//              admin1/*.json, countries/*.json}
 //   dist/LICENSE
 //
 //   node tools/build.mjs [--dev] [--minify] [--out <folder>]
@@ -110,6 +111,10 @@ async function main() {
     if (fs.existsSync(file)) copy(file, path.join(dist, "data", overlay));
     else console.warn(`warning: data/generated/${overlay} missing; run node tools/prepare-world-overlays.ts`);
   }
+  // The country code table, which a table of numbers is joined to.
+  const codes = path.join(root, "data", "generated", "country-codes.json");
+  if (fs.existsSync(codes)) copy(codes, path.join(dist, "data", "country-codes.json"));
+  else console.warn("warning: data/generated/country-codes.json missing; run node tools/prepare-country-codes.ts");
   // Provinces: an index for search and one file of polygons per country, read on demand.
   const provinces = path.join(root, "data", "generated", "admin1");
   const provinceIndex = path.join(root, "data", "generated", "admin1-index.json");

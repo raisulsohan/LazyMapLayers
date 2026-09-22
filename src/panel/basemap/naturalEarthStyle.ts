@@ -4,6 +4,7 @@
 
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
+import { dataFillColors, DATA_CODE, type DataFill } from "../../core/style/dataFill.ts";
 import { areaIdOf, isAreaCode, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
@@ -29,7 +30,7 @@ export const RELIEF_SOURCE = "lml-relief";
 
 export function naturalEarthStyle(
   pmtilesUrl: string,
-  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; areas?: Areas; countryHits?: boolean } = {}
+  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; areas?: Areas; data?: DataFill | null; countryHits?: boolean } = {}
 ): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
@@ -158,6 +159,38 @@ export function naturalEarthStyle(
     .filter((h) => isAreaCode(h.code) && options.areas?.[areaIdOf(h.code)])
     .map((h) => ({ type: "Feature" as const, properties: { id: areaIdOf(h.code) }, geometry: { type: "MultiPolygon" as const, coordinates: options.areas![areaIdOf(h.code)] } }));
   if (areaFeatures.length) sources[AREAS_SOURCE] = { type: "geojson", data: { type: "FeatureCollection", features: areaFeatures }, tolerance: 0.2 };
+  // The numbers on the map, under the highlights: every country that has one is filled with the
+  // colour of its step, from a single layer with a colour per country.
+  if (options.data) {
+    const colours = dataFillColors(options.data);
+    if (colours.codes.length) {
+      const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE };
+      const match: unknown[] = ["match", ["get", "adm0_a3"]];
+      for (const code of colours.codes) match.push(code, colours.colors[code]);
+      match.push(options.data.noData ?? "rgba(0, 0, 0, 0)");
+      layers.push({
+        id: "data-fill",
+        type: "fill",
+        metadata: own,
+        source,
+        "source-layer": "countries",
+        paint: { "fill-color": match, "fill-opacity": options.data.opacity, "fill-antialias": true }
+      } as unknown as LayerSpecification);
+      if (options.data.outline > 0) {
+        layers.push({
+          id: "data-line",
+          type: "line",
+          metadata: own,
+          source,
+          "source-layer": "countries",
+          filter: ["in", ["get", "adm0_a3"], ["literal", colours.codes]],
+          layout: { "line-join": "round" },
+          paint: { "line-color": options.data.outlineColor, "line-width": options.data.outline }
+        } as unknown as LayerSpecification);
+      }
+    }
+  }
+
   // Countries first: a province or a custom area usually lies inside one and must stay visible on it.
   const ordered = [...(options.highlights ?? []).entries()].sort((a, b) => Number(isAreaCode(a[1].code)) - Number(isAreaCode(b[1].code)));
   for (const [i, h] of ordered) {

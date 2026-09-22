@@ -17,6 +17,11 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { nameForView, nearestPlaceName, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
+import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
+import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
+import { countryJoinTargets } from "./data/countries.ts";
 import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
@@ -75,6 +80,7 @@ export type MapEntry = {
   labelTemplate?: LabelTemplateOverride | null;
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
+  dataFill?: DataFill | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -132,6 +138,8 @@ export const labelTemplateFollows = computed(() => labelTemplateFollowsLook(labe
 export const keepOut = signal<KeepOutZone[]>([]);
 /** Whether features from OpenStreetMap were brought into this map (they carry their own credit). */
 export const osmData = signal(false);
+/** Numbers on this map: a colour per country, from a table the user brought in. */
+export const dataFill = signal<DataFill | null>(null);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -140,7 +148,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -241,6 +249,7 @@ function showMap(entry: MapEntry): void {
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
+  dataFill.value = normaliseDataFill(entry.dataFill);
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -569,6 +578,11 @@ export const importPicked = (file: File) =>
   run("import", async () => {
     progress.value = { label: `Reading ${file.name}`, done: 0, total: 1 };
     const result = await importFile(file);
+    if (result.table) {
+      openDataTable(result.table);
+      log(`${file.name}: a table of ${result.table.rows.length} rows. ${dataMessage.value ?? ""}`, "ok");
+      return;
+    }
     imported.value = result;
     importSheetOpen.value = true;
     const first = result.lines[0];
@@ -1155,7 +1169,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1177,6 +1191,98 @@ export function togglePass(pass: PassId, on: boolean): void {
   else passes.delete(pass);
   void updateRenderSettings({ passes: PASS_IDS.filter((p) => passes.has(p)) });
 }
+
+/** A table of numbers the user brought in, and what the Data sheet is set to. */
+export const dataTable = signal<DataTable | null>(null);
+export const dataSheetOpen = signal(false);
+export const dataKeyColumn = signal(0);
+export const dataValueColumn = signal(1);
+export const dataRamp = signal<RampId>(DEFAULT_DATA_FILL.ramp);
+export const dataSteps = signal(DEFAULT_DATA_FILL.steps);
+export const dataMethod = signal<ScaleMethod>(DEFAULT_DATA_FILL.method);
+export const dataOpacity = signal(DEFAULT_DATA_FILL.opacity);
+export const dataNoData = signal<string | null>(null);
+export const dataMessage = signal<string | null>(null);
+
+let joinLookup: ReturnType<typeof buildLookup> | null = null;
+
+/** Every way of naming a country, built once and kept. */
+function countryLookup() {
+  if (!joinLookup) joinLookup = buildLookup(countryJoinTargets());
+  return joinLookup;
+}
+
+/** Opens the Data sheet for a table of numbers (a CSV with names and values, not coordinates). */
+export function openDataTable(table: DataTable): void {
+  dataTable.value = table;
+  dataKeyColumn.value = table.keyColumn;
+  dataValueColumn.value = table.valueColumn;
+  dataMessage.value = null;
+  dataSheetOpen.value = true;
+  importSheetOpen.value = false;
+  // What the table would join to, before anything is coloured.
+  const rows = columnValues(table, table.keyColumn, table.valueColumn);
+  dataMessage.value = describeJoin(joinValues(rows, countryLookup()), rows.length);
+}
+
+/** Colours the map by the chosen column, and keeps the numbers with the map. */
+export const applyDataFill = () =>
+  run("data on the map", async () => {
+    const table = dataTable.value;
+    if (!table) return;
+    const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+    const result = joinValues(rows, countryLookup());
+    dataMessage.value = describeJoin(result, rows.length);
+    if (!result.matched.length) {
+      log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country`, "fail");
+      return;
+    }
+    const fill: DataFill = {
+      column: table.headings[dataValueColumn.value] || "Value",
+      values: Object.fromEntries(result.matched.map((row) => [row.code, row.value])),
+      ramp: dataRamp.value,
+      steps: dataSteps.value,
+      method: dataMethod.value,
+      opacity: dataOpacity.value,
+      outline: 0,
+      outlineColor: DEFAULT_DATA_FILL.outlineColor,
+      noData: dataNoData.value
+    };
+    dataFill.value = normaliseDataFill(fill);
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+      await readMaps();
+    }
+    const colours = dataFillColors(dataFill.value!);
+    log(`${describeDataFill(dataFill.value!, colours)}. Render to get it as its own layer above the basemap${result.unmatched.length ? `; ${result.unmatched.length} rows found no country` : ""}`, "ok");
+  });
+
+/** Changes how the numbers are coloured, and redraws them at once. */
+export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData">>) =>
+  run("data colours", async () => {
+    if (next.ramp) dataRamp.value = next.ramp;
+    if (next.steps) dataSteps.value = next.steps;
+    if (next.method) dataMethod.value = next.method;
+    if (next.opacity !== undefined) dataOpacity.value = next.opacity;
+    if (next.noData !== undefined) dataNoData.value = next.noData;
+    if (!dataFill.value) return;
+    dataFill.value = normaliseDataFill({ ...dataFill.value, ...next });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+      await readMaps();
+    }
+  });
+
+/** Takes the numbers off the map again. */
+export const clearDataFill = () =>
+  run("data on the map", async () => {
+    dataFill.value = null;
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: null });
+      await readMaps();
+    }
+    log("the numbers are off the map", "ok");
+  });
 
 /** The search for OpenStreetMap features: what the user typed and what to look for. */
 export const osmSheetOpen = signal(false);

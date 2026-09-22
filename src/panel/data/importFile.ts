@@ -10,6 +10,7 @@ import { unzipSync } from "fflate";
 import Papa from "papaparse";
 import { combine, parseDbf, parseShp } from "shpjs";
 import { importGeoJson, type Imported } from "../../core/data/importLines.ts";
+import { readDataTable, type DataTable } from "../../core/data/dataTable.ts";
 import { importTable, MAX_TABLE_ROWS } from "../../core/data/importTable.ts";
 
 export const IMPORT_ACCEPT = ".gpx,.kml,.kmz,.geojson,.json,.csv,.tsv,.txt,.zip,.shp";
@@ -54,14 +55,22 @@ function zipToGeoJson(bytes: Uint8Array, fileName: string): unknown {
   return { type: "FeatureCollection", features };
 }
 
-export async function importFile(file: File): Promise<Imported & { fileName: string }> {
+/** What a file held: lines, places and areas, or - for a CSV of numbers about countries - a table. */
+export type ImportedFile = Imported & { fileName: string; table?: DataTable };
+
+export async function importFile(file: File): Promise<ImportedFile> {
   if (file.size > MAX_IMPORT_BYTES) throw new Error(`${file.name} is ${(file.size / 1048576).toFixed(0)} MB; files up to ${MAX_IMPORT_BYTES / 1048576} MB can be imported`);
   const extension = extensionOf(file.name);
   let imported: Imported;
   if (extension === "csv" || extension === "tsv" || extension === "txt") {
     const parsed = Papa.parse<string[]>(await file.text(), { skipEmptyLines: "greedy", preview: MAX_TABLE_ROWS + 50 });
     imported = importTable(parsed.data, file.name);
-    if (!imported.lines.length && !imported.places.length) throw new Error(`${file.name}: no latitude and longitude columns found (name them lat and lng, or latitude and longitude)`);
+    if (!imported.lines.length && !imported.places.length) {
+      // No coordinates: a table of numbers about countries, which colours the map instead.
+      const table = readDataTable(parsed.data, file.name);
+      if (table) return { lines: [], places: [], areas: [], skipped: 0, fileName: file.name, table };
+      throw new Error(`${file.name}: no latitude and longitude columns found (name them lat and lng, or latitude and longitude), and no column of numbers to colour countries by`);
+    }
   } else {
     let data: unknown;
     if (extension === "kmz" || extension === "zip") data = zipToGeoJson(new Uint8Array(await file.arrayBuffer()), file.name);

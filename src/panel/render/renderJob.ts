@@ -6,6 +6,7 @@ import type { AnimatedView } from "../../core/render/plan.ts";
 import { BOUNDARY_ID_PREFIX } from "../../core/data/boundarySet.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
 import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor, type HighlightPassId, type PassId, type RenderId } from "../../core/render/passes.ts";
+import { DATA_CODE, normaliseDataFill, type DataFill } from "../../core/style/dataFill.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
@@ -42,6 +43,8 @@ export type RenderJobSpec = {
   terrain?: TerrainSetting | null;
   /** Whether features from OpenStreetMap were brought into this map: they carry their own credit. */
   osmData?: boolean;
+  /** Numbers on the map: a colour per country, rendered as its own layer. */
+  dataFill?: DataFill | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -153,7 +156,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // sliders the style needs the terrain as soon as any frame lifts the ground.
   let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
   if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), sky: spec.sky, terrain });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), sky: spec.sky, terrain });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -178,7 +181,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       const pass = highlightPassId(code);
       const entry = highlightPasses.find((p) => p.pass === pass);
       if (entry) entry.layers.push(layer);
-      else highlightPasses.push({ pass, label: `Highlight: ${shown.find((h) => h.code === code)?.name ?? code}`, layers: [layer], codes: [code] });
+      else highlightPasses.push({ pass, label: code === DATA_CODE ? `Data: ${normaliseDataFill(spec.dataFill)?.column ?? "values"}` : `Highlight: ${shown.find((h) => h.code === code)?.name ?? code}`, layers: [layer], codes: [code] });
     }
   }
   const passes: PassId[] = [...settings.passes.filter((p) => !isHighlightPass(p)), ...highlightPasses.map((p) => p.pass)];

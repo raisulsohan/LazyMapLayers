@@ -32,6 +32,9 @@ import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
 import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
 import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
+import { dataFillColors } from "../../core/style/dataFill.ts";
+import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
+import { applyDataFill, changeDataFill, clearDataFill, dataFill, dataKeyColumn, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -244,6 +247,95 @@ export function RegionSheetView(): JSX.Element | null {
 }
 
 /** What an imported file holds: every line can be framed, drawn as a route, given a traveller, or flown along. */
+/** Numbers on the map: which column names the country, which holds the value, and how it is coloured. */
+export function DataSheetView(): JSX.Element | null {
+  if (!dataSheetOpen.value) return null;
+  const table = dataTable.value;
+  if (!table) return null;
+  const fill = dataFill.value;
+  const colours = fill ? dataFillColors(fill) : null;
+  return (
+    <div class="sheet" data-id="data-sheet">
+      <div class="sheet-title">{table.name}</div>
+      <div class="muted small">
+        {table.rows.length} rows. Every country that has a number is filled with the colour of its step, as one layer above the basemap. Countries are found by name in any language, by ISO code, or by
+        the number.
+      </div>
+      <div class="sheet-row">
+        <label class="num-field grow" title="The column that names the country">
+          <span>Country</span>
+          <select data-id="data-key" value={String(dataKeyColumn.value)} disabled={busy.value} onChange={(e) => (dataKeyColumn.value = Number((e.target as HTMLSelectElement).value))}>
+            {table.columns.map((column) => (
+              <option key={column.index} value={String(column.index)}>
+                {column.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="num-field grow" title="The column of numbers to colour by">
+          <span>Colour by</span>
+          <select data-id="data-value" value={String(dataValueColumn.value)} disabled={busy.value} onChange={(e) => (dataValueColumn.value = Number((e.target as HTMLSelectElement).value))}>
+            {table.columns
+              .filter((column) => column.kind === "number")
+              .map((column) => (
+                <option key={column.index} value={String(column.index)}>
+                  {column.name}
+                </option>
+              ))}
+          </select>
+        </label>
+      </div>
+      <div class="sheet-row import-row">
+        <label class="num-field" title="The colours the steps run through">
+          <select data-id="data-ramp" value={dataRamp.value} disabled={busy.value} onChange={(e) => void changeDataFill({ ramp: (e.target as HTMLSelectElement).value as RampId })}>
+            {RAMPS.map((ramp) => (
+              <option key={ramp.id} value={ramp.id}>
+                {ramp.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="num-field" title="How many steps the numbers are put into">
+          <span>Steps</span>
+          <input type="number" min={3} max={9} step={1} data-id="data-steps" value={dataSteps.value} disabled={busy.value} onChange={(e) => void changeDataFill({ steps: Number((e.target as HTMLInputElement).value) })} />
+        </label>
+        <label class="num-field" title="Even steps keep the distances honest; equal counts give every step about as many countries, which shows the order when a few large numbers would flatten the rest.">
+          <select data-id="data-method" value={dataMethod.value} disabled={busy.value} onChange={(e) => void changeDataFill({ method: (e.target as HTMLSelectElement).value as ScaleMethod })}>
+            <option value="equal">Even steps</option>
+            <option value="quantile">Equal counts</option>
+          </select>
+        </label>
+        <label class="num-field" title="How solid the fill is">
+          <input type="range" min={10} max={100} step={5} data-id="data-opacity" value={Math.round(dataOpacity.value * 100)} disabled={busy.value} onChange={(e) => void changeDataFill({ opacity: Number((e.target as HTMLInputElement).value) / 100 })} />
+          <span class="muted">{Math.round(dataOpacity.value * 100)} %</span>
+        </label>
+      </div>
+      {colours && (
+        <div class="legend" data-id="data-legend" title={`${colours.codes.length} countries coloured by ${fill!.column}`}>
+          {colours.legend.map((step) => (
+            <span key={step.color} class="legend-step">
+              <span class="legend-swatch" style={{ background: step.color }} />
+              {step.label}
+            </span>
+          ))}
+        </div>
+      )}
+      {dataMessage.value && <div class="muted small">{dataMessage.value}</div>}
+      <div class="sheet-row">
+        <button class="primary" data-id="data-apply" disabled={busy.value} title="Colours every country that has a number" onClick={() => void applyDataFill()}>
+          {fill ? "Colour again" : "Colour the map"}
+        </button>
+        <button class="small-button" data-id="data-clear" disabled={busy.value || !fill} title="Takes the numbers off the map" onClick={() => void clearDataFill()}>
+          Remove
+        </button>
+        <button data-id="data-close" onClick={() => (dataSheetOpen.value = false)}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function OsmSheetView(): JSX.Element | null {
   if (!osmSheetOpen.value) return null;
   return (

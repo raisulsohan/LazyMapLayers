@@ -26,6 +26,7 @@ import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
+import { runDataTest } from "./dataTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
 import { runStyleTest } from "./styleTests.ts";
@@ -338,6 +339,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB3_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB3 failed: ${results.LB3_error}`, "fail");
+    }
+  }
+
+  if (wants("DT1")) {
+    try {
+      results.DT1_dataOnTheMap = await runDataTest(log);
+    } catch (error) {
+      results.DT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`DT1 failed: ${results.DT1_error}`, "fail");
     }
   }
 

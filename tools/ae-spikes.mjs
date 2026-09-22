@@ -293,6 +293,23 @@ async function runUiScenario() {
   await shot("07h-osm");
   console.log(`U1 OpenStreetMap kinds: ${osmKinds}`);
   await click("osm-close");
+  // Numbers on the map: a CSV of countries and values, joined and coloured.
+  const people = ["Country,People (millions),Note", "France,68.1,estimate", "Germany,84.4,", "Espana,48.4,local name", "ITA,59,by code", "Atlantis,9,nowhere"].join("\n");
+  await panel.evaluate(`window.lmlDebug.store.importPicked(new File([${JSON.stringify(people)}], "people.csv")).then(() => true)`);
+  await idle();
+  const joinText = await panel.evaluate("window.lmlDebug.store.dataMessage.value");
+  await click("data-apply");
+  await idle();
+  await sleep(1500);
+  const dataState = await panel.evaluate(
+    "(() => { const f = window.lmlDebug.store.dataFill.value; return JSON.stringify(f && { column: f.column, countries: Object.keys(f.values).length, steps: f.steps, legend: document.querySelectorAll('[data-id=\"data-legend\"] .legend-step').length }); })()"
+  );
+  console.log(`U1 data join: ${joinText}`);
+  console.log(`U1 data fill: ${dataState}`);
+  await shot("07j-data");
+  await click("data-clear");
+  await idle();
+  await click("data-close");
   // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
   const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];
   // Slow for the first third of the rows, fast after it.
