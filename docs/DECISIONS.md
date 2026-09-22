@@ -786,3 +786,24 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   bundled look survives being rebuilt from its own three colours; LK1 renders a map in a look of its
   own and reads the pixels back (sea 58,13,82 for #3a0d52, land 240,228,200 for #f0e4c8); U1 sets the
   colours and takes a look from a picture in the real panel.
+
+## D43 — A look as a file, and palettes from Illustrator (2026-09-22)
+
+- **A look is plain JSON** (`src/core/style/lookFile.ts`): the bundled look it was built from, the
+  colours the designer chose, and a name. Readable, editable by hand, and small enough to keep in a
+  project folder or send to a studio. Reading one repairs what it finds rather than trusting it: a
+  colour that is not a colour is dropped, and a base look that is not one falls back.
+- **Adobe's own palette files are read here** (`src/core/style/swatchFile.ts`): `.ase`, which
+  Illustrator, Photoshop and InDesign all write, and the older `.act` colour table. RGB, CMYK, Lab
+  and Gray swatches all arrive as colours - Lab through D50 XYZ, because that is what Adobe's Lab
+  values are relative to - and groups are read through. A studio palette becomes a map look in one
+  click.
+- **One button for both.** "Open a look" takes a saved look or a palette; the extension decides. A
+  palette goes through the same route a picture does, so what comes out is a coherent look and not a
+  row of swatches.
+- **Saving opens After Effects' own dialog** (`LML.api.saveTextFile`), as the GeoJSON export does, so
+  the panel never writes where it was not asked to. Automated runs never call it: a modal dialog
+  would hold the run.
+- **Tested.** Unit tests write an `.ase` byte for byte the way Illustrator does and read it back,
+  including a Bengali swatch name, Lab and CMYK conversions and a padded `.act`; U1 hands the panel
+  an `.ase` built in the page and checks the look it makes.

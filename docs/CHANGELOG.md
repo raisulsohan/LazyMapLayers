@@ -14,6 +14,8 @@
   worked out from them, and the names are pushed until they can be read on whatever land you chose.
   **From a picture** takes the palette of a still from your film and builds the map look from it, so
   a map matches the piece it sits in. **Back to** the look you started from puts it all back.
+  **Save the look** writes it to a small file to keep or share, and **Open a look** takes one back -
+  or an Illustrator or Photoshop palette (.ase, .act), which becomes a map look in one click.
 - **Your numbers on the map.** Import a CSV with a country column and a column of numbers and every
   country is filled with the colour of its step, as one layer above the basemap. A table of states,
   provinces or regions works the same way: the panel works out which country they belong to and

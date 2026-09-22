@@ -232,6 +232,43 @@ async function runUiScenario() {
   const fromPicture = await panel.evaluate("JSON.stringify(window.lmlDebug.store.lookOverride.value)");
   console.log(`U1 look from a picture: ${fromPicture} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   await shot("07l-look-from-picture");
+  // A palette from Illustrator: an .ase built here and handed to the panel as a file. (Saving a look
+  // opens a file dialog in After Effects, which would hold an automated run, so it is left alone.)
+  await panel.evaluate(`(async () => {
+    const entries = [[1, 0.5, 0], [0.04, 0.08, 0.12], [0.55, 0.62, 0.7]];
+    const bodies = entries.map((values, i) => {
+      const name = "Swatch " + (i + 1);
+      const body = new Uint8Array(2 + (name.length + 1) * 2 + 4 + values.length * 4 + 2);
+      const view = new DataView(body.buffer);
+      view.setUint16(0, name.length + 1);
+      for (let c = 0; c < name.length; c++) view.setUint16(2 + c * 2, name.charCodeAt(c));
+      let at = 2 + (name.length + 1) * 2;
+      for (const character of "RGB ") view.setUint8(at++, character.charCodeAt(0));
+      for (const value of values) { view.setFloat32(at, value); at += 4; }
+      view.setUint16(at, 2);
+      return body;
+    });
+    const size = 12 + bodies.reduce((total, body) => total + 6 + body.length, 0);
+    const out = new Uint8Array(size);
+    const view = new DataView(out.buffer);
+    out.set([0x41, 0x53, 0x45, 0x46], 0);
+    view.setUint16(4, 1);
+    view.setUint16(6, 0);
+    view.setUint32(8, bodies.length);
+    let at = 12;
+    for (const body of bodies) {
+      view.setUint16(at, 1);
+      view.setUint32(at + 2, body.length);
+      out.set(body, at + 6);
+      at += 6 + body.length;
+    }
+    await window.lmlDebug.store.openLookFile(new File([out], "studio.ase"));
+    return true;
+  })()`);
+  await idle();
+  await sleep(1000);
+  console.log(`U1 look from a palette: ${await panel.evaluate("JSON.stringify(window.lmlDebug.store.lookOverride.value)")} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await shot("07m-look-from-palette");
   await click("look-reset");
   await idle();
   await click("look");

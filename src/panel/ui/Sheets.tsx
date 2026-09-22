@@ -38,7 +38,7 @@ import type { LegendCorner } from "../../core/style/legend.ts";
 import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
-import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride } from "../store.ts";
+import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -130,6 +130,24 @@ export function LookSheetView(): JSX.Element | null {
             if (file) void lookFromImage(file);
           }}
         />
+        <button class="small-button" data-id="look-open" disabled={busy.value} title="Opens a look someone saved, or a palette from Illustrator or Photoshop (.ase, .act)" onClick={() => document.querySelector<HTMLInputElement>('input[data-id="look-open-file"]')?.click()}>
+          Open a look
+        </button>
+        <input
+          type="file"
+          data-id="look-open-file"
+          accept=".json,.lmllook,.ase,.act"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const input = e.target as HTMLInputElement;
+            const file = input.files?.[0];
+            input.value = "";
+            if (file) void openLookFile(file);
+          }}
+        />
+        <button class="small-button" data-id="look-save" disabled={busy.value} title="Writes this look to a file you can keep or share" onClick={() => void saveLook()}>
+          Save the look
+        </button>
         <button class="small-button" data-id="look-reset" disabled={busy.value || lookFollowsTheme.value} title="Back to the colours of the look above" onClick={() => void changeLook({ ocean: null, land: null, accent: null, border: null, text: null })}>
           Back to {current?.label ?? "the look"}
         </button>

@@ -20,7 +20,9 @@ import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/st
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
-import { applyLook, followsTheLook as lookFollows, lookFromPicture, normaliseLook, NO_LOOK, type LookOverride } from "../core/style/customLook.ts";
+import { applyLook, followsTheLook as lookFollows, lookFromPalette, lookFromPicture, normaliseLook, NO_LOOK, type LookOverride } from "../core/style/customLook.ts";
+import { lookFileName, readLookFile, writeLookFile } from "../core/style/lookFile.ts";
+import { readSwatchFile } from "../core/style/swatchFile.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
@@ -1484,6 +1486,48 @@ export const lookFromImage = (file: File) =>
       await readMaps();
     }
     log(`the look now follows ${file.name}: sea ${found.ocean}, land ${found.land}, lines ${found.accent}`, "ok");
+  });
+
+/** Writes the map's look to a file, to keep or to share. */
+export const saveLook = () =>
+  run("save the look", async () => {
+    const name = `${themeById(themeId.value).label}${lookFollowsTheme.value ? "" : " (yours)"}`;
+    const text = writeLookFile(name, themeId.value, lookOverride.value);
+    const written = await callHost<string | null>("saveTextFile", { text, suggestedName: lookFileName(name) });
+    if (written) log(`the look is saved as ${written}`, "ok");
+  });
+
+/** Opens a look someone saved, or a palette from Illustrator or Photoshop (.ase, .act). */
+export const openLookFile = (file: File) =>
+  run("open a look", async () => {
+    const kind = (file.name.split(".").pop() ?? "").toLowerCase();
+    if (kind === "ase" || kind === "act") {
+      const swatches = readSwatchFile(file.name, new Uint8Array(await file.arrayBuffer()));
+      if (!swatches.length) {
+        log(`${file.name} holds no colours this build can read`, "fail");
+        return;
+      }
+      const found = lookFromPalette(swatches.map((swatch) => swatch.hex));
+      lookOverride.value = found;
+      if (selectedId.value) {
+        await callHost("setMapSettings", { mapId: selectedId.value, look: found });
+        await readMaps();
+      }
+      log(`${swatches.length} colours from ${file.name}: sea ${found.ocean}, land ${found.land}, lines ${found.accent}`, "ok");
+      return;
+    }
+    const read = readLookFile(await file.text());
+    if (!read) {
+      log(`${file.name} is not a look file or a palette`, "fail");
+      return;
+    }
+    themeId.value = themeById(read.base).id;
+    lookOverride.value = read.colours;
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, theme: themeId.value, look: read.colours });
+      await readMaps();
+    }
+    log(`the look "${read.name}" is on this map`, "ok");
   });
 
 /** Whether the numbers are written next to the places, and whether their names come too. */
