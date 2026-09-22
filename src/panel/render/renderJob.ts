@@ -40,6 +40,8 @@ export type RenderJobSpec = {
   sky?: boolean;
   /** The elevation pack and the strength of the shaded slopes. */
   terrain?: TerrainSetting | null;
+  /** Whether features from OpenStreetMap were brought into this map: they carry their own credit. */
+  osmData?: boolean;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -308,7 +310,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
-    attribution: [regionNames(spec.basemap).length ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length || spec.osmData ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });

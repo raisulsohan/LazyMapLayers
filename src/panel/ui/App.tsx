@@ -19,6 +19,8 @@ import {
   imported,
   jobs,
   keepOut,
+  osmData,
+  osmSheetOpen,
   keyframeView,
   liveLink,
   log,
@@ -47,7 +49,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { AttachSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { AttachSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { IMPORT_ACCEPT } from "../data/importFile.ts";
 import { ShotsTab } from "./ShotsTab.tsx";
 
@@ -108,6 +110,14 @@ function ToolRow(): JSX.Element {
           if (imported.value) importSheetOpen.value = !importSheetOpen.value;
           else filePicker.current?.click();
         }}
+      />
+      <IconButton
+        icon="osm"
+        id="tool-osm"
+        title="Find features on OpenStreetMap: rivers, lakes, parks, islands, airports, district boundaries, buildings - anything named, in the area the preview shows"
+        disabled={busy.value}
+        active={osmSheetOpen.value}
+        onClick={() => (osmSheetOpen.value = !osmSheetOpen.value)}
       />
       <IconButton
         icon="copy"
@@ -277,6 +287,7 @@ export function App(): JSX.Element {
         <SearchBar />
         <RegionSheetView />
         <ToolSheetView />
+        <OsmSheetView />
         <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
         <HighlightSheetView />
         <AttachSheetView />
@@ -309,7 +320,7 @@ export function App(): JSX.Element {
             />
           </div>
           <div class="credit" title="Where the map data comes from. Rendering an OpenStreetMap region adds a credit layer to your scene.">
-            {[basemap.value.kind === "world" ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, "Natural Earth"].filter(Boolean).join(" · ")}
+            {[basemap.value.kind === "world" && !osmData.value ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, "Natural Earth"].filter(Boolean).join(" · ")}
           </div>
           {v && (
             <div class="view-readout" title="Latitude, longitude · zoom · bearing · pitch of the frame">

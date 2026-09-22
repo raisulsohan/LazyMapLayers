@@ -27,6 +27,7 @@ import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
+import { runOsmTest } from "./osmTests.ts";
 import { runStyleTest } from "./styleTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
@@ -337,6 +338,16 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB3_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB3 failed: ${results.LB3_error}`, "fail");
+    }
+  }
+
+  // Online: only when it is named.
+  if (only && only.includes("OSM1")) {
+    try {
+      results.OSM1_openStreetMap = await runOsmTest(log);
+    } catch (error) {
+      results.OSM1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`OSM1 failed: ${results.OSM1_error}`, "fail");
     }
   }
 

@@ -270,6 +270,15 @@ async function runUiScenario() {
   await click("keep-out-top-bar");
   await idle();
   await click("tool-labels");
+  // OpenStreetMap: the sheet and what it offers (nothing goes online here).
+  await click("tool-osm");
+  await sleep(300);
+  const osmKinds = await panel.evaluate(`[...${control("osm-kind")}.options].map((o) => o.textContent).join(", ")`);
+  await type(`[data-id="osm-text"]`, "Lago di Como");
+  await sleep(200);
+  await shot("07h-osm");
+  console.log(`U1 OpenStreetMap kinds: ${osmKinds}`);
+  await click("osm-close");
   // Import: a flight log as CSV (one position column, times, no names) drawn at its recorded pace.
   const flight = ["Timestamp,UTC,Callsign,Position,Altitude"];
   // Slow for the first third of the rows, fast after it.

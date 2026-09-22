@@ -9,8 +9,10 @@ export type HttpResponse = { status: number; body: Uint8Array; headers: Record<s
 
 export type HttpOptions = {
   headers?: Record<string, string>;
-  /** HEAD asks for the headers alone (a file's size before it is downloaded). */
-  method?: "GET" | "HEAD";
+  /** HEAD asks for the headers alone (a file's size before it is downloaded); POST sends `body`. */
+  method?: "GET" | "HEAD" | "POST";
+  /** The body of a POST (Overpass takes its query this way). */
+  body?: string;
   signal?: AbortSignal;
   onProgress?: (receivedBytes: number, totalBytes: number | null) => void;
 };
@@ -20,7 +22,13 @@ export function httpsRequest(url: string, options: HttpOptions = {}, redirects =
   const https = nodeRequire<NodeHttps>("https");
   return new Promise((resolve, reject) => {
     if (options.signal?.aborted) return reject(new Error("cancelled"));
-    const request = https.request(url, { method: options.method ?? "GET", headers: { "user-agent": "LazyMapLayers (After Effects extension)", ...(options.headers ?? {}) } }, (response) => {
+    const body = options.method === "POST" ? Buffer.from(options.body ?? "", "utf8") : null;
+    const headers = {
+      "user-agent": "LazyMapLayers (After Effects extension)",
+      ...(body ? { "content-type": "application/x-www-form-urlencoded", "content-length": String(body.length) } : {}),
+      ...(options.headers ?? {})
+    };
+    const request = https.request(url, { method: options.method ?? "GET", headers: headers }, (response) => {
       const status = response.statusCode ?? 0;
       if (status >= 300 && status < 400 && response.headers.location) {
         response.resume();
@@ -52,7 +60,7 @@ export function httpsRequest(url: string, options: HttpOptions = {}, redirects =
     request.setTimeout(60000, () => request.destroy(new Error(`timeout fetching ${url}`)));
     request.on("error", reject);
     request.on("close", () => options.signal?.removeEventListener("abort", abort));
-    request.end();
+    request.end(body ?? undefined);
   });
 }
 

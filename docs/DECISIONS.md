@@ -622,3 +622,33 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **A callout takes the template's font, not its colours.** A callout sits on its own box, so its
   text colour has to read on that box and keeps following the look; the font follows the template,
   so one map reads as one piece of design (ST1).
+
+## D38 — Any OpenStreetMap feature, through Overpass (2026-09-22)
+
+- **Why.** Countries, provinces and districts are bundled or downloadable, but a designer usually
+  wants one particular thing: this lake, that park, this island, that airport, this district. Paid
+  plugins put such features behind a data partner. OpenStreetMap has them, and its data is ODbL:
+  free for commercial work with credit.
+- **The query is built in core** (`src/core/data/overpass.ts`), asked for with `out geom`, so ways
+  and relation members carry their own points and nothing has to be resolved by id afterwards. Nine
+  kinds (water, parks and forest, islands, airports, boundaries, buildings, roads, railways, or
+  anything named) are each a small set of tag filters; a name matches anywhere in the name, in any
+  language, ignoring case, and everything a user types is escaped, so a name can never turn into
+  more query.
+- **Relations are assembled here, not there.** `assembleRings` chains member ways that arrive in no
+  order and in either direction into closed rings, and `polygonsFrom` puts each inner ring into the
+  outer ring that holds it, so a lake keeps its islands. A ring that never closes is kept as it is:
+  half a coastline still draws.
+- **It arrives as an import.** The features become GeoJSON and go through the ordinary import path,
+  so everything that already works for a file works for them: draw the line, run an arrow or the
+  camera along it, pin the places, highlight the areas, add them as editable shape layers.
+- **Polite and offline afterwards** (`src/panel/data/osm.ts`): one request at a time, never faster
+  than one every two seconds, two endpoints tried in turn, answers kept in `<user data>/osm` for two
+  weeks (the newest sixty), an answer over 24 MB refused, and a view wider than 12 degrees refused
+  before anything is sent.
+- **Credit.** A map that took features from OpenStreetMap carries `osmData` in its tag; the panel
+  shows the credit and a render adds the credit layer, exactly as a downloaded region does.
+- **Tested.** Unit tests for the query, the ring assembly and the conversion; OSM1 in After Effects
+  goes online (only when it is named) and checks the real Lago di Como: a multi-polygon of 10,060
+  points with its islands as holes, the second search served from the folder at no cost, and the
+  lake drawn as a shape layer of 3 rings that follows the map.

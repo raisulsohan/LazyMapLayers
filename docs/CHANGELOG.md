@@ -9,6 +9,12 @@
   click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
   the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
   names.
+- **Any place on OpenStreetMap, straight into your map.** A new tool in the toolbar: type a name (or
+  pick Water, Parks and forest, Islands, Airports, Boundaries, Buildings, Roads or Railways) and it
+  finds what OpenStreetMap holds for the area the preview shows. A lake comes with its islands as
+  real holes, a river as a line you can draw on, a district as an outline you can highlight or add
+  as an editable shape layer — it all arrives as an import, so everything you already do with a
+  GeoJSON file works with it. Searches are kept on disk, so the same one costs nothing twice.
 - **Keep the names out of your titles.** Under **Keep the names out of** in the Labels sheet, one
   click blocks the lower third, the top bar, a side third or the middle of the frame, and **From the
   selected layers** blocks whatever your own layers cover — only for the seconds those layers are on

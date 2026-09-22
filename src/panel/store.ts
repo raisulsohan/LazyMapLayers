@@ -5,6 +5,7 @@
 import { computed, effect, signal } from "@preact/signals";
 import type { View } from "../core/camera/camera.ts";
 import { fitBounds, fitPoints } from "../core/camera/fit.ts";
+import { importGeoJson } from "../core/data/importLines.ts";
 import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
 import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { keyOf } from "../core/render/frameKey.ts";
@@ -16,6 +17,8 @@ import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type Rende
 import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
+import { checkBbox, searchOsm } from "./data/osm.ts";
 import { addZones, normaliseKeepOut, togglePreset, type KeepOutPreset, type KeepOutZone } from "../core/labels/keepOut.ts";
 import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
 import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
@@ -70,6 +73,7 @@ export type MapEntry = {
   layerStyle?: LayerStyleOverride | null;
   labelTemplate?: LabelTemplateOverride | null;
   keepOut?: KeepOutZone[] | null;
+  osmData?: boolean;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -125,6 +129,8 @@ export const currentLabelTemplate = computed(() => resolveLabelTemplate(themeByI
 export const labelTemplateFollows = computed(() => labelTemplateFollowsLook(labelTemplate.value));
 /** Parts of the frame the names stay out of, such as the band a lower third sits in. */
 export const keepOut = signal<KeepOutZone[]>([]);
+/** Whether features from OpenStreetMap were brought into this map (they carry their own credit). */
+export const osmData = signal(false);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -233,6 +239,7 @@ function showMap(entry: MapEntry): void {
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
   keepOut.value = normaliseKeepOut(entry.keepOut);
+  osmData.value = entry.osmData === true;
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -1054,7 +1061,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1076,6 +1083,65 @@ export function togglePass(pass: PassId, on: boolean): void {
   else passes.delete(pass);
   void updateRenderSettings({ passes: PASS_IDS.filter((p) => passes.has(p)) });
 }
+
+/** The search for OpenStreetMap features: what the user typed and what to look for. */
+export const osmSheetOpen = signal(false);
+export const osmText = signal("");
+export const osmKindId = signal<OsmKind>("any");
+export const osmMessage = signal<string | null>(null);
+
+/**
+ * Asks OpenStreetMap about the area the preview shows and hands the features to the import sheet,
+ * where they are drawn, highlighted or turned into shape layers like anything else imported.
+ */
+export const findOsm = () =>
+  run("OpenStreetMap", async () => {
+    const map = previewMap();
+    if (!map) return;
+    const bounds = map.getBounds();
+    const bbox: OsmBbox = [Math.max(-85, bounds.getSouth()), Math.max(-180, bounds.getWest()), Math.min(85, bounds.getNorth()), Math.min(180, bounds.getEast())];
+    const refusal = checkBbox(bbox);
+    if (refusal) {
+      osmMessage.value = refusal;
+      return;
+    }
+    const kind = osmKindId.value;
+    const text = osmText.value.trim();
+    if (!text && kind === "any") {
+      osmMessage.value = "Type a name, or pick what to look for.";
+      return;
+    }
+    osmMessage.value = "Asking OpenStreetMap...";
+    progress.value = { label: "OpenStreetMap", done: 0, total: 1 };
+    try {
+      const found = await searchOsm({ text, kind, bbox });
+      const name = text || osmKind(kind).name;
+      const data = importGeoJson(osmGeoJson(found.features), `OpenStreetMap: ${name}`);
+      if (!found.features.length) {
+        osmMessage.value = "Nothing of that kind is named here. Try another word, or move the preview.";
+        return;
+      }
+      imported.value = { fileName: `OpenStreetMap: ${name}`, ...data };
+      setPreviewImport({ lines: data.lines, places: data.places });
+      osmMessage.value = null;
+      osmSheetOpen.value = false;
+      importSheetOpen.value = true;
+      if (!osmData.value && selectedId.value) {
+        osmData.value = true;
+        await callHost("setMapSettings", { mapId: selectedId.value, osmData: true });
+        await readMaps();
+      }
+      log(
+        `${found.features.length} from OpenStreetMap: ${data.areas.length} ${data.areas.length === 1 ? "area" : "areas"}, ${data.lines.length} ${data.lines.length === 1 ? "line" : "lines"}, ${data.places.length} ${data.places.length === 1 ? "place" : "places"}${found.cached ? " (already downloaded)" : ` (${mb(found.bytes)})`} · © OpenStreetMap contributors`,
+        "ok"
+      );
+    } catch (error) {
+      osmMessage.value = error instanceof Error ? error.message : String(error);
+      throw error;
+    } finally {
+      progress.value = null;
+    }
+  });
 
 export function openRegionSheet(): void {
   const map = previewMap();

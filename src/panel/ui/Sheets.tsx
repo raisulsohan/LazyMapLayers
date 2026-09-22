@@ -31,6 +31,8 @@ import { THEMES, type Theme } from "../../core/style/themes.ts";
 import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
 import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
+import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
+import { findOsm, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -242,6 +244,50 @@ export function RegionSheetView(): JSX.Element | null {
 }
 
 /** What an imported file holds: every line can be framed, drawn as a route, given a traveller, or flown along. */
+export function OsmSheetView(): JSX.Element | null {
+  if (!osmSheetOpen.value) return null;
+  return (
+    <div class="sheet" data-id="osm-sheet">
+      <div class="sheet-title">Find on OpenStreetMap</div>
+      <div class="muted small">
+        Anything OpenStreetMap holds for the area the preview shows: rivers, lakes, parks, islands, airports, district boundaries, buildings. What is found arrives as an import, so you can draw it,
+        highlight it or add it as a shape layer. Free for commercial work, with credit to OpenStreetMap.
+      </div>
+      <div class="sheet-row">
+        <input
+          type="text"
+          data-id="osm-text"
+          placeholder="A name, or part of one"
+          value={osmText.value}
+          disabled={busy.value}
+          onInput={(e) => (osmText.value = (e.target as HTMLInputElement).value)}
+          onKeyDown={(e) => {
+            if ((e as KeyboardEvent).key === "Enter") void findOsm();
+          }}
+        />
+        <label class="num-field" title="What to look for. With a kind picked, the name may be left empty.">
+          <select data-id="osm-kind" value={osmKindId.value} disabled={busy.value} onChange={(e) => (osmKindId.value = (e.target as HTMLSelectElement).value as OsmKind)}>
+            {OSM_KINDS.map((kind) => (
+              <option key={kind.id} value={kind.id}>
+                {kind.name}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {osmMessage.value && <div class="muted small">{osmMessage.value}</div>}
+      <div class="sheet-row">
+        <button class="primary" data-id="osm-find" disabled={busy.value} title="Asks OpenStreetMap about the area the preview shows" onClick={() => void findOsm()}>
+          Find in view
+        </button>
+        <button data-id="osm-close" onClick={() => (osmSheetOpen.value = false)}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | null {
   const [seconds, setSeconds] = useState(5);
   const [recordedPace, setRecordedPace] = useState(false);
