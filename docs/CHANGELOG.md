@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Pins and routes named after their place.** A pin dropped on or near a town is "Pin: Dhaka", not
+  "Pin 7", and a route drawn between two towns is "Dhaka to Chittagong" (a second pin on the same
+  place is "Dhaka 2"). Far from any named place, the numbers stay.
+- **Flows in step colours.** The Flows row has an "In step colours" switch: every arc takes the colour
+  of its step of the ramp chosen above it (the same ramp, steps and method as the data fill), so a
+  map of flows reads by colour as well as by width. Off, every arc keeps the look's accent colour.
 - **Shape layers with two levels of detail.** An outline added as a shape layer now carries a coarse
   set of points for when the map is zoomed out and a fine one (four times as many) for when it is
   zoomed in past zoom 5.5, and only the level in use is worked out on each frame. Coastlines stay

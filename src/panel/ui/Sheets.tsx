@@ -35,7 +35,7 @@ import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
-import { drawFlows, flowArrows, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
+import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
 import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
@@ -412,6 +412,10 @@ export function DataSheetView(): JSX.Element | null {
             <label class="check" title="An arrow rides every arc">
               <input type="checkbox" data-id="flow-arrows" checked={flowArrows.value} disabled={busy.value} onChange={(e) => (flowArrows.value = (e.target as HTMLInputElement).checked)} />
               <span>Arrows</span>
+            </label>
+            <label class="check" title="Colour every arc by its step of the ramp above, instead of the one accent colour">
+              <input type="checkbox" data-id="flow-coloured" checked={flowColoured.value} disabled={busy.value} onChange={(e) => (flowColoured.value = (e.target as HTMLInputElement).checked)} />
+              <span>In step colours</span>
             </label>
             <button class="primary" data-id="flow-draw" disabled={busy.value} title="Draws every row as an arc between its two places" onClick={() => void drawFlows()}>
               Draw flows

@@ -873,6 +873,23 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D49 — Layers named after places; flows in step colours (2026-09-23)
+
+- **Why.** A layer list of "Pin 1 … Pin 12" and "Route 3" says nothing about what is where; a
+  designer renames every one by hand. Flows drawn only by width lose the smaller arcs on a busy
+  map, and the data fill already has ramps and steps that could tell them apart.
+- **Names.** A pin or a route end takes the nearest named place from the bundled place index when
+  one is within about forty kilometres (placeNameAt in the store, the search’s own nearest-place
+  lookup), so the host names the layer "Pin: Dhaka" or "Dhaka to Chittagong". A name used again this
+  session gets a number ("Dhaka 2"), flat and 3D pins counting apart because their prefixes
+  differ. Beyond that distance, or where the index has nothing, the old "Pin N" / "Route N" stays.
+  Existing layers are never renamed.
+- **Flow colours.** "In step colours" builds the same scale the data fill would (buildScale with the
+  Data row’s ramp, steps and method) from the flow amounts and gives every arc, its comet and its
+  arrow the colour of its step; off, every arc keeps the look’s accent colour. The ramp turns over
+  on a dark look as the data fill does, so the largest flow reads as the brightest line. No second
+  legend: the width legend already lists the amounts.
+
 ## D48 — Shape layers with two levels of detail (2026-09-22)
 
 - **Why.** A shape layer held one thinned outline of 900 points across its rings, which is right

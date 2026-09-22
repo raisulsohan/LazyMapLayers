@@ -39,24 +39,46 @@ export async function runFlowTest(log: SpikeLog): Promise<Record<string, unknown
   if (made.unknown.join() !== "Atlantis") problems.push(`unknown places: ${JSON.stringify(made.unknown)}`);
   if (made.layers !== 8) problems.push(`${made.layers} layers were made for 4 flows with arrows`);
 
+  // Three more flows in step colours: each amount lands in its own step of a three-step ramp.
+  const coloured = await addFlows(
+    map.id,
+    placeIndex(),
+    [
+      { from: "Sylhet", to: "Khulna", value: 100, row: 1 },
+      { from: "Sylhet", to: "Rangpur", value: 500, row: 2 },
+      { from: "Sylhet", to: "Barisal", value: 1000, row: 3 }
+    ],
+    { startFrame: 0, endFrame: 50, theme: "midnight", maxWidth: 8, byColour: true, ramp: "warm", steps: 3, method: "equal" }
+  );
+  if (coloured.expressionErrors.length) problems.push(`coloured flow expressions: ${coloured.expressionErrors.slice(0, 2).join("; ")}`);
+  if (coloured.drawn !== 3 || coloured.layers !== 3) problems.push(`${coloured.drawn} coloured flows were drawn as ${coloured.layers} layers`);
+
   const layers = JSON.parse(
     await evalScript(`(function () {
       var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = [];
       for (var i = 1; i <= scene.numLayers; i++) {
         var layer = scene.layer(i), tag = LML.tag.read(layer);
         if (!tag || (tag.kind !== "route" && tag.kind !== "traveller")) continue;
-        var width = null;
+        var width = null, color = null;
         try {
-          width = layer.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property("ADBE Vector Graphic - Stroke").property("ADBE Vector Stroke Width").value;
+          var stroke = layer.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property("ADBE Vector Graphic - Stroke");
+          width = stroke.property("ADBE Vector Stroke Width").value;
+          var rgb = stroke.property("ADBE Vector Stroke Color").value;
+          color = [Math.round(rgb[0] * 255), Math.round(rgb[1] * 255), Math.round(rgb[2] * 255)].join(",");
         } catch (e) { width = null; }
-        out.push({ name: layer.name, kind: tag.kind, width: width });
+        out.push({ name: layer.name, kind: tag.kind, width: width, color: color });
       }
       return LML.json.stringify(out);
     })()`)
-  ) as { name: string; kind: string; width: number | null }[];
-  const routes = layers.filter((layer) => layer.kind === "route");
+  ) as { name: string; kind: string; width: number | null; color: string | null }[];
+  const routes = layers.filter((layer) => layer.kind === "route" && !layer.name.includes("Sylhet to"));
+  const steps = layers.filter((layer) => layer.kind === "route" && layer.name.includes("Sylhet to"));
   const travellers = layers.filter((layer) => layer.kind === "traveller");
-  if (routes.length !== 4 || travellers.length !== 4) problems.push(`the scene holds ${routes.length} routes and ${travellers.length} travellers`);
+  if (routes.length !== 4 || steps.length !== 3 || travellers.length !== 4) problems.push(`the scene holds ${routes.length} routes, ${steps.length} coloured routes and ${travellers.length} travellers`);
+  // The plain flows share the look's accent; the coloured ones each wear their own step.
+  if (new Set(routes.map((layer) => layer.color)).size !== 1) problems.push(`the plain flows wear ${routes.map((layer) => layer.color).join(" / ")}`);
+  if (new Set(steps.map((layer) => layer.color)).size !== 3) problems.push(`the coloured flows wear ${steps.map((layer) => layer.color).join(" / ")}`);
+  if (steps.some((layer) => routes[0] && layer.color === routes[0].color)) problems.push("a coloured flow wears the accent colour");
   const widthOf = (part: string) => routes.find((layer) => layer.name.includes(part))?.width ?? null;
   const biggest = widthOf("Dhaka to Chittagong");
   const middle = widthOf("Dhaka to Rajshahi");
@@ -82,7 +104,7 @@ export async function runFlowTest(log: SpikeLog): Promise<Record<string, unknown
 
   const passed = problems.length === 0;
   log(
-    `FL1 flows: ${made.drawn} arcs from ${rows.length} rows (${made.unknown.length} place unknown), widths ${routes.map((layer) => (layer.width ?? 0).toFixed(1)).join("/")} px, ${travellers.length} arrows, ${problems.length} problems`,
+    `FL1 flows: ${made.drawn} arcs from ${rows.length} rows (${made.unknown.length} place unknown), widths ${routes.map((layer) => (layer.width ?? 0).toFixed(1)).join("/")} px, ${travellers.length} arrows, ${steps.length} in step colours, ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");

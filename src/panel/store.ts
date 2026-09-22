@@ -201,6 +201,13 @@ export const selected = computed(() => maps.value.find((m) => m.mapId === select
 export const renderSettings = computed(() => normaliseSettings(selected.value?.render ?? null, DEFAULT_FINAL_SETTINGS));
 
 let pinCounter = 1;
+/** How often each place name has named a pin or route this session, so a second pin in Paris is "Paris 2". */
+const nameUses = new Map<string, number>();
+function uniquePlaceName(name: string, kind = ""): string {
+  const uses = (nameUses.get(kind + name) ?? 0) + 1;
+  nameUses.set(kind + name, uses);
+  return uses === 1 ? name : `${name} ${uses}`;
+}
 let legacyEngineNoted = false;
 /** Listeners told when the selected map changes or is read again (the shot list reloads then). */
 const mapListeners = new Set<(entry: MapEntry | null) => void>();
@@ -457,6 +464,15 @@ async function groundElevations(places: { lat: number; lng: number }[]): Promise
   }
 }
 
+/** The place a click landed on, when a named one is within about forty kilometres; else null. */
+export function placeNameAt(position: { lat: number; lng: number }): string | null {
+  try {
+    return nearestPlaceName(placeIndex(), position, 0.35);
+  } catch {
+    return null;
+  }
+}
+
 export async function addPinAt(position: { lat: number; lng: number }, threeD = false): Promise<void> {
   const mapId = selectedId.value;
   if (!mapId) {
@@ -466,7 +482,11 @@ export async function addPinAt(position: { lat: number; lng: number }, threeD = 
   await run("add pin", async () => {
     if (threeD) await ensureCamera(mapId);
     const [elevation] = await groundElevations([position]);
-    const added = await addPin(mapId, position, { name: threeD ? String(pinCounter++) : `Pin ${pinCounter++}`, threeD, elevation: terrain.value ? elevation : undefined, style: { color: styleRgb(currentLayerStyle.value.accent) } });
+    // A pin is named after the place it sits on, so the layer list reads "Pin: Dhaka", not "Pin 7".
+    const place = placeNameAt(position);
+    // 3D pins and flat pins carry different prefixes, so each kind counts its own uses of a name.
+    const name = place ? uniquePlaceName(place, threeD ? "3D " : "") : threeD ? String(pinCounter++) : `Pin ${pinCounter++}`;
+    const added = await addPin(mapId, position, { name, threeD, elevation: terrain.value ? elevation : undefined, style: { color: styleRgb(currentLayerStyle.value.accent) } });
     if (added.expressionErrors.length) log(`pin expression problems: ${added.expressionErrors.join("; ")}`, "fail");
     else log(`added ${added.name} at ${position.lat.toFixed(5)}, ${position.lng.toFixed(5)}`, "ok");
   });
@@ -594,8 +614,11 @@ export const confirmToolSheet = () =>
       const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, template: currentLabelTemplate.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, traveller: routeArrow.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
-      log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : ""}`, made.expressionErrors.length ? "fail" : "ok");
+      // "Route: Dhaka to Chittagong" when both ends are on a named place.
+      const ends = [placeNameAt(sheet.from), placeNameAt(sheet.to)];
+      const routeName = ends[0] && ends[1] ? uniquePlaceName(`${ends[0]} to ${ends[1]}`) : `Route ${pinCounter++}`;
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: routeName, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, traveller: routeArrow.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
+      log(`added "${routeName}", a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : ""}`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
   });
@@ -1242,6 +1265,8 @@ export const flowValue = signal(-1);
 export const flowWidth = signal(14);
 export const flowArrows = signal(true);
 export const flowSeconds = signal(4);
+/** Every arc in its step's colour of the ramp, instead of the accent colour. */
+export const flowColoured = signal(false);
 
 /** Draws every row of the table as an arc whose width follows the value. */
 export const drawFlows = () =>
@@ -1275,6 +1300,11 @@ export const drawFlows = () =>
         maxWidth: flowWidth.value,
         arrows: flowArrows.value,
         comet: routeComet.value,
+        byColour: flowColoured.value,
+        ramp: dataRamp.value,
+        steps: dataSteps.value,
+        method: dataMethod.value,
+        reverse: dataReverse.value ?? currentTheme.value.dark,
         signal: stopper.signal,
         onProgress: (done, total) => (progress.value = { label: "Drawing flows", done, total, cancel: () => stopper.abort() })
       });

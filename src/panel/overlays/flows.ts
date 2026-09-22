@@ -11,7 +11,8 @@ import type { LngLat } from "../../core/geo/mercator.ts";
 import { searchPlaces, type PlaceIndex } from "../../core/search/placeSearch.ts";
 import { resolveLayerStyle, styleRgb, type LayerStyle } from "../../core/style/layerStyle.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
-import { themeFrom, type ThemeLike } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
+import { buildScale, colorForValue, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
 
@@ -34,6 +35,13 @@ export type FlowOptions = {
   arrows?: boolean;
   /** A bright head chases the tip of every arc. */
   comet?: boolean;
+  /** Colour every arc by its step of a ramp instead of the map's accent colour. */
+  byColour?: boolean;
+  ramp?: RampId;
+  steps?: number;
+  method?: ScaleMethod;
+  /** Turn the ramp over (a dark map reads a pale line as "much"). */
+  reverse?: boolean;
   /** Called after every batch. */
   onProgress?: (done: number, total: number) => void;
   signal?: AbortSignal;
@@ -78,6 +86,13 @@ export async function addFlows(mapId: string, index: PlaceIndex, rows: FlowRow[]
     [options.startFrame, 0],
     [options.endFrame, 100]
   ];
+  // Every arc in the accent colour, or each in the colour of its step of the ramp.
+  const ramp = options.byColour ? buildScale(kept.map((row) => row.value), { ramp: options.ramp, steps: options.steps, method: options.method }) : null;
+  if (ramp && options.reverse) ramp.colors.reverse();
+  const colourOf = (value: number): number[] => {
+    const step = ramp ? colorForValue(value, ramp) : null;
+    return step ? hexToRgb(step) : styleRgb(look.accent);
+  };
   const sampler = samplerFor(options.terrain);
   const result: FlowResult = { drawn: 0, layers: 0, unknown, dropped: usable.length - kept.length, expressionErrors: [], cancelled: false, legend: widths.legend };
   try {
@@ -102,7 +117,7 @@ export async function addFlows(mapId: string, index: PlaceIndex, rows: FlowRow[]
           name,
           data: { from: [from.lng, from.lat], to: [to.lng, to.lat], value: row.value },
           pathExpression: routePathExpression(points),
-          stroke: { color: styleRgb(look.accent), width, dash: 0 },
+          stroke: { color: colourOf(row.value), width, dash: 0 },
           trimKeys: keys,
           glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
         });
@@ -112,7 +127,7 @@ export async function addFlows(mapId: string, index: PlaceIndex, rows: FlowRow[]
             kind: "route",
             name: `Comet: ${name}`,
             pathExpression: routePathExpression(points),
-            stroke: { color: styleRgb(look.accent), width: width * 1.6, dash: 0 },
+            stroke: { color: colourOf(row.value), width: width * 1.6, dash: 0 },
             trimKeys: keys,
             trimStartKeys: cometTailKeys(keys),
             glow: { radius: 26 * scale, intensity: 1.1 }
@@ -125,7 +140,7 @@ export async function addFlows(mapId: string, index: PlaceIndex, rows: FlowRow[]
             name: `Traveller: ${name}`,
             expressions: travellerExpressions(points),
             progressKeys: keys,
-            color: styleRgb(look.accent),
+            color: colourOf(row.value),
             strokeColor: styleRgb(look.panel),
             // The arrow grows with the line it rides, within reason.
             size: Math.max(10, Math.min(28, 8 + width * 1.2)) * scale
