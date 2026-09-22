@@ -21,7 +21,7 @@ const root = path.resolve(import.meta.dirname, "..");
 const source = path.join(root, ".cache", "ne", "ne_10m_admin_0_countries.zip");
 const outDir = path.join(root, "data", "generated", "countries");
 /** Points a country keeps on average; a shape layer thins its own copy further (SHAPE_MAX_POINTS). */
-const POINTS_PER_COUNTRY = 500;
+const POINTS_PER_COUNTRY = 1600;
 
 const lower = (props: Props) => Object.fromEntries(Object.entries(props).map(([k, v]) => [k.toLowerCase(), v]));
 const text = (v: unknown) => (typeof v === "string" && v.trim() && v.trim() !== "-99" ? v.trim() : "");

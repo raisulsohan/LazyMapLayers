@@ -2,7 +2,7 @@
 // budget, every ring becomes a closed path that follows the camera, and fill, stroke and an optional
 // draw-on are ordinary shape layer properties.
 
-import { shapePathExpressions, shapeRings, SHAPE_MAX_POINTS, SHAPE_MAX_RINGS } from "../../core/ae/shapeExpressions.ts";
+import { shapeLevelExpressions, shapePathExpressions, shapeRings, SHAPE_FINE_POINTS, SHAPE_MAX_POINTS, SHAPE_MAX_RINGS } from "../../core/ae/shapeExpressions.ts";
 import { simplifyFeature } from "../../core/geo/sharedBorders.ts";
 import { hexToRgb } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
@@ -40,13 +40,21 @@ export async function addFeatureShape(mapId: string, feature: ShapeFeature, styl
   const light = simplifyFeature(feature.polygons, SHAPE_MAX_POINTS, SHAPE_MAX_RINGS);
   if (!light.length) throw new Error(`"${feature.name}" has no usable outline`);
   let rings = shapeRings(light);
+  // A finer level for when the map is zoomed in; it is only projected then (D48). The same rings
+  // in the same order, since both come from the same polygons kept the same way.
+  let fineRings = shapeRings(simplifyFeature(feature.polygons, SHAPE_FINE_POINTS, SHAPE_MAX_RINGS));
+  if (fineRings.length !== rings.length) fineRings = [];
   const sampler = samplerFor(style.terrain);
   if (sampler) {
     try {
       // The ground under every point, so the outline lies on 3D terrain.
-      const elevations = await sampler.elevations(rings.flat().map((p) => ({ lat: p[0], lng: p[1] })));
-      let at = 0;
-      rings = rings.map((ring) => ring.map((p) => [p[0], p[1], p[2], elevations[at++]]));
+      const lift = async (set: number[][][]) => {
+        const elevations = await sampler.elevations(set.flat().map((p) => ({ lat: p[0], lng: p[1] })));
+        let at = 0;
+        return set.map((ring) => ring.map((p) => [p[0], p[1], p[2], elevations[at++]]));
+      };
+      rings = await lift(rings);
+      if (fineRings.length) fineRings = await lift(fineRings);
     } finally {
       sampler.close();
     }
@@ -60,7 +68,7 @@ export async function addFeatureShape(mapId: string, feature: ShapeFeature, styl
         type: "shape",
         kind: "feature",
         name: `Shape: ${feature.name}`,
-        paths: shapePathExpressions(rings),
+        paths: fineRings.length ? shapeLevelExpressions(rings, fineRings) : shapePathExpressions(rings),
         fill: style.fill > 0 ? { color, opacity: Math.round(style.fill * 100) } : null,
         stroke: style.outline > 0 ? { color, width: style.outline * scale, dash: 0 } : null,
         trimKeys:

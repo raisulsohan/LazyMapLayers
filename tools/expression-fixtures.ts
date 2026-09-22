@@ -11,7 +11,7 @@ import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
 import { anchoredPositionExpression, leaderPathExpression, routePathExpression, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
-import { shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
+import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
 import type { View } from "../src/core/camera/camera.ts";
 import { greatCircle } from "../src/core/geo/greatCircle.ts";
@@ -137,6 +137,11 @@ for (const globe of [false, true]) {
     const outline = shapePathExpressions(shapeRings([[[...circle(radius), [centre.lng + radius, centre.lat]], circle(radius / 3)]], () => (lifted ? 1500 : 0)));
     const shapeMap = mapFor(view, globe, { "Terrain Height": lifted ? 1.4 : 0, "Ground Level": 500 });
     outline.forEach((code, part) => add(`shape ring ${part} ${kind} ${i}`, code, { own: { Map: "MAP" }, map: shapeMap, comp: { width: shapeMap.width, height: shapeMap.height }, value: null }));
+    // The same outline with two levels of detail: the coarse ring below the switch zoom, the fine one above.
+    const coarseRing = shapeRings([[[...circle(radius), [centre.lng + radius, centre.lat]]]], () => (lifted ? 1500 : 0))[0];
+    const fineRing = shapeRings([[[...circle(radius).flatMap((p, k, all) => [p, [(p[0] + all[(k + 1) % all.length][0]) / 2, (p[1] + all[(k + 1) % all.length][1]) / 2]]), [centre.lng + radius, centre.lat]]]], () => (lifted ? 1500 : 0))[0];
+    const levelled = lodPathExpression(coarseRing, fineRing, view.zoom + (i % 2 ? 0.5 : -0.5));
+    add(`shape levels ${i % 2 ? "coarse" : "fine"} ${kind} ${i}`, levelled, { own: { Map: "MAP" }, map: shapeMap, comp: { width: shapeMap.width, height: shapeMap.height }, value: null });
   }
 }
 

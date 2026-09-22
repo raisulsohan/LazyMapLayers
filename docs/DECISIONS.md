@@ -872,3 +872,27 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   exotic; twelve looks is the top of the range the plan set (8 to 12).
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
+
+## D48 — Shape layers with two levels of detail (2026-09-22)
+
+- **Why.** A shape layer held one thinned outline of 900 points across its rings, which is right
+  at world zooms and blocky when the camera comes close. The plan (P6) asked for level of detail
+  per zoom band, and Phase 5 had it as the one thing left.
+- **Decision.** Every ring bakes two point sets into its path expression
+  (lodPathExpression in src/core/ae/shapeExpressions.ts): the coarse set as before, and a fine set
+  thinned to 3,600 points across the rings. The expression reads the map layer’s Zoom control and
+  projects only the set in use, with the switch at zoom 5.5, so the fine outline costs nothing while
+  the map shows the world. Two bands, not more: a third would double the baked text for little gain.
+- **No jump at the switch.** Both sets come from the same polygons through the same topology-aware
+  thinning, so the coarse points are a subset of the fine ones (95 % or more, unit-tested): at the
+  switch the outline gains vertices where it was straight and never moves where it was.
+- **Rings pair by order.** Both levels keep the same polygons in the same order; a ring that only
+  one level has falls back to its coarse points, so a mismatch can never draw the wrong ring.
+- **The bundled outlines had nothing finer to show.** SL1 found both levels of Bangladesh at 376
+  vertices: prepare-countries.ts thinned every country to about 500 points, below the coarse budget,
+  so the fine level was the same ring. The outlines are now built at about 1,600 points per country
+  (413,000 in all, 7.4 MB instead of 2.5 MB; Bangladesh 1,719), which the coarse level thins and the
+  fine level keeps. Rings whose two levels hold the same points are baked once.
+- **Tested.** Unit tests for the expression and the subset property; 48 new fixtures run the
+  levelled path in the ES3 engine on both sides of the switch (897 expressions now); SL1 reads the
+  vertex count of a Bangladesh ring at zoom 6.4 and at zoom 4 and expects more when zoomed in.

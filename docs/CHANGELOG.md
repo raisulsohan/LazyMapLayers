@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Shape layers with two levels of detail.** An outline added as a shape layer now carries a coarse
+  set of points for when the map is zoomed out and a fine one (four times as many) for when it is
+  zoomed in past zoom 5.5, and only the level in use is worked out on each frame. Coastlines stay
+  crisp when the camera comes close, at no cost at world zooms. The coarse points are part of the
+  fine ones, so the outline never jumps at the switch. The bundled country outlines carry three times the
+  points they did, so there is detail to show.
 - **Five more looks.** Noir (black and white, high contrast), Slate (blue-grey newsroom), Terracotta (warm
   sand and clay), Arctic (ice-blue sea, near-white land) and Emerald (deep green land, gold lines) join
   the seven. Each is built from three colours with the same rules as a look of your own, so the names

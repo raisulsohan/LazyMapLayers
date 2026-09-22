@@ -64,6 +64,29 @@ export async function runShapeTest(log: SpikeLog): Promise<Record<string, unknow
   const started = performance.now();
   const made = await addFeatureShape(map.id, { name: outline.name, polygons: outline.polygons, code: "BGD" }, { color: "#ffffff", fill: 1, outline: 0 });
   const buildMs = performance.now() - started;
+
+  // Two levels of detail: at zoom 6.4 the fine outline draws; with the map zoomed out to 4 the
+  // coarse one does, with fewer vertices on the same ring.
+  const levels = JSON.parse(
+    await evalScript(`(function () {
+      var mapLayer = LML.pins.findMapLayer(${JSON.stringify(map.id)}), scene = mapLayer.containingComp, shape = null;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var tag = LML.tag.read(scene.layer(i));
+        if (tag && tag.kind === "feature") { shape = scene.layer(i); break; }
+      }
+      if (!shape) return "null";
+      var pathProperty = shape.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property(1).property("ADBE Vector Shape");
+      var zoom = mapLayer.property("ADBE Effect Parade").property("Zoom").property(1);
+      var was = zoom.value;
+      var fine = pathProperty.valueAtTime(0, false).vertices.length;
+      zoom.setValue(4);
+      var coarse = pathProperty.valueAtTime(0, false).vertices.length;
+      zoom.setValue(was);
+      return LML.json.stringify({ fine: fine, coarse: coarse, zoom: was });
+    })()`)
+  ) as { fine: number; coarse: number; zoom: number } | null;
+  if (!levels) problems.push("no shape layer to read the levels from");
+  else if (!(levels.coarse < levels.fine)) problems.push(`the outline has ${levels.coarse} vertices zoomed out and ${levels.fine} zoomed in; the fine level should have more`);
   if (made.expressionErrors.length) problems.push(`shape expressions: ${made.expressionErrors.slice(0, 3).join("; ")}`);
   if (made.rings < 2 || made.points > 900) problems.push(`the shape has ${made.rings} rings and ${made.points} points`);
 
@@ -175,5 +198,5 @@ export async function runShapeTest(log: SpikeLog): Promise<Record<string, unknow
   const passed = problems.length === 0;
   log(`SL1 shape layers: ${made.rings} paths and ${made.points} points in ${buildMs.toFixed(0)} ms (${evaluateMs.toFixed(1)} ms per frame), ${(overlap * 100).toFixed(1)} % of the rendered country covered, hole ${holeAlpha === 0 ? "kept" : "lost"}, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, rings: made.rings, points: made.points, buildMs, evaluateMs, overlap, both, onlyRendered, onlyShape, problems };
+  return { passed, rings: made.rings, points: made.points, levels, buildMs, evaluateMs, overlap, both, onlyRendered, onlyShape, problems };
 }
