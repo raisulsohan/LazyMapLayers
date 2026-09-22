@@ -10,7 +10,9 @@
   the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
   names.
 - **Your numbers on the map.** Import a CSV with a country column and a column of numbers and every
-  country is filled with the colour of its step, as one layer above the basemap. Countries are found
+  country is filled with the colour of its step, as one layer above the basemap. A table of states,
+  provinces or regions works the same way: the panel works out which country they belong to and
+  matches their names or their short codes (CA, US-CA, Calif.). Countries are found
   by name in any of the 26 languages the panel carries, by ISO code (two letters, three letters or
   the number), or by the code the map itself uses; rows that match nothing are listed instead of
   being coloured on a guess. Five colour ramps, three to nine steps, even steps or equal counts, and

@@ -9,6 +9,7 @@ import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { evalScript, fs, path } from "./cep.ts";
 import { spikeDir } from "./spikes.ts";
+import { provinceJoinTargets } from "./data/admin1.ts";
 import { countryJoinTargets } from "./data/countries.ts";
 import { createMapComp } from "./mapApi.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -16,6 +17,22 @@ import { runRenderJob } from "./render/renderJob.ts";
 import type { SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 1280, height: 720 };
+
+/** Saves a frame of the map's scene, for looking at afterwards. */
+async function saveSceneFrame(mapId: string, name: string): Promise<boolean> {
+  const file = path().join(spikeDir(), `${name}.png`).split(String.fromCharCode(92)).join("/");
+  fs().rmSync(file, { force: true });
+  await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp.saveFrameToPng(0, new File(${JSON.stringify(file)})); return "1"; })()`);
+  let size = -1;
+  for (let i = 0; i < 80; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (!fs().existsSync(file)) continue;
+    const now = fs().statSync(file).size;
+    if (now > 0 && now === size) break;
+    size = now;
+  }
+  return size > 0;
+}
 
 export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown>> {
   const problems: string[] = [];
@@ -122,23 +139,53 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     if (built.x + built.width > SIZE.width || built.y + built.height > SIZE.height || built.x < SIZE.width / 2) problems.push(`the legend sits at ${built.x}, ${built.y} (${built.width} x ${built.height}) in ${built.scene}`);
   }
   // What the scene itself looks like with the numbers and the legend on it.
-  const shot = path().join(spikeDir(), "dt1-legend.png").split(String.fromCharCode(92)).join("/");
-  fs().rmSync(shot, { force: true });
-  await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp.saveFrameToPng(0, new File(${JSON.stringify(shot)})); return "1"; })()`);
-  let shotSize = -1;
-  for (let i = 0; i < 80; i++) {
-    await new Promise((resolve) => setTimeout(resolve, 250));
-    if (!fs().existsSync(shot)) continue;
-    const now = fs().statSync(shot).size;
-    if (now > 0 && now === shotSize) break;
-    shotSize = now;
-  }
-  if (shotSize <= 0) problems.push("After Effects did not save the frame of the scene");
+  if (!(await saveSceneFrame(map.id, "dt1-legend"))) problems.push("After Effects did not save the frame of the scene");
 
   const again = await addLegend(map.id, fill, { theme: "midnight", corner: "topLeft" });
   if (again.removed !== 1) problems.push(`building the legend again removed ${again.removed} of the old one`);
   const gone = await removeLegend(map.id);
   if (gone.removed !== 1) problems.push(`removing the legend removed ${gone.removed}`);
+
+  // The states of one country: names and postal codes, joined against that country's provinces.
+  const states = [
+    { key: "California", value: 39 },
+    { key: "TX", value: 30 },
+    { key: "US-NY", value: 19 },
+    { key: "Atlantis", value: 1 }
+  ];
+  const byState = joinValues(states, buildLookup(provinceJoinTargets("USA")));
+  if (byState.matched.length !== 3) problems.push(`${byState.matched.length} of 3 states joined: ${JSON.stringify(byState)}`);
+  const stateFill: DataFill = {
+    ...DEFAULT_DATA_FILL,
+    column: "People (millions)",
+    level: "province",
+    country: "USA",
+    values: Object.fromEntries(byState.matched.map((row) => [row.code, row.value])),
+    steps: 3,
+    opacity: 1
+  };
+  const usa: View = { center: { lat: 39, lng: -96 }, zoom: 3, bearing: 0, pitch: 0 };
+  const stateMap = await createMapComp({ name: "DT1 states", ...SIZE, duration: 1, frameRate: 25, view: usa, newScene: true });
+  const stateRender = await runRenderJob({ mapId: stateMap.id, quality: "final", settings, basemap: { kind: "world" }, dataFill: stateFill });
+  const stateSequence = stateRender.sequences.find((s) => s.pass === "highlight-DATA");
+  if (!stateSequence) {
+    problems.push("the states did not render");
+  } else {
+    const rgba = decodePng(new Uint8Array(fs().readFileSync(path().join(stateSequence.folder, sequenceFileName(0))))).rgba;
+    const at = (place: { lat: number; lng: number }) => {
+      const p = project(usa, SIZE, place);
+      const i = (Math.round(p.y) * SIZE.width + Math.round(p.x)) * 4;
+      return [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]];
+    };
+    const sacramento = at({ lat: 38.6, lng: -121.5 });
+    const austin = at({ lat: 30.3, lng: -97.7 });
+    const denver = at({ lat: 39.7, lng: -105 });
+    if (sacramento[3] < 200 || austin[3] < 200) problems.push(`a state with a number is not filled: California ${sacramento}, Texas ${austin}`);
+    if (denver[3] !== 0) problems.push(`Colorado has no number but is filled: ${denver}`);
+    if (sacramento.join() === austin.join()) problems.push(`39 and 30 million got the same colour ${sacramento}`);
+  }
+  await addLegend(stateMap.id, stateFill, { theme: "midnight", corner: "bottomLeft" });
+  await saveSceneFrame(stateMap.id, "dt1-states");
 
   const passed = problems.length === 0;
   log(
@@ -146,5 +193,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

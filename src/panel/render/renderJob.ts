@@ -15,7 +15,7 @@ import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreS
 import { basemapStyle, regionNames, terrainUsable, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
 import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
 import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
-import { AREAS_SOURCE } from "../basemap/naturalEarthStyle.ts";
+import { AREAS_SOURCE, DATA_SOURCE } from "../basemap/naturalEarthStyle.ts";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
 import { FrameRenderer, layerGroup, layerHighlight } from "./frameRenderer.ts";
@@ -197,8 +197,9 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   }
   const labelOf = (pass: PassId) => highlightPasses.find((p) => p.pass === pass)?.label ?? PASS_INFO[pass as keyof typeof PASS_INFO].label;
   const context: FrameKeyContext = {
-    // Without the highlights' layers and the polygons of highlighted areas, which only they draw.
-    style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
+    // Without the highlights' layers, the polygons of highlighted areas and the provinces a data
+    // fill colours, which only the highlight passes draw.
+    style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
     data: dataFingerprint(spec.basemap, terrain),
     width: geometry.width,
     height: geometry.height,

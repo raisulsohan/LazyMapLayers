@@ -35,7 +35,7 @@ import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
-import { addDataLegend, applyDataFill, changeDataFill, clearDataFill, dataFill, dataKeyColumn, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataLegend, applyDataFill, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -259,8 +259,8 @@ export function DataSheetView(): JSX.Element | null {
     <div class="sheet" data-id="data-sheet">
       <div class="sheet-title">{table.name}</div>
       <div class="muted small">
-        {table.rows.length} rows. Every country that has a number is filled with the colour of its step, as one layer above the basemap. Countries are found by name in any language, by ISO code, or by
-        the number.
+        {table.rows.length} rows. Every country - or every province of one country - that has a number is filled with the colour of its step, as one layer above the basemap. They are found by name in
+        any language, by ISO code, by a state's short code, or by the number.
       </div>
       <div class="sheet-row">
         <label class="num-field grow" title="The column that names the country">
@@ -285,6 +285,27 @@ export function DataSheetView(): JSX.Element | null {
               ))}
           </select>
         </label>
+      </div>
+      <div class="sheet-row import-row">
+        <label class="num-field" title="What the rows are about. Left alone, the panel works it out from the table itself.">
+          <span>Match</span>
+          <select data-id="data-level" value={dataLevel.value} disabled={busy.value} onChange={(e) => void changeDataLevel((e.target as HTMLSelectElement).value as "auto" | "country" | "province")}>
+            <option value="auto">Whatever fits</option>
+            <option value="country">Countries</option>
+            <option value="province">Provinces</option>
+          </select>
+        </label>
+        {(dataLevel.value === "province" || dataCountry.value) && (
+          <label class="num-field grow" title="The country whose provinces, states or divisions the rows name">
+            <select data-id="data-country" value={dataCountry.value ?? ""} disabled={busy.value} onChange={(e) => void changeDataLevel("province", (e.target as HTMLSelectElement).value || null)}>
+              {countryChoices().map((entry) => (
+                <option key={entry.code} value={entry.code}>
+                  {entry.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
       </div>
       <div class="sheet-row import-row">
         <label class="num-field" title="The colours the steps run through">

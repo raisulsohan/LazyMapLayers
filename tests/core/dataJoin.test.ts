@@ -153,3 +153,12 @@ test("a dark map can turn the ramp over without changing what the steps mean", (
   assert.deepEqual(flipped.legend.map((step) => step.label), plain.legend.map((step) => step.label));
   assert.equal(flipped.legend[0].color, flipped.colors.BGD);
 });
+
+test("a fill of provinces needs the country it belongs to", () => {
+  const values = { usa3521: 10, usa3522: 20 };
+  assert.equal(normaliseDataFill({ column: "x", level: "province", values }), null, "no country, no fill");
+  const fill = normaliseDataFill({ column: "x", level: "province", country: "usa", values })!;
+  assert.equal(fill.country, "USA");
+  assert.deepEqual(Object.keys(fill.values), ["usa3521", "usa3522"], "province ids keep their case");
+  assert.equal(normaliseDataFill({ column: "x", values: { fra: 1 } })!.level, "country");
+});

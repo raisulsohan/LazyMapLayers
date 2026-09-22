@@ -718,8 +718,19 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   Core works out the box and the baselines (`src/core/style/legend.ts`) from text the panel measured;
   the host only builds. It is not linked to the map: a legend stays where the designer puts it, and
   building it again replaces it and nothing else.
-- **Countries only, for now.** The world tiles carry country codes; provinces and districts do not
-  join yet. Said in the sheet rather than half done.
+- **Provinces too, in two passes.** A table of states joins to the provinces of one country. Which
+  country that is comes from the table itself: a first pass over every province in the world matches
+  the full names, and the country most of them belong to wins. A second pass then joins against that
+  country's provinces alone, where a short code (CA, US-CA, US.CA, Calif.) is no longer shared with
+  provinces elsewhere and joins too. The sheet shows what was chosen and can be set by hand.
+  `tools/prepare-admin1.ts` now writes those codes into the index, from Natural Earth's own fields.
+- **A province fill brings its own geometry.** Countries come from the world tiles, which carry their
+  codes; provinces are not in the tiles, so the style builds a GeoJSON source (`lml-data`) from the
+  bundled province polygons - only the ones with a number. The polygons are not stored with the map:
+  the map keeps the country and the values, and the geometry comes from the bundled data every time,
+  so a map file stays small and a data update cannot leave stale outlines behind.
+- **Districts do not join yet.** They are a download per country and have no stable codes; said in
+  the sheet rather than half done.
 - **Tested.** Unit tests for the table, the join against the real bundled data, the scale and the
   legend layout; DT1 in After Effects joins four countries (one by its Japanese name, one by code),
   renders the pass, checks the colours on the map itself, builds the legend, replaces it and removes

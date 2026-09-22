@@ -5,6 +5,7 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
 import { dataFillColors, DATA_CODE, type DataFill } from "../../core/style/dataFill.ts";
+import { provincesOf } from "../data/admin1.ts";
 import { areaIdOf, isAreaCode, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
@@ -25,6 +26,9 @@ export const COUNTRY_HIT_LAYER = "country-hit";
 export const AREAS_SOURCE = "lml-areas";
 /** Style metadata of a highlight layer: the code of its highlight. */
 export const HIGHLIGHT_METADATA_KEY = "lml:highlight";
+
+/** The source holding the provinces a data fill colours (countries come from the world tiles). */
+export const DATA_SOURCE = "lml-data";
 export const SATELLITE_SOURCE = "lml-satellite";
 export const RELIEF_SOURCE = "lml-relief";
 
@@ -163,17 +167,33 @@ export function naturalEarthStyle(
   // colour of its step, from a single layer with a colour per country.
   if (options.data) {
     const colours = dataFillColors(options.data);
-    if (colours.codes.length) {
+    const province = options.data.level === "province" && options.data.country;
+    // Countries come from the world tiles; provinces from their bundled polygons, as a source of
+    // their own holding only the ones with a number.
+    let from: Record<string, unknown> = { source: source, "source-layer": "countries" };
+    let key: unknown = ["get", "adm0_a3"];
+    if (province) {
+      const wanted = provincesOf(options.data.country as string).filter((unit) => colours.colors[unit.id]);
+      if (wanted.length) {
+        sources[DATA_SOURCE] = {
+          type: "geojson",
+          data: { type: "FeatureCollection", features: wanted.map((unit) => ({ type: "Feature" as const, properties: { id: unit.id }, geometry: { type: "MultiPolygon" as const, coordinates: unit.polygons } })) },
+          tolerance: 0.2
+        };
+        from = { source: DATA_SOURCE };
+        key = ["get", "id"];
+      }
+    }
+    if (colours.codes.length && (!province || sources[DATA_SOURCE])) {
       const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE };
-      const match: unknown[] = ["match", ["get", "adm0_a3"]];
+      const match: unknown[] = ["match", key];
       for (const code of colours.codes) match.push(code, colours.colors[code]);
       match.push(options.data.noData ?? "rgba(0, 0, 0, 0)");
       layers.push({
         id: "data-fill",
         type: "fill",
         metadata: own,
-        source,
-        "source-layer": "countries",
+        ...from,
         paint: { "fill-color": match, "fill-opacity": options.data.opacity, "fill-antialias": true }
       } as unknown as LayerSpecification);
       if (options.data.outline > 0) {
@@ -181,9 +201,8 @@ export function naturalEarthStyle(
           id: "data-line",
           type: "line",
           metadata: own,
-          source,
-          "source-layer": "countries",
-          filter: ["in", ["get", "adm0_a3"], ["literal", colours.codes]],
+          ...from,
+          filter: ["in", key, ["literal", colours.codes]],
           layout: { "line-join": "round" },
           paint: { "line-color": options.data.outlineColor, "line-width": options.data.outline }
         } as unknown as LayerSpecification);

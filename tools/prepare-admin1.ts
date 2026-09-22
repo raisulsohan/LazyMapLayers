@@ -84,11 +84,14 @@ async function main() {
       }
       after += polygons.reduce((n, polygon) => n + polygon.reduce((m, ring) => m + ring.length, 0), 0);
       out.push({ id, name, polygons });
+      // The short codes a table of numbers may use for a state: CA, US-CA, US.CA, Calif.
+      const codes = [text(p.postal), text(p.iso_3166_2), text(p.code_hasc), text(p.abbrev)].filter((code, at, all) => code && all.indexOf(code) === at);
       index.push({
         id,
         c: country,
         n: name,
         ...(Object.keys(names).length ? { a: names } : {}),
+        ...(codes.length ? { k: codes } : {}),
         ...(text(p.type_en) ? { t: text(p.type_en) } : {}),
         lat: round(Number(p.latitude) || (south + north) / 2, 3),
         lng: round(Number(p.longitude) || (west + east) / 2, 3),

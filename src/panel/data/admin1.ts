@@ -1,12 +1,13 @@
 // Provinces (states, divisions, regions) of every country, from Natural Earth: an index for search and
 // one file of thinned polygons per country, read when a province of that country is first needed.
 
+import type { JoinTarget } from "../../core/data/join.ts";
 import { pointInPolygons } from "../../core/geo/pointInPolygon.ts";
 import type { PlaceRecord } from "../../core/search/placeSearch.ts";
 import type { AreaGeometry } from "../../core/style/highlights.ts";
 import { extensionRoot, fs, path } from "../cep.ts";
 
-type IndexEntry = { id: string; c: string; n: string; a?: Record<string, string>; t?: string; lat: number; lng: number; b: [number, number, number, number] };
+type IndexEntry = { id: string; c: string; n: string; a?: Record<string, string>; k?: string[]; t?: string; lat: number; lng: number; b: [number, number, number, number] };
 export type Province = { id: string; name: string; polygons: AreaGeometry };
 
 const dataPath = (...parts: string[]) => path().join(extensionRoot(), "data", ...parts);
@@ -55,4 +56,34 @@ export function provincesOf(country: string): Province[] {
 /** The province of a country that holds a point, or null. */
 export function provinceAt(country: string, position: { lat: number; lng: number }): Province | null {
   return provincesOf(country).find((province) => pointInPolygons(position, province.polygons)) ?? null;
+}
+
+let indexEntries: IndexEntry[] | null = null;
+
+/** The index as it is on disk: names, codes and the country of every province. */
+function provinceIndex(): IndexEntry[] {
+  if (indexEntries) return indexEntries;
+  try {
+    indexEntries = (JSON.parse(fs().readFileSync(dataPath("admin1-index.json"), "utf8") as string) as { provinces: IndexEntry[] }).provinces;
+  } catch {
+    indexEntries = [];
+  }
+  return indexEntries;
+}
+
+/** The country of a province id, from the index. */
+export const countryOfProvince = (id: string): string | null => provinceIndex().find((entry) => entry.id === id)?.c ?? null;
+
+export const provinceName = (id: string): string | null => provinceIndex().find((entry) => entry.id === id)?.n ?? null;
+
+/**
+ * Every way a table may name a province: its id, its short codes (CA, US-CA, US.CA, Calif.) and its
+ * name in each language the index carries. Without a country every province of the world is offered,
+ * which finds the country a table is about; with one, that country's provinces alone, where the
+ * short codes are no longer shared with anywhere else.
+ */
+export function provinceJoinTargets(country?: string | null): JoinTarget[] {
+  return provinceIndex()
+    .filter((entry) => !country || entry.c === country)
+    .map((entry) => ({ code: entry.id, codes: country ? (entry.k ?? []) : [], names: [entry.n, ...Object.values(entry.a ?? {})] }));
 }

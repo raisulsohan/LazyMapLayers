@@ -22,7 +22,8 @@ import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
-import { countryJoinTargets } from "./data/countries.ts";
+import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
+import { countryOfProvince, provinceJoinTargets } from "./data/admin1.ts";
 import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
@@ -1206,16 +1207,56 @@ export const dataOpacity = signal(DEFAULT_DATA_FILL.opacity);
 export const dataNoData = signal<string | null>(null);
 /** null: the look decides which end of the ramp is "much". */
 export const dataReverse = signal<boolean | null>(null);
+/** What the rows are about: worked out from the table, or set by hand. */
+export const dataLevel = signal<"auto" | "country" | "province">("auto");
+/** For provinces: the country they belong to (null lets the table decide). */
+export const dataCountry = signal<string | null>(null);
 export const dataMessage = signal<string | null>(null);
 /** Where the legend of the numbers sits in the frame. */
 export const legendCorner = signal<LegendCorner>("bottomLeft");
 
 let joinLookup: ReturnType<typeof buildLookup> | null = null;
+const provinceLookups = new Map<string, ReturnType<typeof buildLookup>>();
 
 /** Every way of naming a country, built once and kept. */
 function countryLookup() {
   if (!joinLookup) joinLookup = buildLookup(countryJoinTargets());
   return joinLookup;
+}
+
+/** Every way of naming a province: of one country, or of the whole world when none is given. */
+function provinceLookup(country: string | null) {
+  const key = country ?? "*";
+  const had = provinceLookups.get(key);
+  if (had) return had;
+  const built = buildLookup(provinceJoinTargets(country));
+  provinceLookups.set(key, built);
+  return built;
+}
+
+/**
+ * Where a table's rows belong: countries, or the provinces of one country. Province names alone
+ * decide which country it is about; once that is known, the short codes of that country's provinces
+ * (CA, US-CA) are joined too, which they could not be while every province in the world was in play.
+ */
+function joinTable(rows: { key: string; value: number }[]): { level: "country" | "province"; country: string | null; result: ReturnType<typeof joinValues> } {
+  const wanted = dataLevel.value;
+  const byCountry = joinValues(rows, countryLookup());
+  if (wanted === "country") return { level: "country", country: null, result: byCountry };
+  // Which country the provinces belong to: the one most rows point at, or the one the user picked.
+  let country = dataCountry.value;
+  if (!country) {
+    const votes = new Map<string, number>();
+    for (const row of joinValues(rows, provinceLookup(null)).matched) {
+      const of = countryOfProvince(row.code);
+      if (of) votes.set(of, (votes.get(of) ?? 0) + 1);
+    }
+    country = [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
+  }
+  const byProvince = country ? joinValues(rows, provinceLookup(country)) : null;
+  if (!byProvince || !byProvince.matched.length) return { level: "country", country: null, result: byCountry };
+  if (wanted === "province" || byProvince.matched.length > byCountry.matched.length) return { level: "province", country, result: byProvince };
+  return { level: "country", country: null, result: byCountry };
 }
 
 /** Opens the Data sheet for a table of numbers (a CSV with names and values, not coordinates). */
@@ -1228,7 +1269,22 @@ export function openDataTable(table: DataTable): void {
   importSheetOpen.value = false;
   // What the table would join to, before anything is coloured.
   const rows = columnValues(table, table.keyColumn, table.valueColumn);
-  dataMessage.value = describeJoin(joinValues(rows, countryLookup()), rows.length);
+  const found = joinTable(rows);
+  dataCountry.value = found.country;
+  dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(found.result, rows.length)}`;
+}
+
+/** The countries a table of provinces may be about, by name. */
+export const countryChoices = (): { code: string; name: string }[] =>
+  countryCodeRows()
+    .map((row) => ({ code: row.code, name: row.names[0] ?? row.code }))
+    .sort((a, b) => a.name.localeCompare(b.name));
+
+/** A country's name from its map code, for the messages. */
+function countryName(code: string | null): string {
+  if (!code) return "";
+  const row = countryCodeRows().find((entry) => entry.code === code);
+  return row?.names[0] ?? code;
 }
 
 /** Colours the map by the chosen column, and keeps the numbers with the map. */
@@ -1237,14 +1293,18 @@ export const applyDataFill = () =>
     const table = dataTable.value;
     if (!table) return;
     const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
-    const result = joinValues(rows, countryLookup());
-    dataMessage.value = describeJoin(result, rows.length);
+    const found = joinTable(rows);
+    const result = found.result;
+    dataCountry.value = found.country;
+    dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(result, rows.length)}`;
     if (!result.matched.length) {
-      log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country`, "fail");
+      log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country or a province`, "fail");
       return;
     }
     const fill: DataFill = {
       column: table.headings[dataValueColumn.value] || "Value",
+      level: found.level,
+      country: found.country,
       values: Object.fromEntries(result.matched.map((row) => [row.code, row.value])),
       ramp: dataRamp.value,
       steps: dataSteps.value,
@@ -1266,6 +1326,20 @@ export const applyDataFill = () =>
   });
 
 /** Changes how the numbers are coloured, and redraws them at once. */
+/** Changes what the rows are taken to be about, and joins again. */
+export const changeDataLevel = (level: "auto" | "country" | "province", country?: string | null) =>
+  run("data on the map", async () => {
+    dataLevel.value = level;
+    if (country !== undefined) dataCountry.value = country;
+    if (level !== "province") dataCountry.value = null;
+    const table = dataTable.value;
+    if (!table) return;
+    const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+    const found = joinTable(rows);
+    dataCountry.value = found.country;
+    dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(found.result, rows.length)}`;
+  });
+
 export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData" | "reverse">>) =>
   run("data colours", async () => {
     if (next.reverse !== undefined) dataReverse.value = next.reverse;

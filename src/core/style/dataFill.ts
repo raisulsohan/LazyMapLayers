@@ -10,7 +10,11 @@ export const DATA_CODE = "DATA";
 export type DataFill = {
   /** The column the numbers came from: the layer's name and the legend's title. */
   column: string;
-  /** The value of each country, by the code the map tiles carry. */
+  /** What the numbers are about: countries, or the provinces of one country. */
+  level: "country" | "province";
+  /** For provinces: the country they belong to (the code the map tiles carry). */
+  country: string | null;
+  /** The value of each country (by its map code) or of each province (by its id). */
   values: Record<string, number>;
   ramp: RampId;
   steps: number;
@@ -29,7 +33,18 @@ export type DataFill = {
   reverse: boolean;
 };
 
-export const DEFAULT_DATA_FILL = { ramp: "blues" as RampId, steps: 5, method: "equal" as ScaleMethod, opacity: 0.85, outline: 0, outlineColor: "#ffffff", noData: null, reverse: false };
+export const DEFAULT_DATA_FILL = {
+  level: "country" as const,
+  country: null,
+  ramp: "blues" as RampId,
+  steps: 5,
+  method: "equal" as ScaleMethod,
+  opacity: 0.85,
+  outline: 0,
+  outlineColor: "#ffffff",
+  noData: null,
+  reverse: false
+};
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const colour = (value: unknown, fallback: string | null) => (typeof value === "string" && HEX.test(value) ? value.toLowerCase() : fallback);
@@ -38,13 +53,19 @@ const colour = (value: unknown, fallback: string | null) => (typeof value === "s
 export function normaliseDataFill(raw: unknown): DataFill | null {
   if (!raw || typeof raw !== "object") return null;
   const source = raw as Partial<DataFill>;
+  const level = source.level === "province" ? "province" : "country";
+  const country = typeof source.country === "string" && /^[A-Z0-9_-]{2,8}$/i.test(source.country) ? source.country.toUpperCase() : null;
+  if (level === "province" && !country) return null;
   const values: Record<string, number> = {};
   for (const [code, value] of Object.entries((source.values ?? {}) as Record<string, unknown>)) {
-    if (/^[A-Z0-9_-]{2,8}$/i.test(code) && typeof value === "number" && Number.isFinite(value)) values[code.toUpperCase()] = value;
+    // A country is the upper-case code the tiles carry; a province is the id the index writes.
+    if (/^[A-Za-z0-9_-]{2,16}$/.test(code) && typeof value === "number" && Number.isFinite(value)) values[level === "country" ? code.toUpperCase() : code] = value;
   }
   if (!Object.keys(values).length) return null;
   return {
     column: typeof source.column === "string" && source.column.trim() ? source.column.trim().slice(0, 80) : "Value",
+    level,
+    country,
     values,
     ramp: rampById(source.ramp).id,
     steps: Math.max(3, Math.min(9, Math.round(Number(source.steps) || DEFAULT_DATA_FILL.steps))),
@@ -83,4 +104,4 @@ export function dataFillColors(fill: DataFill): DataColours {
 
 /** What the sheet and the log say about a fill. */
 export const describeDataFill = (fill: DataFill, colours: DataColours): string =>
-  `${colours.codes.length} countries coloured by ${fill.column}, ${colours.scale.colors.length} steps ${fill.method === "quantile" ? "with about as many countries each" : "of even size"}`;
+  `${colours.codes.length} ${fill.level === "province" ? "provinces" : "countries"} coloured by ${fill.column}, ${colours.scale.colors.length} steps ${fill.method === "quantile" ? "with about as many each" : "of even size"}`;
