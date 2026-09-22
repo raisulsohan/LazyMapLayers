@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Flows.** A table with a place at each end of a row and an amount - migration, trade, flights - is drawn
+  as one great-circle arc per row whose width follows the amount, all drawing on together from the
+  current time, with an arrow riding each one if you like. Places are found the way the search box
+  finds them (a city, a country, a province, or "23.8, 90.4"), and a name the panel cannot place is
+  listed rather than guessed. The Data sheet shows the Flows row as soon as a table has two columns
+  of names.
+
 ## 0.3.1 — an arrow on any route, renders on disk, and a render whose map is gone (2026-09-22)
 
 - **An arrow on a route you clicked.** The Route tool's sheet now has **Arrow** (and Comet and

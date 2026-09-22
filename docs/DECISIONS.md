@@ -841,3 +841,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** U1 adds a route with the arrow from the tool sheet, plants a job from another project
   and checks it shows the sentence and no Resume, and reads the disk report; RT1 still covers the
   traveller's motion.
+
+## D46 — Flows: one arc per row, width by amount (2026-09-22)
+
+- **Why.** After a choropleth and bubbles, the third map a data story needs is movement: where
+  people, goods or flights go. The route machinery already draws a great-circle arc that follows the
+  camera; flows are that arc, once per row, with its width set by the row.
+- **Width, not area.** A line twice as wide reads as twice as much, so widths are proportional to
+  the value (`src/core/data/flows.ts`), the largest row gets the widest line, and nothing draws
+  thinner than 1.5 px. The arrow grows with the line it rides, within limits.
+- **Places come from the search.** "Dhaka", "Bangladesh", "West Bengal" or "23.8, 90.4" all
+  resolve through `searchPlaces`, so a table is written the way a person writes it. A name the
+  search does not know is reported in the log, never guessed, and its rows are left out.
+- **Batches, and a limit.** Arcs go to After Effects six at a time (each is a route layer plus an
+  arrow) with progress and cancel, largest first, and at most 120 - every arc costs expressions on
+  every frame, and a map with more is not a map anyone reads.
+- **Tested.** Unit tests for the column guess, the rows and the widths; FL1 in After Effects draws
+  four flows (one written as coordinates, one to a place that does not exist) and checks the stroke
+  widths are 14, 7 and 3.5 px for 1,200, 600 and 300.

@@ -18,6 +18,8 @@ import { nameForView, nearestPlaceName, zoomForPlace, type SearchResult } from "
 import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
+import { flowRows, guessFlowColumns } from "../core/data/flows.ts";
+import { addFlows } from "./overlays/flows.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
 import { applyLook, followsTheLook as lookFollows, lookFromPalette, lookFromPicture, normaliseLook, NO_LOOK, type LookOverride } from "../core/style/customLook.ts";
@@ -1233,6 +1235,60 @@ export const dataLevel = signal<"auto" | "country" | "province">("auto");
 /** For provinces: the country they belong to (null lets the table decide). */
 export const dataCountry = signal<string | null>(null);
 export const dataMessage = signal<string | null>(null);
+/** A table of flows: which columns say where from, where to, and how much. */
+export const flowFrom = signal(-1);
+export const flowTo = signal(-1);
+export const flowValue = signal(-1);
+export const flowWidth = signal(14);
+export const flowArrows = signal(true);
+export const flowSeconds = signal(4);
+
+/** Draws every row of the table as an arc whose width follows the value. */
+export const drawFlows = () =>
+  run("flows", async () => {
+    const table = dataTable.value;
+    const entry = (await readMaps()).find((m) => m.mapId === selectedId.value);
+    if (!table || !entry) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    if (flowFrom.value < 0 || flowTo.value < 0 || flowValue.value < 0 || flowFrom.value === flowTo.value) {
+      log("pick the From, To and Amount columns first", "muted");
+      return;
+    }
+    const rows = flowRows(table, flowFrom.value, flowTo.value, flowValue.value);
+    if (!rows.length) {
+      log("no row has a place at both ends and an amount above zero", "fail");
+      return;
+    }
+    const start = currentMapFrame(entry);
+    const frames = Math.max(1, Math.round(flowSeconds.value * entry.frameRate));
+    const stopper = new AbortController();
+    progress.value = { label: "Drawing flows", done: 0, total: rows.length, cancel: () => stopper.abort() };
+    try {
+      const made = await addFlows(entry.mapId, placeIndex(), rows, {
+        startFrame: start,
+        endFrame: start + frames,
+        theme: currentTheme.value,
+        style: currentLayerStyle.value,
+        terrain: terrain.value,
+        maxWidth: flowWidth.value,
+        arrows: flowArrows.value,
+        comet: routeComet.value,
+        signal: stopper.signal,
+        onProgress: (done, total) => (progress.value = { label: "Drawing flows", done, total, cancel: () => stopper.abort() })
+      });
+      const unknown = made.unknown.length ? `; ${made.unknown.length} ${made.unknown.length === 1 ? "place" : "places"} not found: ${made.unknown.slice(0, 4).join(", ")}${made.unknown.length > 4 ? "..." : ""}` : "";
+      const dropped = made.dropped ? `; ${made.dropped} smaller flows left out` : "";
+      log(
+        `${made.drawn} ${made.drawn === 1 ? "flow" : "flows"} drawn from ${entry.time.toFixed(2)} s over ${flowSeconds.value} s, the widest standing for ${made.legend[0]?.label ?? ""}${made.cancelled ? " (stopped)" : ""}${unknown}${dropped}`,
+        made.expressionErrors.length ? "fail" : made.drawn ? "ok" : "muted"
+      );
+    } finally {
+      progress.value = null;
+    }
+  });
+
 /** Where the legend of the numbers sits in the frame. */
 export const legendCorner = signal<LegendCorner>("bottomLeft");
 
@@ -1285,6 +1341,10 @@ export function openDataTable(table: DataTable): void {
   dataTable.value = table;
   dataKeyColumn.value = table.keyColumn;
   dataValueColumn.value = table.valueColumn;
+  const flows = guessFlowColumns(table);
+  flowFrom.value = flows?.from ?? -1;
+  flowTo.value = flows?.to ?? -1;
+  flowValue.value = flows?.value ?? -1;
   dataMessage.value = null;
   dataSheetOpen.value = true;
   importSheetOpen.value = false;

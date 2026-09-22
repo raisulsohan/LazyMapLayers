@@ -35,6 +35,7 @@ import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
+import { drawFlows, flowArrows, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
 import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
@@ -367,6 +368,58 @@ export function DataSheetView(): JSX.Element | null {
           </label>
         )}
       </div>
+      {flowFrom.value >= 0 && (
+        <>
+          <div class="section-title">Flows</div>
+          <div class="muted small">A row with a place at each end and an amount becomes an arc whose width follows the amount, all drawing on together from the current time.</div>
+          <div class="sheet-row">
+            <label class="num-field" title="The column that says where a flow starts">
+              <span>From</span>
+              <select data-id="flow-from" value={String(flowFrom.value)} disabled={busy.value} onChange={(e) => (flowFrom.value = Number((e.target as HTMLSelectElement).value))}>
+                {table.columns.filter((column) => column.kind === "text").map((column) => (
+                  <option key={column.index} value={String(column.index)}>{column.name}</option>
+                ))}
+              </select>
+            </label>
+            <label class="num-field" title="The column that says where it ends">
+              <span>To</span>
+              <select data-id="flow-to" value={String(flowTo.value)} disabled={busy.value} onChange={(e) => (flowTo.value = Number((e.target as HTMLSelectElement).value))}>
+                {table.columns.filter((column) => column.kind === "text").map((column) => (
+                  <option key={column.index} value={String(column.index)}>{column.name}</option>
+                ))}
+              </select>
+            </label>
+            <label class="num-field" title="The amount, which sets the width of the arc">
+              <span>Amount</span>
+              <select data-id="flow-value" value={String(flowValue.value)} disabled={busy.value} onChange={(e) => (flowValue.value = Number((e.target as HTMLSelectElement).value))}>
+                {table.columns.filter((column) => column.kind === "number").map((column) => (
+                  <option key={column.index} value={String(column.index)}>{column.name}</option>
+                ))}
+              </select>
+            </label>
+          </div>
+          <div class="sheet-row">
+            <label class="num-field" title="The widest arc, in pixels at 1080 lines">
+              <span>Widest</span>
+              <input type="number" min={2} max={60} step={1} data-id="flow-width" value={flowWidth.value} disabled={busy.value} onChange={(e) => (flowWidth.value = Math.max(2, Math.min(60, Number((e.target as HTMLInputElement).value) || 14)))} />
+              <span class="muted">px</span>
+            </label>
+            <label class="num-field" title="How long the arcs take to draw on">
+              <span>Over</span>
+              <input type="number" min={0.5} step={0.5} data-id="flow-seconds" value={flowSeconds.value} disabled={busy.value} onChange={(e) => (flowSeconds.value = Math.max(0.5, Number((e.target as HTMLInputElement).value) || 4))} />
+              <span class="muted">s</span>
+            </label>
+            <label class="check" title="An arrow rides every arc">
+              <input type="checkbox" data-id="flow-arrows" checked={flowArrows.value} disabled={busy.value} onChange={(e) => (flowArrows.value = (e.target as HTMLInputElement).checked)} />
+              <span>Arrows</span>
+            </label>
+            <button class="primary" data-id="flow-draw" disabled={busy.value} title="Draws every row as an arc between its two places" onClick={() => void drawFlows()}>
+              Draw flows
+            </button>
+          </div>
+          <div class="section-title">Colours</div>
+        </>
+      )}
       <div class="sheet-row">
         <label class="num-field" title="The colours the steps run through">
           <select data-id="data-ramp" value={dataRamp.value} disabled={busy.value} onChange={(e) => void changeDataFill({ ramp: (e.target as HTMLSelectElement).value as RampId })}>

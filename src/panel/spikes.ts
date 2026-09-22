@@ -27,6 +27,7 @@ import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
+import { runFlowTest } from "./flowTests.ts";
 import { runCustomLookTest } from "./lookTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
@@ -340,6 +341,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB3_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB3 failed: ${results.LB3_error}`, "fail");
+    }
+  }
+
+  if (wants("FL1")) {
+    try {
+      results.FL1_flows = await runFlowTest(log);
+    } catch (error) {
+      results.FL1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`FL1 failed: ${results.FL1_error}`, "fail");
     }
   }
 
