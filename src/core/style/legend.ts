@@ -1,11 +1,12 @@
 // Where the parts of a legend sit. The panel measures the text (only a browser can), core works out
 // the box, the swatches and the baselines, and the host builds the layers from these numbers.
 //
-// A legend can show colours (a square per step), sizes (a circle per size, for bubbles), or both.
+// A legend can show colours (a square per step), sizes (a circle per bubble size, a spike per spike
+// height), or both.
 
 export type LegendRow = { color: string; label: string; width: number };
-/** A size of bubble and what it stands for; the radius is already in comp pixels. */
-export type LegendSize = { radius: number; label: string; width: number };
+/** A size on the map and what it stands for, in comp pixels: a bubble's radius, or a spike's width and height. */
+export type LegendSize = { label: string; width: number; radius?: number; spike?: { width: number; height: number } };
 
 export type LegendOptions = {
   /** Comp height in pixels; every size here is for 1080 lines and scales with it. */
@@ -15,16 +16,16 @@ export type LegendOptions = {
   /** Size of the title and of a row, in 1080-line pixels. */
   titleSize?: number;
   rowSize?: number;
-  /** Circles for a bubble legend, largest first. */
+  /** Circles for a bubble legend and spikes for a spike legend, largest first. */
   sizes?: LegendSize[];
-  /** The colour the circles are drawn in. */
+  /** The colour the circles and spikes are drawn in. */
   sizeColor?: string;
 };
 
 export type LegendItem = {
   color: string;
   label: string;
-  shape: "rect" | "circle";
+  shape: "rect" | "circle" | "spike";
   /** The box the shape fills: for a circle, the square around it. */
   swatch: { x: number; y: number; width: number; height: number };
   text: { x: number; y: number };
@@ -61,9 +62,9 @@ export function legendLayout(rows: LegendRow[], options: LegendOptions): LegendL
   const rowGap = ROW_GAP * scale;
   const rowHeight = Math.max(swatch, rowSize * 1.2);
   const sizes = options.sizes ?? [];
-  const biggest = sizes.reduce((most, size) => Math.max(most, size.radius), 0);
-  // One column for every swatch, wide enough for the largest circle as well.
-  const column = Math.max(swatch, biggest * 2);
+  const widestSize = sizes.reduce((most, size) => Math.max(most, size.spike ? size.spike.width : (size.radius ?? 0) * 2), 0);
+  // One column for every swatch, wide enough for the largest circle or spike as well.
+  const column = Math.max(swatch, widestSize);
   const hasTitle = !!options.title.trim();
   const titleHeight = hasTitle ? titleSize * 1.15 + TITLE_GAP * scale : 0;
   const widest = Math.max(rows.reduce((most, row) => Math.max(most, row.width), 0), sizes.reduce((most, size) => Math.max(most, size.width), 0));
@@ -84,12 +85,14 @@ export function legendLayout(rows: LegendRow[], options: LegendOptions): LegendL
     top += rowHeight + rowGap;
   }
   for (const size of sizes) {
-    const height = Math.max(rowHeight, size.radius * 2);
+    // A circle for a bubble, a triangle for a spike, each centred in the column.
+    const box = size.spike ? { width: size.spike.width, height: size.spike.height } : { width: (size.radius ?? 0) * 2, height: (size.radius ?? 0) * 2 };
+    const height = Math.max(rowHeight, box.height);
     laid.push({
       color: options.sizeColor ?? "#ffffff",
       label: size.label,
-      shape: "circle",
-      swatch: { x: padding + column / 2 - size.radius, y: top + height / 2 - size.radius, width: size.radius * 2, height: size.radius * 2 },
+      shape: size.spike ? "spike" : "circle",
+      swatch: { x: padding + column / 2 - box.width / 2, y: top + height / 2 - box.height / 2, width: box.width, height: box.height },
       text: { x: padding + column + swatchGap, y: top + height / 2 + rowSize * 0.36 },
       size: rowSize
     });

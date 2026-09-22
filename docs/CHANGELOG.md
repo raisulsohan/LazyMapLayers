@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Spikes.** The numbers of a table as spikes on the map: one shape layer with a triangle per place
+  rising straight up the frame, its height standing for the value, read straight (twice the value,
+  twice the height). The tallest is as tall as you set, every spike has its own transform to
+  animate, and the legend shows three heights beside the colours and the circles. In the accent
+  colour, or each in the colour of its step.
 - **Pins and routes named after their place.** A pin dropped on or near a town is "Pin: Dhaka", not
   "Pin 7", and a route drawn between two towns is "Dhaka to Chittagong" (a second pin on the same
   place is "Dhaka 2"). Far from any named place, the numbers stay.

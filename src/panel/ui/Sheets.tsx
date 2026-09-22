@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -478,6 +478,22 @@ export function DataSheetView(): JSX.Element | null {
         </label>
         <button class="small-button" data-id="data-bubbles-remove" disabled={busy.value} title="Takes the circles off the map" onClick={() => void removeDataBubbles()}>
           Remove bubbles
+        </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-spikes-add" disabled={busy.value || !fill} title="Numbers as spikes on the map, as one layer: the height of a spike stands for its value, read straight. Every spike has its own transform to animate." onClick={() => void addDataSpikes()}>
+          Add spikes
+        </button>
+        <label class="num-field" title="The tallest spike, in pixels at 1080 lines">
+          <input type="number" min={20} max={600} step={10} data-id="spike-height" value={spikeHeight.value} disabled={busy.value} onChange={(e) => (spikeHeight.value = Math.max(20, Math.min(600, Number((e.target as HTMLInputElement).value) || 160)))} />
+          <span class="muted">px</span>
+        </label>
+        <label class="check" title="Colour each spike by its step as well, instead of the one accent colour">
+          <input type="checkbox" data-id="spike-coloured" checked={spikeColoured.value} disabled={busy.value} onChange={(e) => (spikeColoured.value = (e.target as HTMLInputElement).checked)} />
+          <span>In step colours</span>
+        </label>
+        <button class="small-button" data-id="data-spikes-remove" disabled={busy.value} title="Takes the spikes off the map" onClick={() => void removeDataSpikes()}>
+          Remove spikes
         </button>
       </div>
       <div class="sheet-row">

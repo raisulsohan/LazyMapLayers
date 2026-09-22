@@ -14,6 +14,7 @@ import { countryJoinTargets } from "./data/countries.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { runRenderJob } from "./render/renderJob.ts";
@@ -167,6 +168,51 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     if (worst > 0.05) problems.push(`a bubble is ${worst.toFixed(2)} px off its place`);
     bubbleOffset = worst;
   }
+  // Spikes: one layer with a spike per country, its height standing for the value, read straight.
+  const spikes = await addSpikes(map.id, fill, places, { theme: "midnight", maxHeight: 120 });
+  if (spikes.expressionErrors.length) problems.push(`spike expressions: ${spikes.expressionErrors.slice(0, 2).join("; ")}`);
+  if (spikes.spikes !== 4) problems.push(`${spikes.spikes} spikes were built`);
+  const tallest = spikes.set.spikes[0];
+  if (tallest.id !== "IND" || Math.abs(tallest.height - 120 * (SIZE.height / 1080)) > 0.5) problems.push(`the tallest spike is ${tallest.id} at ${tallest.height} px`);
+  for (const spike of spikes.set.spikes) {
+    if (Math.abs(spike.height / tallest.height - spike.value / tallest.value) > 0.02) problems.push(`${spike.name} (${spike.value}) is ${spike.height} px tall against ${tallest.height} for ${tallest.value}`);
+  }
+  const spiked = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "spikes") continue;
+        var root = layer.property("ADBE Root Vectors Group"), groups = [];
+        for (var g = 1; g <= root.numProperties; g++) {
+          var group = root.property(g);
+          var position = group.property("ADBE Vector Transform Group").property("ADBE Vector Position").valueAtTime(0, false);
+          var vertices = group.property("ADBE Vectors Group").property(1).property("ADBE Vector Shape").value.vertices, tip = 0;
+          for (var v = 0; v < vertices.length; v++) if (vertices[v][1] < tip) tip = vertices[v][1];
+          groups.push({ name: group.name, x: position[0], y: position[1], height: -tip });
+        }
+        out = { name: layer.name, groups: groups };
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; groups: { name: string; x: number; y: number; height: number }[] } | null;
+  if (!spiked) problems.push("no spike layer is in the scene");
+  else {
+    if (spiked.groups.length !== 4) problems.push(`the spike layer holds ${spiked.groups.length} spikes`);
+    // Every spike stands on its place, to the pixel, and is as tall in the layer as core said.
+    let worst = 0;
+    for (const spike of spikes.set.spikes) {
+      const group = spiked.groups.find((entry) => entry.name.indexOf(spike.name) === 0);
+      if (!group) {
+        problems.push(`no spike for ${spike.name}`);
+        continue;
+      }
+      const want = project(view, SIZE, spike);
+      worst = Math.max(worst, Math.hypot(group.x - want.x, group.y - want.y));
+      if (Math.abs(group.height - spike.height) > 0.05) problems.push(`the spike of ${spike.name} is ${group.height} px tall in the layer, ${spike.height} in core`);
+    }
+    if (worst > 0.05) problems.push(`a spike is ${worst.toFixed(2)} px off its place`);
+  }
   // The numbers themselves, written under the circles.
   const written = await addValueLabels(map.id, fill, places, { theme: "midnight", maxRadius: 50, withNames: false });
   if (written.expressionErrors.length) problems.push(`value expressions: ${written.expressionErrors.slice(0, 2).join("; ")}`);
@@ -211,8 +257,8 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   if (rebuilt.removed !== 1) problems.push(`building the bubbles again removed ${rebuilt.removed} of the old layer`);
 
   // The legend: a precomp of its own in the scene, which building it again replaces.
-  const legend = await addLegend(map.id, fill, { theme: "midnight", corner: "bottomRight", sizes: bubbles.set.legend.map((step) => ({ radius: step.radius, label: step.label })) });
-  if (legend.rows !== colours.legend.length + bubbles.set.legend.length) problems.push(`the legend has ${legend.rows} rows`);
+  const legend = await addLegend(map.id, fill, { theme: "midnight", corner: "bottomRight", sizes: [...bubbles.set.legend.map((step) => ({ radius: step.radius, label: step.label })), ...spikes.set.legend.map((step) => ({ spike: { width: spikes.set.width, height: step.height }, label: step.label }))] });
+  if (legend.rows !== colours.legend.length + bubbles.set.legend.length + spikes.set.legend.length) problems.push(`the legend has ${legend.rows} rows`);
   const built = JSON.parse(
     await evalScript(`(function () {
       var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
@@ -231,7 +277,7 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   else {
     if (built.name !== `Legend: ${fill.column}`) problems.push(`the legend layer is called "${built.name}"`);
     if (built.layers[0] !== "Title" || built.layers[built.layers.length - 1] !== "Background") problems.push(`the legend holds ${JSON.stringify(built.layers)}`);
-    if (built.layers.length !== colours.legend.length + bubbles.set.legend.length + 3) problems.push(`the legend comp has ${built.layers.length} layers`);
+    if (built.layers.length !== colours.legend.length + bubbles.set.legend.length + spikes.set.legend.length + 3) problems.push(`the legend comp has ${built.layers.length} layers`);
     // Bottom right, inside the frame.
     if (built.x + built.width > SIZE.width || built.y + built.height > SIZE.height || built.x < SIZE.width / 2) problems.push(`the legend sits at ${built.x}, ${built.y} (${built.width} x ${built.height}) in ${built.scene}`);
   }
@@ -243,6 +289,8 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
 
   const gonebubbles = await removeBubbles(map.id);
   if (gonebubbles.removed !== 1) problems.push(`removing the bubbles removed ${gonebubbles.removed}`);
+  const goneSpikes = await removeSpikes(map.id);
+  if (goneSpikes.removed !== 1) problems.push(`removing the spikes removed ${goneSpikes.removed}`);
 
   const again = await addLegend(map.id, fill, { theme: "midnight", corner: "topLeft" });
   if (again.removed !== 1) problems.push(`building the legend again removed ${again.removed} of the old one`);
@@ -296,5 +344,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

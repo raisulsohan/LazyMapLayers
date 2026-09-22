@@ -26,6 +26,7 @@ import { applyLook, followsTheLook as lookFollows, lookFromPalette, lookFromPict
 import { lookFileName, readLookFile, writeLookFile } from "../core/style/lookFile.ts";
 import { readSwatchFile } from "../core/style/swatchFile.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
+import { spikeSet } from "../core/style/spikes.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
@@ -51,6 +52,7 @@ import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo,
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -1483,6 +1485,11 @@ export const bubbleSize = signal(44);
 export const bubbleColoured = signal(false);
 /** Whether this map has bubbles now, so the legend can show their sizes too. */
 export const bubblesOn = signal(false);
+/** How tall the tallest spike is, in 1080-line pixels, and whether the spikes take the ramp's colours. */
+export const spikeHeight = signal(160);
+export const spikeColoured = signal(false);
+/** Whether this map has spikes now, so the legend can show their heights too. */
+export const spikesOn = signal(false);
 
 /** Where each value sits on the map: a country's label point, or a province's. */
 function placesOfFill(fill: DataFill): BubblePlace[] {
@@ -1543,6 +1550,41 @@ export const removeDataBubbles = () =>
     const gone = await removeBubbles(selectedId.value);
     bubblesOn.value = false;
     log(gone.removed ? "the bubbles are off the map" : "this map has no bubbles", gone.removed ? "ok" : "muted");
+  });
+
+/** Numbers as spikes on the map, as one editable layer: the height of a spike stands for its value. */
+export const addDataSpikes = () =>
+  run("spikes", async () => {
+    const fill = dataFill.value;
+    if (!fill || !selectedId.value) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const places = placesOfFill(fill);
+    if (!places.length) {
+      log("none of these places has a point to put a spike on", "fail");
+      return;
+    }
+    const made = await addSpikes(selectedId.value, fill, places, {
+      theme: currentTheme.value,
+      style: currentLayerStyle.value,
+      byColour: spikeColoured.value,
+      maxHeight: spikeHeight.value
+    });
+    spikesOn.value = true;
+    const dropped = made.set.dropped ? `, ${made.set.dropped} smaller ones left out` : "";
+    log(
+      `"${made.name}": ${made.spikes} spikes, the tallest standing for ${made.set.legend[0]?.label ?? ""}${dropped}. They follow the map; restyle or animate each one in the layer`,
+      made.expressionErrors.length ? "fail" : "ok"
+    );
+  });
+
+export const removeDataSpikes = () =>
+  run("spikes", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeSpikes(selectedId.value);
+    spikesOn.value = false;
+    log(gone.removed ? "the spikes are off the map" : "this map has no spikes", gone.removed ? "ok" : "muted");
   });
 
 /** What the renders take on disk, and how much of it belongs to unsaved projects that are gone. */
@@ -1708,13 +1750,18 @@ export const addDataLegend = () =>
       log("colour the map by a table first", "muted");
       return;
     }
-    const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080 }).legend : [];
+    const compHeight = (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080;
+    const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: compHeight }).legend : [];
+    const withSpikes = spikesOn.value ? spikeSet(placesOfFill(fill), { maxHeight: spikeHeight.value, height: compHeight }) : null;
     const made = await addLegend(selectedId.value, fill, {
       theme: currentTheme.value,
       style: currentLayerStyle.value,
       template: currentLabelTemplate.value,
       corner: legendCorner.value,
-      sizes: withBubbles.map((step) => ({ radius: step.radius, label: step.label }))
+      sizes: [
+        ...withBubbles.map((step) => ({ radius: step.radius, label: step.label })),
+        ...(withSpikes ? withSpikes.legend.map((step) => ({ spike: { width: withSpikes.width, height: step.height }, label: step.label })) : [])
+      ]
     });
     log(`"${made.name}" added to the scene (${made.rows} steps). It is an ordinary precomp: move it, restyle it, animate it`, "ok");
   });

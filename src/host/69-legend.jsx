@@ -24,7 +24,7 @@ LML.legend.removeTagged = function (scene, mapId) {
     return removed;
 };
 
-/** One swatch: a rounded rectangle, or a circle when the row says so (a bubble legend). */
+/** One swatch: a rounded rectangle, a circle (a bubble legend) or a triangle (a spike legend). */
 LML.legend.rectGroup = function (contents, row) {
     var group = contents.addProperty("ADBE Vector Group");
     group.name = row.label || "Step";
@@ -34,6 +34,11 @@ LML.legend.rectGroup = function (contents, row) {
         var ellipse = inside.addProperty("ADBE Vector Shape - Ellipse");
         ellipse.property("ADBE Vector Ellipse Size").setValue([row.swatch.width, row.swatch.height]);
         ellipse.property("ADBE Vector Ellipse Position").setValue(middle);
+    } else if (row.shape === "spike") {
+        var spike = new Shape();
+        spike.vertices = [[row.swatch.x, row.swatch.y + row.swatch.height], [row.swatch.x + row.swatch.width / 2, row.swatch.y], [row.swatch.x + row.swatch.width, row.swatch.y + row.swatch.height]];
+        spike.closed = true;
+        inside.addProperty("ADBE Vector Shape - Group").property("ADBE Vector Shape").setValue(spike);
     } else {
         var rect = inside.addProperty("ADBE Vector Shape - Rect");
         rect.property("ADBE Vector Rect Size").setValue([row.swatch.width, row.swatch.height]);

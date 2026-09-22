@@ -873,6 +873,24 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D50 — Spikes: height stands for the value, rising up the frame (2026-09-23)
+
+- **Why.** Bubbles show a value by area, which the eye reads roughly; a spike shows it by length,
+  which the eye reads well, and a hundred spikes fit where a hundred circles would overlap. The
+  plan (P8) lists spikes as one of the five map types.
+- **Shape.** A spike is an isosceles triangle on a fixed base (12 px at 1080 lines), without an outline (on a base that narrow a stroke is all that shows), whose height
+  follows the value linearly, with a floor so a tiny value still shows and a cap of two hundred
+  spikes, largest first (core/style/spikes.ts). No square root: length is read straight, unlike area.
+- **Up the frame, not up the globe.** Every spike rises straight up the comp from its place, on any
+  tilt of the camera, as a billboard would. A spike rising along the globe’s normal would need a
+  second projected point per spike on every frame and would lean out of the frame at the edges of
+  a tilted view; a screen-up spike is cheaper, reads the same everywhere, and is how spike maps
+  are usually drawn.
+- **One layer.** Like the bubbles: one shape layer per map ("Spikes: column"), a group per place
+  with the place’s position expression, the accent colour or the step colours of the data fill,
+  tagged `spikes` so a rebuild replaces it and Remove finds it. The legend gains a third kind of
+  swatch, a triangle of the spike’s own width and height, in the same column as the circles.
+
 ## D49 — Layers named after places; flows in step colours (2026-09-23)
 
 - **Why.** A layer list of "Pin 1 … Pin 12" and "Route 3" says nothing about what is where; a

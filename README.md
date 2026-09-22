@@ -74,7 +74,8 @@ Dhaka to Chittagong with an arrow, say:
   film; a look can be saved to a file, shared, and opened again, and Illustrator or Photoshop
   palettes (.ase, .act) open straight into one.
 - **Numbers on the map.** A CSV with a country column (or one country's states and provinces) and a
-  column of numbers colours every place it names as one layer, adds circles whose area is the value,
+  column of numbers colours every place it names as one layer, adds circles whose area is the value
+  or spikes whose height is, draws flows between places as arcs whose width (and colour) is the amount,
   writes the numbers as text layers, and builds a legend precomp. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.

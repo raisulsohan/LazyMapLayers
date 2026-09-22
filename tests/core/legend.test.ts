@@ -85,3 +85,24 @@ test("a legend of sizes alone is as wide as its circles", () => {
   assert.equal(layout.rows.length, 1);
   assert.equal(Math.round(layout.width), Math.round(22 * 2 + 60 + 12 + 50));
 });
+
+test("a legend of spike heights draws triangles in the same column as the circles", () => {
+  const sizes = [
+    { spike: { width: 10, height: 120 }, label: "1,000", width: 80 },
+    { spike: { width: 10, height: 60 }, label: "500", width: 60 },
+    { radius: 20, label: "250", width: 60 }
+  ];
+  const layout = legendLayout(rows, { height: 1080, title: "People", titleWidth: 80, sizes, sizeColor: "#ff9d2e" });
+  assert.deepEqual(layout.rows.map((row) => row.shape), ["rect", "rect", "rect", "spike", "spike", "circle"]);
+  const spike = layout.rows[3];
+  assert.equal(spike.swatch.width, 10);
+  assert.equal(spike.swatch.height, 120);
+  assert.equal(spike.color, "#ff9d2e");
+  // Every swatch is centred in the one column, and a spike takes the room its height needs.
+  const centres = layout.rows.map((row) => Math.round((row.swatch.x + row.swatch.width / 2) * 100) / 100);
+  assert.equal(new Set(centres).size, 1, "swatches are not in one column: " + centres.join(", "));
+  assert.ok(layout.rows[4].swatch.y >= spike.swatch.y + 120 - 0.001, JSON.stringify([spike.swatch, layout.rows[4].swatch]));
+  for (const row of layout.rows) {
+    assert.ok(row.swatch.y + row.swatch.height <= layout.height - layout.padding + 0.001, JSON.stringify(row.swatch));
+  }
+});

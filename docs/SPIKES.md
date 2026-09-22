@@ -27,7 +27,7 @@ that go online run only when they are named.
 | SL1 | Outlines as editable shape layers: the drawn shape covers the rendered country to 98 % | PASS |
 | AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back | PASS |
 | ST1 | The style of the generated layers, and the callout font | PASS |
-| DT1 | Numbers on the map: the join, the colours in the rendered pixels, bubbles 0.000 px off their places, the numbers as text layers, and the legend | PASS |
+| DT1 | Numbers on the map: the join, the colours in the rendered pixels, bubbles and spikes 0.000 px off their places, the numbers as text layers, and the legend | PASS |
 | LK1 | A look of your own in the rendered pixels (sea 58,13,82 for #3a0d52), and a look from a picture | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool | PASS |
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |

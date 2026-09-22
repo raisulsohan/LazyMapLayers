@@ -23,8 +23,8 @@ export type LegendOptions = {
   template?: LabelTemplate | null;
   /** A title of your own; without one the column's name is used. */
   title?: string;
-  /** Circles for the bubbles on the map, largest first, with their radii in comp pixels. */
-  sizes?: { radius: number; label: string }[];
+  /** Circles for the bubbles on the map and spikes for the spikes, largest first, in comp pixels. */
+  sizes?: { radius?: number; spike?: { width: number; height: number }; label: string }[];
 };
 
 export type LegendResult = { name: string; comp: string; rows: number; removed: number };
@@ -42,7 +42,7 @@ export async function addLegend(mapId: string, fill: DataFill, options: LegendOp
   const titleSize = 26 * scale;
   const rowSize = 20 * scale;
   const rows = colours.legend.map((step) => ({ color: step.color, label: step.label, width: measure(step.label, "latin", rowSize, 400, 0) }));
-  const sizes: LegendSize[] = (options.sizes ?? []).map((size) => ({ radius: size.radius, label: size.label, width: measure(size.label, "latin", rowSize, 400, 0) }));
+  const sizes: LegendSize[] = (options.sizes ?? []).map((size) => ({ radius: size.radius, spike: size.spike, label: size.label, width: measure(size.label, "latin", rowSize, 400, 0) }));
   const layout = legendLayout(rows, { height: info.height, title, titleWidth: measure(title, script, titleSize, 600, 0), sizes, sizeColor: look.accent });
   const position = legendPosition(layout, { width: info.width, height: info.height }, options.corner ?? "bottomLeft");
   return callHost<LegendResult>("addLegend", {
@@ -63,8 +63,8 @@ export async function addLegend(mapId: string, fill: DataFill, options: LegendOp
       swatch: row.swatch,
       text: row.text,
       shape: row.shape,
-      // A circle stands for a bubble on the map, which is drawn see-through as well.
-      fillOpacity: row.shape === "circle" ? 70 : 100,
+      // A circle stands for a bubble on the map and a spike for a spike, each as see-through as there.
+      fillOpacity: row.shape === "circle" ? 70 : row.shape === "spike" ? 90 : 100,
       radius: Math.round(2 * layout.scale)
     }))
   });
