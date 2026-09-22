@@ -510,6 +510,14 @@ async function runUiScenario() {
   const hide2d = `(function(){ var c = app.project.activeItem; for (var i = 1; i <= c.numLayers; i++) { var t = LML.tag.read(c.layer(i)); if (t && t.kind === "pin" && !t.threeD) c.layer(i).enabled = false; } c.saveFrameToPng(0, new File("${frame3d}")); return "1"; })()`;
   await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript(${JSON.stringify(hide2d)}, resolve))`);
   for (let i = 0; i < 60 && !fs.existsSync(frame3d); i++) await sleep(250);
+  // The numbers sample: a data map from the bundled populations, built in one click.
+  await click("maps");
+  await sleep(300);
+  await click("sample-numbers");
+  await idle();
+  console.log(`U1 numbers sample: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-4)"))}`);
+  await sleep(800);
+  await shot("08-numbers-sample");
   console.log(["UI log:", (await panel.evaluate("window.lmlDebug.log()")).join(String.fromCharCode(10))].join(String.fromCharCode(10)));
   panel.close();
 }

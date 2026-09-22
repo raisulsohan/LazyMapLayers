@@ -94,6 +94,11 @@ Dhaka to Chittagong with an arrow, say:
   third, a top bar, or whatever your own layers cover while they are on screen.
 - **Areas of your own.** Merge the highlights into one shape with the borders between them gone, grow
   or shrink them by a distance in kilometres, or drop a distance circle.
+- **Twelve looks, and their details.** Noir, Slate, Terracotta, Arctic and Emerald join the seven, and
+  three knobs under the colours turn the lines and roads heavier or lighter and draw fewer or more
+  names, in every look, in the preview and the render alike.
+- **What is here.** A readout under the pointer: the coordinates, the nearest place, its district and
+  province, and the country, offline. Pins and routes are named after their places.
 
 ### From 0.2, and the work since
 

@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **The numbers sample.** Maps list > Build the numbers sample: a world map of every country by its
+  population from the bundled data, with the colours, spikes for the numbers and a legend, ready to
+  render - a data map to take apart before bringing your own CSV.
 - **New versions, and problems.** The panel looks at the release list on GitHub once a day and says
   when a newer version is out (Get it / Later); the Maps screen has the switch to turn that off, and
   it is one request that sends nothing. Report a problem writes a text file with the panel's last

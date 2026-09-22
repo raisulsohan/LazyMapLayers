@@ -42,6 +42,10 @@ YOUR FIRST MAP IN A MINUTE
      imported into the map comp.
   3. Press play (or render with After Effects as usual).
 
+  "Build the numbers sample", next to it, makes a data map:
+  every country coloured by its population, spikes for the
+  numbers and a legend. Take it apart, then bring your own CSV.
+
   For the street-level ending, move the preview over Paris,
   click the download button (arrow, top right), name it  paris ,
   and do the same for Tokyo ( tokyo ). Then build the sample

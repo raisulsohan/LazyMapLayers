@@ -6,7 +6,7 @@ import { useEffect, useState } from "preact/hooks";
 import { callHost, isInCep } from "../cep.ts";
 import { compSize } from "../preview.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
-import { hostInfo, reportProblem, setUpdatesOn, updatesOn } from "../store.ts";
+import { buildNumbersSample, hostInfo, reportProblem, setUpdatesOn, updatesOn } from "../store.ts";
 import { openUrl } from "../cep.ts";
 import { RELEASES_URL } from "../updates.ts";
 import { formatTime } from "../shots/shotsStore.ts";
@@ -60,6 +60,9 @@ export function MapsScreen(): JSX.Element {
         <div class="section-title">Sample</div>
         <button class="wide" disabled={busy.value} onClick={() => void buildSample()} title="A globe-to-Paris-to-Tokyo flight with borders, labels, pins, callouts and a route">
           <Icon name="plane" size={12} /> Build the world flight sample
+        </button>
+        <button class="wide" data-id="sample-numbers" disabled={busy.value} onClick={() => void buildNumbersSample()} title="A world map of every country by its population, from the bundled data: the colours, spikes for the numbers and a legend, ready to render">
+          <Icon name="download" size={12} /> Build the numbers sample
         </button>
         <div class="section-title">About</div>
         <div class="muted small" data-id="about-versions">{hostInfo.value || "LazyMapLayers"}</div>

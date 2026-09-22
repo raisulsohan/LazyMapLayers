@@ -1285,6 +1285,33 @@ export const buildSample = () =>
     await refreshMaps(true);
   });
 
+/** A data map from the bundled data alone: every country coloured by its population, spikes for the numbers, a legend. */
+export const buildNumbersSample = () =>
+  run("sample", async () => {
+    progress.value = { label: "Building the numbers sample", done: 0, total: 1 };
+    const countries = placeIndex().records.filter((record) => record.kind === "country" && record.population > 0 && record.names.en);
+    const table = readDataTable(
+      [["Country", "Population (millions)"], ...countries.map((record) => [record.names.en as string, String(Math.round(record.population / 1e5) / 10)])],
+      "population.csv"
+    );
+    if (!table) {
+      log("the bundled data has no populations to show", "fail");
+      return;
+    }
+    await createMapComp({ name: "Numbers sample", width: 1920, height: 1080, duration: 10, frameRate: 25, view: { center: { lat: 22, lng: 12 }, zoom: 1.55, bearing: 0, pitch: 0 }, newScene: true });
+    await refreshMaps(true);
+    openDataTable(table);
+    dataLevel.value = "country";
+    dataSteps.value = 5;
+    await applyDataFillNow();
+    spikeHeight.value = 140;
+    await addDataSpikesNow();
+    legendCorner.value = "bottomLeft";
+    await addDataLegendNow();
+    log("numbers sample built: every country by its population, spikes for the numbers, a legend. Render to see the colours; try bubbles, heat or your own CSV in the Numbers sheet", "ok");
+    screen.value = "main";
+  });
+
 export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
@@ -1501,42 +1528,43 @@ function countryName(code: string | null): string {
 }
 
 /** Colours the map by the chosen column, and keeps the numbers with the map. */
-export const applyDataFill = () =>
-  run("data on the map", async () => {
-    const table = dataTable.value;
-    if (!table) return;
-    const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
-    const found = joinTable(rows);
-    const result = found.result;
-    dataCountry.value = found.country;
-    dataMessage.value = `${levelPrefix(found)}${describeJoin(result, rows.length)}`;
-    if (!result.matched.length) {
-      log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country or a province`, "fail");
-      return;
-    }
-    const fill: DataFill = {
-      column: table.headings[dataValueColumn.value] || "Value",
-      level: found.level,
-      country: found.country,
-      values: Object.fromEntries(result.matched.map((row) => [row.code, row.value])),
-      ramp: dataRamp.value,
-      steps: dataSteps.value,
-      method: dataMethod.value,
-      opacity: dataOpacity.value,
-      outline: 0,
-      outlineColor: DEFAULT_DATA_FILL.outlineColor,
-      noData: dataNoData.value,
-      // A dark map reads a pale country as "much"; the ramp is turned over so it does not.
-      reverse: dataReverse.value ?? currentTheme.value.dark
-    };
-    dataFill.value = normaliseDataFill(fill);
-    if (selectedId.value) {
-      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
-      await readMaps();
-    }
-    const colours = dataFillColors(dataFill.value!);
-    log(`${describeDataFill(dataFill.value!, colours)}. Render to get it as its own layer above the basemap${result.unmatched.length ? `; ${result.unmatched.length} rows found no country` : ""}`, "ok");
-  });
+export const applyDataFill = () => run("data on the map", applyDataFillNow);
+
+async function applyDataFillNow(): Promise<void> {
+  const table = dataTable.value;
+  if (!table) return;
+  const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+  const found = joinTable(rows);
+  const result = found.result;
+  dataCountry.value = found.country;
+  dataMessage.value = `${levelPrefix(found)}${describeJoin(result, rows.length)}`;
+  if (!result.matched.length) {
+    log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country or a province`, "fail");
+    return;
+  }
+  const fill: DataFill = {
+    column: table.headings[dataValueColumn.value] || "Value",
+    level: found.level,
+    country: found.country,
+    values: Object.fromEntries(result.matched.map((row) => [row.code, row.value])),
+    ramp: dataRamp.value,
+    steps: dataSteps.value,
+    method: dataMethod.value,
+    opacity: dataOpacity.value,
+    outline: 0,
+    outlineColor: DEFAULT_DATA_FILL.outlineColor,
+    noData: dataNoData.value,
+    // A dark map reads a pale country as "much"; the ramp is turned over so it does not.
+    reverse: dataReverse.value ?? currentTheme.value.dark
+  };
+  dataFill.value = normaliseDataFill(fill);
+  if (selectedId.value) {
+    await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+    await readMaps();
+  }
+  const colours = dataFillColors(dataFill.value!);
+  log(`${describeDataFill(dataFill.value!, colours)}. Render to get it as its own layer above the basemap${result.unmatched.length ? `; ${result.unmatched.length} rows found no country` : ""}`, "ok");
+}
 
 /** Changes how the numbers are coloured, and redraws them at once. */
 /** Changes what the rows are taken to be about, and joins again. */
@@ -1664,31 +1692,32 @@ export const removeDataBubbles = () =>
   });
 
 /** Numbers as spikes on the map, as one editable layer: the height of a spike stands for its value. */
-export const addDataSpikes = () =>
-  run("spikes", async () => {
-    const fill = dataFill.value;
-    if (!fill || !selectedId.value) {
-      log("colour the map by a table first", "muted");
-      return;
-    }
-    const places = placesOfFill(fill);
-    if (!places.length) {
-      log("none of these places has a point to put a spike on", "fail");
-      return;
-    }
-    const made = await addSpikes(selectedId.value, fill, places, {
-      theme: currentTheme.value,
-      style: currentLayerStyle.value,
-      byColour: spikeColoured.value,
-      maxHeight: spikeHeight.value
-    });
-    spikesOn.value = true;
-    const dropped = made.set.dropped ? `, ${made.set.dropped} smaller ones left out` : "";
-    log(
-      `"${made.name}": ${made.spikes} spikes, the tallest standing for ${made.set.legend[0]?.label ?? ""}${dropped}. They follow the map; restyle or animate each one in the layer`,
-      made.expressionErrors.length ? "fail" : "ok"
-    );
+export const addDataSpikes = () => run("spikes", addDataSpikesNow);
+
+async function addDataSpikesNow(): Promise<void> {
+  const fill = dataFill.value;
+  if (!fill || !selectedId.value) {
+    log("colour the map by a table first", "muted");
+    return;
+  }
+  const places = placesOfFill(fill);
+  if (!places.length) {
+    log("none of these places has a point to put a spike on", "fail");
+    return;
+  }
+  const made = await addSpikes(selectedId.value, fill, places, {
+    theme: currentTheme.value,
+    style: currentLayerStyle.value,
+    byColour: spikeColoured.value,
+    maxHeight: spikeHeight.value
   });
+  spikesOn.value = true;
+  const dropped = made.set.dropped ? `, ${made.set.dropped} smaller ones left out` : "";
+  log(
+    `"${made.name}": ${made.spikes} spikes, the tallest standing for ${made.set.legend[0]?.label ?? ""}${dropped}. They follow the map; restyle or animate each one in the layer`,
+    made.expressionErrors.length ? "fail" : "ok"
+  );
+}
 
 export const removeDataSpikes = () =>
   run("spikes", async () => {
@@ -1946,28 +1975,29 @@ export const removeDataValues = () =>
   });
 
 /** Builds the legend of the numbers as a precomp in the scene, where the designer can move it. */
-export const addDataLegend = () =>
-  run("legend", async () => {
-    const fill = dataFill.value;
-    if (!fill || !selectedId.value) {
-      log("colour the map by a table first", "muted");
-      return;
-    }
-    const compHeight = (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080;
-    const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: compHeight }).legend : [];
-    const withSpikes = spikesOn.value ? spikeSet(placesOfFill(fill), { maxHeight: spikeHeight.value, height: compHeight }) : null;
-    const made = await addLegend(selectedId.value, fill, {
-      theme: currentTheme.value,
-      style: currentLayerStyle.value,
-      template: currentLabelTemplate.value,
-      corner: legendCorner.value,
-      sizes: [
-        ...withBubbles.map((step) => ({ radius: step.radius, label: step.label })),
-        ...(withSpikes ? withSpikes.legend.map((step) => ({ spike: { width: withSpikes.width, height: step.height }, label: step.label })) : [])
-      ]
-    });
-    log(`"${made.name}" added to the scene (${made.rows} steps). It is an ordinary precomp: move it, restyle it, animate it`, "ok");
+export const addDataLegend = () => run("legend", addDataLegendNow);
+
+async function addDataLegendNow(): Promise<void> {
+  const fill = dataFill.value;
+  if (!fill || !selectedId.value) {
+    log("colour the map by a table first", "muted");
+    return;
+  }
+  const compHeight = (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080;
+  const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: compHeight }).legend : [];
+  const withSpikes = spikesOn.value ? spikeSet(placesOfFill(fill), { maxHeight: spikeHeight.value, height: compHeight }) : null;
+  const made = await addLegend(selectedId.value, fill, {
+    theme: currentTheme.value,
+    style: currentLayerStyle.value,
+    template: currentLabelTemplate.value,
+    corner: legendCorner.value,
+    sizes: [
+      ...withBubbles.map((step) => ({ radius: step.radius, label: step.label })),
+      ...(withSpikes ? withSpikes.legend.map((step) => ({ spike: { width: withSpikes.width, height: step.height }, label: step.label })) : [])
+    ]
   });
+  log(`"${made.name}" added to the scene (${made.rows} steps). It is an ordinary precomp: move it, restyle it, animate it`, "ok");
+}
 
 export const removeDataLegend = () =>
   run("legend", async () => {
