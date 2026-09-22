@@ -807,3 +807,18 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** Unit tests write an `.ase` byte for byte the way Illustrator does and read it back,
   including a Bengali swatch name, Lab and CMYK conversions and a padded `.act`; U1 hands the panel
   an `.ase` built in the page and checks the look it makes.
+
+## D44 — A render belongs to one map of one project (2026-09-22)
+
+- **What happened.** Sohan's release test of 0.3 showed four red lines: `MAP_NOT_FOUND: No map layer
+  with id mmu5y2li9bo0rvp (line 30)`. The render queue is saved in the user data folder, not in the
+  project, so a job built in one project came back in another, where that map does not exist. The
+  error was true and useless.
+- **Decision.** The queue is told which maps the open project holds every time the panel reads them
+  (`markMissingMaps`, called from `readMaps`). A job whose map is not there is marked, taken out of
+  the waiting line, and shown as "The map this render belongs to is not in the project that is open
+  now. Open that project to render it again, or remove this job." - with no Resume button, because
+  resuming could only fail. It is not deleted: opening that project again brings it back to life,
+  and its cached frames are still there.
+- **Also.** A render that fails with MAP_NOT_FOUND mid-way (the project was closed, or the map layer
+  was deleted) now says the same sentence instead of the error code.

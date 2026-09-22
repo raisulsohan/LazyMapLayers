@@ -2,6 +2,7 @@
 
 import type { JSX } from "preact";
 import { PASS_IDS, PASS_INFO } from "../../core/render/passes.ts";
+import { MAP_GONE } from "../render/renderJob.ts";
 import { describeSpec, renderQueue } from "../render/renderQueue.ts";
 import { jobs, renderSettings, selected, togglePass, updateRenderSettings } from "../store.ts";
 import { Icon } from "./icons.tsx";
@@ -76,7 +77,7 @@ export function RenderTab(): JSX.Element {
                   Cancel
                 </button>
               )}
-              {(job.status === "interrupted" || job.status === "cancelled" || job.status === "failed") && (
+              {!job.missing && (job.status === "interrupted" || job.status === "cancelled" || job.status === "failed") && (
                 <button class="small-button" onClick={() => renderQueue.resume(job.id)} title="Continue; frames already rendered are reused">
                   Resume
                 </button>
@@ -96,7 +97,13 @@ export function RenderTab(): JSX.Element {
               </div>
             )}
             {job.summary && <div class="small muted">{job.summary}</div>}
-            {job.error && <div class="small warning">{job.error}</div>}
+            {job.missing ? (
+              <div class="small muted" title="Open the project this map is in to render it again, or remove this job.">
+                {MAP_GONE}. Open that project to render it again, or remove this job.
+              </div>
+            ) : (
+              job.error && <div class="small warning">{job.error}</div>
+            )}
           </div>
         ))}
       </div>

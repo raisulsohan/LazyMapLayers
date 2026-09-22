@@ -79,6 +79,9 @@ export type RenderJobResult = {
   cameraLifted: number;
 };
 
+/** The map of a render is gone: the project was closed, or the map layer was deleted. */
+export const MAP_GONE = "The map this render belongs to is not in the project that is open now";
+
 export class RenderCancelled extends Error {
   constructor() {
     super("render cancelled");

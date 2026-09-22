@@ -3,7 +3,7 @@
 // that was already cached, so it continues where it stopped.
 
 import { fs, isInCep, path, userDataDir } from "../cep.ts";
-import { RenderCancelled, runRenderJob, type RenderJobResult, type RenderJobSpec, type RenderProgress } from "./renderJob.ts";
+import { MAP_GONE, RenderCancelled, runRenderJob, type RenderJobResult, type RenderJobSpec, type RenderProgress } from "./renderJob.ts";
 
 export type QueueStatus = "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted";
 
@@ -17,6 +17,8 @@ export type QueueJob = {
   error: string | null;
   addedAt: number;
   finishedAt: number | null;
+  /** The map this render belongs to is not in the project that is open now. */
+  missing?: boolean;
 };
 
 export type QueueEvent = { job: QueueJob; result?: RenderJobResult };
@@ -67,6 +69,30 @@ export class RenderQueue {
     } catch {
       // The queue still works in memory.
     }
+  }
+
+  /**
+   * Says which maps the open project holds. A render belongs to one map of one project, so a job
+   * whose map is not there cannot run: it is marked instead of being offered a Resume that would
+   * only fail. Jobs come back when their project is opened again.
+   */
+  markMissingMaps(known: string[]): void {
+    const ids = new Set(known);
+    let changed = false;
+    for (const job of this.jobs) {
+      const missing = !ids.has(job.spec.mapId);
+      if (!!job.missing !== missing) {
+        job.missing = missing;
+        changed = true;
+      }
+      // A job that cannot run must not sit waiting for its turn.
+      if (missing && (job.status === "queued" || job.status === "running")) {
+        job.status = "interrupted";
+        job.progress = null;
+        changed = true;
+      }
+    }
+    if (changed) this.notify();
   }
 
   subscribe(listener: (event?: QueueEvent) => void): () => void {
@@ -183,8 +209,12 @@ export class RenderQueue {
             job.status = "cancelled";
             job.summary = "cancelled; frames rendered so far are kept";
           } else {
+            const message = error instanceof Error ? error.message : String(error);
             job.status = "failed";
-            job.error = error instanceof Error ? error.message : String(error);
+            // A missing map is not a broken render: the project it belongs to is not the open one.
+            const gone = message.includes("MAP_NOT_FOUND") || message.includes("No map layer with id");
+            job.missing = gone || job.missing;
+            job.error = gone ? MAP_GONE : message;
           }
         } finally {
           this.controller = null;

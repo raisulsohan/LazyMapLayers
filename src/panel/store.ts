@@ -289,6 +289,10 @@ function showMap(entry: MapEntry): void {
 export async function readMaps(): Promise<MapEntry[]> {
   const list = await callHost<MapEntry[]>("listMaps");
   maps.value = list;
+  // A render belongs to one map of one project; the queue is told which maps are here, so a job
+  // from another project waits quietly instead of failing.
+  renderQueue.markMissingMaps(list.map((entry) => entry.mapId));
+  jobs.value = [...renderQueue.jobs];
   return list;
 }
 
