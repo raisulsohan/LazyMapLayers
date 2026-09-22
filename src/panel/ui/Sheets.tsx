@@ -35,7 +35,7 @@ import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
-import { addDataLegend, applyDataFill, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataLegend, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -307,7 +307,7 @@ export function DataSheetView(): JSX.Element | null {
           </label>
         )}
       </div>
-      <div class="sheet-row import-row">
+      <div class="sheet-row">
         <label class="num-field" title="The colours the steps run through">
           <select data-id="data-ramp" value={dataRamp.value} disabled={busy.value} onChange={(e) => void changeDataFill({ ramp: (e.target as HTMLSelectElement).value as RampId })}>
             {RAMPS.map((ramp) => (
@@ -347,7 +347,23 @@ export function DataSheetView(): JSX.Element | null {
         </div>
       )}
       {dataMessage.value && <div class="muted small">{dataMessage.value}</div>}
-      <div class="sheet-row import-row">
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-bubbles-add" disabled={busy.value || !fill} title="Numbers as circles on the map, as one layer: the area of a circle stands for its value. Every circle has its own transform to animate." onClick={() => void addDataBubbles()}>
+          Add bubbles
+        </button>
+        <label class="num-field" title="The largest circle, in pixels at 1080 lines">
+          <input type="number" min={6} max={200} step={2} data-id="bubble-size" value={bubbleSize.value} disabled={busy.value} onChange={(e) => (bubbleSize.value = Math.max(6, Math.min(200, Number((e.target as HTMLInputElement).value) || 44)))} />
+          <span class="muted">px</span>
+        </label>
+        <label class="check" title="Colour each circle by its step as well, instead of the one accent colour">
+          <input type="checkbox" data-id="bubble-coloured" checked={bubbleColoured.value} disabled={busy.value} onChange={(e) => (bubbleColoured.value = (e.target as HTMLInputElement).checked)} />
+          <span>In step colours</span>
+        </label>
+        <button class="small-button" data-id="data-bubbles-remove" disabled={busy.value} title="Takes the circles off the map" onClick={() => void removeDataBubbles()}>
+          Remove bubbles
+        </button>
+      </div>
+      <div class="sheet-row">
         <button class="small-button" data-id="data-legend-add" disabled={busy.value || !fill} title="Adds the legend to the scene as a precomp: a background, the title and one row per step. Move it, restyle it or animate it like any layer." onClick={() => void addDataLegend()}>
           Add legend
         </button>

@@ -19,6 +19,10 @@
   a legend in the sheet. **Add legend** puts that legend into the scene as an ordinary precomp - a
   background, the title and one row per step, all real layers you can move, restyle or animate. On a
   dark map the ramp starts turned over, so the big numbers are the bright ones.
+- **Numbers as bubbles.** **Add bubbles** puts a circle on every place, its area standing for the
+  value, as one layer with a group per circle: they follow the camera like a pin and each one can be
+  animated on its own. The legend then shows three circle sizes under the colour steps, so a viewer
+  can read them.
 - **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
   puts every highlighted country, province, district or imported area together as a single shape
   with the borders between them gone (the European Union as one outline, not twenty-seven);

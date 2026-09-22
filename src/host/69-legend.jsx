@@ -24,16 +24,25 @@ LML.legend.removeTagged = function (scene, mapId) {
     return removed;
 };
 
+/** One swatch: a rounded rectangle, or a circle when the row says so (a bubble legend). */
 LML.legend.rectGroup = function (contents, row) {
     var group = contents.addProperty("ADBE Vector Group");
     group.name = row.label || "Step";
     var inside = group.property("ADBE Vectors Group");
-    var rect = inside.addProperty("ADBE Vector Shape - Rect");
-    rect.property("ADBE Vector Rect Size").setValue([row.swatch.width, row.swatch.height]);
-    rect.property("ADBE Vector Rect Position").setValue([row.swatch.x + row.swatch.width / 2, row.swatch.y + row.swatch.height / 2]);
-    rect.property("ADBE Vector Rect Roundness").setValue(row.radius || 0);
+    var middle = [row.swatch.x + row.swatch.width / 2, row.swatch.y + row.swatch.height / 2];
+    if (row.shape === "circle") {
+        var ellipse = inside.addProperty("ADBE Vector Shape - Ellipse");
+        ellipse.property("ADBE Vector Ellipse Size").setValue([row.swatch.width, row.swatch.height]);
+        ellipse.property("ADBE Vector Ellipse Position").setValue(middle);
+    } else {
+        var rect = inside.addProperty("ADBE Vector Shape - Rect");
+        rect.property("ADBE Vector Rect Size").setValue([row.swatch.width, row.swatch.height]);
+        rect.property("ADBE Vector Rect Position").setValue(middle);
+        rect.property("ADBE Vector Rect Roundness").setValue(row.radius || 0);
+    }
     var fill = inside.addProperty("ADBE Vector Graphic - Fill");
     fill.property("ADBE Vector Fill Color").setValue(row.color);
+    if (row.fillOpacity !== undefined) fill.property("ADBE Vector Fill Opacity").setValue(row.fillOpacity);
     return group;
 };
 
@@ -86,6 +95,8 @@ LML.api.addLegend = function (args) {
                 label: args.rows[i].label,
                 color: args.rows[i].color,
                 swatch: args.rows[i].swatch,
+                shape: args.rows[i].shape,
+                fillOpacity: args.rows[i].fillOpacity,
                 radius: args.rows[i].radius || 0
             });
         }

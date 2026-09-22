@@ -1,7 +1,11 @@
 // Where the parts of a legend sit. The panel measures the text (only a browser can), core works out
 // the box, the swatches and the baselines, and the host builds the layers from these numbers.
+//
+// A legend can show colours (a square per step), sizes (a circle per size, for bubbles), or both.
 
 export type LegendRow = { color: string; label: string; width: number };
+/** A size of bubble and what it stands for; the radius is already in comp pixels. */
+export type LegendSize = { radius: number; label: string; width: number };
 
 export type LegendOptions = {
   /** Comp height in pixels; every size here is for 1080 lines and scales with it. */
@@ -11,6 +15,20 @@ export type LegendOptions = {
   /** Size of the title and of a row, in 1080-line pixels. */
   titleSize?: number;
   rowSize?: number;
+  /** Circles for a bubble legend, largest first. */
+  sizes?: LegendSize[];
+  /** The colour the circles are drawn in. */
+  sizeColor?: string;
+};
+
+export type LegendItem = {
+  color: string;
+  label: string;
+  shape: "rect" | "circle";
+  /** The box the shape fills: for a circle, the square around it. */
+  swatch: { x: number; y: number; width: number; height: number };
+  text: { x: number; y: number };
+  size: number;
 };
 
 export type LegendLayout = {
@@ -19,7 +37,7 @@ export type LegendLayout = {
   scale: number;
   /** Text baseline of the title, from the top left of the box. */
   title: { x: number; y: number; size: number };
-  rows: { color: string; label: string; swatch: { x: number; y: number; width: number; height: number }; text: { x: number; y: number }; size: number }[];
+  rows: LegendItem[];
   padding: number;
   radius: number;
 };
@@ -42,22 +60,42 @@ export function legendLayout(rows: LegendRow[], options: LegendOptions): LegendL
   const swatchGap = SWATCH_GAP * scale;
   const rowGap = ROW_GAP * scale;
   const rowHeight = Math.max(swatch, rowSize * 1.2);
+  const sizes = options.sizes ?? [];
+  const biggest = sizes.reduce((most, size) => Math.max(most, size.radius), 0);
+  // One column for every swatch, wide enough for the largest circle as well.
+  const column = Math.max(swatch, biggest * 2);
   const hasTitle = !!options.title.trim();
   const titleHeight = hasTitle ? titleSize * 1.15 + TITLE_GAP * scale : 0;
-  const widest = rows.reduce((most, row) => Math.max(most, row.width), 0);
-  const width = padding * 2 + Math.max(hasTitle ? options.titleWidth : 0, swatch + swatchGap + widest);
-  const height = padding * 2 + titleHeight + rows.length * rowHeight + Math.max(0, rows.length - 1) * rowGap;
-  const laid: LegendLayout["rows"] = rows.map((row, index) => {
-    const top = padding + titleHeight + index * (rowHeight + rowGap);
-    return {
+  const widest = Math.max(rows.reduce((most, row) => Math.max(most, row.width), 0), sizes.reduce((most, size) => Math.max(most, size.width), 0));
+  const width = padding * 2 + Math.max(hasTitle ? options.titleWidth : 0, column + swatchGap + widest);
+
+  const laid: LegendItem[] = [];
+  let top = padding + titleHeight;
+  for (const row of rows) {
+    laid.push({
       color: row.color,
       label: row.label,
-      swatch: { x: padding, y: top + (rowHeight - swatch) / 2, width: swatch, height: swatch },
+      shape: "rect",
+      swatch: { x: padding + (column - swatch) / 2, y: top + (rowHeight - swatch) / 2, width: swatch, height: swatch },
       // The baseline sits a little above the middle of the row, where text looks centred.
-      text: { x: padding + swatch + swatchGap, y: top + rowHeight / 2 + rowSize * 0.36 },
+      text: { x: padding + column + swatchGap, y: top + rowHeight / 2 + rowSize * 0.36 },
       size: rowSize
-    };
-  });
+    });
+    top += rowHeight + rowGap;
+  }
+  for (const size of sizes) {
+    const height = Math.max(rowHeight, size.radius * 2);
+    laid.push({
+      color: options.sizeColor ?? "#ffffff",
+      label: size.label,
+      shape: "circle",
+      swatch: { x: padding + column / 2 - size.radius, y: top + height / 2 - size.radius, width: size.radius * 2, height: size.radius * 2 },
+      text: { x: padding + column + swatchGap, y: top + height / 2 + rowSize * 0.36 },
+      size: rowSize
+    });
+    top += height + rowGap;
+  }
+  const height = laid.length ? top - rowGap + padding : padding * 2 + titleHeight;
   return { width, height, scale, title: { x: padding, y: padding + titleSize * 0.85, size: titleSize }, rows: laid, padding, radius: 8 * scale };
 }
 

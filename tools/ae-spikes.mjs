@@ -306,7 +306,17 @@ async function runUiScenario() {
   );
   console.log(`U1 data join: ${joinText}`);
   console.log(`U1 data fill: ${dataState}`);
+  await click("data-bubbles-add");
+  await idle();
+  await click("data-legend-add");
+  await idle();
+  console.log(`U1 bubbles: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-2)"))}`);
+  await sleep(800);
   await shot("07j-data");
+  await click("data-bubbles-remove");
+  await idle();
+  await click("data-legend-remove");
+  await idle();
   await click("data-clear");
   await idle();
   await click("data-close");

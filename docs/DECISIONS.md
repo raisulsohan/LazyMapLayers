@@ -731,6 +731,26 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   so a map file stays small and a data update cannot leave stale outlines behind.
 - **Districts do not join yet.** They are a download per country and have no stable codes; said in
   the sheet rather than half done.
+
+## D41 — Numbers as bubbles, and a legend that shows their sizes (2026-09-22)
+
+- **Area, not width.** A circle twice as wide looks four times as big, so the radius follows the
+  square root of the value (`src/core/style/bubbles.ts`). A value of zero or less draws nothing: a
+  circle cannot show "none", and a dot of no size is only noise. The smallest value still gets a
+  floor radius so it can be seen.
+- **One layer, one group per place.** A bubble per layer would mean two hundred layers in a comp.
+  Instead the host builds a single shape layer whose groups each carry an ellipse and their own
+  transform, and each group's position is the same expression a pin uses, so every bubble follows
+  the camera and can still be animated on its own. Measured in After Effects: a bubble sits within
+  0.000 px of the place the camera maths gives (DT1).
+- **Sixty at a time.** More circles than that is not a map a designer is reading, and every one costs
+  an expression per frame; the rest are left out, largest first, and the log says how many.
+- **The legend grows a second half.** When a map has bubbles the legend adds three circles - the
+  largest value, a quarter of it and a sixteenth, which are half and a quarter as wide - under the
+  colour steps, in the same precomp. The swatches line up in one column whatever their size.
+- **Colour is the accent, unless asked.** Bubbles take the map's accent colour so they read against
+  any look; "In step colours" gives each one the colour of its step instead, for a map that shows
+  the same number twice over.
 - **Tested.** Unit tests for the table, the join against the real bundled data, the scale and the
   legend layout; DT1 in After Effects joins four countries (one by its Japanese name, one by code),
   renders the pass, checks the colours on the map itself, builds the legend, replaces it and removes

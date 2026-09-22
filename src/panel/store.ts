@@ -20,10 +20,11 @@ import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/st
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
-import { countryOfProvince, provinceJoinTargets } from "./data/admin1.ts";
+import { countryOfProvince, provinceJoinTargets, provincePoint } from "./data/admin1.ts";
 import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
@@ -44,6 +45,7 @@ import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo, selectionInfo, setView, type SelectionInfo } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
+import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
@@ -1367,6 +1369,73 @@ export const clearDataFill = () =>
     log("the numbers are off the map", "ok");
   });
 
+/** How big the largest bubble is, in 1080-line pixels, and whether the bubbles take the ramp's colours. */
+export const bubbleSize = signal(44);
+export const bubbleColoured = signal(false);
+/** Whether this map has bubbles now, so the legend can show their sizes too. */
+export const bubblesOn = signal(false);
+
+/** Where each value sits on the map: a country's label point, or a province's. */
+function placesOfFill(fill: DataFill): BubblePlace[] {
+  const places: BubblePlace[] = [];
+  if (fill.level === "province") {
+    for (const [id, value] of Object.entries(fill.values)) {
+      const point = provincePoint(id);
+      if (point) places.push({ id, name: point.name, lat: point.lat, lng: point.lng, value });
+    }
+    return places;
+  }
+  const byCode = new Map<string, { lat: number; lng: number; name: string }>();
+  try {
+    for (const record of placeIndex().records) {
+      if (record.kind !== "country" || byCode.has(record.country)) continue;
+      byCode.set(record.country, { lat: record.lat, lng: record.lng, name: record.names.en ?? record.country });
+    }
+  } catch {
+    // Without the place index there is nowhere to put a bubble.
+  }
+  for (const [code, value] of Object.entries(fill.values)) {
+    const point = byCode.get(code);
+    if (point) places.push({ id: code, name: point.name, lat: point.lat, lng: point.lng, value });
+  }
+  return places;
+}
+
+/** Numbers as circles on the map, as one editable layer. */
+export const addDataBubbles = () =>
+  run("bubbles", async () => {
+    const fill = dataFill.value;
+    if (!fill || !selectedId.value) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const places = placesOfFill(fill);
+    if (!places.length) {
+      log("none of these places has a point to put a bubble on", "fail");
+      return;
+    }
+    const made = await addBubbles(selectedId.value, fill, places, {
+      theme: themeId.value,
+      style: currentLayerStyle.value,
+      byColour: bubbleColoured.value,
+      maxRadius: bubbleSize.value
+    });
+    bubblesOn.value = true;
+    const dropped = made.set.dropped ? `, ${made.set.dropped} smaller ones left out` : "";
+    log(
+      `"${made.name}": ${made.bubbles} circles, the largest standing for ${made.set.legend[0]?.label ?? ""}${dropped}. They follow the map; restyle or animate each one in the layer`,
+      made.expressionErrors.length ? "fail" : "ok"
+    );
+  });
+
+export const removeDataBubbles = () =>
+  run("bubbles", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeBubbles(selectedId.value);
+    bubblesOn.value = false;
+    log(gone.removed ? "the bubbles are off the map" : "this map has no bubbles", gone.removed ? "ok" : "muted");
+  });
+
 /** Builds the legend of the numbers as a precomp in the scene, where the designer can move it. */
 export const addDataLegend = () =>
   run("legend", async () => {
@@ -1375,7 +1444,14 @@ export const addDataLegend = () =>
       log("colour the map by a table first", "muted");
       return;
     }
-    const made = await addLegend(selectedId.value, fill, { theme: themeId.value, style: currentLayerStyle.value, template: currentLabelTemplate.value, corner: legendCorner.value });
+    const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080 }).legend : [];
+    const made = await addLegend(selectedId.value, fill, {
+      theme: themeId.value,
+      style: currentLayerStyle.value,
+      template: currentLabelTemplate.value,
+      corner: legendCorner.value,
+      sizes: withBubbles.map((step) => ({ radius: step.radius, label: step.label }))
+    });
     log(`"${made.name}" added to the scene (${made.rows} steps). It is an ordinary precomp: move it, restyle it, animate it`, "ok");
   });
 

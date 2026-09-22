@@ -87,3 +87,9 @@ export function provinceJoinTargets(country?: string | null): JoinTarget[] {
     .filter((entry) => !country || entry.c === country)
     .map((entry) => ({ code: entry.id, codes: country ? (entry.k ?? []) : [], names: [entry.n, ...Object.values(entry.a ?? {})] }));
 }
+
+/** Where a province's name sits, for putting something on it. */
+export function provincePoint(id: string): { lat: number; lng: number; name: string } | null {
+  const entry = provinceIndex().find((row) => row.id === id);
+  return entry ? { lat: entry.lat, lng: entry.lng, name: entry.n } : null;
+}

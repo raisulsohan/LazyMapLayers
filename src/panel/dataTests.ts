@@ -12,6 +12,7 @@ import { spikeDir } from "./spikes.ts";
 import { provinceJoinTargets } from "./data/admin1.ts";
 import { countryJoinTargets } from "./data/countries.ts";
 import { createMapComp } from "./mapApi.ts";
+import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import type { SpikeLog } from "./spikes.ts";
@@ -36,6 +37,7 @@ async function saveSceneFrame(mapId: string, name: string): Promise<boolean> {
 
 export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown>> {
   const problems: string[] = [];
+  let bubbleOffset = 0;
   const view: View = { center: { lat: 28, lng: 95 }, zoom: 2.2, bearing: 0, pitch: 0 };
   const map = await createMapComp({ name: "DT1 data", ...SIZE, duration: 1, frameRate: 25, view, newScene: true });
 
@@ -113,9 +115,62 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   if (!dataLayer) problems.push(`the map comp holds ${JSON.stringify(layers)}`);
   else if (dataLayer.name !== `Data: ${fill.column}`) problems.push(`the layer is called "${dataLayer.name}"`);
 
+  // Bubbles: one layer with a circle per country, each following its own place.
+  const places = [
+    { id: "BGD", name: "Bangladesh", lat: 23.8, lng: 90.4, value: fill.values.BGD },
+    { id: "IND", name: "India", lat: 22.3, lng: 78.7, value: fill.values.IND },
+    { id: "JPN", name: "Japan", lat: 36.5, lng: 139.2, value: fill.values.JPN },
+    { id: "CHN", name: "China", lat: 35.5, lng: 103.2, value: fill.values.CHN }
+  ];
+  const bubbles = await addBubbles(map.id, fill, places, { theme: "midnight", maxRadius: 50 });
+  if (bubbles.expressionErrors.length) problems.push(`bubble expressions: ${bubbles.expressionErrors.slice(0, 2).join("; ")}`);
+  if (bubbles.bubbles !== 4) problems.push(`${bubbles.bubbles} bubbles were built`);
+  // The largest value gets the largest circle, and a quarter of it is half as wide.
+  const biggest = bubbles.set.bubbles[0];
+  const smallest = bubbles.set.bubbles[bubbles.set.bubbles.length - 1];
+  if (biggest.id !== "IND" || Math.abs(biggest.radius - 50 * (SIZE.height / 1080)) > 0.5) problems.push(`the largest bubble is ${biggest.id} at ${biggest.radius} px`);
+  if (smallest.radius >= biggest.radius) problems.push(`the smallest bubble is ${smallest.radius} px`);
+  const drawn = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "bubbles") continue;
+        var root = layer.property("ADBE Root Vectors Group"), groups = [];
+        for (var g = 1; g <= root.numProperties; g++) {
+          var group = root.property(g);
+          var position = group.property("ADBE Vector Transform Group").property("ADBE Vector Position").valueAtTime(0, false);
+          var size = group.property("ADBE Vectors Group").property(1).property("ADBE Vector Ellipse Size").value;
+          groups.push({ name: group.name, x: position[0], y: position[1], size: size[0] });
+        }
+        out = { name: layer.name, groups: groups };
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; groups: { name: string; x: number; y: number; size: number }[] } | null;
+  if (!drawn) problems.push("no bubble layer is in the scene");
+  else {
+    if (drawn.groups.length !== 4) problems.push(`the bubble layer holds ${drawn.groups.length} circles`);
+    // Every circle sits on its place, to the pixel the camera maths gives.
+    let worst = 0;
+    for (const place of places) {
+      const group = drawn.groups.find((entry) => entry.name.indexOf(place.name) === 0);
+      if (!group) {
+        problems.push(`no circle for ${place.name}`);
+        continue;
+      }
+      const want = project(view, SIZE, place);
+      worst = Math.max(worst, Math.hypot(group.x - want.x, group.y - want.y));
+    }
+    if (worst > 0.05) problems.push(`a bubble is ${worst.toFixed(2)} px off its place`);
+    bubbleOffset = worst;
+  }
+  const rebuilt = await addBubbles(map.id, fill, places, { theme: "midnight", maxRadius: 50 });
+  if (rebuilt.removed !== 1) problems.push(`building the bubbles again removed ${rebuilt.removed} of the old layer`);
+
   // The legend: a precomp of its own in the scene, which building it again replaces.
-  const legend = await addLegend(map.id, fill, { theme: "midnight", corner: "bottomRight" });
-  if (legend.rows !== colours.legend.length) problems.push(`the legend has ${legend.rows} rows`);
+  const legend = await addLegend(map.id, fill, { theme: "midnight", corner: "bottomRight", sizes: bubbles.set.legend.map((step) => ({ radius: step.radius, label: step.label })) });
+  if (legend.rows !== colours.legend.length + bubbles.set.legend.length) problems.push(`the legend has ${legend.rows} rows`);
   const built = JSON.parse(
     await evalScript(`(function () {
       var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
@@ -134,12 +189,15 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   else {
     if (built.name !== `Legend: ${fill.column}`) problems.push(`the legend layer is called "${built.name}"`);
     if (built.layers[0] !== "Title" || built.layers[built.layers.length - 1] !== "Background") problems.push(`the legend holds ${JSON.stringify(built.layers)}`);
-    if (built.layers.length !== colours.legend.length + 3) problems.push(`the legend comp has ${built.layers.length} layers`);
+    if (built.layers.length !== colours.legend.length + bubbles.set.legend.length + 3) problems.push(`the legend comp has ${built.layers.length} layers`);
     // Bottom right, inside the frame.
     if (built.x + built.width > SIZE.width || built.y + built.height > SIZE.height || built.x < SIZE.width / 2) problems.push(`the legend sits at ${built.x}, ${built.y} (${built.width} x ${built.height}) in ${built.scene}`);
   }
   // What the scene itself looks like with the numbers and the legend on it.
   if (!(await saveSceneFrame(map.id, "dt1-legend"))) problems.push("After Effects did not save the frame of the scene");
+
+  const gonebubbles = await removeBubbles(map.id);
+  if (gonebubbles.removed !== 1) problems.push(`removing the bubbles removed ${gonebubbles.removed}`);
 
   const again = await addLegend(map.id, fill, { theme: "midnight", corner: "topLeft" });
   if (again.removed !== 1) problems.push(`building the legend again removed ${again.removed} of the old one`);
@@ -193,5 +251,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

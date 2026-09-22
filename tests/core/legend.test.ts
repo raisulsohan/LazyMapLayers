@@ -55,3 +55,33 @@ test("the box sits in the corner it is asked for, inside the frame", () => {
   assert.equal(Math.round(topRight.x), Math.round(1920 - 48 - layout.width));
   assert.equal(Math.round(topRight.y), 48);
 });
+
+test("a legend of bubble sizes draws circles under the colours", () => {
+  const sizes = [
+    { radius: 40, label: "1,000", width: 80 },
+    { radius: 20, label: "250", width: 60 },
+    { radius: 10, label: "62.5", width: 60 }
+  ];
+  const layout = legendLayout(rows, { height: 1080, title: "People", titleWidth: 80, sizes, sizeColor: "#ff9d2e" });
+  assert.equal(layout.rows.length, 6);
+  assert.deepEqual(layout.rows.map((row) => row.shape), ["rect", "rect", "rect", "circle", "circle", "circle"]);
+  // The column is as wide as the biggest circle, and every swatch is centred in it.
+  const centres = layout.rows.map((row) => Math.round((row.swatch.x + row.swatch.width / 2) * 100) / 100);
+  assert.equal(new Set(centres).size, 1, `swatches are not in one column: ${centres.join(", ")}`);
+  assert.equal(layout.rows[3].swatch.width, 80);
+  assert.equal(layout.rows[3].color, "#ff9d2e");
+  // Nothing sticks out of the box.
+  for (const row of layout.rows) {
+    assert.ok(row.swatch.x >= layout.padding - 0.001, JSON.stringify(row.swatch));
+    assert.ok(row.swatch.y + row.swatch.height <= layout.height - layout.padding + 0.001, JSON.stringify(row.swatch));
+  }
+  // Circles take the room they need, so the box grows.
+  const withoutSizes = legendLayout(rows, { height: 1080, title: "People", titleWidth: 80 });
+  assert.ok(layout.height > withoutSizes.height + 100, `${layout.height} against ${withoutSizes.height}`);
+});
+
+test("a legend of sizes alone is as wide as its circles", () => {
+  const layout = legendLayout([], { height: 1080, title: "", titleWidth: 0, sizes: [{ radius: 30, label: "100", width: 50 }] });
+  assert.equal(layout.rows.length, 1);
+  assert.equal(Math.round(layout.width), Math.round(22 * 2 + 60 + 12 + 50));
+});
