@@ -1,8 +1,8 @@
 ============================================================
-  LAZYMAPLAYERS 0.2
+  LAZYMAPLAYERS 0.3
   Free map animation for After Effects: globe to street level,
-  3D terrain, looks, labels, routes, highlights, rendered
-  frame-exact
+  3D terrain, your own looks, labels, routes, highlights,
+  data maps, rendered frame-exact
 ============================================================
 
 WHAT YOU NEED
@@ -84,19 +84,48 @@ MAKING YOUR OWN MAP
   Highlight        click countries, provinces or districts on the
                    map; each renders as its own layer above the
                    basemap. Districts are downloaded per country
-                   when you first ask for them.
+                   when you first ask for them. "Shape" adds any
+                   outline as an editable After Effects shape
+                   layer. "Make a new area" merges the highlights
+                   into one shape, grows or shrinks them by a
+                   distance, or drops a distance circle.
   Import           GPX, KML, KMZ, GeoJSON, CSV or a zipped
                    shapefile: draw lines as routes (with an arrow
                    that rides along, at the recorded pace of a
                    GPS track if you like), pin places, highlight
                    areas, or fly the camera along a line.
+  Attach           select your own layers in After Effects, then
+                   click a place: they stay on it while the
+                   camera moves. "Unlink" puts them back.
+  Numbers          a CSV of countries (or of one country's states
+                   and provinces) and a column of numbers colours
+                   the map, adds circles whose area is the value,
+                   writes the numbers as text layers and builds a
+                   legend precomp.
+  OpenStreetMap    find a lake, river, park, island, airport,
+                   district boundary or building for the area in
+                   the preview, and draw it, highlight it or add
+                   it as a shape layer.
+  Save as GeoJSON  writes what is on the map back out as a file.
   Auto labels      country and city names in the local language,
                    as editable text layers that never overlap or
-                   flicker. Pick how many.
+                   flicker. Pick how many. "How the names look"
+                   sets their colour, size, halo, capitals and
+                   dots, or takes them from a text layer you
+                   styled yourself. "Keep the names out of" blocks
+                   the lower third, a top bar or whatever your own
+                   layers cover, while those layers are on screen.
   Animate borders  draws the borders on over 4 seconds.
   Look             Midnight, Satellite, Daylight, Atlas,
                    Blueprint, Mono, Paper; shaded relief; the sky
                    above the horizon; terrain (below).
+                   "Your own colours" sets the sea, the land, the
+                   lines and the names, and works the rest of the
+                   map out from them. "From a picture" takes the
+                   palette of a still from your film; "Open a
+                   look" takes a saved look or an Illustrator or
+                   Photoshop palette (.ase, .act); "Save the look"
+                   keeps yours in a file.
 
   RENDER
   Preview          half resolution, fast.

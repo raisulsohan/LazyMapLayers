@@ -6,12 +6,12 @@
 -->
 <ExtensionManifest Version="11.0"
     ExtensionBundleId="com.sohan.LazyMapLayers"
-    ExtensionBundleVersion="0.2.0"
+    ExtensionBundleVersion="0.3.0"
     ExtensionBundleName="LazyMapLayers"
     xmlns:xsi="http://www.w3.org/2001/XMLSchema-instance">
 
     <ExtensionList>
-        <Extension Id="com.sohan.LazyMapLayers.panel" Version="0.2.0" />
+        <Extension Id="com.sohan.LazyMapLayers.panel" Version="0.3.0" />
     </ExtensionList>
 
     <ExecutionEnvironment>

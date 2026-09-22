@@ -14,14 +14,14 @@
 
 Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy suite · Free & open source ([MIT](LICENSE))
 
-> **Version 0.1** — the first release: a world flight from the globe down to street level, with borders, labels, routes and callouts. Many features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
+> **Version 0.3** — looks of your own (or taken from a still of your film), numbers on the map from a CSV, any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
 
 ## Install
 
 Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
 Effects 2026; the macOS installer has not been tried on a Mac yet.
 
-1. Download `LazyMapLayers-v0.2.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
+1. Download `LazyMapLayers-v0.3.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.
 3. Windows: double-click **Install LazyMapLayers.bat**. macOS: double-click
    **Install LazyMapLayers (macOS).command** (if macOS refuses, right-click it and choose Open).
@@ -52,7 +52,29 @@ built to be free **and** to give better final frames.
 | Data | Offline Natural Earth world data, OpenStreetMap detail for any region you download, open terrain and imagery. |
 | Undo | Every panel action is one Ctrl+Z. |
 
-## What works today (0.2)
+## What works today (0.3)
+
+- **A look of your own.** Set the sea, the land, the lines and the names, and the rest of the map -
+  roads, borders, buildings, parks, coasts, sky - is worked out from them, with the names kept
+  readable on whatever land you chose. **From a picture** takes the palette of a still from your
+  film; a look can be saved to a file, shared, and opened again, and Illustrator or Photoshop
+  palettes (.ase, .act) open straight into one.
+- **Numbers on the map.** A CSV with a country column (or one country's states and provinces) and a
+  column of numbers colours every place it names as one layer, adds circles whose area is the value,
+  writes the numbers as text layers, and builds a legend precomp. Places are found by name in 26
+  languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
+  are listed rather than coloured on a guess.
+- **Any OpenStreetMap feature.** Type a name (or pick water, parks, islands, airports, boundaries,
+  buildings, roads or railways) and the panel finds what OpenStreetMap holds for the area in the
+  preview: a lake with its islands as real holes, a river, a district outline. It arrives as an
+  import, so everything you do with a GeoJSON file works with it.
+- **Label templates and keep-out zones.** One row sets the colour, size, halo, capitals and dots of
+  every name, or takes them from a text layer you styled yourself; names can be kept out of the lower
+  third, a top bar, or whatever your own layers cover while they are on screen.
+- **Areas of your own.** Merge the highlights into one shape with the borders between them gone, grow
+  or shrink them by a distance in kilometres, or drop a distance circle.
+
+### From 0.2, and the work since
 
 - **Shot list.** Build the camera from shots: **+ Shot** takes the view in the preview; between
   shots a Fly, Straight, Along route or Cut move with a duration, flight height and easing; **Play**

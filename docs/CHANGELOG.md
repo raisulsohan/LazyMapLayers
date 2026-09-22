@@ -1,14 +1,7 @@
 # Changelog
 
-## Unreleased
+## 0.3.0 — your own looks, numbers on the map, OpenStreetMap features and label templates (2026-09-22)
 
-- **The names look how you want them.** A **How the names look** row in the Labels sheet sets the
-  colour, the size, the halo and whether country names are in capitals and cities get a dot. Every
-  new label follows it. **From the selected text layer** takes the font, size, colour and halo of a
-  title you styled yourself in After Effects, so the map matches the rest of your project in one
-  click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
-  the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
-  names.
 - **Your own colours, or a film's.** The Look sheet now has **Your own colours**: the sea, the land,
   the lines and the names. Everything else - roads, borders, buildings, parks, coasts, the sky - is
   worked out from them, and the names are pushed until they can be read on whatever land you chose.
@@ -31,24 +24,49 @@
   animated on its own. The legend then shows three circle sizes under the colour steps, so a viewer
   can read them. **Add numbers** writes each value next to its place as an ordinary text layer, in
   the font your names use, under the circle when there is one.
-- **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
-  puts every highlighted country, province, district or imported area together as a single shape
-  with the borders between them gone (the European Union as one outline, not twenty-seven);
-  **Grow** and **Shrink** push the edge out or pull it in by a distance in kilometres; and
-  **Circle here** drops a distance ring around the middle of the preview. Each one becomes an
-  ordinary area, so it renders as its own layer and can be added as an editable shape layer.
 - **Any place on OpenStreetMap, straight into your map.** A new tool in the toolbar: type a name (or
   pick Water, Parks and forest, Islands, Airports, Boundaries, Buildings, Roads or Railways) and it
   finds what OpenStreetMap holds for the area the preview shows. A lake comes with its islands as
   real holes, a river as a line you can draw on, a district as an outline you can highlight or add
   as an editable shape layer — it all arrives as an import, so everything you already do with a
   GeoJSON file works with it. Searches are kept on disk, so the same one costs nothing twice.
+- **The names look how you want them.** A **How the names look** row in the Labels sheet sets the
+  colour, the size, the halo and whether country names are in capitals and cities get a dot. Every
+  new label follows it. **From the selected text layer** takes the font, size, colour and halo of a
+  title you styled yourself in After Effects, so the map matches the rest of your project in one
+  click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
+  the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
+  names.
 - **Keep the names out of your titles.** Under **Keep the names out of** in the Labels sheet, one
   click blocks the lower third, the top bar, a side third or the middle of the frame, and **From the
   selected layers** blocks whatever your own layers cover — only for the seconds those layers are on
   screen. The blocked areas are drawn over the preview, so you see what is left before you place the
   names.
-
+- **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
+  puts every highlighted country, province, district or imported area together as a single shape
+  with the borders between them gone (the European Union as one outline, not twenty-seven);
+  **Grow** and **Shrink** push the edge out or pull it in by a distance in kilometres; and
+  **Circle here** drops a distance ring around the middle of the preview. Each one becomes an
+  ordinary area, so it renders as its own layer and can be added as an editable shape layer.
+- **Any outline as an editable shape layer.** Next to every highlight in the Highlight sheet there
+  is now a **Shape** button: it adds that country, province, district or imported area to the comp as
+  an ordinary After Effects shape layer. Real paths, a fill and a stroke you can restyle, trim,
+  animate or parent by hand, and they follow the map at every frame: the drawn outline covers the
+  country the renderer draws to 98 %. Holes stay holes (Lesotho inside South Africa), the outline
+  sits on the ground of 3D terrain, and **Shape layers draw on** trims them on over four seconds
+  from the current time. Country outlines are part of the panel (Natural Earth, 258 countries).
+- **Your own layers on a place.** A new tool in the panel: select your layers in After Effects
+  (an icon, a photo, a precomp, text), click the place on the map, and they stay on it while the
+  camera moves. They get the controls a pin has (Latitude, Longitude, Elevation, Grow with the map,
+  Turn with the map), and nothing else about them changes: their size, their comment and any
+  expression you wrote yourself are kept, and **Unlink selected** puts them back exactly as they
+  were. A layer lands within 0.008 px of the place the camera maths gives.
+- **Pins, routes and callouts follow the look.** Every look now carries an accent colour (gold on
+  Midnight, ink red on Paper, yellow on Blueprint), and the layers the panel makes take it: a pin's
+  dot, a route and its arrow, a callout's leader, box and text. Dark looks glow, light ones do not.
+  The Look sheet has a **Pins, routes and callouts** row to override the colour, the line width and
+  the glow for one map, **From the selected layer** to take the colour and width of a layer you
+  styled yourself, and **Follow the look** to go back.
 - **Comet trails and dashed lines.** Two switches next to a route: **Comet** adds a bright head
   that chases the tip of the line as it draws on (the same path trimmed at both ends, so it follows
   every bend), and **Dashed** draws the line as a dashed one. Both work for great-circle routes and
@@ -57,25 +75,6 @@
   GeoJSON file: pins and attached layers as points, routes as lines, shape layers as polygons,
   callouts as points with their title, and highlighted areas as polygons. The geography comes from
   the layers themselves, so a route you moved in After Effects exports where it now is.
-- **Pins, routes and callouts follow the look.** Every look now carries an accent colour (gold on
-  Midnight, ink red on Paper, yellow on Blueprint), and the layers the panel makes take it: a pin's
-  dot, a route and its arrow, a callout's leader, box and text. Dark looks glow, light ones do not.
-  The Look sheet has a **Pins, routes and callouts** row to override the colour, the line width and
-  the glow for one map, **From the selected layer** to take the colour and width of a layer you
-  styled yourself, and **Follow the look** to go back.
-- **Your own layers on a place.** A new tool in the panel: select your layers in After Effects
-  (an icon, a photo, a precomp, text), click the place on the map, and they stay on it while the
-  camera moves. They get the controls a pin has (Latitude, Longitude, Elevation, Grow with the map,
-  Turn with the map), and nothing else about them changes: their size, their comment and any
-  expression you wrote yourself are kept, and **Unlink selected** puts them back exactly as they
-  were. A layer lands within 0.008 px of the place the camera maths gives.
-- **Any outline as an editable shape layer.** Next to every highlight in the Highlight sheet there
-  is now a **Shape** button: it adds that country, province, district or imported area to the comp as
-  an ordinary After Effects shape layer. Real paths, a fill and a stroke you can restyle, trim,
-  animate or parent by hand, and they follow the map at every frame: the drawn outline covers the
-  country the renderer draws to 98 %. Holes stay holes (Lesotho inside South Africa), the outline
-  sits on the ground of 3D terrain, and **Shape layers draw on** trims them on over four seconds
-  from the current time. Country outlines are part of the panel (Natural Earth, 258 countries).
 - Outlines are thinned by how much shape each point carries, so a crenulated coastline (Norway,
   Canada) keeps its character instead of growing spikes where fjords collapse.
 - Routes, travellers and outlines ask After Effects for its layer transforms once per frame instead

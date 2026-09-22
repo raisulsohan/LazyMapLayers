@@ -5,6 +5,33 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
+## The in-AE tests, and what each one settles
+
+Every one of these runs inside After Effects through `npm run ae:spikes -- --only <ID>`. The four
+that go online run only when they are named.
+
+| Id | What it settles | Result |
+|---|---|---|
+| H1 | The host API through the real panel bridge | PASS 9/9 |
+| P1, C1 | Pins and the matched 3D camera against the camera maths | 0.0061 px worst, 0.004 px in 3D |
+| E1, X1 | After Effects' own render, and both expression engines | 20/20; 21 expressions, both engines |
+| R1, R2 | The renderer, its passes and a 10-second 4K move | 15/15; no pops |
+| G2, D1, D1L | The globe, and the world flight demo at 1080p and 4K | PASS |
+| SH1 | The shot list: 601 frames match the core maths, Apply in ~30 ms | PASS |
+| TH1, SAT1 | Every look, with and without the imagery packs | PASS |
+| HL1 | Highlights as their own render pass, one layer each | PASS |
+| LB1 | Auto labels in batches: no call longer than about a second | PASS |
+| LB2 | The label template: colour, size, halo, capitals, dots, and a style picked up from a layer | PASS |
+| LB3 | Keep-out zones: 42 names in the lower third become 0, and only while the zone holds | PASS |
+| RT1 | Imported routes, travellers and recorded pace | PASS |
+| SL1 | Outlines as editable shape layers: the drawn shape covers the rendered country to 98 % | PASS |
+| AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back | PASS |
+| ST1 | The style of the generated layers, and the callout font | PASS |
+| DT1 | Numbers on the map: the join, the colours in the rendered pixels, bubbles 0.000 px off their places, the numbers as text layers, and the legend | PASS |
+| LK1 | A look of your own in the rendered pixels (sea 58,13,82 for #3a0d52), and a look from a picture | PASS |
+| U1 | The real panel, driven through DevTools: every sheet and tool | PASS |
+| DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
+
 ## X1 — Both expression engines in After Effects: PASS (2026-09-17)
 
 - **Why.** Release 0.1.0 failed in a project from a template that uses the Legacy ExtendScript
