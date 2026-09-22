@@ -1,11 +1,12 @@
 // AT1: the user's own layers attached to a place. These are the only layers the panel touches that it
 // did not make, so this test watches what it does to them: the layer must land on the place the camera
 // maths gives, keep its own comment, size and everything else, keep an expression the user wrote, and
-// come back exactly as it was when it is unlinked.
+// come back exactly as it was when it is unlinked. Copies of a layer onto places are checked the same way.
 
 import { project, type View } from "../core/camera/camera.ts";
 import { callHost, evalScript } from "./cep.ts";
 import { attachLayers, createMapComp, detachLayers, selectionInfo } from "./mapApi.ts";
+import { copyToPlaces } from "./overlays/copies.ts";
 import type { SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 1920, height: 1080 };
@@ -104,8 +105,40 @@ export async function runAttachTest(log: SpikeLog): Promise<Record<string, unkno
   const stillAttached = await read("My photo");
   if (stillAttached.tagKind !== "attached") problems.push("unlinking one layer unlinked the other as well");
 
+
+  // Copies onto places: the icon (selected alone, from the unlink step) is copied onto three places,
+  // each copy sized by its number and wired like an attached layer, while the original stays as it is.
+  const stops = [
+    { id: "a", name: "Louvre", lat: 48.8606, lng: 2.3376, value: 100 },
+    { id: "b", name: "Opera", lat: 48.8719, lng: 2.3316, value: 25 },
+    { id: "c", name: "Notre-Dame", lat: 48.853, lng: 2.3499, value: 1 }
+  ];
+  const copies = await copyToPlaces(map.id, stops, { byValue: true });
+  if (copies.expressionErrors.length) problems.push(`copy expressions: ${copies.expressionErrors.slice(0, 3).join("; ")}`);
+  if (copies.template !== "My icon" || copies.layers.join(",") !== "My icon: Louvre,My icon: Opera,My icon: Notre-Dame") problems.push(`copies: ${copies.template} -> ${copies.layers.join(",")}`);
+  const factors = copies.set.copies.map((copy) => copy.factor);
+  // A quarter of the value is half the size, and a hundredth keeps the floor of a fifth.
+  if (Math.abs(factors[0] - 1) > 1e-9 || Math.abs(factors[1] - 0.5) > 0.01 || factors[2] !== 0.2) problems.push(`copy sizes ${factors.join(",")}`);
+  const original = await read("My icon");
+  if (original.effects.length || original.expressions.length || Math.abs(original.scale[0] - 40) > 1e-6) problems.push(`the original changed: ${original.effects.join(",")} ${original.expressions.join(" | ")} ${original.scale}`);
+  let copyOff = 0;
+  for (const stop of stops) {
+    const copy = (await read(`My icon: ${stop.name}`)) as LayerState | null;
+    if (!copy) {
+      problems.push(`no copy on ${stop.name}`);
+      continue;
+    }
+    const want = project(moved, SIZE, stop);
+    copyOff = Math.max(copyOff, Math.hypot(copy.position[0] - want.x, copy.position[1] - want.y));
+    const factor = copies.set.copies.find((entry) => entry.id === stop.id)!.factor;
+    if (Math.abs(copy.scale[0] - 40 * factor) > 1e-3) problems.push(`the copy on ${stop.name} is ${copy.scale[0]} % big, expected ${40 * factor}`);
+    if (copy.tagKind !== "attached") problems.push(`the copy on ${stop.name} is tagged ${copy.tagKind}`);
+    if (copy.comment.indexOf(COMMENT) < 0) problems.push(`the copy on ${stop.name} lost the layer's own comment: "${copy.comment}"`);
+  }
+  if (copyOff > 0.05) problems.push(`a copy is ${copyOff.toFixed(2)} px off its place`);
+
   const passed = problems.length === 0;
-  log(`AT1 attached layers: ${off.toFixed(3)} px off the place, ${offAfter.toFixed(3)} px after the camera moved, the user's own expression and comment kept, unlink clean, ${problems.length} problems`, passed ? "ok" : "fail");
+  log(`AT1 attached layers: ${off.toFixed(3)} px off the place, ${offAfter.toFixed(3)} px after the camera moved, the user's own expression and comment kept, unlink clean, ${copies.layers.length} copies ${copyOff.toFixed(3)} px off their places, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, off, offAfter, effects: icon.effects, problems };
+  return { passed, off, offAfter, copyOff, copies: copies.layers, effects: icon.effects, problems };
 }

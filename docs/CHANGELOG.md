@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Your own layer on every place.** Select a layer in After Effects - an icon, a flag, a photo, a
+  precomp - and the Data sheet copies it onto every place of the table, each copy named after its
+  place, sized so its area stands for the number (the largest at the layer's own size, none below a
+  fifth) and wired to its place like an attached layer. Without a table, the places of the last
+  imported file get a copy each. The original is left as it is; Unlink puts a copy back to plain.
 - **Numbers by district.** A table of a country's districts (counties, departments) joins to the
   districts downloaded for that country, by name, and colours them from their own outlines, with
   bubbles, spikes, values, heat and the legend all following. The Match box has a Districts choice;

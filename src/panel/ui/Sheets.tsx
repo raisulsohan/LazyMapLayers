@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -509,6 +509,15 @@ export function DataSheetView(): JSX.Element | null {
         <button class="small-button" data-id="data-heat-remove" disabled={busy.value} title="Takes the heat off the map" onClick={() => void removeDataHeat()}>
           Remove heat
         </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-copies-add" disabled={busy.value || (!fill && !imported.value?.places.length)} title="Copies the layer selected in After Effects onto every place - an icon per city, a flag per country, a photo per stop - each copy wired to its place like an attached layer. The original is left as it is." onClick={() => void addDataCopies()}>
+          Copy selected layer onto places
+        </button>
+        <label class="check" title="Each copy scaled so its area stands for the number; the largest keeps the layer's own size, and none shrinks below a fifth">
+          <input type="checkbox" data-id="copies-by-value" checked={copiesByValue.value} disabled={busy.value} onChange={(e) => (copiesByValue.value = (e.target as HTMLInputElement).checked)} />
+          <span>Sized by number</span>
+        </label>
       </div>
       <div class="sheet-row">
         <button class="small-button" data-id="data-values-add" disabled={busy.value || !fill} title="Writes every number onto the map as a text layer, under its circle when there is one" onClick={() => void addDataValues()}>

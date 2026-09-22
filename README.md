@@ -76,7 +76,8 @@ Dhaka to Chittagong with an arrow, say:
 - **Numbers on the map.** A CSV with a country column (or one country's states, provinces or downloaded districts) and a
   column of numbers colours every place it names as one layer, adds circles whose area is the value
   or spikes whose height is, draws flows between places as arcs whose width (and colour) is the amount,
-  renders the places' warmth as a heat layer,
+  renders the places' warmth as a heat layer, copies a layer of your own onto every place sized by
+  its number,
   writes the numbers as text layers, and builds a legend precomp. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.

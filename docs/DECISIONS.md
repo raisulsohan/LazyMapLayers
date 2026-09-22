@@ -873,6 +873,23 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D53 — A layer copied onto every place, sized by its number (2026-09-23)
+
+- **Why.** Bubbles and spikes are the panel's shapes; a designer's map wants the designer's own
+  artwork on every city, and doing that by hand is one attach per place. The plan’s “data-driven
+  values” (P5) is this: a value driving the size of the user’s own layers.
+- **Decision.** The layer selected in After Effects is duplicated once per place (host
+  `copyToPlaces`), each copy named "Layer: Place", its Scale multiplied by a factor and then wired
+  to its place through the same effects and expressions an attached layer gets, so the copies move
+  with the camera and Unlink works on them. The factor is the square root of the value’s share of
+  the largest (area stands for the value, as with bubbles), with a floor of a fifth so a tiny value
+  still shows; not sized, every place gets a full-size copy. At most two hundred copies, largest
+  first (core/style/copies.ts).
+- **The original.** Left exactly as it is, selected or not; hiding it would be touching a layer the
+  user did not ask to change. The log says so.
+- **Places.** The joined table’s places (countries, provinces, districts) with their numbers when
+  the map has a data fill, else the last import’s places, unsized - the same sources heat uses.
+
 ## D52 — Tables join to downloaded districts (2026-09-23)
 
 - **Why.** Countries and provinces are bundled, so a table of them joins offline; districts are

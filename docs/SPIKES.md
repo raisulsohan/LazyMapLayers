@@ -25,7 +25,7 @@ that go online run only when they are named.
 | LB3 | Keep-out zones: 42 names in the lower third become 0, and only while the zone holds | PASS |
 | RT1 | Imported routes, travellers and recorded pace | PASS |
 | SL1 | Outlines as editable shape layers: the drawn shape covers the rendered country to 98 % | PASS |
-| AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back | PASS |
+| AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back; a layer copied onto three places, each copy sized by its number and on its place to the pixel, the original untouched | PASS |
 | ST1 | The style of the generated layers, and the callout font | PASS |
 | DT1 | Numbers on the map: the join (countries, states, downloaded districts), the colours in the rendered pixels, bubbles and spikes 0.000 px off their places, the numbers as text layers, and the legend | PASS |
 | HT1 | Heat: weighted points rendered as their own pass, warm at the points, nothing away from them, the heaviest the warmest, the layer named after the column | PASS |

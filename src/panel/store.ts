@@ -54,6 +54,7 @@ import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
+import { copyToPlaces } from "./overlays/copies.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -1691,6 +1692,41 @@ export const removeDataHeat = () =>
     await callHost("setMapSettings", { mapId: selectedId.value, heat: null });
     await readMaps();
     log(had ? "the heat is off the map" : "this map has no heat", had ? "ok" : "muted");
+  });
+
+/** Whether the copies of a layer are sized by their numbers. */
+export const copiesByValue = signal(true);
+
+/** The layer selected in After Effects, copied onto every place of the table (or of the last import). */
+export const addDataCopies = () =>
+  run("copies on places", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const fill = dataFill.value;
+    const fromTable = fill ? placesOfFill(fill) : [];
+    const fromImport = (imported.value?.places ?? []).map((place, i) => ({ id: String(i), name: place.name, lat: place.lat, lng: place.lng, value: 1 }));
+    const places = fromTable.length ? fromTable : fromImport;
+    if (!places.length) {
+      log("colour the map by a table, or import a file with places, first", "muted");
+      return;
+    }
+    const byValue = copiesByValue.value && fromTable.length > 0;
+    const made = await copyToPlaces(mapId, places, { byValue, terrain: terrain.value, scaleWithMap: attachScale.value, rotateWithMap: attachRotate.value });
+    await refreshSelection();
+    if (made.expressionErrors.length) {
+      log(`copy problems: ${made.expressionErrors.slice(0, 3).join("; ")}`, "fail");
+      return;
+    }
+    const smallest = made.set.copies.reduce((least, copy) => Math.min(least, copy.factor), 1);
+    const sized = byValue ? `, sized by ${fill!.column} (the largest at the layer's own size, the smallest at ${Math.round(smallest * 100)} %)` : "";
+    const dropped = made.set.dropped ? `; ${made.set.dropped} smaller places left out` : "";
+    log(
+      `"${made.template}" copied onto ${made.layers.length} places${sized}${dropped}. The original is left as it is; every copy has the controls an attached layer has, and Unlink puts a selected copy back to plain`,
+      "ok"
+    );
   });
 
 /** What the renders take on disk, and how much of it belongs to unsaved projects that are gone. */
