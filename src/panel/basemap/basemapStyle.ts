@@ -19,6 +19,7 @@ import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeFrom, type Theme, type ThemeLike } from "../../core/style/themes.ts";
 import type { DataFill } from "../../core/style/dataFill.ts";
+import type { HeatSetting } from "../../core/style/heat.ts";
 import type { Areas, Highlight } from "../../core/style/highlights.ts";
 import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
@@ -49,6 +50,8 @@ export type BasemapStyleOptions = {
   highlights?: Highlight[];
   /** Numbers on the map: a colour per country (a choropleth). */
   data?: DataFill | null;
+  /** Heat: points that warm the map around them (their own render pass). */
+  heat?: HeatSetting | null;
   areas?: Areas;
   /** Adds an invisible layer of country shapes, so the preview can tell which country was clicked. */
   countryHits?: boolean;
@@ -178,7 +181,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   const imagery: WorldImagery = {};
   if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
-  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, countryHits: options.countryHits });
+  let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, heat: options.heat, countryHits: options.countryHits });
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
   let style = world;
   const regions = regionNames(basemap);

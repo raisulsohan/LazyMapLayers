@@ -5,6 +5,7 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
 import { dataFillColors, DATA_CODE, type DataFill } from "../../core/style/dataFill.ts";
+import { HEAT_CODE, heatColorStops, heatFeatures, type HeatSetting } from "../../core/style/heat.ts";
 import { provincesOf } from "../data/admin1.ts";
 import { areaIdOf, isAreaCode, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
@@ -29,12 +30,14 @@ export const HIGHLIGHT_METADATA_KEY = "lml:highlight";
 
 /** The source holding the provinces a data fill colours (countries come from the world tiles). */
 export const DATA_SOURCE = "lml-data";
+/** The source holding the points of a heat map. */
+export const HEAT_SOURCE = "lml-heat";
 export const SATELLITE_SOURCE = "lml-satellite";
 export const RELIEF_SOURCE = "lml-relief";
 
 export function naturalEarthStyle(
   pmtilesUrl: string,
-  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; areas?: Areas; data?: DataFill | null; countryHits?: boolean } = {}
+  options: { labels?: boolean; theme?: Theme; imagery?: WorldImagery; highlights?: Highlight[]; areas?: Areas; data?: DataFill | null; heat?: HeatSetting | null; countryHits?: boolean } = {}
 ): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
@@ -208,6 +211,25 @@ export function naturalEarthStyle(
         } as unknown as LayerSpecification);
       }
     }
+  }
+
+  // Heat, under the highlights: every point warms the map around it, as one rendered layer of its own.
+  if (options.heat && options.heat.points.length) {
+    sources[HEAT_SOURCE] = { type: "geojson", data: heatFeatures(options.heat) as GeoJSON.FeatureCollection };
+    const stops = heatColorStops(options.heat.ramp, options.heat.reverse);
+    layers.push({
+      id: "heat",
+      type: "heatmap",
+      metadata: { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: HEAT_CODE },
+      source: HEAT_SOURCE,
+      paint: {
+        "heatmap-weight": ["get", "w"],
+        "heatmap-intensity": options.heat.intensity,
+        "heatmap-radius": options.heat.radius,
+        "heatmap-color": ["interpolate", ["linear"], ["heatmap-density"], ...stops.flat()],
+        "heatmap-opacity": options.heat.opacity
+      }
+    } as unknown as LayerSpecification);
   }
 
   // Countries first: a province or a custom area usually lies inside one and must stay visible on it.

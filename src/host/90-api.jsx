@@ -187,6 +187,11 @@ LML.api.setMapSettings = function (args) {
     if (args.keepOut !== undefined) tag.keepOut = args.keepOut;
     if (args.osmData !== undefined) tag.osmData = args.osmData;
     if (args.dataFill !== undefined) tag.dataFill = args.dataFill;
+    if (args.heat !== undefined) {
+        // The points are many: they sit on their own comment line, and the tag keeps a summary.
+        tag.heat = args.heat ? { column: args.heat.column, points: args.heat.points.length } : null;
+        LML.tag.writeExtra(layer, "HEAT", args.heat || null);
+    }
     if (args.look !== undefined) tag.look = args.look;
     if (args.look !== undefined) tag.look = args.look;
     if (args.highlightLayers !== undefined) tag.highlightLayers = args.highlightLayers === "one" ? "one" : "each";
@@ -215,6 +220,11 @@ LML.api.setMapSettings = function (args) {
 /** The polygons of a map's custom highlight areas ({ id: MultiPolygon coordinates }). */
 LML.api.getAreas = function (args) {
     return LML.tag.readExtra(LML.pins.findMapLayer(args.mapId), "AREAS") || {};
+};
+
+/** The points and settings of a map's heat layer, or null. */
+LML.api.getHeat = function (args) {
+    return LML.tag.readExtra(LML.pins.findMapLayer(args.mapId), "HEAT") || null;
 };
 
 /** Opens the map's scene comp in the viewer. */

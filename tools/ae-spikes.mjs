@@ -403,11 +403,13 @@ async function runUiScenario() {
   await idle();
   await click("data-spikes-add");
   await idle();
+  await click("data-heat-add");
+  await idle();
   await click("data-values-add");
   await idle();
   await click("data-legend-add");
   await idle();
-  console.log(`U1 bubbles: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-4)"))}`);
+  console.log(`U1 bubbles: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-5)"))}`);
   await sleep(800);
   await shot("07j-data");
   await click("data-values-remove");
@@ -415,6 +417,8 @@ async function runUiScenario() {
   await click("data-bubbles-remove");
   await idle();
   await click("data-spikes-remove");
+  await idle();
+  await click("data-heat-remove");
   await idle();
   await click("data-legend-remove");
   await idle();

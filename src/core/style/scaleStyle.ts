@@ -10,7 +10,8 @@ type Value = unknown;
 const SIZE_PROPERTIES: Record<string, { layout?: string[]; paint?: string[] }> = {
   symbol: { layout: ["text-size", "icon-size"], paint: ["text-halo-width", "text-halo-blur", "icon-halo-width"] },
   line: { paint: ["line-width", "line-gap-width", "line-offset", "line-blur"] },
-  circle: { paint: ["circle-radius", "circle-stroke-width", "circle-blur"] }
+  circle: { paint: ["circle-radius", "circle-stroke-width", "circle-blur"] },
+  heatmap: { paint: ["heatmap-radius"] }
 };
 
 function usesZoom(value: Value): boolean {

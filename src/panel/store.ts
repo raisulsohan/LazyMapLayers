@@ -27,6 +27,7 @@ import { lookFileName, readLookFile, writeLookFile } from "../core/style/lookFil
 import { readSwatchFile } from "../core/style/swatchFile.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import { spikeSet } from "../core/style/spikes.ts";
+import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
@@ -95,6 +96,7 @@ export type MapEntry = {
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
   dataFill?: DataFill | null;
+  heat?: { column: string; points: number } | null;
   look?: LookOverride | null;
   highlights: Highlight[];
   view: View;
@@ -161,6 +163,9 @@ export const keepOut = signal<KeepOutZone[]>([]);
 export const osmData = signal(false);
 /** Numbers on this map: a colour per country, from a table the user brought in. */
 export const dataFill = signal<DataFill | null>(null);
+/** Heat on the map: points that warm the map around them (stored with the map, on their own comment line). */
+export const heat = signal<HeatSetting | null>(null);
+export const heatRadius = signal(DEFAULT_HEAT.radius);
 /** What the last imported file held (kept for this session; the layers made from it live in the project). */
 export const imported = signal<{ fileName: string; lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number } | null>(null);
 export const importSheetOpen = signal(false);
@@ -169,7 +174,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -281,6 +286,18 @@ function showMap(entry: MapEntry): void {
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
   dataFill.value = normaliseDataFill(entry.dataFill);
+  heat.value = null;
+  // The points of a heat map are read separately: they can be many, and most maps have none.
+  if (entry.heat) {
+    const mapId = entry.mapId;
+    callHost<unknown>("getHeat", { mapId })
+      .then((stored) => {
+        if (selectedId.value !== mapId) return;
+        heat.value = normaliseHeat(stored);
+        setPreviewStyle(basemap.value, projection.value, look());
+      })
+      .catch((error) => fail("reading the heat map", error));
+  }
   highlights.value = normaliseHighlights(entry.highlights);
   highlightLayers.value = entry.highlightLayers === "one" ? "one" : "each";
   areas.value = {};
@@ -1220,7 +1237,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1461,10 +1478,14 @@ export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "
     if (next.method) dataMethod.value = next.method;
     if (next.opacity !== undefined) dataOpacity.value = next.opacity;
     if (next.noData !== undefined) dataNoData.value = next.noData;
-    if (!dataFill.value) return;
-    dataFill.value = normaliseDataFill({ ...dataFill.value, ...next });
-    if (selectedId.value) {
-      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+    if (heat.value && selectedId.value) {
+      // The heat follows the same ramp and opacity as the colours.
+      heat.value = normaliseHeat({ ...heat.value, ramp: dataRamp.value, opacity: dataOpacity.value, reverse: dataReverse.value ?? currentTheme.value.dark });
+      await callHost("setMapSettings", { mapId: selectedId.value, heat: heat.value });
+    }
+    if (dataFill.value) dataFill.value = normaliseDataFill({ ...dataFill.value, ...next });
+    if (selectedId.value && (dataFill.value || heat.value)) {
+      if (dataFill.value) await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
       await readMaps();
     }
   });
@@ -1585,6 +1606,53 @@ export const removeDataSpikes = () =>
     const gone = await removeSpikes(selectedId.value);
     spikesOn.value = false;
     log(gone.removed ? "the spikes are off the map" : "this map has no spikes", gone.removed ? "ok" : "muted");
+  });
+
+/** Heat on the map: the table's places warm it by their numbers, or the last import's places do, alike. */
+export const addDataHeat = () =>
+  run("heat", async () => {
+    if (!selectedId.value) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const fill = dataFill.value;
+    const fromTable = fill ? placesOfFill(fill) : [];
+    const fromImport = imported.value?.places ?? [];
+    const source = fromTable.length ? "table" : fromImport.length ? "import" : null;
+    if (!source) {
+      log("colour the map by a table, or import a file with places, first", "muted");
+      return;
+    }
+    const column = source === "table" ? fill!.column : imported.value!.fileName;
+    const next = normaliseHeat({ ...DEFAULT_HEAT, column, points: heatPoints(source === "table" ? fromTable : fromImport), radius: heatRadius.value, ramp: dataRamp.value, opacity: dataOpacity.value, reverse: dataReverse.value ?? currentTheme.value.dark });
+    if (!next) {
+      log("none of these places can warm the map", "fail");
+      return;
+    }
+    heat.value = next;
+    await callHost("setMapSettings", { mapId: selectedId.value, heat: next });
+    await readMaps();
+    log(`${describeHeat(next)}. Render to get it as its own layer above the basemap`, "ok");
+  });
+
+/** Changes how far each place's warmth reaches, on the map as well when it has heat. */
+export const changeHeatRadius = (radius: number) =>
+  run("heat", async () => {
+    heatRadius.value = Math.max(4, Math.min(300, radius || DEFAULT_HEAT.radius));
+    if (!heat.value || !selectedId.value) return;
+    heat.value = normaliseHeat({ ...heat.value, radius: heatRadius.value });
+    await callHost("setMapSettings", { mapId: selectedId.value, heat: heat.value });
+    await readMaps();
+  });
+
+export const removeDataHeat = () =>
+  run("heat", async () => {
+    if (!selectedId.value) return;
+    const had = !!heat.value;
+    heat.value = null;
+    await callHost("setMapSettings", { mapId: selectedId.value, heat: null });
+    await readMaps();
+    log(had ? "the heat is off the map" : "this map has no heat", had ? "ok" : "muted");
   });
 
 /** What the renders take on disk, and how much of it belongs to unsaved projects that are gone. */

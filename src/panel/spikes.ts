@@ -28,6 +28,7 @@ import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
 import { runFlowTest } from "./flowTests.ts";
+import { runHeatTest } from "./heatTests.ts";
 import { runCustomLookTest } from "./lookTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
@@ -350,6 +351,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.FL1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`FL1 failed: ${results.FL1_error}`, "fail");
+    }
+  }
+
+  if (wants("HT1")) {
+    try {
+      results.HT1_heat = await runHeatTest(log);
+    } catch (error) {
+      results.HT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`HT1 failed: ${results.HT1_error}`, "fail");
     }
   }
 

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Heat.** The places of a table warm the map around them by their numbers (or the places of the
+  last imported file, alike), and the renderer draws the warmth in the colours of the ramp as a
+  layer of its own that follows the camera - one image sequence, however many points. How far each
+  place reaches is a number in the Data sheet; the ramp and opacity are the ones the colours use.
 - **Spikes.** The numbers of a table as spikes on the map: one shape layer with a triangle per place
   rising straight up the frame, its height standing for the value, read straight (twice the value,
   twice the height). The tallest is as tall as you set, every spike has its own transform to

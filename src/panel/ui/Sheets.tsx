@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -494,6 +494,18 @@ export function DataSheetView(): JSX.Element | null {
         </label>
         <button class="small-button" data-id="data-spikes-remove" disabled={busy.value} title="Takes the spikes off the map" onClick={() => void removeDataSpikes()}>
           Remove spikes
+        </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-heat-add" disabled={busy.value || (!fill && !imported.value?.places.length)} title="Heat: every place warms the map around it by its number (or every place of the last imported file, alike). The renderer draws it as its own layer that follows the camera." onClick={() => void addDataHeat()}>
+          Add heat
+        </button>
+        <label class="num-field" title="How far each place's warmth reaches, in pixels at 1080 lines">
+          <input type="number" min={4} max={300} step={4} data-id="heat-radius" value={heatRadius.value} disabled={busy.value} onChange={(e) => void changeHeatRadius(Number((e.target as HTMLInputElement).value))} />
+          <span class="muted">px</span>
+        </label>
+        <button class="small-button" data-id="data-heat-remove" disabled={busy.value} title="Takes the heat off the map" onClick={() => void removeDataHeat()}>
+          Remove heat
         </button>
       </div>
       <div class="sheet-row">

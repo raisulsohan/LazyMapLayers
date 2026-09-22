@@ -873,6 +873,24 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D51 — Heat as a render pass, not as layers (2026-09-23)
+
+- **Why.** Bubbles and spikes are one group per place; a heat map is the sum of thousands of
+  points, soft-edged, and its look depends on the zoom. Groups with blurred fills in After Effects
+  would be slow past a few hundred places and would not add up the way heat should.
+- **Decision.** The renderer draws the heat itself, as a layer of its own in the highlight group
+  (`lml:highlight` = HEAT), so it becomes one render pass and one image sequence in After Effects,
+  like the data fill (core/style/heat.ts, the world style). The points, with their weights scaled
+  so the heaviest is 1, are a GeoJSON source; the colours run from see-through through the ramp
+  the Data sheet has chosen, turned over on a dark look so the warmest spot is the palest. The pass
+  is keyed by its points and settings, so changing them redraws that pass alone.
+- **Sources of points.** The joined table's places with their numbers when the map has a data fill;
+  otherwise the places of the last imported file, each counting 1. Places without a number, or
+  with none, warm nothing. At most 5,000 points, heaviest first: the setting lives on the map
+  layer's own comment line, like the polygons of custom areas, with a summary in the tag.
+- **Not yet.** No legend for the heat (its scale is a density, not a value), and no heat on the
+  globe has been measured.
+
 ## D50 — Spikes: height stands for the value, rising up the frame (2026-09-23)
 
 - **Why.** Bubbles show a value by area, which the eye reads roughly; a spike shows it by length,

@@ -7,6 +7,7 @@ import { BOUNDARY_ID_PREFIX } from "../../core/data/boundarySet.ts";
 import { keyOf } from "../../core/render/frameKey.ts";
 import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor, type HighlightPassId, type PassId, type RenderId } from "../../core/render/passes.ts";
 import { DATA_CODE, normaliseDataFill, type DataFill } from "../../core/style/dataFill.ts";
+import { HEAT_CODE, normaliseHeat, type HeatSetting } from "../../core/style/heat.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
@@ -16,7 +17,7 @@ import { basemapStyle, regionNames, terrainUsable, type BasemapSource, type Mark
 import type { ThemeLike } from "../../core/style/themes.ts";
 import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
 import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
-import { AREAS_SOURCE, DATA_SOURCE } from "../basemap/naturalEarthStyle.ts";
+import { AREAS_SOURCE, DATA_SOURCE, HEAT_SOURCE } from "../basemap/naturalEarthStyle.ts";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
 import { FrameRenderer, layerGroup, layerHighlight } from "./frameRenderer.ts";
@@ -46,6 +47,8 @@ export type RenderJobSpec = {
   osmData?: boolean;
   /** Numbers on the map: a colour per country, rendered as its own layer. */
   dataFill?: DataFill | null;
+  /** Heat: points that warm the map around them, rendered as its own layer. */
+  heat?: HeatSetting | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -160,7 +163,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // sliders the style needs the terrain as soon as any frame lifts the ground.
   let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
   if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), sky: spec.sky, terrain });
+  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), sky: spec.sky, terrain });
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -185,7 +188,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       const pass = highlightPassId(code);
       const entry = highlightPasses.find((p) => p.pass === pass);
       if (entry) entry.layers.push(layer);
-      else highlightPasses.push({ pass, label: code === DATA_CODE ? `Data: ${normaliseDataFill(spec.dataFill)?.column ?? "values"}` : `Highlight: ${shown.find((h) => h.code === code)?.name ?? code}`, layers: [layer], codes: [code] });
+      else highlightPasses.push({ pass, label: code === DATA_CODE ? `Data: ${normaliseDataFill(spec.dataFill)?.column ?? "values"}` : code === HEAT_CODE ? `Heat: ${normaliseHeat(spec.heat)?.column ?? "points"}` : `Highlight: ${shown.find((h) => h.code === code)?.name ?? code}`, layers: [layer], codes: [code] });
     }
   }
   const passes: PassId[] = [...settings.passes.filter((p) => !isHighlightPass(p)), ...highlightPasses.map((p) => p.pass)];
@@ -197,13 +200,13 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   for (const entry of highlightPasses) {
     const ownAreas = Object.fromEntries(Object.entries(spec.areas ?? {}).filter(([id]) => entry.codes.includes(`area:${id}`)));
     // Layer ids count the highlights, so they change when another highlight is removed: left out of the key.
-    highlightStyleKeys.set(entry.pass, keyOf({ projection: style.projection, layers: entry.layers.map((layer) => ({ ...layer, id: "" })), areas: ownAreas }));
+    highlightStyleKeys.set(entry.pass, keyOf({ projection: style.projection, layers: entry.layers.map((layer) => ({ ...layer, id: "" })), areas: ownAreas, heat: entry.codes.includes(HEAT_CODE) ? normaliseHeat(spec.heat) : null }));
   }
   const labelOf = (pass: PassId) => highlightPasses.find((p) => p.pass === pass)?.label ?? PASS_INFO[pass as keyof typeof PASS_INFO].label;
   const context: FrameKeyContext = {
-    // Without the highlights' layers, the polygons of highlighted areas and the provinces a data
-    // fill colours, which only the highlight passes draw.
-    style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
+    // Without the highlights' layers, the polygons of highlighted areas, the provinces a data fill
+    // colours and the points of a heat map, which only the highlight passes draw.
+    style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE && id !== HEAT_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
     data: dataFingerprint(spec.basemap, terrain),
     width: geometry.width,
     height: geometry.height,
