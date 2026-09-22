@@ -16,6 +16,10 @@ Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy sui
 
 > **Version 0.3** — looks of your own (or taken from a still of your film), numbers on the map from a CSV, any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
 
+**Privacy.** The panel never sends anything about you or your project. It goes online only when you
+ask for a download or an OpenStreetMap search, and once a day to look at the release list on GitHub
+for a newer version (one request, nothing sent; the switch is on the Maps screen).
+
 ## Install
 
 Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After

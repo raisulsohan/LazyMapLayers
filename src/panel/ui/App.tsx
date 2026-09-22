@@ -31,7 +31,9 @@ import {
   matchAe,
   exportGeoJson,
   openRegionSheet,
+  dismissUpdate,
   hereText,
+  openUpdate,
   previewClicked,
   previewHovered,
   previewMoved,
@@ -45,6 +47,7 @@ import {
   tab,
   themeId,
   tool,
+  updateAvailable,
   view
 } from "../store.ts";
 import { themeById } from "../../core/style/themes.ts";
@@ -298,6 +301,17 @@ export function App(): JSX.Element {
     <>
       {/* The main screen stays mounted (the preview map lives in it); other screens cover it. */}
       <div class="main" style={{ display: current === "main" ? "flex" : "none" }}>
+        {updateAvailable.value && (
+          <div class="update-banner" data-id="update-banner">
+            <span>LazyMapLayers {updateAvailable.value.version} is out</span>
+            <button class="small-button" data-id="update-get" onClick={openUpdate} title="Opens the release page in your browser">
+              Get it
+            </button>
+            <button class="small-button" data-id="update-later" onClick={dismissUpdate} title="Not for this version; the next one will be mentioned">
+              Later
+            </button>
+          </div>
+        )}
         <Header />
         <ToolRow />
         <SearchBar />

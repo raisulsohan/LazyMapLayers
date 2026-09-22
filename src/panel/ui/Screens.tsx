@@ -6,6 +6,9 @@ import { useEffect, useState } from "preact/hooks";
 import { callHost, isInCep } from "../cep.ts";
 import { compSize } from "../preview.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
+import { hostInfo, reportProblem, setUpdatesOn, updatesOn } from "../store.ts";
+import { openUrl } from "../cep.ts";
+import { RELEASES_URL } from "../updates.ts";
 import { formatTime } from "../shots/shotsStore.ts";
 import { Icon, IconButton } from "./icons.tsx";
 
@@ -58,6 +61,23 @@ export function MapsScreen(): JSX.Element {
         <button class="wide" disabled={busy.value} onClick={() => void buildSample()} title="A globe-to-Paris-to-Tokyo flight with borders, labels, pins, callouts and a route">
           <Icon name="plane" size={12} /> Build the world flight sample
         </button>
+        <div class="section-title">About</div>
+        <div class="muted small" data-id="about-versions">{hostInfo.value || "LazyMapLayers"}</div>
+        <div class="field-row">
+          <button class="small-button" data-id="about-releases" onClick={() => openUrl(RELEASES_URL)} title="Every release, with what changed, on GitHub">
+            Releases
+          </button>
+          <button class="small-button" data-id="about-website" onClick={() => openUrl("https://raisulsohan.com")} title="Raisul Sohan's site">
+            raisulsohan.com
+          </button>
+          <button class="small-button" data-id="about-report" disabled={busy.value} onClick={() => void reportProblem()} title="Writes a report with the panel's last messages to your LazyMapLayers folder and opens a new issue on GitHub for you to paste it into. Nothing is sent by itself.">
+            Report a problem
+          </button>
+        </div>
+        <label class="check" title="One request to GitHub's release list a day, sending nothing but the request. Off, the panel never goes online by itself.">
+          <input type="checkbox" data-id="about-updates" checked={updatesOn.value} onChange={(e) => setUpdatesOn((e.target as HTMLInputElement).checked)} />
+          Look for new versions once a day
+        </label>
       </div>
     </div>
   );

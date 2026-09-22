@@ -177,6 +177,14 @@ async function runUiScenario() {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}, true).then(() => true)`);
     await idle();
   }
+  // A newer version: the banner shows for a made-up one and goes with Later (no request is made).
+  await panel.evaluate('(window.lmlDebug.store.updateAvailable.value = { version: "99.0.0", url: "https://github.com/raisulsohan/LazyMapLayers/releases" }, true)');
+  await sleep(200);
+  const bannerShown = await panel.evaluate(`!!${control("update-banner")}`);
+  await click("update-later");
+  await sleep(200);
+  const bannerGone = await panel.evaluate(`!${control("update-banner")}`);
+  console.log(`U1 update banner: shown ${bannerShown}, gone after Later ${bannerGone}, updates on ${await panel.evaluate("window.lmlDebug.store.updatesOn.value")}`);
   // What is here: the readout for a point in Paris, the way the pointer would ask.
   await panel.evaluate("(window.lmlDebug.store.previewHovered({ lat: 48.8584, lng: 2.2945 }), true)");
   await sleep(400);

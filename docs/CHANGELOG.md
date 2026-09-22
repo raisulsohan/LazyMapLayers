@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **New versions, and problems.** The panel looks at the release list on GitHub once a day and says
+  when a newer version is out (Get it / Later); the Maps screen has the switch to turn that off, and
+  it is one request that sends nothing. Report a problem writes a text file with the panel's last
+  messages to your LazyMapLayers folder and opens a new issue for you to paste it into - nothing
+  leaves your computer on its own.
 - **The look's details.** Under the colours of the Look sheet: how heavy the lines are (borders,
   coasts, rivers, province lines), how wide the roads of a detailed region, and whether the map
   draws fewer or more names. They apply to every look, bundled or your own, in the preview and the

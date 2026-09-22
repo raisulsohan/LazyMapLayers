@@ -61,6 +61,9 @@ import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, pointOf, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
+import { openUrl } from "./cep.ts";
+import { readPrefs, writePrefs } from "./prefs.ts";
+import { issueUrl, newerVersion, RELEASES_URL, writeProblemReport, type Update } from "./updates.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
 import { samplerFor } from "./elevation.ts";
@@ -2104,12 +2107,55 @@ export function goToResult(result: SearchResult): void {
   showCompView(target, true);
 }
 
+/** The version of the panel that is running, as the host reports it. */
+export const panelVersion = signal("");
+/** A newer release than the one running, when one is known and not waved away. */
+export const updateAvailable = signal<Update | null>(null);
+/** Whether the panel looks for a newer release once a day. */
+export const updatesOn = signal(readPrefs().updates);
+
+export const setUpdatesOn = (on: boolean): void => {
+  updatesOn.value = on;
+  writePrefs({ updates: on });
+  if (!on) updateAvailable.value = null;
+  else if (panelVersion.value) void checkForUpdate();
+};
+
+/** Asks the release list (once a day) and shows a newer version, quietly when there is none. */
+export async function checkForUpdate(): Promise<void> {
+  try {
+    const found = await newerVersion(panelVersion.value);
+    updateAvailable.value = found;
+    if (found) log(`LazyMapLayers ${found.version} is out (this is ${panelVersion.value}): open Maps for the download`, "ok");
+  } catch {
+    updateAvailable.value = null;
+  }
+}
+
+/** "Later": this version is not mentioned again. */
+export const dismissUpdate = (): void => {
+  if (updateAvailable.value) writePrefs({ dismissedVersion: updateAvailable.value.version });
+  updateAvailable.value = null;
+};
+
+export const openUpdate = (): void => openUrl(updateAvailable.value?.url ?? RELEASES_URL);
+
+/** Writes a problem report next to the panel's data and opens a new issue with the versions filled in. */
+export const reportProblem = () =>
+  run("problem report", async () => {
+    const report = writeProblemReport(logLines.value.map((line) => line.text), hostInfo.value);
+    openUrl(issueUrl(hostInfo.value));
+    log(`the problem report is at ${report.file}: paste it into the issue that opened in your browser`, "ok");
+  });
+
 export function startStore(): () => void {
   if (!isInCep()) return () => undefined;
   callHost<{ appVersion: string; lml: string }>("ping")
     .then((info) => {
       hostInfo.value = `After Effects ${info.appVersion} · LazyMapLayers ${info.lml}`;
+      panelVersion.value = info.lml;
       log(hostInfo.value, "muted");
+      if (updatesOn.value) void checkForUpdate();
     })
     .catch((error) => fail("host not ready", error));
   void refreshMaps(true);

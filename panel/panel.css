@@ -320,6 +320,20 @@ select.compact {
   pointer-events: none;
 }
 
+.update-banner {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 4px 10px;
+  background: rgba(88, 160, 255, 0.16);
+  border-bottom: 1px solid rgba(88, 160, 255, 0.35);
+  font-size: 11.5px;
+}
+
+.update-banner span {
+  flex: 1;
+}
+
 .here-readout {
   position: absolute;
   z-index: 5;

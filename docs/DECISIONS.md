@@ -873,6 +873,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D56 — An update check that sends nothing, and a report the user posts himself (2026-09-23)
+
+- **Why.** The plan (P9) asks for an update checker and a bug reporter. The rule is no telemetry:
+  nothing about the person or the project may leave the computer without them doing it.
+- **Update check.** One GET to GitHub's release list, at most once a day, with the panel's version in
+  the user agent and nothing else; the newest version and the time are kept in the panel's own
+  settings file, so a known newer version shows even offline, and "Later" silences that version.
+  A switch on the Maps screen turns the check off, after which the panel never goes online by
+  itself. Pre-releases and drafts are ignored.
+- **Problem report.** A text file (versions, host, platform, the panel's last messages, the tail
+  of the panel log) written to the user data folder, and the new-issue page opened in the browser
+  with the versions filled in. The user reads the file and pastes it: they see what is shared.
+- **Not done.** No crash upload, no usage counting, and no check of the data packs' versions.
+
 ## D55 — The look's details as knobs on the finished style (2026-09-23)
 
 - **Why.** The plan (P7) left a style editor for the smaller details: road widths and label

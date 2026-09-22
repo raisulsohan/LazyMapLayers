@@ -80,7 +80,9 @@ MAKING YOUR OWN MAP
   New map          adds a map comp to the comp you have open, at
                    its size (or to a new scene).
   Preview          the exact frame: drag to move, scroll to
-                   zoom, right-drag to rotate and tilt.
+                   zoom, right-drag to rotate and tilt. The line
+                   at the bottom says what is under the pointer:
+                   the place, district, province and country.
   Basemap          World (offline) or downloaded regions.
   Globe            a planet at low zoom that becomes the flat
                    map by zoom 8.
@@ -103,10 +105,12 @@ MAKING YOUR OWN MAP
 
   TOOLS (the row of icons)
   Pin, 3D pin      click, then click a place (or Alt+click the
-                   map; Alt+Shift+click for a 3D pin).
+                   map; Alt+Shift+click for a 3D pin). The layer
+                   is named after the place ("Pin: Dhaka").
   Callout          a leader line with a title box next to a place.
   Route            a great-circle line between two places, with
-                   an arrow that rides it, a comet head, or dashes.
+                   an arrow that rides it, a comet head, or dashes;
+                   named after its ends ("Dhaka to Chittagong").
   Highlight        click countries, provinces or districts on the
                    map; each renders as its own layer above the
                    basemap. Districts are downloaded per country
@@ -123,11 +127,17 @@ MAKING YOUR OWN MAP
   Attach           select your own layers in After Effects, then
                    click a place: they stay on it while the
                    camera moves. "Unlink" puts them back.
-  Numbers          a CSV of countries (or of one country's states
-                   and provinces) and a column of numbers colours
-                   the map, adds circles whose area is the value,
-                   writes the numbers as text layers and builds a
-                   legend precomp.
+  Numbers          a CSV of countries (or of one country's states,
+                   provinces or downloaded districts) and a column
+                   of numbers colours the map; then, as you like:
+                   circles whose area is the value, spikes whose
+                   height is, the numbers as text layers, a heat
+                   layer of the places' warmth, a copy of your own
+                   selected layer on every place sized by its
+                   number, and a legend precomp. A table with a
+                   place at each end of a row and an amount draws
+                   flows: one arc per row, width (and colour) by
+                   amount, arrows riding.
   OpenStreetMap    find a lake, river, park, island, airport,
                    district boundary or building for the area in
                    the preview, and draw it, highlight it or add
@@ -142,9 +152,12 @@ MAKING YOUR OWN MAP
                    the lower third, a top bar or whatever your own
                    layers cover, while those layers are on screen.
   Animate borders  draws the borders on over 4 seconds.
-  Look             Midnight, Satellite, Daylight, Atlas,
-                   Blueprint, Mono, Paper; shaded relief; the sky
-                   above the horizon; terrain (below).
+  Look             twelve looks (Midnight, Satellite, Daylight,
+                   Atlas, Blueprint, Mono, Paper, Noir, Slate,
+                   Terracotta, Arctic, Emerald); shaded relief;
+                   the sky above the horizon; terrain (below).
+                   "Details" turns the lines and roads heavier or
+                   lighter and draws fewer or more names.
                    "Your own colours" sets the sea, the land, the
                    lines and the names, and works the rest of the
                    map out from them. "From a picture" takes the
@@ -238,6 +251,13 @@ UNINSTALL
 ------------------------------------------------------------
 SUPPORT
 ------------------------------------------------------------
+  Maps list > About > "Report a problem" writes a report with
+  the panel's last messages to your LazyMapLayers folder and
+  opens a new issue on GitHub for you to paste it into. Nothing
+  is sent by itself. The panel looks at the release list once a
+  day and says when a newer version is out; the switch to turn
+  that off is next to it.
+
   Raisul Sohan
   lettertosohan@gmail.com
   https://raisulsohan.com

@@ -15,6 +15,7 @@ type NodeRequire = (id: string) => unknown;
 declare global {
   interface Window {
     __adobe_cep__?: AdobeCep;
+    cep?: { util?: { openURLInDefaultBrowser?: (url: string) => void } };
     cep_node?: { require: NodeRequire };
     require?: NodeRequire;
   }
@@ -53,6 +54,13 @@ export function extensionRoot(): string {
   if (!cep) throw new Error("not running inside CEP");
   const raw = decodeURI(cep.getSystemPath("extension"));
   return raw.replace(/^file:\/{2,3}/, "");
+}
+
+/** Opens a web page in the user's own browser (a new tab outside After Effects). */
+export function openUrl(url: string): void {
+  const open = window.cep?.util?.openURLInDefaultBrowser;
+  if (open) open(url);
+  else window.open(url, "_blank");
 }
 
 export function hostEnvironment(): { appName: string; appVersion: string; appLocale: string } {
