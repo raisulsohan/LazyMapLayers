@@ -873,6 +873,12 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D57 — No translations of the panel (2026-09-23)
+
+- **Decision.** The panel stays in English only; the plan’s “translations (Bengali first)” is dropped.
+  Sohan’s call: motion designers work in an English After Effects, the panel’s own words are few and
+  plain, and every map already speaks the local language where it matters - the names on it.
+
 ## D56 — An update check that sends nothing, and a report the user posts himself (2026-09-23)
 
 - **Why.** The plan (P9) asks for an update checker and a bug reporter. The rule is no telemetry:

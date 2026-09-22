@@ -14,7 +14,7 @@
 
 Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy suite · Free & open source ([MIT](LICENSE))
 
-> **Version 0.3** — looks of your own (or taken from a still of your film), numbers on the map from a CSV, any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
+> **Version 0.4** — numbers on the map as colours, bubbles, spikes, heat, flows and copies of your own layer; twelve looks and their details; what is under the pointer; looks of your own (or taken from a still of your film), any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
 
 **Privacy.** The panel never sends anything about you or your project. It goes online only when you
 ask for a download or an OpenStreetMap search, and once a day to look at the release list on GitHub
@@ -25,7 +25,7 @@ for a newer version (one request, nothing sent; the switch is on the Maps screen
 Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
 Effects 2026; the macOS installer has not been tried on a Mac yet.
 
-1. Download `LazyMapLayers-v0.3.1.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
+1. Download `LazyMapLayers-v0.4.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.
 3. Windows: double-click **Install LazyMapLayers.bat**. macOS: double-click
    **Install LazyMapLayers (macOS).command** (if macOS refuses, right-click it and choose Open).
@@ -70,7 +70,7 @@ Dhaka to Chittagong with an arrow, say:
    Traveller layer if you want one).
 6. **Auto labels** > **Place labels**. **Preview** to check, **Render** for the final frames.
 
-## What works today (0.3)
+## What works today (0.4)
 
 - **A look of your own.** Set the sea, the land, the lines and the names, and the rest of the map -
   roads, borders, buildings, parks, coasts, sky - is worked out from them, with the names kept

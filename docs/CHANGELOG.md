@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.4.0 — spikes, heat, flows in colour, your layer on every place, and the look's details (2026-09-23)
 
 - **The numbers sample.** Maps list > Build the numbers sample: a world map of every country by its
   population from the bundled data, with the colours, spikes for the numbers and a legend, ready to

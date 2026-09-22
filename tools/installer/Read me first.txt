@@ -1,5 +1,5 @@
 ============================================================
-  LAZYMAPLAYERS 0.3.1
+  LAZYMAPLAYERS 0.4.0
   Free map animation for After Effects: globe to street level,
   3D terrain, your own looks, labels, routes, highlights,
   data maps, rendered frame-exact
