@@ -7,6 +7,7 @@ import type { LayerGroup } from "../../core/render/passes.ts";
 import { dataFillColors, DATA_CODE, type DataFill } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, heatColorStops, heatFeatures, type HeatSetting } from "../../core/style/heat.ts";
 import { provincesOf } from "../data/admin1.ts";
+import { districtsOf } from "../data/districts.ts";
 import { areaIdOf, isAreaCode, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { themeById, type Theme } from "../../core/style/themes.ts";
 
@@ -171,12 +172,14 @@ export function naturalEarthStyle(
   if (options.data) {
     const colours = dataFillColors(options.data);
     const province = options.data.level === "province" && options.data.country;
-    // Countries come from the world tiles; provinces from their bundled polygons, as a source of
-    // their own holding only the ones with a number.
+    const district = options.data.level === "district" && options.data.country;
+    // Countries come from the world tiles; provinces from their bundled polygons and districts from
+    // their downloaded ones, as a source of their own holding only the units with a number.
     let from: Record<string, unknown> = { source: source, "source-layer": "countries" };
     let key: unknown = ["get", "adm0_a3"];
-    if (province) {
-      const wanted = provincesOf(options.data.country as string).filter((unit) => colours.colors[unit.id]);
+    if (province || district) {
+      const units = province ? provincesOf(options.data.country as string) : districtsOf(options.data.country as string);
+      const wanted = units.filter((unit) => colours.colors[unit.id]);
       if (wanted.length) {
         sources[DATA_SOURCE] = {
           type: "geojson",
@@ -187,7 +190,7 @@ export function naturalEarthStyle(
         key = ["get", "id"];
       }
     }
-    if (colours.codes.length && (!province || sources[DATA_SOURCE])) {
+    if (colours.codes.length && (!(province || district) || sources[DATA_SOURCE])) {
       const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE };
       const match: unknown[] = ["match", key];
       for (const code of colours.codes) match.push(code, colours.colors[code]);

@@ -73,7 +73,7 @@ Dhaka to Chittagong with an arrow, say:
   readable on whatever land you chose. **From a picture** takes the palette of a still from your
   film; a look can be saved to a file, shared, and opened again, and Illustrator or Photoshop
   palettes (.ase, .act) open straight into one.
-- **Numbers on the map.** A CSV with a country column (or one country's states and provinces) and a
+- **Numbers on the map.** A CSV with a country column (or one country's states, provinces or downloaded districts) and a
   column of numbers colours every place it names as one layer, adds circles whose area is the value
   or spikes whose height is, draws flows between places as arcs whose width (and colour) is the amount,
   renders the places' warmth as a heat layer,

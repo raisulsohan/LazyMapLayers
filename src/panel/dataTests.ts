@@ -4,13 +4,14 @@
 import { project, type View } from "../core/camera/camera.ts";
 import { columnValues, readDataTable } from "../core/data/dataTable.ts";
 import { buildLookup, joinValues } from "../core/data/join.ts";
-import { dataFillColors, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import { dataFillColors, DEFAULT_DATA_FILL, normaliseDataFill, type DataFill } from "../core/style/dataFill.ts";
 import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { evalScript, fs, path } from "./cep.ts";
 import { spikeDir } from "./spikes.ts";
 import { provinceJoinTargets } from "./data/admin1.ts";
 import { countryJoinTargets } from "./data/countries.ts";
+import { districtJoinTargets, districtSetOf } from "./data/districts.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
@@ -338,11 +339,62 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   await addLegend(stateMap.id, stateFill, { theme: "midnight", corner: "bottomLeft" });
   await saveSceneFrame(stateMap.id, "dt1-states");
 
+  // Districts, when Bangladesh's are downloaded on this computer (DS1 fetches them): named rows join
+  // to the downloaded units, and the fill renders from their own polygons.
+  let districts = "not installed";
+  if (districtSetOf("BGD")) {
+    const byDistrict = joinValues(
+      [
+        { key: "Bagerhat", value: 9 },
+        { key: "bandarban", value: 5 },
+        { key: "Bhola", value: 2 },
+        { key: "Atlantis", value: 1 }
+      ],
+      buildLookup(districtJoinTargets("BGD"))
+    );
+    if (byDistrict.matched.length !== 3) problems.push(`${byDistrict.matched.length} of 3 districts joined: ${JSON.stringify(byDistrict)}`);
+    const districtFill = normaliseDataFill({
+      ...DEFAULT_DATA_FILL,
+      column: "Households",
+      level: "district",
+      country: "BGD",
+      values: Object.fromEntries(byDistrict.matched.map((row) => [row.code, row.value])),
+      steps: 3,
+      opacity: 1
+    });
+    if (!districtFill || districtFill.level !== "district") problems.push(`the district fill did not survive: ${JSON.stringify(districtFill)}`);
+    else {
+      const bangladesh: View = { center: { lat: 23.2, lng: 90.3 }, zoom: 6.4, bearing: 0, pitch: 0 };
+      const districtMap = await createMapComp({ name: "DT1 districts", ...SIZE, duration: 1, frameRate: 25, view: bangladesh, newScene: true });
+      const districtRender = await runRenderJob({ mapId: districtMap.id, quality: "final", settings, basemap: { kind: "world" }, dataFill: districtFill });
+      const districtSequence = districtRender.sequences.find((s) => s.pass === "highlight-DATA");
+      if (!districtSequence) {
+        problems.push("the districts did not render");
+      } else {
+        const rgba = decodePng(new Uint8Array(fs().readFileSync(path().join(districtSequence.folder, sequenceFileName(0))))).rgba;
+        const at = (place: { lat: number; lng: number }) => {
+          const p = project(bangladesh, SIZE, place);
+          const i = (Math.round(p.y) * SIZE.width + Math.round(p.x)) * 4;
+          return [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]];
+        };
+        const bagerhat = at({ lat: 22.52, lng: 89.75 });
+        const bhola = at({ lat: 22.4, lng: 90.7 });
+        const dhaka = at({ lat: 23.8, lng: 90.4 });
+        if (bagerhat[3] < 200 || bhola[3] < 200) problems.push(`a district with a number is not filled: Bagerhat ${bagerhat}, Bhola ${bhola}`);
+        if (dhaka[3] !== 0) problems.push(`Dhaka has no number but is filled: ${dhaka}`);
+        if (bagerhat.join() === bhola.join()) problems.push(`9 and 2 got the same colour ${bagerhat}`);
+        districts = `${byDistrict.matched.length} joined, Bagerhat ${bagerhat.join("/")}, Bhola ${bhola.join("/")}, Dhaka ${dhaka.join("/")}`;
+      }
+      await addLegend(districtMap.id, districtFill, { theme: "midnight", corner: "bottomRight" });
+      await saveSceneFrame(districtMap.id, "dt1-districts");
+    }
+  }
+
   const passed = problems.length === 0;
   log(
     `DT1 data on the map: ${joined.matched.length} of ${values.length} rows joined (${codes.join(", ")}), ${colours.legend.length} steps, rendered as "${dataLayer?.name ?? "-"}", ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, districts, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

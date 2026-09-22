@@ -10,11 +10,11 @@ export const DATA_CODE = "DATA";
 export type DataFill = {
   /** The column the numbers came from: the layer's name and the legend's title. */
   column: string;
-  /** What the numbers are about: countries, or the provinces of one country. */
-  level: "country" | "province";
-  /** For provinces: the country they belong to (the code the map tiles carry). */
+  /** What the numbers are about: countries, the provinces of one country, or its downloaded districts. */
+  level: "country" | "province" | "district";
+  /** For provinces and districts: the country they belong to (the code the map tiles carry). */
   country: string | null;
-  /** The value of each country (by its map code) or of each province (by its id). */
+  /** The value of each country (by its map code), or of each province or district (by its id). */
   values: Record<string, number>;
   ramp: RampId;
   steps: number;
@@ -53,13 +53,13 @@ const colour = (value: unknown, fallback: string | null) => (typeof value === "s
 export function normaliseDataFill(raw: unknown): DataFill | null {
   if (!raw || typeof raw !== "object") return null;
   const source = raw as Partial<DataFill>;
-  const level = source.level === "province" ? "province" : "country";
+  const level = source.level === "province" ? "province" : source.level === "district" ? "district" : "country";
   const country = typeof source.country === "string" && /^[A-Z0-9_-]{2,8}$/i.test(source.country) ? source.country.toUpperCase() : null;
-  if (level === "province" && !country) return null;
+  if (level !== "country" && !country) return null;
   const values: Record<string, number> = {};
   for (const [code, value] of Object.entries((source.values ?? {}) as Record<string, unknown>)) {
-    // A country is the upper-case code the tiles carry; a province is the id the index writes.
-    if (/^[A-Za-z0-9_-]{2,16}$/.test(code) && typeof value === "number" && Number.isFinite(value)) values[level === "country" ? code.toUpperCase() : code] = value;
+    // A country is the upper-case code the tiles carry; a province or a district is the id its data writes.
+    if (/^[A-Za-z0-9_-]{2,32}$/.test(code) && typeof value === "number" && Number.isFinite(value)) values[level === "country" ? code.toUpperCase() : code] = value;
   }
   if (!Object.keys(values).length) return null;
   return {
@@ -104,4 +104,4 @@ export function dataFillColors(fill: DataFill): DataColours {
 
 /** What the sheet and the log say about a fill. */
 export const describeDataFill = (fill: DataFill, colours: DataColours): string =>
-  `${colours.codes.length} ${fill.level === "province" ? "provinces" : "countries"} coloured by ${fill.column}, ${colours.scale.colors.length} steps ${fill.method === "quantile" ? "with about as many each" : "of even size"}`;
+  `${colours.codes.length} ${fill.level === "province" ? "provinces" : fill.level === "district" ? "districts" : "countries"} coloured by ${fill.column}, ${colours.scale.colors.length} steps ${fill.method === "quantile" ? "with about as many each" : "of even size"}`;

@@ -873,6 +873,22 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D52 — Tables join to downloaded districts (2026-09-23)
+
+- **Why.** Countries and provinces are bundled, so a table of them joins offline; districts are
+  downloaded per country (D27), and a table of them had nowhere to go. A district map of one country
+  is the commonest data map in local news.
+- **Decision.** A third level of data fill, `district`, keyed by the downloaded units’ ids, with the
+  country it belongs to. The join targets are the installed set’s unit names (the manifest already
+  holds them for search); the fill renders the units with a number from the set’s polygons, as the
+  provinces do from theirs; bubbles, spikes, values and heat take the units’ label points. Left to
+  itself the join tries countries, then the provinces of the country the rows point at, then the
+  districts of that country - or of every country whose districts are downloaded when the rows
+  name no province - and keeps the level most rows fit, the coarser one when they tie. Asked for
+  districts, it takes the best set; with none, it falls back and says so through the counts.
+- **Not done.** No short codes for districts (the sets carry none), and a district set is not
+  downloaded from the Data sheet: the Highlight sheet does that, as before.
+
 ## D51 — Heat as a render pass, not as layers (2026-09-23)
 
 - **Why.** Bubbles and spikes are one group per place; a heat map is the sum of thousands of

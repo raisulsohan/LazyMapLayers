@@ -43,7 +43,7 @@ import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.t
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { callHost, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
-import { districtAt, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
+import { districtAt, districtJoinTargets, districtPoint, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
 import { buildGeoJson, type ExportLayer } from "../core/data/geoJsonExport.ts";
 import { countryOutline } from "./data/countries.ts";
 import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
@@ -1273,7 +1273,9 @@ export const dataNoData = signal<string | null>(null);
 /** null: the look decides which end of the ramp is "much". */
 export const dataReverse = signal<boolean | null>(null);
 /** What the rows are about: worked out from the table, or set by hand. */
-export const dataLevel = signal<"auto" | "country" | "province">("auto");
+/** What the rows of a table are taken to be about: worked out, or told. */
+export type DataLevelChoice = "auto" | "country" | "province" | "district";
+export const dataLevel = signal<DataLevelChoice>("auto");
 /** For provinces: the country they belong to (null lets the table decide). */
 export const dataCountry = signal<string | null>(null);
 export const dataMessage = signal<string | null>(null);
@@ -1360,12 +1362,31 @@ function provinceLookup(country: string | null) {
   return built;
 }
 
+const districtLookups = new Map<string, ReturnType<typeof buildLookup>>();
+
+/** Every way of naming a district of a country whose districts are downloaded (rebuilt after a new download). */
+function districtLookup(country: string) {
+  const key = `${country}:${districtSetOf(country)?.downloaded ?? ""}`;
+  const had = districtLookups.get(key);
+  if (had) return had;
+  const built = buildLookup(districtJoinTargets(country));
+  districtLookups.set(key, built);
+  return built;
+}
+
+type JoinLevel = "country" | "province" | "district";
+
+/** "Bangladesh provinces: " or "Bangladesh districts: " before what the join found; nothing for countries. */
+const levelPrefix = (found: { level: JoinLevel; country: string | null }) => (found.level === "country" ? "" : `${countryName(found.country)} ${found.level === "province" ? "provinces" : "districts"}: `);
+
 /**
- * Where a table's rows belong: countries, or the provinces of one country. Province names alone
- * decide which country it is about; once that is known, the short codes of that country's provinces
- * (CA, US-CA) are joined too, which they could not be while every province in the world was in play.
+ * Where a table's rows belong: countries, the provinces of one country, or its downloaded districts.
+ * Province names alone decide which country it is about; once that is known, the short codes of that
+ * country's provinces (CA, US-CA) are joined too, which they could not be while every province in the
+ * world was in play. Districts are tried for that country, or for every country whose districts are
+ * downloaded when the rows name no province; left to itself, the level with the most rows wins.
  */
-function joinTable(rows: { key: string; value: number }[]): { level: "country" | "province"; country: string | null; result: ReturnType<typeof joinValues> } {
+function joinTable(rows: { key: string; value: number }[]): { level: JoinLevel; country: string | null; result: ReturnType<typeof joinValues> } {
   const wanted = dataLevel.value;
   const byCountry = joinValues(rows, countryLookup());
   if (wanted === "country") return { level: "country", country: null, result: byCountry };
@@ -1380,8 +1401,20 @@ function joinTable(rows: { key: string; value: number }[]): { level: "country" |
     country = [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   }
   const byProvince = country ? joinValues(rows, provinceLookup(country)) : null;
-  if (!byProvince || !byProvince.matched.length) return { level: "country", country: null, result: byCountry };
-  if (wanted === "province" || byProvince.matched.length > byCountry.matched.length) return { level: "province", country, result: byProvince };
+  let byDistrict: { country: string; result: ReturnType<typeof joinValues> } | null = null;
+  if (wanted !== "province") {
+    for (const code of country ? [country] : installedDistricts().map((set) => set.country)) {
+      if (!districtSetOf(code)) continue;
+      const result = joinValues(rows, districtLookup(code));
+      if (result.matched.length && (!byDistrict || result.matched.length > byDistrict.result.matched.length)) byDistrict = { country: code, result };
+    }
+  }
+  const provinces = byProvince?.matched.length ?? 0;
+  if (wanted === "district" && byDistrict) return { level: "district", country: byDistrict.country, result: byDistrict.result };
+  if (wanted === "province") return byProvince && provinces && country ? { level: "province", country, result: byProvince } : { level: "country", country: null, result: byCountry };
+  // Left to itself: the level with the most rows, and the coarser one when they tie.
+  if (byDistrict && byDistrict.result.matched.length > Math.max(byCountry.matched.length, provinces)) return { level: "district", country: byDistrict.country, result: byDistrict.result };
+  if (byProvince && country && provinces > byCountry.matched.length) return { level: "province", country, result: byProvince };
   return { level: "country", country: null, result: byCountry };
 }
 
@@ -1401,14 +1434,12 @@ export function openDataTable(table: DataTable): void {
   const rows = columnValues(table, table.keyColumn, table.valueColumn);
   const found = joinTable(rows);
   dataCountry.value = found.country;
-  dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(found.result, rows.length)}`;
+  dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}`;
 }
 
-/** The countries a table of provinces may be about, by name. */
-export const countryChoices = (): { code: string; name: string }[] =>
-  countryCodeRows()
-    .map((row) => ({ code: row.code, name: row.names[0] ?? row.code }))
-    .sort((a, b) => a.name.localeCompare(b.name));
+/** The countries a table of provinces may be about, by name; for districts, the countries whose districts are downloaded. */
+export const countryChoices = (level: DataLevelChoice = dataLevel.value): { code: string; name: string }[] =>
+  (level === "district" ? installedDistricts().map((set) => ({ code: set.country, name: set.countryName })) : countryCodeRows().map((row) => ({ code: row.code, name: row.names[0] ?? row.code }))).sort((a, b) => a.name.localeCompare(b.name));
 
 /** A country's name from its map code, for the messages. */
 function countryName(code: string | null): string {
@@ -1426,7 +1457,7 @@ export const applyDataFill = () =>
     const found = joinTable(rows);
     const result = found.result;
     dataCountry.value = found.country;
-    dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(result, rows.length)}`;
+    dataMessage.value = `${levelPrefix(found)}${describeJoin(result, rows.length)}`;
     if (!result.matched.length) {
       log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country or a province`, "fail");
       return;
@@ -1457,17 +1488,17 @@ export const applyDataFill = () =>
 
 /** Changes how the numbers are coloured, and redraws them at once. */
 /** Changes what the rows are taken to be about, and joins again. */
-export const changeDataLevel = (level: "auto" | "country" | "province", country?: string | null) =>
+export const changeDataLevel = (level: DataLevelChoice, country?: string | null) =>
   run("data on the map", async () => {
     dataLevel.value = level;
     if (country !== undefined) dataCountry.value = country;
-    if (level !== "province") dataCountry.value = null;
+    if (level === "auto" || level === "country") dataCountry.value = null;
     const table = dataTable.value;
     if (!table) return;
     const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
     const found = joinTable(rows);
     dataCountry.value = found.country;
-    dataMessage.value = `${found.level === "province" ? `${countryName(found.country)} provinces: ` : ""}${describeJoin(found.result, rows.length)}`;
+    dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}`;
   });
 
 export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData" | "reverse">>) =>
@@ -1515,6 +1546,13 @@ export const spikesOn = signal(false);
 /** Where each value sits on the map: a country's label point, or a province's. */
 function placesOfFill(fill: DataFill): BubblePlace[] {
   const places: BubblePlace[] = [];
+  if (fill.level === "district" && fill.country) {
+    for (const [id, value] of Object.entries(fill.values)) {
+      const point = districtPoint(fill.country, id);
+      if (point) places.push({ id, name: point.name, lat: point.lat, lng: point.lng, value });
+    }
+    return places;
+  }
   if (fill.level === "province") {
     for (const [id, value] of Object.entries(fill.values)) {
       const point = provincePoint(id);

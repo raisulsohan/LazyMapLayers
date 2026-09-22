@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -350,16 +350,18 @@ export function DataSheetView(): JSX.Element | null {
       <div class="sheet-row import-row">
         <label class="num-field" title="What the rows are about. Left alone, the panel works it out from the table itself.">
           <span>Match</span>
-          <select data-id="data-level" value={dataLevel.value} disabled={busy.value} onChange={(e) => void changeDataLevel((e.target as HTMLSelectElement).value as "auto" | "country" | "province")}>
+          <select data-id="data-level" value={dataLevel.value} disabled={busy.value} onChange={(e) => void changeDataLevel((e.target as HTMLSelectElement).value as DataLevelChoice)}>
             <option value="auto">Whatever fits</option>
             <option value="country">Countries</option>
             <option value="province">Provinces</option>
+            <option value="district">Districts (downloaded)</option>
           </select>
         </label>
-        {(dataLevel.value === "province" || dataCountry.value) && (
-          <label class="num-field grow" title="The country whose provinces, states or divisions the rows name">
-            <select data-id="data-country" value={dataCountry.value ?? ""} disabled={busy.value} onChange={(e) => void changeDataLevel("province", (e.target as HTMLSelectElement).value || null)}>
-              {countryChoices().map((entry) => (
+        {(dataLevel.value === "province" || dataLevel.value === "district" || dataCountry.value) && (
+          <label class="num-field grow" title="The country whose provinces, states, divisions or districts the rows name">
+            <select data-id="data-country" value={dataCountry.value ?? ""} disabled={busy.value} onChange={(e) => void changeDataLevel(dataLevel.value === "district" ? "district" : "province", (e.target as HTMLSelectElement).value || null)}>
+              {dataLevel.value === "district" && !countryChoices("district").length && <option value="">Download a country's districts first (Highlight sheet)</option>}
+              {countryChoices(dataLevel.value === "district" ? "district" : "province").map((entry) => (
                 <option key={entry.code} value={entry.code}>
                   {entry.name}
                 </option>

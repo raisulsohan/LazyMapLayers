@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Numbers by district.** A table of a country's districts (counties, departments) joins to the
+  districts downloaded for that country, by name, and colours them from their own outlines, with
+  bubbles, spikes, values, heat and the legend all following. The Match box has a Districts choice;
+  left on "Whatever fits", the panel tries the downloaded districts as well and takes the level most
+  rows fit.
 - **Heat.** The places of a table warm the map around them by their numbers (or the places of the
   last imported file, alike), and the renderer draws the warmth in the colours of the ramp as a
   layer of its own that follows the camera - one image sequence, however many points. How far each

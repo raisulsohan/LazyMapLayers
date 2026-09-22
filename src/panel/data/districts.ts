@@ -8,6 +8,7 @@
 //   <user data>/boundaries/<ISO>-ADM2.json    a set's polygons
 
 import { buildBoundarySet, boundaryRecords, type BoundarySetInfo, type BoundaryUnit } from "../../core/data/boundarySet.ts";
+import type { JoinTarget } from "../../core/data/join.ts";
 import { pointInPolygons } from "../../core/geo/pointInPolygon.ts";
 import type { PlaceRecord } from "../../core/search/placeSearch.ts";
 import { fs, path, userDataDir } from "../cep.ts";
@@ -59,6 +60,18 @@ export function districtsOf(country: string): BoundaryUnit[] {
 
 export function districtAt(country: string, position: { lat: number; lng: number }): BoundaryUnit | null {
   return districtsOf(country).find((unit) => pointInPolygons(position, unit.polygons)) ?? null;
+}
+
+/** Every way of naming a district of a country whose districts are downloaded, for joining a table to them. */
+export function districtJoinTargets(country: string): JoinTarget[] {
+  const set = districtSetOf(country);
+  return set ? set.units.map((unit) => ({ code: unit.id, codes: [], names: [unit.n] })) : [];
+}
+
+/** Where a district's name sits, for putting something on it. */
+export function districtPoint(country: string, id: string): { lat: number; lng: number; name: string } | null {
+  const unit = districtSetOf(country)?.units.find((entry) => entry.id === id);
+  return unit ? { lat: unit.lat, lng: unit.lng, name: unit.n } : null;
 }
 
 /** Installed districts as search records. */
