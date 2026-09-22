@@ -49,6 +49,7 @@ import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo,
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
@@ -176,6 +177,8 @@ export const jobs = signal<QueueJob[]>([]);
 export const flightSeconds = signal(6);
 /** A bright head that runs along a new route while it draws on. */
 export const routeComet = signal(false);
+/** An arrow that rides a click-made route (imported lines have their own Draw + arrow button). */
+export const routeArrow = signal(false);
 /** New routes are drawn as a dashed line. */
 export const routeDashed = signal(false);
 /** Dash length in 1080-line pixels when a route is dashed. */
@@ -589,8 +592,8 @@ export const confirmToolSheet = () =>
       const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, template: currentLabelTemplate.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
     } else {
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
-      log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: `Route ${pinCounter++}`, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, traveller: routeArrow.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
+      log(`added a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : ""}`, made.expressionErrors.length ? "fail" : "ok");
     }
     toolSheet.value = null;
   });
@@ -1450,6 +1453,45 @@ export const removeDataBubbles = () =>
     const gone = await removeBubbles(selectedId.value);
     bubblesOn.value = false;
     log(gone.removed ? "the bubbles are off the map" : "this map has no bubbles", gone.removed ? "ok" : "muted");
+  });
+
+/** What the renders take on disk, and how much of it belongs to unsaved projects that are gone. */
+export const renderDisk = signal<RenderDiskReport | null>(null);
+export const renderDiskBusy = signal(false);
+
+/** Walks the render folders and reports what is there (a moment on a big cache). */
+export async function checkRenderDisk(): Promise<void> {
+  if (renderDiskBusy.value) return;
+  renderDiskBusy.value = true;
+  try {
+    const list = await readMaps();
+    let projectFolder: string | null = null;
+    if (selectedId.value) {
+      try {
+        projectFolder = (await callHost<{ projectFolder: string | null }>("renderInfo", { mapId: selectedId.value })).projectFolder;
+      } catch {
+        projectFolder = null;
+      }
+    }
+    renderDisk.value = renderDiskReport(list.map((entry) => entry.mapId), projectFolder);
+  } catch (error) {
+    fail("checking the renders on disk", error);
+  } finally {
+    renderDiskBusy.value = false;
+  }
+}
+
+/** Removes the renders of unsaved projects that are no longer open. */
+export const removeOldRenders = () =>
+  run("old renders", async () => {
+    const report = renderDisk.value;
+    if (!report) return;
+    const gone = removeOldLooseRenders(report);
+    log(
+      gone.removed ? `${gone.removed} ${gone.removed === 1 ? "folder" : "folders"} of old renders removed, ${formatBytes(gone.bytes)} freed${gone.failed.length ? `; ${gone.failed.length} could not be removed (open in After Effects?)` : ""}` : "nothing to remove",
+      gone.failed.length ? "fail" : "ok"
+    );
+    await checkRenderDisk();
   });
 
 /** Changes a colour of the map's own look, and redraws at once. */

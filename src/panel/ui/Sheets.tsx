@@ -42,7 +42,7 @@ import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
-import { routeComet, routeDashed } from "../store.ts";
+import { routeArrow, routeComet, routeDashed } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
 
@@ -837,8 +837,24 @@ export function ToolSheetView(): JSX.Element | null {
           <span class="muted">s, from the current time</span>
         </label>
       </div>
+      {sheet.kind === "route" && (
+        <div class="sheet-row">
+          <label class="check" title="An arrow that travels along the route and turns with it. Parent your own artwork (a plane, a car) to the Traveller layer and switch its Contents off.">
+            <input type="checkbox" data-id="route-arrow" checked={routeArrow.value} onChange={(e) => (routeArrow.value = (e.target as HTMLInputElement).checked)} />
+            <span>Arrow</span>
+          </label>
+          <label class="check" title="A bright head runs along the line while it draws on, like a comet.">
+            <input type="checkbox" data-id="tool-route-comet" checked={routeComet.value} onChange={(e) => (routeComet.value = (e.target as HTMLInputElement).checked)} />
+            <span>Comet</span>
+          </label>
+          <label class="check" title="Draws the line dashed instead of solid.">
+            <input type="checkbox" data-id="tool-route-dashed" checked={routeDashed.value} onChange={(e) => (routeDashed.value = (e.target as HTMLInputElement).checked)} />
+            <span>Dashed</span>
+          </label>
+        </div>
+      )}
       <div class="sheet-row">
-        <button class="primary" disabled={busy.value} onClick={() => void confirmToolSheet()}>
+        <button class="primary" data-id="tool-sheet-add" disabled={busy.value} onClick={() => void confirmToolSheet()}>
           Add {sheet.kind}
         </button>
         <button onClick={() => (toolSheet.value = null)}>Cancel</button>

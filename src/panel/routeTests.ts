@@ -91,13 +91,17 @@ async function otherFormats(problems: string[]): Promise<string> {
   const lone = await importFile(fileOf(polylineShp(degrees), "lone.shp"));
   if (lone.lines[0]?.points.length !== 3 || Math.abs(lone.lines[0].points[2].lat - 22.36) > 1e-9) problems.push(`a lone .shp gives ${JSON.stringify(lone.lines[0]?.points)}`);
 
+  // A table with names and numbers but no coordinates is data for the map (D40), not a mistake...
+  const data = await importFile(new File(["place,people\nFrance,68\n"], "people.csv"));
+  if (!data.table || data.table.keyColumn !== 0 || data.table.valueColumn !== 1) problems.push(`a table of names and numbers gives ${JSON.stringify(data.table ?? null)}`);
+  // ...while a table with neither is refused, and the answer says what was looked for.
   let refused = "";
   try {
-    await importFile(new File(["a,b\n1,x\n"], "nothing.csv"));
+    await importFile(new File(["a,b\nx,y\n"], "nothing.csv"));
   } catch (error) {
     refused = error instanceof Error ? error.message : String(error);
   }
-  if (!refused.includes("latitude")) problems.push(`a table without coordinates is answered with "${refused}"`);
+  if (!refused.includes("latitude")) problems.push(`a table without coordinates or numbers is answered with "${refused}"`);
   return `KMZ ${kmz.lines.length} lines, CSV ${csv.places.length} places, shapefile ${shapeError.toExponential(1)} degrees off`;
 }
 

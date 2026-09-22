@@ -4,8 +4,40 @@ import type { JSX } from "preact";
 import { PASS_IDS, PASS_INFO } from "../../core/render/passes.ts";
 import { MAP_GONE } from "../render/renderJob.ts";
 import { describeSpec, renderQueue } from "../render/renderQueue.ts";
-import { jobs, renderSettings, selected, togglePass, updateRenderSettings } from "../store.ts";
+import { busy, checkRenderDisk, jobs, removeOldRenders, renderDisk, renderDiskBusy, renderSettings, selected, togglePass, updateRenderSettings } from "../store.ts";
+import { formatBytes } from "../render/renderDisk.ts";
 import { Icon } from "./icons.tsx";
+
+/** What the renders take on disk, with the one thing that can safely go: renders of unsaved projects that are gone. */
+function DiskLine(): JSX.Element {
+  const report = renderDisk.value;
+  const looseTotal = report ? report.loose.reduce((total, entry) => total + entry.bytes, 0) : 0;
+  return (
+    <div class="disk-line small muted" data-id="render-disk">
+      {report ? (
+        <>
+          <span title={`Renders of this project: ${formatBytes(report.projectBytes)} next to the project file (kept). Renders of unsaved projects: ${formatBytes(looseTotal)} in the data folder, of which ${formatBytes(report.looseOldBytes)} belong to projects that are closed and cannot be opened again.`}>
+            Renders on disk: this project {formatBytes(report.projectBytes)}
+            {looseTotal ? ` · unsaved projects ${formatBytes(looseTotal)}` : ""}
+            {report.looseOldBytes ? ` (${formatBytes(report.looseOldBytes)} from projects that are gone)` : ""}
+          </span>
+          {report.looseOldBytes > 0 && (
+            <button class="small-button" data-id="render-disk-clean" disabled={busy.value} title="Removes the renders of unsaved projects that are no longer open. A saved project's renders are never touched." onClick={() => void removeOldRenders()}>
+              Remove {formatBytes(report.looseOldBytes)}
+            </button>
+          )}
+          <button class="small-button" data-id="render-disk-check" disabled={renderDiskBusy.value} title="Count again" onClick={() => void checkRenderDisk()}>
+            Refresh
+          </button>
+        </>
+      ) : (
+        <button class="small-button" data-id="render-disk-check" disabled={renderDiskBusy.value} title="How much disk the renders take, and what can go" onClick={() => void checkRenderDisk()}>
+          {renderDiskBusy.value ? "Counting the renders on disk…" : "Renders on disk…"}
+        </button>
+      )}
+    </div>
+  );
+}
 
 const STAGE_LABELS = { camera: "Reading camera", planning: "Checking cache", rendering: "Rendering", importing: "Importing" } as const;
 
@@ -64,6 +96,7 @@ export function RenderTab(): JSX.Element {
           <div>Render preview is fast (half size). Render makes the final frames; only frames that changed are drawn again.</div>
         </div>
       )}
+      <DiskLine />
       <div class="queue">
         {jobs.value.map((job) => (
           <div key={job.id} class={`job ${job.status}`}>

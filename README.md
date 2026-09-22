@@ -52,6 +52,20 @@ built to be free **and** to give better final frames.
 | Data | Offline Natural Earth world data, OpenStreetMap detail for any region you download, open terrain and imagery. |
 | Undo | Every panel action is one Ctrl+Z. |
 
+## Your first flight, click by click
+
+Dhaka to Chittagong with an arrow, say:
+
+1. Open a comp. **Maps list** (top left) > **New map** > **Create**.
+2. Search `Dhaka`, click it, scroll to the zoom you want. **Shots** tab > **+ Shot**.
+3. Search `Chittagong`, click it, set the zoom, **+ Shot**.
+4. Click the move between the shots: **Along route**, 6 s, a flight height, easing **Cinematic**.
+   **Play** shows it in the preview; **Apply to timeline** writes the keys in one undo step.
+5. **Route** tool: click Dhaka on the map, then Chittagong; switch **Arrow** on; **Add route**.
+   The line draws on from the current time and the arrow rides it (parent your own plane to the
+   Traveller layer if you want one).
+6. **Auto labels** > **Place labels**. **Preview** to check, **Render** for the final frames.
+
 ## What works today (0.3)
 
 - **A look of your own.** Set the sea, the land, the lines and the names, and the rest of the map -

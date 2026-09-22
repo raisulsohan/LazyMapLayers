@@ -1,5 +1,21 @@
 # Changelog
 
+## 0.3.1 — an arrow on any route, renders on disk, and a render whose map is gone (2026-09-22)
+
+- **An arrow on a route you clicked.** The Route tool's sheet now has **Arrow** (and Comet and
+  Dashed): the arrow rides the great-circle line as it draws on and turns with it. Parent your own
+  plane or car to the Traveller layer. Before, only imported lines could carry one.
+- **Renders on disk.** The Render tab shows what the renders take: this project's, next to the
+  project file, and those of unsaved projects in the data folder - and removes the ones that belong
+  to unsaved projects that are closed, which nothing can reach again. A day of test renders had
+  quietly grown to 57 GB.
+- **A render whose map is not in this project says so.** The render queue is kept in the data
+  folder, so a job from another project used to come back and fail with "MAP_NOT_FOUND: No map layer
+  with id …". It now waits with a plain sentence and no Resume button, and comes back to life when
+  its own project is opened.
+- The installer's read me and the README walk through a first flight, click by click: Dhaka to
+  Chittagong with an arrow.
+
 ## 0.3.0 — your own looks, numbers on the map, OpenStreetMap features and label templates (2026-09-22)
 
 - **Your own colours, or a film's.** The Look sheet now has **Your own colours**: the sea, the land,

@@ -37,6 +37,8 @@ export type RouteOptions = {
   style?: LayerStyle;
   /** A bright head that runs along the line while it draws on. */
   comet?: boolean;
+  /** An arrow that travels along the route and turns with it. */
+  traveller?: boolean;
   /** Dash length in 1080-line pixels; 0 for a solid line. */
   dash?: number;
   /** The map's terrain: with an elevation pack the route follows the ground of 3D terrain. */
@@ -89,6 +91,19 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
       trimKeys: keys,
       trimStartKeys: cometTailKeys(keys),
       glow: { radius: 26 * scale, intensity: 1.1 }
+    });
+  }
+  if (options.traveller) {
+    // The arrow rides the arc of the route, lifted like the line itself, and sits above it.
+    items.push({
+      type: "traveller",
+      kind: "traveller",
+      name: `Traveller: ${name}`,
+      expressions: travellerExpressions(route.map((p, i) => [p.lat, p.lng, p.altitude, ground[i]])),
+      progressKeys: keys,
+      color: styleRgb(look.accent),
+      strokeColor: styleRgb(look.panel),
+      size: 16 * scale
     });
   }
   return callHostWithJobFile("addOverlays", { mapId, undoName: "Add route", items });

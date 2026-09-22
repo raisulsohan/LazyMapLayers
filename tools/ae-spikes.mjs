@@ -333,6 +333,30 @@ async function runUiScenario() {
   console.log(`U1 attach sheet: ${JSON.stringify(attachText)} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   await shot("07f-attach");
   await click("tool-attach");
+  // A route made with the tool, with the arrow riding it: the sheet is filled the way two clicks fill it.
+  await panel.evaluate(`(() => { const s = window.lmlDebug.store; s.routeArrow.value = true; s.toolSheet.value = { kind: "route", from: { lat: 23.8103, lng: 90.4125 }, to: { lat: 22.3569, lng: 91.7832 }, seconds: 4 }; return true; })()`);
+  await sleep(300);
+  await shot("07n-route-arrow");
+  await click("tool-sheet-add");
+  await idle();
+  const routeLog = await panel.evaluate("window.lmlDebug.log().slice(-1)[0]");
+  console.log(`U1 route with arrow: ${JSON.stringify(routeLog)}`);
+  await panel.evaluate("(window.lmlDebug.store.routeArrow.value = false, true)");
+  // A render job whose map is not in this project waits without a Resume button.
+  await panel.evaluate(`(() => { const q = window.lmlDebug.queue; q.jobs.push({ id: "u1-stale", spec: { mapId: "nosuchmap000000", quality: "final", settings: window.lmlDebug.store.renderSettings.value, basemap: { kind: "world" } }, mapName: "Old project", status: "interrupted", progress: null, summary: null, error: "stopped when the panel closed", addedAt: Date.now(), finishedAt: null }); return true; })()`);
+  await panel.evaluate("window.lmlDebug.store.readMaps().then(() => true)");
+  await sleep(300);
+  await click("tab-render");
+  await sleep(300);
+  const stale = await panel.evaluate(`(() => { const job = window.lmlDebug.queue.jobs.find((j) => j.id === "u1-stale"); const rows = [...document.querySelectorAll(".job")]; const row = rows.find((r) => r.textContent.includes("Old project")); return JSON.stringify({ missing: job && job.missing, resume: row ? [...row.querySelectorAll("button")].some((b) => b.textContent.trim() === "Resume") : null, text: row ? row.textContent.includes("not in the project that is open now") : null }); })()`);
+  console.log(`U1 stale job: ${stale}`);
+  await click("render-disk-check");
+  await sleep(2500);
+  const disk = await panel.evaluate(`(() => { const r = window.lmlDebug.store.renderDisk.value; return JSON.stringify(r && { loose: r.loose.length, old: r.looseOldBytes, project: r.projectBytes }); })()`);
+  console.log(`U1 renders on disk: ${disk}`);
+  await shot("07o-render-disk");
+  await panel.evaluate(`(() => { const q = window.lmlDebug.queue; q.jobs = q.jobs.filter((j) => j.id !== "u1-stale"); return true; })()`);
+  await click("tab-shots");
   // Labels: the template and the keep-out zones (the zones are drawn over the preview).
   await click("tool-labels");
   await sleep(400);

@@ -1,5 +1,5 @@
 ============================================================
-  LAZYMAPLAYERS 0.3
+  LAZYMAPLAYERS 0.3.1
   Free map animation for After Effects: globe to street level,
   3D terrain, your own looks, labels, routes, highlights,
   data maps, rendered frame-exact
@@ -49,6 +49,31 @@ YOUR FIRST MAP IN A MINUTE
 
 
 ------------------------------------------------------------
+A FLIGHT FROM ONE CITY TO ANOTHER, WITH AN ARROW
+------------------------------------------------------------
+  Dhaka to Chittagong, say. Every step is one click or two.
+
+   1. Open a comp. Maps list (top left) > New map > Create.
+   2. Search box: type  Dhaka , click it. Scroll to the zoom
+      you want.
+   3. Shots tab (bottom): "+ Shot". That is the first shot.
+   4. Search  Chittagong , click it, set the zoom, "+ Shot".
+   5. Click the move between the two shots. Pick "Along route"
+      (a plane's path), a duration such as 6 s, a flight
+      height, and an easing such as Cinematic. "Play" shows it
+      in the preview.
+   6. "Apply to timeline": the camera keys are written in one
+      undo step.
+   7. The Route tool (two dots joined): click Dhaka on the map,
+      then Chittagong. In the sheet, switch "Arrow" on (and
+      "Comet" if you like), then "Add route". The line draws on
+      from the current time and the arrow rides it. Parent your
+      own plane to the "Traveller" layer if you want one.
+   8. Auto labels > Place labels, for the names.
+   9. "Preview" (fast) to check, then "Render".
+
+
+------------------------------------------------------------
 MAKING YOUR OWN MAP
 ------------------------------------------------------------
   Maps list        (top left) your maps, "New map", the sample.
@@ -80,7 +105,8 @@ MAKING YOUR OWN MAP
   Pin, 3D pin      click, then click a place (or Alt+click the
                    map; Alt+Shift+click for a 3D pin).
   Callout          a leader line with a title box next to a place.
-  Route            a great-circle line between two places.
+  Route            a great-circle line between two places, with
+                   an arrow that rides it, a comet head, or dashes.
   Highlight        click countries, provinces or districts on the
                    map; each renders as its own layer above the
                    basemap. Districts are downloaded per country
@@ -132,7 +158,9 @@ MAKING YOUR OWN MAP
   Render           full quality. Only frames that changed are
                    drawn again.
   Render tab       supersampling, motion blur, passes and mattes
-                   for this map.
+                   for this map. "Renders on disk" shows what the
+                   renders take and removes the renders of unsaved
+                   projects that are closed.
 
   Every panel action is one Ctrl+Z (Cmd+Z).
 

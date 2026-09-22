@@ -822,3 +822,22 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   and its cached frames are still there.
 - **Also.** A render that fails with MAP_NOT_FOUND mid-way (the project was closed, or the map layer
   was deleted) now says the same sentence instead of the error code.
+
+## D45 — Renders on disk, and an arrow on any route (2026-09-22)
+
+- **What happened.** `%APPDATA%\LazyMapLayers\renders` had grown to 57 GB in one day of test runs.
+  Renders of a saved project go next to it (`LazyMapLayers Renders`); renders of an unsaved project go
+  to the data folder, and once that project is closed nothing can ever reach them again - an unsaved
+  project cannot be reopened. D7 had left cache clean-up for later.
+- **Decision.** The Render tab shows what the renders take (`src/panel/render/renderDisk.ts`) and
+  removes exactly one kind of folder: renders in the data folder whose map is not in the open
+  project. A saved project's folder is never touched, because a map deleted from a project may still
+  have its footage in a comp; the read me tells the user that folder is theirs to delete when a
+  project is finished. Counting walks every file, so it runs when asked, not on every refresh.
+- **The arrow.** An imported line could carry a traveller since D22; a route made with the Route tool
+  could not, which is what Sohan's first tutorial question needed (Dhaka to Chittagong with an
+  arrow). The tool's sheet now has Arrow, Comet and Dashed; the traveller rides the lifted arc of the
+  great circle through the same expressions.
+- **Tested.** U1 adds a route with the arrow from the tool sheet, plants a job from another project
+  and checks it shows the sentence and no Resume, and reads the disk report; RT1 still covers the
+  traveller's motion.
