@@ -187,6 +187,8 @@ LML.api.setMapSettings = function (args) {
     if (args.keepOut !== undefined) tag.keepOut = args.keepOut;
     if (args.osmData !== undefined) tag.osmData = args.osmData;
     if (args.dataFill !== undefined) tag.dataFill = args.dataFill;
+    if (args.look !== undefined) tag.look = args.look;
+    if (args.look !== undefined) tag.look = args.look;
     if (args.highlightLayers !== undefined) tag.highlightLayers = args.highlightLayers === "one" ? "one" : "each";
     // Polygons of custom areas are large: they sit on their own comment line, like the shot list.
     if (args.areas !== undefined) {
@@ -263,6 +265,8 @@ LML.api.listMaps = function () {
             keepOut: tag.keepOut || null,
             osmData: tag.osmData === true,
             dataFill: tag.dataFill || null,
+            look: tag.look || null,
+            look: tag.look || null,
             projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,
             isActiveScene: app.project.activeItem === comp,

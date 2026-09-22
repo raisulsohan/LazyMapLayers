@@ -39,6 +39,8 @@ export type Theme = {
   sky: { sky: string; horizon: string; fog: string };
   /** The land and sea come from satellite imagery (an optional pack) instead of flat colours. */
   satellite?: boolean;
+  /** For a look of the user's own: the bundled look it was built from. */
+  base?: string;
 };
 
 const theme = (t: Theme): Theme => t;
@@ -258,6 +260,22 @@ export const DEFAULT_THEME_ID = "midnight";
 export function themeById(id: string | null | undefined): Theme {
   return THEMES.find((t) => t.id === id) ?? THEMES[0];
 }
+
+/** What a map carries as its look: the id of a bundled one, or a whole look of the user's own. */
+export type ThemeLike = string | Theme | null | undefined;
+
+/**
+ * The look to draw with. A look of the user's own arrives as an object; anything missing from it
+ * falls back to the bundled look it started as, so a look saved by an older build still works.
+ */
+export function themeFrom(value: ThemeLike): Theme {
+  if (value && typeof value === "object" && typeof (value as Theme).ocean === "string") {
+    const custom = value as Theme;
+    return { ...themeById(typeof custom.base === "string" ? custom.base : null), ...custom };
+  }
+  return themeById(typeof value === "string" ? value : null);
+}
+
 
 /** "#rrggbb" as After Effects colour values (0 to 1). */
 export function hexToRgb(hex: string): Rgb {

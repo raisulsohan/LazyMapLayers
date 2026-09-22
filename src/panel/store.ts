@@ -20,6 +20,7 @@ import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/st
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import { applyLook, followsTheLook as lookFollows, lookFromPicture, normaliseLook, NO_LOOK, type LookOverride } from "../core/style/customLook.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
@@ -87,6 +88,7 @@ export type MapEntry = {
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
   dataFill?: DataFill | null;
+  look?: LookOverride | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -134,11 +136,17 @@ export const terrainPacks = signal<TerrainPackInfo[]>([]);
 /** How the layers this map generates look; what is not set follows the map's look. */
 export const layerStyle = signal<LayerStyleOverride>(NO_OVERRIDE);
 /** The colours, stroke and glow the next pin, route, callout or traveller really gets. */
-export const currentLayerStyle = computed(() => resolveLayerStyle(themeById(themeId.value), layerStyle.value));
+/** Colours of the user's own, on top of the look the map started from. */
+export const lookOverride = signal<LookOverride>(NO_LOOK);
+/** The look the map really draws with. */
+export const currentTheme = computed(() => applyLook(themeById(themeId.value), lookOverride.value));
+export const lookFollowsTheme = computed(() => lookFollows(lookOverride.value));
+
+export const currentLayerStyle = computed(() => resolveLayerStyle(currentTheme.value, layerStyle.value));
 export const layerStyleFollowsLook = computed(() => followsTheLook(layerStyle.value));
 /** How the names on this map look; what is not set follows the map's look. */
 export const labelTemplate = signal<LabelTemplateOverride>(NO_LABEL_OVERRIDE);
-export const currentLabelTemplate = computed(() => resolveLabelTemplate(themeById(themeId.value), labelTemplate.value));
+export const currentLabelTemplate = computed(() => resolveLabelTemplate(currentTheme.value, labelTemplate.value));
 export const labelTemplateFollows = computed(() => labelTemplateFollowsLook(labelTemplate.value));
 /** Parts of the frame the names stay out of, such as the band a lower third sits in. */
 export const keepOut = signal<KeepOutZone[]>([]);
@@ -154,7 +162,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -247,7 +255,8 @@ function showMap(entry: MapEntry): void {
   const source = entry.basemap ?? { kind: "world" };
   basemap.value = source;
   projection.value = entry.projection ?? "mercator";
-  themeId.value = themeById(entry.theme).id;
+  themeId.value = themeById(typeof entry.theme === "string" ? entry.theme : null).id;
+  lookOverride.value = normaliseLook(entry.look);
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
   terrain.value = normaliseTerrain(entry.terrain);
@@ -1121,7 +1130,7 @@ export const runAutoLabels = () =>
     const result = await autoLabels(mapId, {
       language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" },
       english: choice === "local+en",
-      theme: themeId.value,
+      theme: currentTheme.value,
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,
       template: currentLabelTemplate.value,
@@ -1175,7 +1184,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1317,7 +1326,7 @@ export const applyDataFill = () =>
       outlineColor: DEFAULT_DATA_FILL.outlineColor,
       noData: dataNoData.value,
       // A dark map reads a pale country as "much"; the ramp is turned over so it does not.
-      reverse: dataReverse.value ?? themeById(themeId.value).dark
+      reverse: dataReverse.value ?? currentTheme.value.dark
     };
     dataFill.value = normaliseDataFill(fill);
     if (selectedId.value) {
@@ -1416,7 +1425,7 @@ export const addDataBubbles = () =>
       return;
     }
     const made = await addBubbles(selectedId.value, fill, places, {
-      theme: themeId.value,
+      theme: currentTheme.value,
       style: currentLayerStyle.value,
       byColour: bubbleColoured.value,
       maxRadius: bubbleSize.value
@@ -1437,6 +1446,46 @@ export const removeDataBubbles = () =>
     log(gone.removed ? "the bubbles are off the map" : "this map has no bubbles", gone.removed ? "ok" : "muted");
   });
 
+/** Changes a colour of the map's own look, and redraws at once. */
+export const changeLook = (next: Partial<LookOverride>) =>
+  run("look", async () => {
+    lookOverride.value = normaliseLook({ ...lookOverride.value, ...next });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, look: lookOverride.value });
+      await readMaps();
+    }
+  });
+
+/** Takes the colours of a picture and makes a look of them. */
+export const lookFromImage = (file: File) =>
+  run("look from a picture", async () => {
+    const bitmap = await createImageBitmap(file);
+    // A small copy is enough to find the colours, and costs nothing to read.
+    const width = Math.max(1, Math.min(160, bitmap.width));
+    const height = Math.max(1, Math.round((bitmap.height / bitmap.width) * width));
+    const canvas = document.createElement("canvas");
+    canvas.width = width;
+    canvas.height = height;
+    const context = canvas.getContext("2d", { willReadFrequently: true });
+    if (!context) {
+      log("this build cannot read pictures", "fail");
+      return;
+    }
+    context.drawImage(bitmap, 0, 0, width, height);
+    bitmap.close();
+    const found = lookFromPicture(context.getImageData(0, 0, width, height).data, { colours: 6 });
+    if (lookFollows(found)) {
+      log(`${file.name} has no colours to make a look from`, "fail");
+      return;
+    }
+    lookOverride.value = found;
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, look: lookOverride.value });
+      await readMaps();
+    }
+    log(`the look now follows ${file.name}: sea ${found.ocean}, land ${found.land}, lines ${found.accent}`, "ok");
+  });
+
 /** Whether the numbers are written next to the places, and whether their names come too. */
 export const valuesWithNames = signal(false);
 
@@ -1454,7 +1503,7 @@ export const addDataValues = () =>
       return;
     }
     const made = await addValueLabels(selectedId.value, fill, places, {
-      theme: themeId.value,
+      theme: currentTheme.value,
       template: currentLabelTemplate.value,
       withNames: valuesWithNames.value,
       belowBubbles: bubblesOn.value,
@@ -1481,7 +1530,7 @@ export const addDataLegend = () =>
     }
     const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080 }).legend : [];
     const made = await addLegend(selectedId.value, fill, {
-      theme: themeId.value,
+      theme: currentTheme.value,
       style: currentLayerStyle.value,
       template: currentLabelTemplate.value,
       corner: legendCorner.value,

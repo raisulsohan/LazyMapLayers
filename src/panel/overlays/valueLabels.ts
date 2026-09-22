@@ -8,7 +8,7 @@ import { scriptOf, SCRIPT_FONTS } from "../../core/labels/language.ts";
 import { resolveLabelTemplate, templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { bubbleSet, type BubbleOptions, type BubblePlace } from "../../core/style/bubbles.ts";
 import type { DataFill } from "../../core/style/dataFill.ts";
-import { hexToRgb, themeById } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import { formatValue } from "../../core/style/valueScale.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 
@@ -19,7 +19,7 @@ export const VALUE_KIND = "value";
 const BATCH = 8;
 
 export type ValueLabelOptions = BubbleOptions & {
-  theme?: string | null;
+  theme?: ThemeLike;
   template?: LabelTemplate | null;
   /** Put the name of the place above the number. */
   withNames?: boolean;
@@ -35,7 +35,7 @@ export type ValueLabelResult = { labels: number; layers: number; removed: number
 export async function addValueLabels(mapId: string, fill: DataFill, places: BubblePlace[], options: ValueLabelOptions = {}): Promise<ValueLabelResult> {
   const info = await callHost<Info>("renderInfo", { mapId });
   const scale = info.height / 1080;
-  const theme = themeById(options.theme);
+  const theme = themeFrom(options.theme);
   const template = options.template ?? resolveLabelTemplate(theme);
   const set = bubbleSet(places, { ...options, height: info.height, limit: options.limit ?? 60 });
   const radius = new Map(set.bubbles.map((bubble) => [bubble.id, bubble.radius]));

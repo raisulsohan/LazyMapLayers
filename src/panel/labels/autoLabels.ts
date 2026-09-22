@@ -7,7 +7,7 @@ import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/kee
 import { resolveLabelTemplate, templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
-import { hexToRgb, themeById } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
@@ -24,7 +24,7 @@ export type AutoLabelOptions = {
   /** Most label layers to create (lowest priority dropped first). */
   maxLabels?: number;
   /** The map's look: labels take their colours from it (light text on dark maps, dark on light ones). */
-  theme?: string | null;
+  theme?: ThemeLike;
   /** Called after every batch of labels built in After Effects. */
   onProgress?: (done: number, total: number) => void;
   /** Stops after the batch in progress; the labels built so far stay. */
@@ -100,7 +100,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const language = options.language ?? { kind: "local" };
   const english = options.english ?? true;
   const placeMaxZoom = options.placeMaxZoom ?? 10;
-  const theme = themeById(options.theme);
+  const theme = themeFrom(options.theme);
   const template = options.template ?? resolveLabelTemplate(theme);
   const colors = {
     place: hexToRgb(template.color),

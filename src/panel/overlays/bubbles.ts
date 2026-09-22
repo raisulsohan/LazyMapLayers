@@ -5,13 +5,13 @@ import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { bubbleSet, type BubbleOptions, type BubblePlace, type BubbleSet } from "../../core/style/bubbles.ts";
 import { dataFillColors, type DataFill } from "../../core/style/dataFill.ts";
 import { resolveLayerStyle, styleRgb, type LayerStyle } from "../../core/style/layerStyle.ts";
-import { hexToRgb, themeById } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import { callHost } from "../cep.ts";
 
 type Info = { width: number; height: number; frameRate: number };
 
 export type BubbleStyle = {
-  theme?: string | null;
+  theme?: ThemeLike;
   style?: LayerStyle | null;
   /** Colour every bubble by its step of the ramp, instead of the map's accent colour. */
   byColour?: boolean;
@@ -23,7 +23,7 @@ export type BubbleResult = { name: string; bubbles: number; removed: number; exp
 /** Builds (or rebuilds) the bubbles of a map's numbers. `places` says where each value sits. */
 export async function addBubbles(mapId: string, fill: DataFill, places: BubblePlace[], options: BubbleOptions & BubbleStyle = {}): Promise<BubbleResult> {
   const info = await callHost<Info>("renderInfo", { mapId });
-  const theme = themeById(options.theme);
+  const theme = themeFrom(options.theme);
   const look = options.style ?? resolveLayerStyle(theme);
   const set = bubbleSet(places, { ...options, height: info.height });
   const colours = options.byColour ? dataFillColors(fill) : null;

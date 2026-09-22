@@ -760,3 +760,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   legend layout; DT1 in After Effects joins four countries (one by its Japanese name, one by code),
   renders the pass, checks the colours on the map itself, builds the legend, replaces it and removes
   it; U1 does the same through the panel.
+
+## D42 — A look of the designer's own, and looks from a picture (2026-09-22)
+
+- **Why.** Seven looks are seven looks. A map has to sit inside a film whose palette is already
+  decided, and the category's answer is "design a style in another product and import it", which is
+  not an answer for someone who just needs the sea a little deeper.
+- **Four colours, and the rest worked out.** The sheet offers sea, land, lines and names; everything
+  else - landcover, parks, rivers, coasts, borders, roads, buildings, haloes, the sky - is derived in
+  `src/core/style/customLook.ts` from those. Deriving beats overriding field by field: a map with
+  someone else's roads on your land does not hold together.
+- **A name that cannot be read is not a style choice.** The text colour is pushed towards white or
+  black until it reaches a contrast of 4.5 against the land, and when one direction cannot reach it
+  (a mid grey land, where white never does) the other is tried. Unit-tested against white, black,
+  mid grey, cream and a saturated orange land.
+- **A picture gives the palette** (`src/core/style/palette.ts`): median cut over a small histogram,
+  which is deterministic - the same still always gives the same look - and costs the same whatever
+  the picture's size. The darkest colour becomes the sea, the next one that can be told from it the
+  land, and the most colourful of the rest the lines. A light look turns that around.
+- **Carried as a whole look, not as an id.** The style, the renderer, the labels and the overlays
+  used to take a look by name; they now take `ThemeLike`, which is a name or a whole look
+  (`themeFrom`). The map keeps the look it started from plus the colours the user changed, so a new
+  build's improvements to the bundled looks still reach a map that only changed its sea.
+- **Tested.** Unit tests for the palette, the contrast rules and the derivation, including that every
+  bundled look survives being rebuilt from its own three colours; LK1 renders a map in a look of its
+  own and reads the pixels back (sea 58,13,82 for #3a0d52, land 240,228,200 for #f0e4c8); U1 sets the
+  colours and takes a look from a picture in the real panel.

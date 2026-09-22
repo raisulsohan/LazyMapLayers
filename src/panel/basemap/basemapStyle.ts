@@ -17,7 +17,7 @@ import { hasImagery, imageryPath } from "../imagery/packs.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
-import { hexToRgb, themeById, type Theme } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type Theme, type ThemeLike } from "../../core/style/themes.ts";
 import type { DataFill } from "../../core/style/dataFill.ts";
 import type { Areas, Highlight } from "../../core/style/highlights.ts";
 import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
@@ -42,7 +42,7 @@ export type BasemapStyleOptions = {
   /** The frame size, which decides when a region is large enough on screen to appear. */
   viewport?: { width: number; height: number };
   /** The map's look (core/style/themes.ts); the default theme when missing or unknown. */
-  theme?: string | null;
+  theme?: ThemeLike;
   /** Shaded relief over the land (needs the relief pack; ignored by satellite looks). */
   relief?: boolean;
   /** Highlighted countries and custom areas (their own render pass), and the areas' polygons. */
@@ -174,7 +174,7 @@ export function bordersGradient(percent: number, color: string): unknown {
 }
 
 export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOptions): StyleSpecification {
-  const theme = themeById(options.theme);
+  const theme = themeFrom(options.theme);
   const imagery: WorldImagery = {};
   if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));

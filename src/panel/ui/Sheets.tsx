@@ -38,6 +38,7 @@ import type { LegendCorner } from "../../core/style/legend.ts";
 import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
+import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -72,6 +73,8 @@ export function LookSheetView(): JSX.Element | null {
   const satellitePack = hasImagery("blue-marble");
   const reliefPack = hasImagery("relief");
   const current = THEMES.find((t) => t.id === themeId.value);
+  const own = lookOverride.value;
+  const drawn = currentTheme.value;
   const terrainSetting = terrain.value;
   const style = currentLayerStyle.value;
   return (
@@ -81,7 +84,7 @@ export function LookSheetView(): JSX.Element | null {
         {THEMES.map((t) => (
           <button
             key={t.id}
-            class={`theme-card ${themeId.value === t.id ? "on" : ""}`}
+            class={`theme-card ${themeId.value === t.id && lookFollowsTheme.value ? "on" : ""}`}
             data-id={`theme-${t.id}`}
             disabled={busy.value || (!!t.satellite && !satellitePack)}
             title={t.satellite && !satellitePack ? "Needs the satellite imagery pack, which is not installed yet" : t.hint}
@@ -91,6 +94,45 @@ export function LookSheetView(): JSX.Element | null {
             <span>{t.label}</span>
           </button>
         ))}
+      </div>
+      <div class="section-title">Your own colours</div>
+      <div class="sheet-row import-row">
+        <label class="swatch-field" title="The sea">
+          <input type="color" data-id="look-ocean" value={drawn.ocean} disabled={busy.value} onChange={(e) => void changeLook({ ocean: (e.target as HTMLInputElement).value })} />
+          <span>Sea</span>
+        </label>
+        <label class="swatch-field" title="The land. The roads, buildings and borders are worked out from it, and the names are kept readable on it.">
+          <input type="color" data-id="look-land" value={drawn.land} disabled={busy.value} onChange={(e) => void changeLook({ land: (e.target as HTMLInputElement).value })} />
+          <span>Land</span>
+        </label>
+        <label class="swatch-field" title="The colour of the pins, routes and callouts this map makes, and of its brightest roads">
+          <input type="color" data-id="look-accent" value={drawn.accent} disabled={busy.value} onChange={(e) => void changeLook({ accent: (e.target as HTMLInputElement).value })} />
+          <span>Lines</span>
+        </label>
+        <label class="swatch-field" title="The names on the map (pushed until they can be read on the land)">
+          <input type="color" data-id="look-text" value={drawn.text} disabled={busy.value} onChange={(e) => void changeLook({ text: (e.target as HTMLInputElement).value })} />
+          <span>Names</span>
+        </label>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="look-from-picture" disabled={busy.value} title="Takes the colours of a picture - a still from your film - and makes a map look of them" onClick={() => document.querySelector<HTMLInputElement>('input[data-id="look-picture-file"]')?.click()}>
+          From a picture
+        </button>
+        <input
+          type="file"
+          data-id="look-picture-file"
+          accept="image/png,image/jpeg,image/webp,image/gif,image/bmp"
+          style={{ display: "none" }}
+          onChange={(e) => {
+            const input = e.target as HTMLInputElement;
+            const file = input.files?.[0];
+            input.value = "";
+            if (file) void lookFromImage(file);
+          }}
+        />
+        <button class="small-button" data-id="look-reset" disabled={busy.value || lookFollowsTheme.value} title="Back to the colours of the look above" onClick={() => void changeLook({ ocean: null, land: null, accent: null, border: null, text: null })}>
+          Back to {current?.label ?? "the look"}
+        </button>
       </div>
       {(["blue-marble", "relief"] as const)
         .filter((pack) => !hasImagery(pack))

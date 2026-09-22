@@ -27,6 +27,7 @@ import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
+import { runCustomLookTest } from "./lookTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
 import { runStyleTest } from "./styleTests.ts";
@@ -339,6 +340,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB3_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB3 failed: ${results.LB3_error}`, "fail");
+    }
+  }
+
+  if (wants("LK1")) {
+    try {
+      results.LK1_ownLook = await runCustomLookTest(log);
+    } catch (error) {
+      results.LK1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`LK1 failed: ${results.LK1_error}`, "fail");
     }
   }
 

@@ -202,6 +202,38 @@ async function runUiScenario() {
     await panel.evaluate(`(() => { const s = ${control("terrain-pack")}; s.value = ""; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
     await idle();
   }
+  // Colours of the designer's own, and a look taken from a picture.
+  await panel.evaluate(`(() => { const i = ${control("look-land")}; i.value = "#f0e4c8"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await panel.evaluate(`(() => { const i = ${control("look-ocean")}; i.value = "#3a0d52"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await sleep(1500);
+  await shot("07k-own-look");
+  const ownLook = await panel.evaluate(
+    "(() => { const t = window.lmlDebug.store.currentTheme.value; return JSON.stringify({ ocean: t.ocean, land: t.land, text: t.text, border: t.border, dark: t.dark }); })()"
+  );
+  console.log(`U1 own colours: ${ownLook}`);
+  // A picture: two blocks of colour, drawn here and handed over as a file.
+  await panel.evaluate(`(async () => {
+    const canvas = document.createElement("canvas");
+    canvas.width = 40;
+    canvas.height = 20;
+    const context = canvas.getContext("2d");
+    context.fillStyle = "#07131f";
+    context.fillRect(0, 0, 40, 14);
+    context.fillStyle = "#ffb03a";
+    context.fillRect(0, 14, 40, 6);
+    const blob = await new Promise((resolve) => canvas.toBlob(resolve, "image/png"));
+    await window.lmlDebug.store.lookFromImage(new File([blob], "still.png", { type: "image/png" }));
+    return true;
+  })()`);
+  await idle();
+  await sleep(1200);
+  const fromPicture = await panel.evaluate("JSON.stringify(window.lmlDebug.store.lookOverride.value)");
+  console.log(`U1 look from a picture: ${fromPicture} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await shot("07l-look-from-picture");
+  await click("look-reset");
+  await idle();
   await click("look");
   await click("tool-highlight");
   await sleep(300);

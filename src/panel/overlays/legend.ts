@@ -4,7 +4,7 @@
 import { dataFillColors, type DataFill } from "../../core/style/dataFill.ts";
 import { legendLayout, legendPosition, type LegendCorner, type LegendSize } from "../../core/style/legend.ts";
 import { resolveLayerStyle, type LayerStyle } from "../../core/style/layerStyle.ts";
-import { hexToRgb, themeById } from "../../core/style/themes.ts";
+import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import { SCRIPT_FONTS, scriptOf } from "../../core/labels/language.ts";
 import { templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { callHost } from "../cep.ts";
@@ -16,7 +16,7 @@ export type LegendOptions = {
   /** Where in the frame it sits. */
   corner?: LegendCorner;
   /** The map's look, for the panel colour and the text colour. */
-  theme?: string | null;
+  theme?: ThemeLike;
   /** The style of the layers this map generates: the legend takes its panel colour from it. */
   style?: LayerStyle | null;
   /** The map's label template, so the legend is set in the same font as the names. */
@@ -32,7 +32,7 @@ export type LegendResult = { name: string; comp: string; rows: number; removed: 
 /** Builds (or rebuilds) the legend of a map's data fill. */
 export async function addLegend(mapId: string, fill: DataFill, options: LegendOptions = {}): Promise<LegendResult> {
   const info = await callHost<Info>("renderInfo", { mapId });
-  const theme = themeById(options.theme);
+  const theme = themeFrom(options.theme);
   const look = options.style ?? resolveLayerStyle(theme);
   const colours = dataFillColors(fill);
   const title = (options.title ?? fill.column).trim();

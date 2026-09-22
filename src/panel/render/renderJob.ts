@@ -13,6 +13,7 @@ import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext,
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
 import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreSetup.ts";
 import { basemapStyle, regionNames, terrainUsable, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import type { ThemeLike } from "../../core/style/themes.ts";
 import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
 import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
 import { AREAS_SOURCE, DATA_SOURCE } from "../basemap/naturalEarthStyle.ts";
@@ -30,7 +31,7 @@ export type RenderJobSpec = {
   settings: RenderSettings;
   basemap: BasemapSource;
   /** The map's look (core/style/themes.ts) and whether shaded relief lies over the land. */
-  theme?: string | null;
+  theme?: ThemeLike;
   relief?: boolean;
   /** Highlighted countries and areas: rendered as their own passes, which the job adds by itself. */
   highlights?: Highlight[];
