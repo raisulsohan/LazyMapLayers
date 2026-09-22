@@ -51,7 +51,8 @@ LML.labels.styleText = function (layer, style) {
     }
     if (style.font) doc.font = style.font;
     doc.tracking = style.tracking || 0;
-    doc.justification = ParagraphJustification.CENTER_JUSTIFY;
+    // Labels are centred on their place; a legend's rows start at their own left edge.
+    doc.justification = style.justify === "left" ? ParagraphJustification.LEFT_JUSTIFY : ParagraphJustification.CENTER_JUSTIFY;
     try {
         doc.composerEngine = ComposerEngine.UNIVERSAL_TYPE_ENGINE;
     } catch (e) {

@@ -34,7 +34,8 @@ import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
 import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
-import { applyDataFill, changeDataFill, clearDataFill, dataFill, dataKeyColumn, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn } from "../store.ts";
+import type { LegendCorner } from "../../core/style/legend.ts";
+import { addDataLegend, applyDataFill, changeDataFill, clearDataFill, dataFill, dataKeyColumn, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -305,6 +306,10 @@ export function DataSheetView(): JSX.Element | null {
             <option value="quantile">Equal counts</option>
           </select>
         </label>
+        <label class="check" title="Which end of the ramp means the larger numbers. A dark map starts turned over, because a pale country reads as more on it.">
+          <input type="checkbox" data-id="data-reverse" checked={!!fill?.reverse} disabled={busy.value || !fill} onChange={(e) => void changeDataFill({ reverse: (e.target as HTMLInputElement).checked })} />
+          <span>Flip</span>
+        </label>
         <label class="num-field" title="How solid the fill is">
           <input type="range" min={10} max={100} step={5} data-id="data-opacity" value={Math.round(dataOpacity.value * 100)} disabled={busy.value} onChange={(e) => void changeDataFill({ opacity: Number((e.target as HTMLInputElement).value) / 100 })} />
           <span class="muted">{Math.round(dataOpacity.value * 100)} %</span>
@@ -321,6 +326,22 @@ export function DataSheetView(): JSX.Element | null {
         </div>
       )}
       {dataMessage.value && <div class="muted small">{dataMessage.value}</div>}
+      <div class="sheet-row import-row">
+        <button class="small-button" data-id="data-legend-add" disabled={busy.value || !fill} title="Adds the legend to the scene as a precomp: a background, the title and one row per step. Move it, restyle it or animate it like any layer." onClick={() => void addDataLegend()}>
+          Add legend
+        </button>
+        <label class="num-field" title="Which corner of the frame the legend starts in">
+          <select data-id="legend-corner" value={legendCorner.value} disabled={busy.value} onChange={(e) => (legendCorner.value = (e.target as HTMLSelectElement).value as LegendCorner)}>
+            <option value="bottomLeft">Bottom left</option>
+            <option value="bottomRight">Bottom right</option>
+            <option value="topLeft">Top left</option>
+            <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <button class="small-button" data-id="data-legend-remove" disabled={busy.value} title="Takes the legend off the scene" onClick={() => void removeDataLegend()}>
+          Remove legend
+        </button>
+      </div>
       <div class="sheet-row">
         <button class="primary" data-id="data-apply" disabled={busy.value} title="Colours every country that has a number" onClick={() => void applyDataFill()}>
           {fill ? "Colour again" : "Colour the map"}

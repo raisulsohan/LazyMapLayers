@@ -14,7 +14,9 @@
   by name in any of the 26 languages the panel carries, by ISO code (two letters, three letters or
   the number), or by the code the map itself uses; rows that match nothing are listed instead of
   being coloured on a guess. Five colour ramps, three to nine steps, even steps or equal counts, and
-  a legend in the sheet.
+  a legend in the sheet. **Add legend** puts that legend into the scene as an ordinary precomp - a
+  background, the title and one row per step, all real layers you can move, restyle or animate. On a
+  dark map the ramp starts turned over, so the big numbers are the bright ones.
 - **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
   puts every highlighted country, province, district or imported area together as a single shape
   with the borders between them gone (the European Union as one outline, not twenty-seven);

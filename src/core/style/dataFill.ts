@@ -22,9 +22,14 @@ export type DataFill = {
   outlineColor: string;
   /** Colour for the countries with no number; null leaves them as the map draws them. */
   noData: string | null;
+  /**
+   * The ramp the other way round. A ramp runs from pale to deep, which reads as "little to much" on
+   * a light map; on a dark one the pale end shouts instead, so a dark look turns it over.
+   */
+  reverse: boolean;
 };
 
-export const DEFAULT_DATA_FILL = { ramp: "blues" as RampId, steps: 5, method: "equal" as ScaleMethod, opacity: 0.85, outline: 0, outlineColor: "#ffffff", noData: null };
+export const DEFAULT_DATA_FILL = { ramp: "blues" as RampId, steps: 5, method: "equal" as ScaleMethod, opacity: 0.85, outline: 0, outlineColor: "#ffffff", noData: null, reverse: false };
 
 const HEX = /^#[0-9a-f]{6}$/i;
 const colour = (value: unknown, fallback: string | null) => (typeof value === "string" && HEX.test(value) ? value.toLowerCase() : fallback);
@@ -47,7 +52,8 @@ export function normaliseDataFill(raw: unknown): DataFill | null {
     opacity: Number.isFinite(source.opacity) ? Math.max(0, Math.min(1, source.opacity as number)) : DEFAULT_DATA_FILL.opacity,
     outline: Number.isFinite(source.outline) ? Math.max(0, Math.min(40, source.outline as number)) : DEFAULT_DATA_FILL.outline,
     outlineColor: colour(source.outlineColor, DEFAULT_DATA_FILL.outlineColor) ?? DEFAULT_DATA_FILL.outlineColor,
-    noData: colour(source.noData, null)
+    noData: colour(source.noData, null),
+    reverse: source.reverse === true
   };
 }
 
@@ -62,10 +68,11 @@ export type DataColours = {
 /** The colour each country gets, worked out from the numbers themselves. */
 export function dataFillColors(fill: DataFill): DataColours {
   const codes = Object.keys(fill.values).sort();
-  const scale = buildScale(
+  const built = buildScale(
     codes.map((code) => fill.values[code]),
     { ramp: fill.ramp, steps: fill.steps, method: fill.method }
   );
+  const scale = fill.reverse ? { ...built, colors: [...built.colors].reverse() } : built;
   const colors: Record<string, string> = {};
   for (const code of codes) {
     const colour = colorForValue(fill.values[code], scale);

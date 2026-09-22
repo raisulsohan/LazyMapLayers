@@ -709,8 +709,18 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Steps.** Even steps keep the distances honest; equal counts (quantiles) give every step about as
   many countries, which shows the order when a few huge numbers would flatten everything else. Five
   ramps, three to nine steps, and a legend in the sheet.
+- **A dark map turns the ramp over.** A sequential ramp runs from pale to deep, which reads as
+  "little to much" on paper and on a light map. On a dark map the pale end shouts, so a dark look
+  starts flipped (the deep end is the small numbers) and a **Flip** switch overrides it. The legend
+  always shows the colours the map really uses.
+- **The legend is a precomp, not a picture.** `LML.api.addLegend` builds a comp with a background, a
+  title and one row per step - real shape and text layers - and places it in a corner of the scene.
+  Core works out the box and the baselines (`src/core/style/legend.ts`) from text the panel measured;
+  the host only builds. It is not linked to the map: a legend stays where the designer puts it, and
+  building it again replaces it and nothing else.
 - **Countries only, for now.** The world tiles carry country codes; provinces and districts do not
   join yet. Said in the sheet rather than half done.
-- **Tested.** Unit tests for the table, the join against the real bundled data and the scale; DT1 in
-  After Effects joins four countries (one by its Japanese name, one by code), renders the pass and
-  checks the colours on the map itself; U1 does the same through the panel.
+- **Tested.** Unit tests for the table, the join against the real bundled data, the scale and the
+  legend layout; DT1 in After Effects joins four countries (one by its Japanese name, one by code),
+  renders the pass, checks the colours on the map itself, builds the legend, replaces it and removes
+  it; U1 does the same through the panel.

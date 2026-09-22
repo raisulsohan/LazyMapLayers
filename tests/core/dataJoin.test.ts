@@ -141,3 +141,15 @@ test("what a map stores is repaired before it is drawn", () => {
   assert.equal(colours.colors.FRA, colours.scale.colors[0]);
   assert.equal(colours.colors.DEU, colours.scale.colors[colours.scale.colors.length - 1]);
 });
+
+test("a dark map can turn the ramp over without changing what the steps mean", () => {
+  const values = { BGD: 10, IND: 50, JPN: 90 };
+  const plain = dataFillColors(normaliseDataFill({ column: "x", values, steps: 3 })!);
+  const flipped = dataFillColors(normaliseDataFill({ column: "x", values, steps: 3, reverse: true })!);
+  assert.deepEqual(flipped.scale.breaks, plain.scale.breaks, "the steps are the same numbers");
+  assert.deepEqual(flipped.scale.colors, [...plain.scale.colors].reverse());
+  assert.equal(flipped.colors.BGD, plain.colors.JPN, "the smallest now takes the colour the largest had");
+  // The legend says the same ranges, in the colours the map really uses.
+  assert.deepEqual(flipped.legend.map((step) => step.label), plain.legend.map((step) => step.label));
+  assert.equal(flipped.legend[0].color, flipped.colors.BGD);
+});

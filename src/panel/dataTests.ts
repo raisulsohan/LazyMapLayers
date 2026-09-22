@@ -8,8 +8,10 @@ import { dataFillColors, DEFAULT_DATA_FILL, type DataFill } from "../core/style/
 import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { evalScript, fs, path } from "./cep.ts";
+import { spikeDir } from "./spikes.ts";
 import { countryJoinTargets } from "./data/countries.ts";
 import { createMapComp } from "./mapApi.ts";
+import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import type { SpikeLog } from "./spikes.ts";
 
@@ -47,7 +49,9 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     column: table.headings[table.valueColumn],
     values: Object.fromEntries(joined.matched.map((row) => [row.code, row.value])),
     steps: 4,
-    opacity: 1
+    opacity: 1,
+    // The map's own look is dark, so the deep end of the ramp is the small numbers.
+    reverse: true
   };
   const colours = dataFillColors(fill);
   if (colours.legend.length !== 4) problems.push(`the legend has ${colours.legend.length} steps`);
@@ -92,11 +96,55 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   if (!dataLayer) problems.push(`the map comp holds ${JSON.stringify(layers)}`);
   else if (dataLayer.name !== `Data: ${fill.column}`) problems.push(`the layer is called "${dataLayer.name}"`);
 
+  // The legend: a precomp of its own in the scene, which building it again replaces.
+  const legend = await addLegend(map.id, fill, { theme: "midnight", corner: "bottomRight" });
+  if (legend.rows !== colours.legend.length) problems.push(`the legend has ${legend.rows} rows`);
+  const built = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "legend") continue;
+        var inside = [], comp = layer.source;
+        for (var j = 1; j <= comp.numLayers; j++) inside.push(comp.layer(j).name);
+        var position = layer.property("ADBE Transform Group").property("ADBE Position").value;
+        out = { name: layer.name, width: comp.width, height: comp.height, x: position[0], y: position[1], layers: inside, scene: scene.width + "x" + scene.height };
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; width: number; height: number; x: number; y: number; layers: string[]; scene: string } | null;
+  if (!built) problems.push("no legend layer is in the scene");
+  else {
+    if (built.name !== `Legend: ${fill.column}`) problems.push(`the legend layer is called "${built.name}"`);
+    if (built.layers[0] !== "Title" || built.layers[built.layers.length - 1] !== "Background") problems.push(`the legend holds ${JSON.stringify(built.layers)}`);
+    if (built.layers.length !== colours.legend.length + 3) problems.push(`the legend comp has ${built.layers.length} layers`);
+    // Bottom right, inside the frame.
+    if (built.x + built.width > SIZE.width || built.y + built.height > SIZE.height || built.x < SIZE.width / 2) problems.push(`the legend sits at ${built.x}, ${built.y} (${built.width} x ${built.height}) in ${built.scene}`);
+  }
+  // What the scene itself looks like with the numbers and the legend on it.
+  const shot = path().join(spikeDir(), "dt1-legend.png").split(String.fromCharCode(92)).join("/");
+  fs().rmSync(shot, { force: true });
+  await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp.saveFrameToPng(0, new File(${JSON.stringify(shot)})); return "1"; })()`);
+  let shotSize = -1;
+  for (let i = 0; i < 80; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (!fs().existsSync(shot)) continue;
+    const now = fs().statSync(shot).size;
+    if (now > 0 && now === shotSize) break;
+    shotSize = now;
+  }
+  if (shotSize <= 0) problems.push("After Effects did not save the frame of the scene");
+
+  const again = await addLegend(map.id, fill, { theme: "midnight", corner: "topLeft" });
+  if (again.removed !== 1) problems.push(`building the legend again removed ${again.removed} of the old one`);
+  const gone = await removeLegend(map.id);
+  if (gone.removed !== 1) problems.push(`removing the legend removed ${gone.removed}`);
+
   const passed = problems.length === 0;
   log(
     `DT1 data on the map: ${joined.matched.length} of ${values.length} rows joined (${codes.join(", ")}), ${colours.legend.length} steps, rendered as "${dataLayer?.name ?? "-"}", ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, problems };
+  return { passed, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

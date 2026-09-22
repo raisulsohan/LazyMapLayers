@@ -20,6 +20,7 @@ import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/st
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
 import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryJoinTargets } from "./data/countries.ts";
 import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
@@ -42,6 +43,7 @@ import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo, selectionInfo, setView, type SelectionInfo } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
+import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
@@ -1202,7 +1204,11 @@ export const dataSteps = signal(DEFAULT_DATA_FILL.steps);
 export const dataMethod = signal<ScaleMethod>(DEFAULT_DATA_FILL.method);
 export const dataOpacity = signal(DEFAULT_DATA_FILL.opacity);
 export const dataNoData = signal<string | null>(null);
+/** null: the look decides which end of the ramp is "much". */
+export const dataReverse = signal<boolean | null>(null);
 export const dataMessage = signal<string | null>(null);
+/** Where the legend of the numbers sits in the frame. */
+export const legendCorner = signal<LegendCorner>("bottomLeft");
 
 let joinLookup: ReturnType<typeof buildLookup> | null = null;
 
@@ -1246,7 +1252,9 @@ export const applyDataFill = () =>
       opacity: dataOpacity.value,
       outline: 0,
       outlineColor: DEFAULT_DATA_FILL.outlineColor,
-      noData: dataNoData.value
+      noData: dataNoData.value,
+      // A dark map reads a pale country as "much"; the ramp is turned over so it does not.
+      reverse: dataReverse.value ?? themeById(themeId.value).dark
     };
     dataFill.value = normaliseDataFill(fill);
     if (selectedId.value) {
@@ -1258,8 +1266,9 @@ export const applyDataFill = () =>
   });
 
 /** Changes how the numbers are coloured, and redraws them at once. */
-export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData">>) =>
+export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData" | "reverse">>) =>
   run("data colours", async () => {
+    if (next.reverse !== undefined) dataReverse.value = next.reverse;
     if (next.ramp) dataRamp.value = next.ramp;
     if (next.steps) dataSteps.value = next.steps;
     if (next.method) dataMethod.value = next.method;
@@ -1282,6 +1291,25 @@ export const clearDataFill = () =>
       await readMaps();
     }
     log("the numbers are off the map", "ok");
+  });
+
+/** Builds the legend of the numbers as a precomp in the scene, where the designer can move it. */
+export const addDataLegend = () =>
+  run("legend", async () => {
+    const fill = dataFill.value;
+    if (!fill || !selectedId.value) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const made = await addLegend(selectedId.value, fill, { theme: themeId.value, style: currentLayerStyle.value, template: currentLabelTemplate.value, corner: legendCorner.value });
+    log(`"${made.name}" added to the scene (${made.rows} steps). It is an ordinary precomp: move it, restyle it, animate it`, "ok");
+  });
+
+export const removeDataLegend = () =>
+  run("legend", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeLegend(selectedId.value);
+    log(gone.removed ? "the legend is off the scene" : "this map has no legend", gone.removed ? "ok" : "muted");
   });
 
 /** The search for OpenStreetMap features: what the user typed and what to look for. */
