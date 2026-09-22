@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **The look's details.** Under the colours of the Look sheet: how heavy the lines are (borders,
+  coasts, rivers, province lines), how wide the roads of a detailed region, and whether the map
+  draws fewer or more names. They apply to every look, bundled or your own, in the preview and the
+  render alike, and are kept with the map.
 - **What is here.** A readout in the preview follows the pointer: the coordinates, the nearest
   place, its district (when downloaded) and province, and the country - "23.8103, 90.4125 · Dhaka ·
   Bangladesh" - all from the bundled data, offline.

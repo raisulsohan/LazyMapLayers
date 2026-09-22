@@ -43,6 +43,8 @@ import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
+import { changeLookDetails, lookDetails } from "../store.ts";
+import type { LabelDensity } from "../../core/style/lookDetails.ts";
 import { routeArrow, routeComet, routeDashed } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
@@ -113,6 +115,25 @@ export function LookSheetView(): JSX.Element | null {
         <label class="swatch-field" title="The names on the map (pushed until they can be read on the land)">
           <input type="color" data-id="look-text" value={drawn.text} disabled={busy.value} onChange={(e) => void changeLook({ text: (e.target as HTMLInputElement).value })} />
           <span>Names</span>
+        </label>
+      </div>
+      <div class="section-title">Details</div>
+      <div class="sheet-row import-row">
+        <label class="num-field" title="Borders, coasts, rivers and province lines, as a multiple of the look's own width">
+          <span>Lines x</span>
+          <input type="number" min={0.25} max={3} step={0.25} data-id="detail-lines" value={lookDetails.value.lines} disabled={busy.value} onChange={(e) => void changeLookDetails({ lines: Number((e.target as HTMLInputElement).value) })} />
+        </label>
+        <label class="num-field" title="Roads and railways of a detailed region, as a multiple of the look's own width">
+          <span>Roads x</span>
+          <input type="number" min={0.25} max={3} step={0.25} data-id="detail-roads" value={lookDetails.value.roads} disabled={busy.value} onChange={(e) => void changeLookDetails({ roads: Number((e.target as HTMLInputElement).value) })} />
+        </label>
+        <label class="num-field grow" title="How many names the map itself draws. The names the panel adds as text layers are set in the Labels sheet.">
+          <span>Names</span>
+          <select data-id="detail-labels" value={lookDetails.value.labels} disabled={busy.value} onChange={(e) => void changeLookDetails({ labels: (e.target as HTMLSelectElement).value as LabelDensity })}>
+            <option value="fewer">Fewer</option>
+            <option value="normal">As the look has them</option>
+            <option value="more">More</option>
+          </select>
         </label>
       </div>
       <div class="sheet-row">

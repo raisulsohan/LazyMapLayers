@@ -218,6 +218,16 @@ async function runUiScenario() {
     "(() => { const t = window.lmlDebug.store.currentTheme.value; return JSON.stringify({ ocean: t.ocean, land: t.land, text: t.text, border: t.border, dark: t.dark }); })()"
   );
   console.log(`U1 own colours: ${ownLook}`);
+  // The look's details: heavier lines, fewer names, then back to plain.
+  await panel.evaluate(`(() => { const i = ${control("detail-lines")}; i.value = "2"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await panel.evaluate(`(() => { const s = ${control("detail-labels")}; s.value = "fewer"; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  const details = await panel.evaluate("JSON.stringify(window.lmlDebug.store.lookDetails.value)");
+  const borderWidth = await panel.evaluate("JSON.stringify((window.lmlDebug.map().getStyle().layers.find((l) => l.id === \"boundaries\") || {}).paint)");
+  console.log(`U1 look details: ${details} boundaries paint ${borderWidth}`);
+  await panel.evaluate("window.lmlDebug.store.changeLookDetails({ lines: 1, labels: \"normal\" }).then(() => true)");
+  await idle();
   // A picture: two blocks of colour, drawn here and handed over as a file.
   await panel.evaluate(`(async () => {
     const canvas = document.createElement("canvas");

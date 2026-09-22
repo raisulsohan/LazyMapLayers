@@ -193,7 +193,7 @@ LML.api.setMapSettings = function (args) {
         LML.tag.writeExtra(layer, "HEAT", args.heat || null);
     }
     if (args.look !== undefined) tag.look = args.look;
-    if (args.look !== undefined) tag.look = args.look;
+    if (args.lookDetails !== undefined) tag.lookDetails = args.lookDetails;
     if (args.highlightLayers !== undefined) tag.highlightLayers = args.highlightLayers === "one" ? "one" : "each";
     // Polygons of custom areas are large: they sit on their own comment line, like the shot list.
     if (args.areas !== undefined) {

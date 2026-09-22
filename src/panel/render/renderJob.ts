@@ -8,6 +8,7 @@ import { keyOf } from "../../core/render/frameKey.ts";
 import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor, type HighlightPassId, type PassId, type RenderId } from "../../core/render/passes.ts";
 import { DATA_CODE, normaliseDataFill, type DataFill } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, normaliseHeat, type HeatSetting } from "../../core/style/heat.ts";
+import { applyLookDetails, normaliseDetails, type LookDetails } from "../../core/style/lookDetails.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
@@ -49,6 +50,8 @@ export type RenderJobSpec = {
   dataFill?: DataFill | null;
   /** Heat: points that warm the map around them, rendered as its own layer. */
   heat?: HeatSetting | null;
+  /** The look's smaller details: line and road widths, how many names. */
+  lookDetails?: LookDetails | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -163,7 +166,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // sliders the style needs the terrain as soon as any frame lifts the ground.
   let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
   if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
-  const style = basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), sky: spec.sky, terrain });
+  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), sky: spec.sky, terrain }), normaliseDetails(spec.lookDetails));
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.

@@ -873,6 +873,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D55 — The look's details as knobs on the finished style (2026-09-23)
+
+- **Why.** The plan (P7) left a style editor for the smaller details: road widths and label
+  density. A full style editor (every layer, every property) would be a map design tool of its own
+  and would break the promise that a look stays coherent; three knobs cover what designers ask for.
+- **Decision.** Three settings kept with the map (core/style/lookDetails.ts): lines and roads as
+  multiples of the look’s own widths (a quarter to three times), and names as fewer, as the look has
+  them, or more. They are applied to the finished style, after the look and the regions, by group:
+  line layers of the boundaries and water groups for lines, of the roads group for roads, symbol
+  layers of the labels group for names (more room around each and a zoom later for fewer, the
+  reverse for more). So every look takes them the same way, a look file stays a file of colours, and
+  a style layer never needs to know about them. The preview and the render apply the same function;
+  a changed detail changes the base pass’s key, so the map re-renders.
+
 ## D54 — Reverse geocoding from the bundled data, as a readout (2026-09-23)
 
 - **Why.** The plan (P4) asked for reverse geocoding. Online services (Nominatim and the like) would

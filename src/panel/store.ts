@@ -28,6 +28,7 @@ import { readSwatchFile } from "../core/style/swatchFile.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import { spikeSet } from "../core/style/spikes.ts";
 import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
+import { DEFAULT_DETAILS, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
@@ -99,6 +100,7 @@ export type MapEntry = {
   dataFill?: DataFill | null;
   heat?: { column: string; points: number } | null;
   look?: LookOverride | null;
+  lookDetails?: LookDetails | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -148,6 +150,8 @@ export const layerStyle = signal<LayerStyleOverride>(NO_OVERRIDE);
 /** The colours, stroke and glow the next pin, route, callout or traveller really gets. */
 /** Colours of the user's own, on top of the look the map started from. */
 export const lookOverride = signal<LookOverride>(NO_LOOK);
+/** The look's smaller details: how heavy its lines are, how wide its roads, how many names it draws. */
+export const lookDetails = signal<LookDetails>(DEFAULT_DETAILS);
 /** The look the map really draws with. */
 export const currentTheme = computed(() => applyLook(themeById(themeId.value), lookOverride.value));
 export const lookFollowsTheme = computed(() => lookFollows(lookOverride.value));
@@ -175,7 +179,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -279,6 +283,7 @@ function showMap(entry: MapEntry): void {
   projection.value = entry.projection ?? "mercator";
   themeId.value = themeById(typeof entry.theme === "string" ? entry.theme : null).id;
   lookOverride.value = normaliseLook(entry.look);
+  lookDetails.value = normaliseDetails(entry.lookDetails);
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
   terrain.value = normaliseTerrain(entry.terrain);
@@ -1281,7 +1286,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value, lookDetails: lookDetails.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1817,6 +1822,16 @@ export const changeLook = (next: Partial<LookOverride>) =>
     lookOverride.value = normaliseLook({ ...lookOverride.value, ...next });
     if (selectedId.value) {
       await callHost("setMapSettings", { mapId: selectedId.value, look: lookOverride.value });
+      await readMaps();
+    }
+  });
+
+/** Turns a detail of the look - line or road width, how many names - and redraws at once. */
+export const changeLookDetails = (next: Partial<LookDetails>) =>
+  run("look details", async () => {
+    lookDetails.value = normaliseDetails({ ...lookDetails.value, ...next });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, lookDetails: lookDetails.value });
       await readMaps();
     }
   });
