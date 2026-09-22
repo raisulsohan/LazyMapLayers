@@ -35,7 +35,7 @@ import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
 import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
-import { addDataBubbles, addDataLegend, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataLegend, addDataValues, applyDataFill, bubbleColoured, bubbleSize, removeDataBubbles, removeDataValues, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -361,6 +361,18 @@ export function DataSheetView(): JSX.Element | null {
         </label>
         <button class="small-button" data-id="data-bubbles-remove" disabled={busy.value} title="Takes the circles off the map" onClick={() => void removeDataBubbles()}>
           Remove bubbles
+        </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-values-add" disabled={busy.value || !fill} title="Writes every number onto the map as a text layer, under its circle when there is one" onClick={() => void addDataValues()}>
+          Add numbers
+        </button>
+        <label class="check" title="Put the name of the place above its number">
+          <input type="checkbox" data-id="values-with-names" checked={valuesWithNames.value} disabled={busy.value} onChange={(e) => (valuesWithNames.value = (e.target as HTMLInputElement).checked)} />
+          <span>With names</span>
+        </label>
+        <button class="small-button" data-id="data-values-remove" disabled={busy.value} title="Takes the numbers off the map" onClick={() => void removeDataValues()}>
+          Remove numbers
         </button>
       </div>
       <div class="sheet-row">

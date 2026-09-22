@@ -751,6 +751,11 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Colour is the accent, unless asked.** Bubbles take the map's accent colour so they read against
   any look; "In step colours" gives each one the colour of its step instead, for a map that shows
   the same number twice over.
+- **The numbers themselves are labels of another kind.** "Add numbers" writes each value next to its
+  place as a text layer, built by the same host builder as the auto labels but tagged `value`
+  instead of `label`, so Auto labels never removes them and they never remove a name (checked in
+  DT1). They are set in the map's label template, and they sit under the circle when there is one,
+  clear of what they measure.
 - **Tested.** Unit tests for the table, the join against the real bundled data, the scale and the
   legend layout; DT1 in After Effects joins four countries (one by its Japanese name, one by code),
   renders the pass, checks the colours on the map itself, builds the legend, replaces it and removes

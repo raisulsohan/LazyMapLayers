@@ -118,12 +118,16 @@ LML.labels.finish = function () {
 LML.labels.addLabels = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var scene = mapLayer.containingComp;
+    // Auto labels are one kind of linked text; the numbers of a data map are another, and each kind
+    // replaces only its own layers.
+    var kind = args.kind || "label";
+    var prefix = args.prefix || "Label";
     var isFirst = args.first !== false;
     var isLast = args.last !== false;
     var removed = 0;
     if (isFirst) {
         LML.labels.finish();
-        removed = LML.labels.removeTagged(scene, args.mapId, "label");
+        removed = LML.labels.removeTagged(scene, args.mapId, kind);
         // Building many linked layers while the scene is on screen makes After Effects re-evaluate every
         // expression after each change; show the map comp meanwhile and bring the scene back at the end.
         var viewerWasScene = app.project.activeItem === scene;
@@ -170,7 +174,7 @@ LML.labels.addLabels = function (args) {
             parts.push([dot, "dot"]);
         }
         var main = scene.layers.addText(spec.text);
-        main.name = "Label: " + spec.name;
+        main.name = prefix + ": " + spec.name;
         lap("create");
         spec.main.font = fontFor(spec.main.fonts);
         LML.labels.styleText(main, spec.main);
@@ -180,7 +184,7 @@ LML.labels.addLabels = function (args) {
         parts.push([main, "text"]);
         if (spec.subtitle) {
             var sub = scene.layers.addText(spec.subtitle);
-            sub.name = "Label: " + spec.name + " (subtitle)";
+            sub.name = prefix + ": " + spec.name + " (subtitle)";
             lap("create");
             spec.sub.font = fontFor(spec.sub.fonts);
             LML.labels.styleText(sub, spec.sub);
@@ -195,7 +199,7 @@ LML.labels.addLabels = function (args) {
             lap("keys");
             layer.moveBefore(mapLayer);
             lap("order");
-            LML.tag.write(layer, { kind: "label", v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] });
+            LML.tag.write(layer, { kind: kind, v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] });
             lap("tag");
             layers++;
         }

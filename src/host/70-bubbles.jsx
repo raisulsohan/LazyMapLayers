@@ -76,3 +76,15 @@ LML.api.removeBubbles = function (args) {
         app.endUndoGroup();
     }
 };
+
+/** Takes the numbers written on the map off again. args: { mapId } */
+LML.api.removeValueLabels = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    app.beginUndoGroup("LazyMapLayers: Remove values");
+    try {
+        return { removed: LML.labels.removeTagged(scene, args.mapId, "value") };
+    } finally {
+        app.endUndoGroup();
+    }
+};

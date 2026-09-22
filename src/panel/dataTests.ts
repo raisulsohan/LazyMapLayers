@@ -11,8 +11,10 @@ import { evalScript, fs, path } from "./cep.ts";
 import { spikeDir } from "./spikes.ts";
 import { provinceJoinTargets } from "./data/admin1.ts";
 import { countryJoinTargets } from "./data/countries.ts";
+import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import type { SpikeLog } from "./spikes.ts";
@@ -165,6 +167,46 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     if (worst > 0.05) problems.push(`a bubble is ${worst.toFixed(2)} px off its place`);
     bubbleOffset = worst;
   }
+  // The numbers themselves, written under the circles.
+  const written = await addValueLabels(map.id, fill, places, { theme: "midnight", maxRadius: 50, withNames: false });
+  if (written.expressionErrors.length) problems.push(`value expressions: ${written.expressionErrors.slice(0, 2).join("; ")}`);
+  if (written.labels !== 4) problems.push(`${written.labels} numbers were written`);
+  const texts = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = [];
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "value") continue;
+        var doc = layer.property("ADBE Text Properties").property("ADBE Text Document").value;
+        var position = layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(0, false);
+        out.push({ name: layer.name, text: doc.text, x: position[0], y: position[1] });
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; text: string; x: number; y: number }[];
+  if (texts.length !== 4) problems.push(`${texts.length} number layers are in the scene`);
+  const india = texts.find((entry) => entry.name.includes("India"));
+  if (!india) problems.push(`the number layers are ${JSON.stringify(texts.map((entry) => entry.name))}`);
+  else {
+    if (india.text !== "1,428") problems.push(`India's number reads "${india.text}"`);
+    // It sits under the place, by about the radius of its circle.
+    const want = project(view, SIZE, places[1]);
+    if (Math.abs(india.x - want.x) > 0.05) problems.push(`India's number is ${(india.x - want.x).toFixed(2)} px off sideways`);
+    if (india.y - want.y < 20) problems.push(`India's number sits ${(india.y - want.y).toFixed(1)} px under its place, not clear of the circle`);
+  }
+  // Auto labels and the numbers do not touch each other's layers.
+  await autoLabels(map.id, { maxLabels: 6, theme: "midnight", countries: true, places: false });
+  const afterLabels = Number(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, found = 0;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var tag = LML.tag.read(scene.layer(i));
+        if (tag && tag.kind === "value") found++;
+      }
+      return String(found);
+    })()`)
+  );
+  if (afterLabels !== 4) problems.push(`${afterLabels} numbers survived a run of Auto labels`);
   const rebuilt = await addBubbles(map.id, fill, places, { theme: "midnight", maxRadius: 50 });
   if (rebuilt.removed !== 1) problems.push(`building the bubbles again removed ${rebuilt.removed} of the old layer`);
 
@@ -195,6 +237,9 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
   }
   // What the scene itself looks like with the numbers and the legend on it.
   if (!(await saveSceneFrame(map.id, "dt1-legend"))) problems.push("After Effects did not save the frame of the scene");
+
+  const goneValues = await removeValueLabels(map.id);
+  if (goneValues.removed !== 4) problems.push(`removing the numbers removed ${goneValues.removed} layers`);
 
   const gonebubbles = await removeBubbles(map.id);
   if (gonebubbles.removed !== 1) problems.push(`removing the bubbles removed ${gonebubbles.removed}`);
@@ -251,5 +296,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, states: byState.matched.length, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

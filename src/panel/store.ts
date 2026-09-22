@@ -46,6 +46,7 @@ import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo,
 import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
@@ -1434,6 +1435,40 @@ export const removeDataBubbles = () =>
     const gone = await removeBubbles(selectedId.value);
     bubblesOn.value = false;
     log(gone.removed ? "the bubbles are off the map" : "this map has no bubbles", gone.removed ? "ok" : "muted");
+  });
+
+/** Whether the numbers are written next to the places, and whether their names come too. */
+export const valuesWithNames = signal(false);
+
+/** Writes every value onto the map as a text layer, under its bubble when there is one. */
+export const addDataValues = () =>
+  run("values on the map", async () => {
+    const fill = dataFill.value;
+    if (!fill || !selectedId.value) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const places = placesOfFill(fill);
+    if (!places.length) {
+      log("none of these places has a point to write a number on", "fail");
+      return;
+    }
+    const made = await addValueLabels(selectedId.value, fill, places, {
+      theme: themeId.value,
+      template: currentLabelTemplate.value,
+      withNames: valuesWithNames.value,
+      belowBubbles: bubblesOn.value,
+      maxRadius: bubbleSize.value
+    });
+    const dropped = made.dropped ? `, ${made.dropped} smaller ones left out` : "";
+    log(`${made.labels} numbers written on the map${dropped}. They are ordinary text layers: restyle or animate them as you like`, made.expressionErrors.length ? "fail" : "ok");
+  });
+
+export const removeDataValues = () =>
+  run("values on the map", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeValueLabels(selectedId.value);
+    log(gone.removed ? "the numbers are off the map" : "this map has no numbers written on it", gone.removed ? "ok" : "muted");
   });
 
 /** Builds the legend of the numbers as a precomp in the scene, where the designer can move it. */
