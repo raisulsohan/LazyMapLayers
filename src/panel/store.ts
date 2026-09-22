@@ -14,9 +14,10 @@ import { NAME_LANGUAGES, type NameLanguage } from "../core/labels/language.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
-import { nameForView, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
-import { AREA_MAX_POINTS, AREA_PREFIX, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
+import { nameForView, nearestPlaceName, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
+import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
+import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
 import { addZones, normaliseKeepOut, togglePreset, type KeepOutPreset, type KeepOutZone } from "../core/labels/keepOut.ts";
@@ -722,6 +723,99 @@ export const downloadDistricts = () =>
     districtSets.value++;
     districtPrompt.value = null;
     log(`${set.units.length} ${set.unit} boundaries of ${set.countryName} installed in ${((performance.now() - started) / 1000).toFixed(1)} s (${set.source}; ${set.license}). Click one on the map, or search its name`, "ok");
+  });
+
+/** How far Grow, Shrink and Circle reach, in kilometres. */
+export const combineKm = signal(25);
+
+/** The id a made-up area gets: the same geometry always gets the same id. */
+const madeAreaCode = (name: string, polygons: number[][][][]) => `${AREA_PREFIX}${keyOf([name, polygons.length, polygons[0]?.[0]?.length ?? 0, polygons[0]?.[0]?.[0] ?? 0]).slice(0, 12)}`;
+
+/**
+ * Puts an area the panel worked out into the map, in place of the highlights it came from, and
+ * gives back what was really kept: an area is thinned to the points a map style can carry, so the
+ * smallest islands of a large outline may not survive.
+ */
+async function addMadeArea(name: string, polygons: number[][][][], keep: Highlight[], style: Highlight | undefined): Promise<number[][][][] | null> {
+  const thinned = simplifyPolygons(polygons, AREA_MAX_POINTS);
+  if (!thinned.length) {
+    log(`"${name}" came out empty`, "fail");
+    return null;
+  }
+  const code = madeAreaCode(name, thinned);
+  const next = [...keep.filter((highlight) => highlight.code !== code), { code, name, color: style?.color ?? DEFAULT_HIGHLIGHT.color, fill: style?.fill ?? DEFAULT_HIGHLIGHT.fill, outline: style?.outline ?? DEFAULT_HIGHLIGHT.outline }];
+  const geometry: Areas = { ...Object.fromEntries(Object.entries(areas.value).filter(([id]) => next.some((highlight) => highlight.code === `${AREA_PREFIX}${id}`))), [code.slice(AREA_PREFIX.length)]: thinned };
+  await setHighlights(next, geometry);
+  return thinned;
+}
+
+/** The outlines of the highlights, with the ones this build has no outline for left out. */
+function outlinesOf(list: Highlight[]): { highlight: Highlight; polygons: number[][][][] }[] {
+  return list.map((highlight) => ({ highlight, polygons: outlineFor(highlight.code) })).filter((entry): entry is { highlight: Highlight; polygons: number[][][][] } => !!entry.polygons);
+}
+
+/** One area out of every highlight, with the borders between the ones that touch gone. */
+export const mergeHighlights = () =>
+  run("merge areas", async () => {
+    const list = highlights.value;
+    const parts = outlinesOf(list);
+    if (parts.length < 2) {
+      log(parts.length ? "highlight at least two areas to merge them" : "highlight some areas first", "muted");
+      return;
+    }
+    const name = combinedName(parts.map((part) => part.highlight.name));
+    const merged = mergeAreas(parts.map((part) => part.polygons));
+    const kept = list.filter((highlight) => !parts.some((part) => part.highlight.code === highlight.code));
+    const stored = await addMadeArea(name, merged, kept, parts[0].highlight);
+    if (stored) {
+      const dropped = merged.length - stored.length;
+      log(
+        `${parts.length} areas merged into "${name}" (${areaKm2(stored).toLocaleString("en")} km2, ${stored.length} ${stored.length === 1 ? "shape" : "shapes"}). The borders between them are gone${dropped > 0 ? `; ${dropped} of the smallest islands did not fit in one area` : ""}`,
+        "ok"
+      );
+    }
+  });
+
+/** Every highlighted area pushed out (or pulled in) by the distance in the sheet. */
+export const growHighlights = (km: number) =>
+  run(km > 0 ? "grow areas" : "shrink areas", async () => {
+    const parts = outlinesOf(highlights.value);
+    if (!parts.length) {
+      log("highlight an area first", "muted");
+      return;
+    }
+    let done = 0;
+    let lost = 0;
+    for (const part of parts) {
+      const grown = growArea(part.polygons, km);
+      if (!grown.length) {
+        lost++;
+        continue;
+      }
+      const kept = highlights.value.filter((highlight) => highlight.code !== part.highlight.code);
+      if (await addMadeArea(part.highlight.name, grown, kept, part.highlight)) done++;
+    }
+    log(
+      `${done} ${done === 1 ? "area" : "areas"} ${km > 0 ? "grown" : "shrunk"} by ${Math.abs(km)} km${lost ? `, ${lost} disappeared` : ""}${km > 0 ? ". Parts that came within the distance of each other joined up" : ". Parts narrower than the distance are gone"}`,
+      done ? "ok" : "fail"
+    );
+  });
+
+/** A circle of the distance in the sheet around the middle of the preview. */
+export const addCircleArea = (km: number) =>
+  run("circle", async () => {
+    const view = compView();
+    if (!view) return;
+    const circle = circleAround(view.center, km);
+    // Named after the place it is really around, not the country the preview happens to show.
+    let where: string | null = null;
+    try {
+      where = nearestPlaceName(placeIndex(), view.center, Math.max(0.2, km / 111));
+    } catch {
+      where = null;
+    }
+    const name = `${km} km around ${where || `${view.center.lat.toFixed(2)}, ${view.center.lng.toFixed(2)}`}`;
+    if (await addMadeArea(name, circle, highlights.value, undefined)) log(`"${name}" highlighted (${areaKm2(circle).toLocaleString("en")} km2). Render to get it as its own layer, or add it as a shape layer`, "ok");
   });
 
 /** While on, a shape layer's outline draws on over four seconds from the current time. */

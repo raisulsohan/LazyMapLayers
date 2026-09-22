@@ -652,3 +652,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   goes online (only when it is named) and checks the real Lago di Como: a multi-polygon of 10,060
   points with its islands as holes, the second search served from the folder at no cost, and the
   lake drawn as a shape layer of 3 rings that follows the map.
+
+## D39 — Areas the panel works out: merge, grow, shrink, circle (2026-09-22)
+
+- **Why.** A designer often needs one shape that no data source has: the European Union without the
+  borders inside it, a region grown so it reads at small size, a fifty-kilometre ring around a city.
+  Every one of these is a polygon operation on outlines the panel already holds.
+- **Turf, not our own clipper** (`@turf/union`, `@turf/buffer`; both already approved in PLAN §5).
+  Polygon clipping done badly is worse than not done at all, and these are the reference
+  implementations. `src/core/geo/combine.ts` wraps them, cleans what comes back (a ring needs four
+  real points), and adds the area on the globe in square kilometres and the middle of a bounding box.
+- **No sliver tricks needed.** Natural Earth's outlines share their border coordinates, and the
+  panel thins areas with the shared-border simplifier, so nine neighbouring French provinces merge
+  into exactly one ring with no hole and no sliver, and their merged area is within 2 % of the sum
+  of their areas. Measured in the unit tests against the real bundled data, not on toy squares
+  alone.
+- **The result is an ordinary custom area.** It goes into the map's areas, so the render pass,
+  the editable shape layer, the export and the style controls all work with it, and the highlights
+  it came from are replaced: a merge gives one area, a grow replaces each area with its grown self.
+- **What it costs is said out loud.** A custom area is thinned to 600 points (D23), so merging a
+  country with many islands keeps the shapes that fit and the log says how many did not.
+  Shrinking makes parts narrower than the distance disappear, and the log says that too.
+- **A circle is named after the place it is around**, from the nearest place within its own radius
+  (`nearestPlaceName`, the same search the view name uses), and falls back to the coordinates rather
+  than naming the country the preview happens to show.
+- **Tested.** Unit tests on squares, holes, real provinces and real countries; U1 merges France with
+  a province, grows it by 25 km and adds a circle in the real panel.

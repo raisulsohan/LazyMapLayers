@@ -9,6 +9,12 @@
   click; that font is used for Latin, Cyrillic and Greek names, while Bengali, Arabic, Chinese and
   the rest keep fonts that shape them correctly. **Follow the look** goes back to the look's own
   names.
+- **Make the area you need.** Under **Make a new area** in the Highlight sheet: **Merge into one**
+  puts every highlighted country, province, district or imported area together as a single shape
+  with the borders between them gone (the European Union as one outline, not twenty-seven);
+  **Grow** and **Shrink** push the edge out or pull it in by a distance in kilometres; and
+  **Circle here** drops a distance ring around the middle of the preview. Each one becomes an
+  ordinary area, so it renders as its own layer and can be added as an editable shape layer.
 - **Any place on OpenStreetMap, straight into your map.** A new tool in the toolbar: type a name (or
   pick Water, Parks and forest, Islands, Airports, Boundaries, Buildings, Roads or Railways) and it
   finds what OpenStreetMap holds for the area the preview shows. A lake comes with its islands as

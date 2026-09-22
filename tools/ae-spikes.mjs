@@ -242,7 +242,21 @@ async function runUiScenario() {
   const shapeLog = await panel.evaluate("window.lmlDebug.log().slice(-1)[0]");
   console.log(`U1 shape layer: ${JSON.stringify(shapeLog)}`);
   await shot("07e-shape");
-  await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
+  // Merge, grow and a distance circle: new areas the panel works out from the highlighted ones.
+  const areaState = () => panel.evaluate("JSON.stringify(window.lmlDebug.store.highlights.value.map((h) => h.name + ' ' + (window.lmlDebug.store.areas.value[h.code.replace('area:', '')] || []).length))");
+  console.log(`U1 highlights before: ${await areaState()}`);
+  await click("merge-areas");
+  await idle();
+  console.log(`U1 merged: ${await areaState()} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await click("grow-areas");
+  await idle();
+  console.log(`U1 grown: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await click("circle-area");
+  await idle();
+  console.log(`U1 circle: ${await areaState()} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await sleep(1200);
+  await shot("07i-combined");
+    await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
   // The attach tool reads what is selected in After Effects (nothing, here).
   await click("tool-attach");
   await sleep(800);

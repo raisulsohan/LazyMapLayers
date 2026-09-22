@@ -32,7 +32,7 @@ import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
 import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
 import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
-import { findOsm, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
+import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -484,6 +484,31 @@ export function HighlightSheetView(): JSX.Element | null {
           <span>One layer for all highlights</span>
         </label>
       )}
+      <div class="section-title">Make a new area</div>
+      <div class="sheet-row import-row">
+        <button
+          class="small-button"
+          data-id="merge-areas"
+          disabled={busy.value || list.length < 2}
+          title="One area out of every highlight, with the borders between the ones that touch gone. They are replaced by the new area."
+          onClick={() => void mergeHighlights()}
+        >
+          Merge into one
+        </button>
+        <label class="num-field" title="How far Grow, Shrink and Circle reach">
+          <input type="number" min={1} max={2000} step={5} data-id="combine-km" value={combineKm.value} disabled={busy.value} onChange={(e) => (combineKm.value = Math.max(1, Math.min(2000, Number((e.target as HTMLInputElement).value) || 1)))} />
+          <span class="muted">km</span>
+        </label>
+        <button class="small-button" data-id="grow-areas" disabled={busy.value || !list.length} title="Pushes the edge of every highlighted area out by this distance. Parts that come within it of each other join up." onClick={() => void growHighlights(combineKm.value)}>
+          Grow
+        </button>
+        <button class="small-button" data-id="shrink-areas" disabled={busy.value || !list.length} title="Pulls the edge in by this distance. Parts narrower than it disappear." onClick={() => void growHighlights(-combineKm.value)}>
+          Shrink
+        </button>
+        <button class="small-button" data-id="circle-area" disabled={busy.value} title="A circle of this distance around the middle of the preview: a distance ring around a city, a site or an event" onClick={() => void addCircleArea(combineKm.value)}>
+          Circle here
+        </button>
+      </div>
       <div class="sheet-row">
         <button class="small-button" onClick={() => (tool.value = "none")}>
           Done

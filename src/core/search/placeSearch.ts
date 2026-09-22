@@ -162,12 +162,20 @@ export function nameForView(index: PlaceIndex, center: { lat: number; lng: numbe
     return inside ? nameOf(inside) : null;
   }
   // About the frame's width in degrees: at most 2 degrees, and never less than a large city's extent.
-  const reach = Math.max(0.35, Math.min(2, (360 / Math.pow(2, zoom)) * 1.2));
+  return nearestPlaceName(index, center, Math.max(0.35, Math.min(2, (360 / Math.pow(2, zoom)) * 1.2)));
+}
+
+/** The place nearest to a point, within `reach` degrees, preferring the larger one when several are there. */
+export function nearestPlaceName(index: PlaceIndex, center: { lat: number; lng: number }, reach: number): string | null {
+  const lng = ((((center.lng + 180) % 360) + 360) % 360) - 180;
+  const cos = Math.cos((center.lat * Math.PI) / 180);
   let best: PlaceRecord | null = null;
   let bestScore = Infinity;
   for (const r of index.records) {
     if (r.kind !== "place") continue;
-    const d = distance(r);
+    let dx = Math.abs(r.lng - lng);
+    if (dx > 180) dx = 360 - dx;
+    const d = Math.hypot(dx * cos, r.lat - center.lat);
     if (d > reach) continue;
     // Prefer larger places when several are in reach.
     const score = d / reach - Math.min(0.6, Math.log10(r.population + 1) / 12);
