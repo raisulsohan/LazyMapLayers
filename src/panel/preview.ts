@@ -29,6 +29,8 @@ export type PreviewEvents = {
   onView: (view: View) => void;
   onMoveEnd: (view: View, byUser: boolean) => void;
   onClick: (position: { lat: number; lng: number }, event: MouseEvent, point: { x: number; y: number }) => void;
+  /** The pointer moved over the map (null when it left). */
+  onHover: (position: { lat: number; lng: number } | null, point: { x: number; y: number } | null) => void;
   onError: (message: string) => void;
 };
 
@@ -203,6 +205,8 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
     });
     m.on("error", (e) => events.onError(String(e.error?.message ?? e)));
     m.on("click", (e) => events.onClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.originalEvent, { x: e.point.x, y: e.point.y }));
+    m.on("mousemove", (e) => events.onHover({ lat: e.lngLat.lat, lng: e.lngLat.lng }, { x: e.point.x, y: e.point.y }));
+    m.on("mouseout", () => events.onHover(null, null));
   } catch (error) {
     events.onError(error instanceof Error ? error.message : String(error));
   }
@@ -225,6 +229,13 @@ export function countryAt(point: { x: number; y: number }): { code: string; name
   const code = hit?.properties?.adm0_a3;
   if (typeof code !== "string" || !code) return null;
   return { code, name: String(hit.properties?.name_long ?? hit.properties?.name ?? code), iso: isoOfCountry(code, hit.properties?.iso_a3) };
+}
+
+/** Where a position lands in the map box's own pixels, or null before the map is up. */
+export function pointOf(position: { lat: number; lng: number }): { x: number; y: number } | null {
+  if (!map) return null;
+  const p = map.project([position.lng, position.lat]);
+  return { x: p.x, y: p.y };
 }
 
 /** The frame the preview shows, as a view of the comp. */

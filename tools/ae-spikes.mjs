@@ -177,6 +177,11 @@ async function runUiScenario() {
     await panel.evaluate(`window.lmlDebug.addPin(${lat}, ${lng}, true).then(() => true)`);
     await idle();
   }
+  // What is here: the readout for a point in Paris, the way the pointer would ask.
+  await panel.evaluate("(window.lmlDebug.store.previewHovered({ lat: 48.8584, lng: 2.2945 }), true)");
+  await sleep(400);
+  console.log(`U1 here: ${JSON.stringify(await panel.evaluate("window.lmlDebug.store.hereText.value"))}`);
+  await panel.evaluate("(window.lmlDebug.store.previewHovered(null), true)");
   // Looks and highlights: pick the Daylight look, highlight the country under the preview's centre.
   await click("look");
   await sleep(300);

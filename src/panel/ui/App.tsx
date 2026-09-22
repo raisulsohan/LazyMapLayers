@@ -31,7 +31,9 @@ import {
   matchAe,
   exportGeoJson,
   openRegionSheet,
+  hereText,
   previewClicked,
+  previewHovered,
   previewMoved,
   progress,
   projection,
@@ -266,6 +268,7 @@ export function App(): JSX.Element {
         if (!playing.value) previewMoved(v, byUser);
       },
       onClick: previewClicked,
+      onHover: previewHovered,
       onError: (message) => log(`map error: ${message}`, "fail")
     });
     const stopStore = startStore();
@@ -339,6 +342,11 @@ export function App(): JSX.Element {
           {v && (
             <div class="view-readout" title="Latitude, longitude · zoom · bearing · pitch of the frame">
               {v.center.lat.toFixed(4)}, {v.center.lng.toFixed(4)} · z {v.zoom.toFixed(2)} · b {v.bearing.toFixed(1)}° · p {v.pitch.toFixed(1)}°
+            </div>
+          )}
+          {hereText.value && (
+            <div class="here-readout" data-id="here-readout" title="What is under the pointer: the nearest place, its district and province, and the country">
+              {hereText.value}
             </div>
           )}
         </div>

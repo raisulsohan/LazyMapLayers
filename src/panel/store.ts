@@ -59,7 +59,7 @@ import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskRe
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
 import { addFeatureShape } from "./overlays/shapeFeature.ts";
-import { compSize, compView, countryAt, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
+import { compSize, compView, countryAt, pointOf, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
 import { samplerFor } from "./elevation.ts";
@@ -561,6 +561,49 @@ export const detachSelected = () =>
   });
 
 /** A click on the preview: Alt+click pins as before; otherwise the armed tool gets the place. */
+/** What is under the pointer in the preview: "23.8103, 90.4125 · Dhaka · Dhaka · Bangladesh", or null when it is off the map. */
+export const hereText = signal<string | null>(null);
+let hereTimer: ReturnType<typeof setTimeout> | null = null;
+
+/** The place, district, province and country at a position, nearest first, without a name repeating itself. */
+export function describePlace(position: { lat: number; lng: number }, point: { x: number; y: number } | null, zoom: number): string {
+  const country = point ? countryAt(point) : null;
+  // A place within about fifty pixels of the pointer, whatever the zoom.
+  const reach = Math.max(0.02, (50 * 360) / (512 * Math.pow(2, zoom)));
+  let place: string | null = null;
+  try {
+    place = nearestPlaceName(placeIndex(), position, reach);
+  } catch {
+    place = null;
+  }
+  const district = country && districtSetOf(country.code) ? districtAt(country.code, position)?.name ?? null : null;
+  const province = country ? provinceAt(country.code, position)?.name ?? null : null;
+  const parts: string[] = [];
+  for (const part of [place, district, province, country?.name ?? null]) {
+    if (part && parts[parts.length - 1] !== part) parts.push(part);
+  }
+  const where = parts.length ? parts.join(" · ") : point ? "open sea" : "";
+  return `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}${where ? ` · ${where}` : ""}`;
+}
+
+/** The pointer moved over the preview: the readout follows it, a few times a second. */
+export function previewHovered(position: { lat: number; lng: number } | null, point: { x: number; y: number } | null = position ? pointOf(position) : null): void {
+  if (hereTimer) clearTimeout(hereTimer);
+  if (!position) {
+    hereTimer = null;
+    hereText.value = null;
+    return;
+  }
+  hereTimer = setTimeout(() => {
+    hereTimer = null;
+    try {
+      hereText.value = describePlace(position, point, view.value?.zoom ?? 2);
+    } catch {
+      hereText.value = null;
+    }
+  }, 90);
+}
+
 export function previewClicked(position: { lat: number; lng: number }, event: MouseEvent, point: { x: number; y: number }): void {
   if (event.altKey) {
     void addPinAt(position, event.shiftKey);

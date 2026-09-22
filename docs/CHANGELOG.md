@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **What is here.** A readout in the preview follows the pointer: the coordinates, the nearest
+  place, its district (when downloaded) and province, and the country - "23.8103, 90.4125 · Dhaka ·
+  Bangladesh" - all from the bundled data, offline.
 - **Your own layer on every place.** Select a layer in After Effects - an icon, a flag, a photo, a
   precomp - and the Data sheet copies it onto every place of the table, each copy named after its
   place, sized so its area stands for the number (the largest at the layer's own size, none below a

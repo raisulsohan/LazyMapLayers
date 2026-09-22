@@ -873,6 +873,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D54 — Reverse geocoding from the bundled data, as a readout (2026-09-23)
+
+- **Why.** The plan (P4) asked for reverse geocoding. Online services (Nominatim and the like) would
+  break the offline rule and their terms; the panel already holds what a designer wants to know
+  about a point: the nearest named place, the province, the country, and the district once it is
+  downloaded.
+- **Decision.** A readout under the pointer, refreshed a few times a second (90 ms after the last
+  move): the coordinates, then the nearest place within about fifty screen pixels (the search
+  index’s nearest-place lookup, larger places preferred), the district and the province the point
+  lies in (point-in-polygon on the bundled and downloaded outlines), and the country the preview’s
+  hit layer reports. A name that repeats its neighbour is dropped ("Dhaka · Dhaka Division" is
+  kept, "Dhaka · Dhaka" is not). Over the sea it says so. Nothing is written anywhere: a pin still
+  takes its place name the way it did (D49).
+
 ## D53 — A layer copied onto every place, sized by its number (2026-09-23)
 
 - **Why.** Bubbles and spikes are the panel's shapes; a designer's map wants the designer's own
