@@ -859,3 +859,16 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** Unit tests for the column guess, the rows and the widths; FL1 in After Effects draws
   four flows (one written as coordinates, one to a place that does not exist) and checks the stroke
   widths are 14, 7 and 3.5 px for 1,200, 600 and 300.
+
+## D47 — Five looks built the way a look of the user's own is built (2026-09-22)
+
+- **Decision.** Noir, Slate, Terracotta, Arctic and Emerald are not hand-tuned field by field like
+  the first seven: each is three or four colours passed through applyLook (D42) and the result
+  written into themes.ts as a plain look, so nothing at run time depends on the deriver and a later
+  change to it cannot quietly recolour a saved map. The names read on the land at a contrast of 7.5
+  to 15.9 in all five.
+- **Why these five.** Broadcast and film work asks for a black-and-white map, a cool grey newsroom
+  map, a warm editorial one, an icy clean one and a rich green one far more often than for anything
+  exotic; twelve looks is the top of the range the plan set (8 to 12).
+- **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
+  renders all twelve into the contact sheet.

@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Five more looks.** Noir (black and white, high contrast), Slate (blue-grey newsroom), Terracotta (warm
+  sand and clay), Arctic (ice-blue sea, near-white land) and Emerald (deep green land, gold lines) join
+  the seven. Each is built from three colours with the same rules as a look of your own, so the names
+  read on the land in every one of them. Twelve looks now.
 - **Flows.** A table with a place at each end of a row and an amount - migration, trade, flights - is drawn
   as one great-circle arc per row whose width follows the amount, all drawing on together from the
   current time, with an arrow riding each one if you like. Places are found the way the search box
