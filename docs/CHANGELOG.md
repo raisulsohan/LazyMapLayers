@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.5.0 — imagery of your own, open aerial services, names that follow the template, and the guide (2026-09-23)
 
 - **Use for every map.** A button under the look and one under the names give every other map in
   the project this map's look (colours, details, layer style, relief, sky, imagery) or its names
