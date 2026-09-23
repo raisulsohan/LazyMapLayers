@@ -857,6 +857,8 @@ export const downloadDistricts = () =>
     resetPlaceIndex();
     districtSets.value++;
     districtPrompt.value = null;
+    // A table waiting for these districts joins to them now.
+    if (dataSheetOpen.value && dataLevel.value === "district") rejoinTable();
     log(`${set.units.length} ${set.unit} boundaries of ${set.countryName} installed in ${((performance.now() - started) / 1000).toFixed(1)} s (${set.source}; ${set.license}). Click one on the map, or search its name`, "ok");
   });
 
@@ -1585,17 +1587,29 @@ async function applyDataFillNow(): Promise<void> {
 
 /** Changes how the numbers are coloured, and redraws them at once. */
 /** Changes what the rows are taken to be about, and joins again. */
+/** Joins the table again after the level, the country or the districts on this computer changed. */
+function rejoinTable(): void {
+  const table = dataTable.value;
+  if (!table) return;
+  const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+  const found = joinTable(rows);
+  // A country chosen for its districts stays chosen while they are still to be downloaded.
+  const waiting = dataLevel.value === "district" && !!dataCountry.value && found.level !== "district";
+  if (!waiting) dataCountry.value = found.country;
+  dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}${waiting ? `. The districts of ${countryName(dataCountry.value)} are not on this computer yet: download them below` : ""}`;
+}
+
 export const changeDataLevel = (level: DataLevelChoice, country?: string | null) =>
   run("data on the map", async () => {
     dataLevel.value = level;
     if (country !== undefined) dataCountry.value = country;
     if (level === "auto" || level === "country") dataCountry.value = null;
-    const table = dataTable.value;
-    if (!table) return;
-    const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
-    const found = joinTable(rows);
-    dataCountry.value = found.country;
-    dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}`;
+    // Districts a country does not have on this computer yet are offered for download, right here.
+    if (level === "district" && dataCountry.value && !districtSetOf(dataCountry.value)) {
+      const row = countryCodeRows().find((entry) => entry.code === dataCountry.value);
+      if (row) void offerDistricts({ code: row.code, name: row.names[0] ?? row.code, iso: row.iso3 ?? row.code });
+    }
+    rejoinTable();
   });
 
 export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "method" | "opacity" | "noData" | "reverse">>) =>
@@ -1996,18 +2010,19 @@ export const addDataLegend = () => run("legend", addDataLegendNow);
 
 async function addDataLegendNow(): Promise<void> {
   const fill = dataFill.value;
-  if (!fill || !selectedId.value) {
-    log("colour the map by a table first", "muted");
+  if ((!fill && !heat.value) || !selectedId.value) {
+    log("colour the map by a table, or add heat, first", "muted");
     return;
   }
   const compHeight = (await readMaps()).find((m) => m.mapId === selectedId.value)?.height ?? 1080;
-  const withBubbles = bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: compHeight }).legend : [];
-  const withSpikes = spikesOn.value ? spikeSet(placesOfFill(fill), { maxHeight: spikeHeight.value, height: compHeight }) : null;
+  const withBubbles = fill && bubblesOn.value ? bubbleSet(placesOfFill(fill), { maxRadius: bubbleSize.value, height: compHeight }).legend : [];
+  const withSpikes = fill && spikesOn.value ? spikeSet(placesOfFill(fill), { maxHeight: spikeHeight.value, height: compHeight }) : null;
   const made = await addLegend(selectedId.value, fill, {
     theme: currentTheme.value,
     style: currentLayerStyle.value,
     template: currentLabelTemplate.value,
     corner: legendCorner.value,
+    heat: heat.value,
     sizes: [
       ...withBubbles.map((step) => ({ radius: step.radius, label: step.label })),
       ...(withSpikes ? withSpikes.legend.map((step) => ({ spike: { width: withSpikes.width, height: step.height }, label: step.label })) : [])

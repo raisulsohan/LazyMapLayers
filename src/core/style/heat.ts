@@ -3,6 +3,7 @@
 // the heat itself, as one layer of its own, so a table of thousands of points reaches After Effects
 // as a single image sequence that follows the camera.
 
+import { fromHex, mix, toHex } from "./palette.ts";
 import { rampById, type RampId } from "./valueScale.ts";
 
 /** The code the heat layer carries, where a highlight carries a country code or an area id. */
@@ -109,6 +110,17 @@ export function heatColorStops(ramp: RampId, reverse: boolean): [number, string]
     [0.12, withAlpha(stops[0], 0.7)],
     [0.5, stops[1]],
     [1, stops[2]]
+  ];
+}
+
+/** Three steps for a legend of the heat - low, medium, high - in the ramp's colours (turned over with it). */
+export function heatLegendColors(ramp: RampId, reverse: boolean): { color: string; label: string }[] {
+  const stops = [...rampById(ramp).stops];
+  if (reverse) stops.reverse();
+  return [
+    { color: toHex(mix(fromHex(stops[0]), fromHex(stops[1]), 0.5)), label: "Low" },
+    { color: stops[1], label: "Medium" },
+    { color: stops[2], label: "High" }
   ];
 }
 

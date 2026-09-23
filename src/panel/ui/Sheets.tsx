@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -381,16 +381,18 @@ export function DataSheetView(): JSX.Element | null {
         {(dataLevel.value === "province" || dataLevel.value === "district" || dataCountry.value) && (
           <label class="num-field grow" title="The country whose provinces, states, divisions or districts the rows name">
             <select data-id="data-country" value={dataCountry.value ?? ""} disabled={busy.value} onChange={(e) => void changeDataLevel(dataLevel.value === "district" ? "district" : "province", (e.target as HTMLSelectElement).value || null)}>
-              {dataLevel.value === "district" && !countryChoices("district").length && <option value="">Download a country's districts first (Highlight sheet)</option>}
-              {countryChoices(dataLevel.value === "district" ? "district" : "province").map((entry) => (
+              {dataLevel.value === "district" && !dataCountry.value && <option value="">Pick the country</option>}
+              {countryChoices("province").map((entry) => (
                 <option key={entry.code} value={entry.code}>
                   {entry.name}
+                  {dataLevel.value === "district" && listDistrictSets().some((set) => set.country === entry.code) ? " (downloaded)" : ""}
                 </option>
               ))}
             </select>
           </label>
         )}
       </div>
+      {dataLevel.value === "district" && <DistrictSets />}
       {flowFrom.value >= 0 && (
         <>
           <div class="section-title">Flows</div>
@@ -553,7 +555,7 @@ export function DataSheetView(): JSX.Element | null {
         </button>
       </div>
       <div class="sheet-row">
-        <button class="small-button" data-id="data-legend-add" disabled={busy.value || !fill} title="Adds the legend to the scene as a precomp: a background, the title and one row per step. Move it, restyle it or animate it like any layer." onClick={() => void addDataLegend()}>
+        <button class="small-button" data-id="data-legend-add" disabled={busy.value || (!fill && !heat.value)} title="Adds the legend to the scene as a precomp: a background, the title and one row per step. Move it, restyle it or animate it like any layer." onClick={() => void addDataLegend()}>
           Add legend
         </button>
         <label class="num-field" title="Which corner of the frame the legend starts in">

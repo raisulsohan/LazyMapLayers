@@ -14,7 +14,7 @@
 
 Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy suite · Free & open source ([MIT](LICENSE))
 
-> **Version 0.4** — numbers on the map as colours, bubbles, spikes, heat, flows and copies of your own layer; twelve looks and their details; what is under the pointer; looks of your own (or taken from a still of your film), any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects.
+> **Version 0.4** — numbers on the map as colours, bubbles, spikes, heat, flows and copies of your own layer; twelve looks and their details; what is under the pointer; looks of your own (or taken from a still of your film), any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects and [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the budgets it must keep. [docs/GUIDE.md](docs/GUIDE.md) walks through every sheet and tool.
 
 **Privacy.** The panel never sends anything about you or your project. It goes online only when you
 ask for a download or an OpenStreetMap search, and once a day to look at the release list on GitHub

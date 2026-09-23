@@ -966,8 +966,9 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   districts of that country - or of every country whose districts are downloaded when the rows
   name no province - and keeps the level most rows fit, the coarser one when they tie. Asked for
   districts, it takes the best set; with none, it falls back and says so through the counts.
-- **Not done.** No short codes for districts (the sets carry none), and a district set is not
-  downloaded from the Data sheet: the Highlight sheet does that, as before.
+- **Not done.** No short codes for districts (the sets carry none). Since 2026-09-23 the Data sheet
+  offers the download itself when a chosen country's districts are missing, and joins the table to
+  them as soon as they arrive; the country stays chosen meanwhile.
 
 ## D51 — Heat as a render pass, not as layers (2026-09-23)
 
@@ -984,8 +985,9 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   otherwise the places of the last imported file, each counting 1. Places without a number, or
   with none, warm nothing. At most 5,000 points, heaviest first: the setting lives on the map
   layer's own comment line, like the polygons of custom areas, with a summary in the tag.
-- **Not yet.** No legend for the heat (its scale is a density, not a value), and no heat on the
-  globe has been measured.
+- **Legend.** Since 2026-09-23 the legend takes the heat as three steps - low, medium, high - in
+  the ramp's colours, since its scale is a density and not a value; with a data fill as well, the
+  heat's rows say "heat". Not measured yet: heat on the globe.
 
 ## D50 — Spikes: height stands for the value, rising up the frame (2026-09-23)
 

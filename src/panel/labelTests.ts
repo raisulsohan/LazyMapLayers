@@ -91,6 +91,8 @@ export async function runLabelTemplateTest(log: SpikeLog): Promise<Record<string
   // The names already placed follow a changed template: bigger, green, a halo.
   const changed = resolveLabelTemplate(paper, { color: "#22aa44", countryColor: "#22aa44", haloColor: "#ffffff", halo: 2, size: 30, caps: true, dots: true, font: null });
   const restyled = await restyleLabels(map.id, { template: changed });
+  // docs/PERFORMANCE.md: no restyle call keeps After Effects busy for more than 1.5 s.
+  if (restyled.longestCallMs > 1500) problems.push(`one restyle call kept After Effects busy for ${restyled.longestCallMs} ms`);
   const after = await labelLayers(map.id);
   const afterNames = mainNames(after.texts);
   if (restyled.labels !== styledNames.length || restyled.texts !== after.texts.length) problems.push(`restyled ${restyled.labels} names and ${restyled.texts} layers of ${styledNames.length} names, ${after.texts.length} layers`);

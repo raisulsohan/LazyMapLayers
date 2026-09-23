@@ -1,0 +1,40 @@
+# Performance budgets
+
+What the panel must never be slower than, measured on the development machine (Windows 11, After
+Effects 2026, CEP 12 / Chromium 99, an NVIDIA GeForce RTX 3070) and enforced by the in-AE tests where
+a number can be checked. A budget is a ceiling, not a target: the measured values are what a release
+is expected to reach again. When a test runs right after other tests have filled After Effects'
+caches, the label timings can come out two or three times slower (docs/SPIKES.md, LB1); a budget
+failure is confirmed on a fresh instance before anything is changed.
+
+| What | Budget | Measured | Enforced by |
+|---|---|---|---|
+| One 1080p basemap frame, base pass, steady state | 300 ms | 75–170 ms | S1 |
+| One 4K basemap frame, base pass, steady state | 1200 ms | 280–640 ms | S1 |
+| One 1080p frame with all 8 passes and 2× supersampling | 400 ms per drawn frame | 206–245 ms | R1 |
+| A 10-second 4K move, 2× supersampling | 250 ms per frame | 125 ms | R2 (runs only when named) |
+| Rendering again with nothing changed | 0 frames drawn | 0 | R1 |
+| Changing one keyframe of a 750-frame move | only the affected frames drawn | 63 of 750 | R1 |
+| Applying the shot list again | 800 ms | about 30 ms | SH1 |
+| Auto labels: the longest single call into After Effects | 3000 ms | 1.1–1.6 s | LB1 |
+| Auto labels: 60 names on a fresh instance | about 10 s in all | 9.8 s | LB1 (reported) |
+| Restyling the names already on the map: the longest call | 1500 ms | 587 ms for 32 layers | LB2 |
+| A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
+| The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
+
+## Rules the budgets come from
+
+- **Batch everything that builds many layers.** One huge call into After Effects is far slower than
+  the same work in several small calls, and it blocks the interface meanwhile. Labels go in eights,
+  flows in sixes, restyles in forties, and every batch is its own undo step. No call may keep After
+  Effects busy for more than about a second.
+- **Never redraw what did not change.** Every rendered frame is keyed by its content, and a pass is
+  keyed by its own layers, so a changed highlight redraws that pass alone and a changed keyframe
+  redraws the frames it moved.
+- **Expressions cost on every frame.** A layer that follows the map projects its points on every
+  frame: shape layers keep 900 coarse points and project the fine ones only past zoom 5.5, flows are
+  capped at 120 arcs, spikes at 200, copies at 200, heat is rendered rather than expressed.
+- **Measure in After Effects, not from ExtendScript.** `valueAtTime` from a script costs about
+  1.6 ms of call overhead each; compare `saveFrameToPng` times with a layer on and off instead.
+
+Related: docs/SPIKES.md holds every measurement with its date and the frames it was taken on.

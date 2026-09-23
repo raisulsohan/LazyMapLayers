@@ -107,6 +107,8 @@ async function r1Body(log: SpikeLog, basemap: BasemapSource, checks: Check[]): P
   log(`R1 first render: ${first.rendered} of ${first.frames} frames drawn, ${first.msPerRenderedFrame.toFixed(0)} ms per frame (all ${first.passes.length} passes, 2x supersampling)`, "muted");
   // Frames 0-25 hold view A and 88-99 hold view B: 26 + 12 frames collapse into 2 renders.
   check("holds render once", first.rendered === first.frames - 25 - 11, { rendered: first.rendered, frames: first.frames });
+  // docs/PERFORMANCE.md: 400 ms per drawn 1080p frame with every pass and 2x supersampling.
+  check("first render within its budget", first.msPerRenderedFrame <= 400, { msPerRenderedFrame: Math.round(first.msPerRenderedFrame), budgetMs: 400 });
 
   const comp = await host<{ layers: number; footage: number; passes: string[]; enabled: boolean[]; credit: string | null }>(`
     var mapLayer = LML.pins.findMapLayer(${JSON.stringify(map.id)});

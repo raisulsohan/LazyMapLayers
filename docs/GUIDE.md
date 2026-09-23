@@ -1,0 +1,237 @@
+# LazyMapLayers guide
+
+Everything the panel does, sheet by sheet, with a few things to make step by step. The README has the
+install and a first flight; this is the rest.
+
+## How the panel thinks
+
+A **map** is a comp that draws the basemap, with five camera controls on its layer: latitude,
+longitude, zoom, bearing and pitch. Everything else - pins, routes, names, outlines, spikes, your own
+artwork - is an ordinary After Effects layer in the scene that reads those controls through
+expressions, so it stays on its place whatever the camera does. The panel's **preview** shows the exact
+frame the map will render; move it and you move the camera.
+
+The basemap itself is rendered by the panel, frame by frame, from open map data on your disk, and
+imported as an image sequence (one per pass). Only frames that changed are drawn again.
+
+Every action of the panel is one undo step in After Effects. Layers the panel made carry an `LML:`
+line in their comment; it never touches a layer without one unless you attach it.
+
+## The top of the panel
+
+- **Maps** (the list icon): the maps in this project, **New map**, and two samples: **Build the world
+  flight sample** (globe, borders, a flight to Paris, a route to Tokyo) and **Build the numbers
+  sample** (every country by its population, with spikes and a legend). Under **About**: the
+  version, the releases page, **Report a problem** (writes a report to your LazyMapLayers folder and
+  opens a new issue for you to paste it into; nothing is sent by itself) and the switch for the
+  once-a-day look at the release list.
+- **Map settings** (the sliders icon): the map's name, the basemap (World, or a downloaded area),
+  and **Globe**.
+- **Preview** and **Render**: half resolution and fast, or full quality with the Render tab's
+  settings. A preview becomes an After Effects proxy once a final render exists.
+- **Search**: a country, province, district or city in 26 languages, or `lat, lng`. Offline. A result
+  can be highlighted straight from the list.
+- **The preview**: drag to move, scroll to zoom, right-drag to rotate and tilt. The line at the bottom
+  says what is under the pointer - place, district, province, country - and the numbers at the left
+  are the frame's latitude, longitude, zoom, bearing and pitch. The compass sets north up (Alt+click
+  also looks straight down). **Exact look** shows names and lines at the size they render.
+
+Keys: **Esc** ends the tool that is on. **Space** plays the shot list in the preview. **Alt+click**
+the map drops a pin, **Alt+Shift+click** a 3D pin.
+
+## The camera
+
+### Shots tab
+
+Build the camera from shots: **+ Shot** takes the view in the preview (after the selected shot).
+Between two shots is a move; click it to change it:
+
+- **Fly** rises and lands like a flight (a tilted shot looks straight down while it is high, and
+  tilts again on the way down). **Straight** keeps the zoom between the shots - for short routes.
+  **Along route** follows a line (imported, or drawn with the Route tool), turning the camera with
+  the direction of travel and looking a little ahead. **Cut** jumps.
+- A **duration**, a **flight height**, and an **easing**: Linear, Smooth (Easy Ease), Cinematic
+  (long gentle start and landing), Soft start, Soft landing, Snappy, or your own cubic-bezier.
+- A shot's **hold**: how long the camera stays, and what it does meanwhile - turn the globe, orbit
+  around the centre, push in or pull out.
+
+**Play** runs the list in the preview. **Apply to timeline** writes the keys to the map layer's five
+controls with a marker per shot, in one undo step; apply again after changing the list and the keys
+are replaced. Double-click a shot to see it; **Update from preview** replaces a shot's view with the preview's.
+
+### Without the shot list
+
+**Keyframe view** keys the preview's view at the current time. **Fly here** keys one smooth flight
+from the camera at the current time to the preview (with a duration next to it). **Live link** moves
+the map at the current time while you move the preview. **Match AE** shows the camera of the current
+time in the preview. **3D camera** adds an After Effects camera that matches the map, so your own 3D
+layers sit on the ground.
+
+## The tools (the row of icons)
+
+**Pin** and **3D pin**: click the tool, then a place (or Alt+click the map). The layer is named after
+the place - "Pin: Dhaka". A 3D pin lies on the ground under the matched 3D camera.
+
+**Callout**: a leader line with a title box next to a place, set in the label font.
+
+**Route**: click two places. The sheet has the duration, **Arrow** (a Traveller layer rides the line
+and turns with it - parent your own plane to it), **Comet** (a bright head runs along the line as it
+draws) and **Dashed**. The route draws on from the current time; the layer is named "Dhaka to
+Chittagong".
+
+**Attach**: select your own layers in After Effects - an icon, a photo, a precomp - then click a
+place. They get a pin's controls (Latitude, Longitude, Elevation, Scale with map, Rotate with map)
+and stay on the place while the camera moves; their own comment and any expression you wrote are
+kept. **Unlink selected** puts a selected layer back as it was.
+
+**Highlight**: click countries, provinces or districts on the map (the chips choose which). Every
+highlight renders as its own layer above the basemap, with its colour, fill and outline; **One layer**
+puts them all on one. Districts are downloaded per country the first time you ask (open data from
+geoBoundaries; the size is shown first). In the sheet:
+- **Shape** adds the highlighted outline as an editable After Effects shape layer: real paths that
+  follow the map, an even-odd fill, a stroke, an optional draw-on. It carries a coarse outline for
+  world zooms and a fine one for close-ups.
+- **Make a new area**: **Merge** the highlights into one shape with the borders between them gone,
+  **Grow** or **Shrink** them by a distance in kilometres, or drop a distance circle around the
+  preview's centre (**Circle here**). Each is a new area you can highlight, add as a shape, or save.
+
+**Import**: GPX, KML, KMZ, GeoJSON, CSV, or a zipped shapefile. For each line: **Fit** (frame it),
+**Draw** or **Draw + arrow** (a route that draws on, with an arrow riding it; **Comet**, **Dashed**
+and, for a GPS track with times, **Recorded pace** are switches above) or **Camera** (shots along
+it). Places become pins; areas can be
+highlighted. A CSV of places with a name column becomes pins; a CSV of names and numbers opens the
+Numbers sheet instead.
+
+**Numbers**: see below.
+
+**OpenStreetMap**: type a name (or pick water, parks and forest, islands, airports, boundaries,
+buildings, roads or railways) and **Find** what OpenStreetMap holds for the area in the preview. It
+arrives as an import: draw it, highlight it, add it as a shape. Rendering a map with OpenStreetMap
+data adds a small credit layer, which the licence asks for.
+
+**Save as GeoJSON**: pins, routes, outlines, callouts and highlighted areas back out as a file.
+
+**Auto labels**: country and city names over the whole timeline, in each place's own language (or
+one language, with or without an English line under it), as editable text layers that never overlap
+or flicker. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
+capitals for countries, and dots for cities, or takes them **From the selected text layer** you
+styled yourself; a change restyles the names already on the map too. **Keep the names out of**
+blocks the lower third, a top bar, or whatever your own selected layers cover, for the seconds those
+layers are on screen; the zones are drawn over the preview.
+
+**Animate borders**: country borders draw on over four seconds from the current time.
+
+**Look**: twelve looks (Midnight, Satellite, Daylight, Atlas, Blueprint, Mono, Paper, Noir, Slate,
+Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, and:
+- **Your own colours**: sea, land, lines and names; roads, borders, buildings, parks, coasts and the
+  sky are worked out from them, and the names are kept readable on the land you chose. **From a
+  picture** takes the palette of a still from your film; **Open a look** reads a saved look or an
+  Illustrator / Photoshop palette (.ase, .act); **Save the look** keeps yours in a file.
+- **Details**: lines and roads heavier or lighter, fewer or more names, in every look.
+- **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
+  picked up from a selected layer.
+- **Terrain**: **Download…** an elevation pack for the area in the preview (open data through
+  Mapterhorn). With a pack: **Shaded slopes** at any zoom, and **3D height** - real mountains,
+  1× true to scale or more. Pins, labels and routes made with the pack sit on the ground; key the map
+  layer's **Terrain Height** slider and the mountains rise. **Ground level** reads the elevation at
+  the map's centre.
+
+**Download this area** (the arrow at the top right): OpenStreetMap detail for the area in the
+preview - roads, buildings, water, 3D buildings - once, then it works offline. Give it a name; pick
+the detail level (the tile count is shown). Several areas layer on top of the world map.
+
+## Numbers on the map
+
+Import a CSV with a column of names and a column of numbers. The Numbers sheet opens with the columns guessed; change **Country** and **Colour by** if it guessed wrong.
+
+- **Match**: whatever fits, countries, provinces, or districts. Names are matched in 26 languages,
+  by ISO code, by a state's short code (CA, US-CA) or by the map's own code; rows that match nothing
+  are listed, never coloured on a guess. For districts, pick the country: if its districts are not on
+  this computer, the sheet offers the download right there.
+- **Colour again**: fills every matched place as one layer above the basemap, in the colour of its
+  step. Ramp, number of steps, even steps or quantiles, opacity, and **Flip** for a dark map.
+- **Add bubbles**: circles whose area stands for the value, as one shape layer with a group per place
+  (every circle has its own transform to animate). Size sets the largest; **In step colours** gives
+  each its step's colour.
+- **Add spikes**: a triangle per place rising straight up the frame, its height the value, read
+  straight. Height sets the tallest.
+- **Add heat**: every place warms the map around it by its number; the renderer draws the warmth in
+  the ramp's colours as a layer of its own. Radius sets the reach. Works with the places of the last
+  imported file too.
+- **Copy selected layer onto places**: a layer of your own - an icon, a flag, a photo - copied onto
+  every place, named after it, **Sized by number** (its area stands for the value) and wired to its
+  place like an attached layer. The original is left as it is.
+- **Add numbers**: the values as text layers under their circles, **With names** if you like.
+- **Flows**: when the table has a place at each end of a row and an amount (origin, destination,
+  passengers), **Draw flows** makes one great-circle arc per row, its width the amount, all drawing
+  on together from the current time, with **Arrows** riding and **In step colours** if you like.
+- **Add legend**: a precomp with the colours, the bubble sizes, the spike heights and the heat's
+  three steps, in the corner you pick. It is an ordinary precomp: move it, restyle it, animate it.
+
+Every one of these has a **Remove**; **Remove** at the bottom takes the numbers off the map.
+
+## Rendering
+
+**Preview** renders at half resolution without supersampling, fast. **Render** renders every frame at
+full quality and imports the passes into the map comp. Only frames that changed since the last render
+are drawn again, and a changed keyframe redraws only the frames it moved.
+
+The **Render tab** holds the settings of the selected map:
+- **Passes**: Base (everything), or Land, Water, Boundaries, Roads and Buildings as separate layers,
+  plus Land Matte and Water Matte - white where land or water is - for compositing. Highlights and
+  the numbers always come as their own layers.
+- **Supersampling**: 1× to 4×, averaged on the GPU. **Motion blur**: sub-frame samples; the shutter
+  angle and phase come from the scene comp, so the basemap blurs like the layers above it.
+- **Renders on disk**: what the renders take. A saved project's renders live in a "LazyMapLayers
+  Renders" folder next to it; an unsaved project's in the data folder, and those can be removed once
+  the project is closed.
+
+A job from another project waits in the list, with a plain sentence, until its project is open.
+
+## Recipes
+
+**A flight from one city to another, with an arrow.** New map. Search Dhaka, click it, scroll to the
+zoom you want, **+ Shot**. Search Chittagong, set the zoom, **+ Shot**. Click the move between the
+shots: Along route, 6 s, Cinematic; **Play**; **Apply to timeline**. Route tool: click Dhaka, then
+Chittagong, switch **Arrow** on, **Add route**. Auto labels for the names. **Preview**, then
+**Render**.
+
+**A data map.** Import `population.csv` (Country, Population). Check the join line under the columns,
+**Colour again**. **Add spikes** or **Add bubbles**, **Add legend** bottom left. Change the ramp and
+watch the layer follow. **Render**.
+
+**A city at street level.** Move the preview over the city, **Download this area** at zoom 15, name
+it. Map settings > Basemap: the area (or leave World: downloaded areas layer over it by themselves).
+Tilt the preview; buildings rise. Look > Terrain > Download for the mountains.
+
+**Your own look.** Look > Your own colours: pick the sea and the land from your film's stills, or
+**From a picture** with a still. Save the look; open it in the next project.
+
+**Your artwork on every capital.** Colour the map by a table of countries. Draw or import a flag,
+select it in After Effects, **Copy selected layer onto places**, Sized by number off. Every capital
+has a flag that stays put while the camera flies.
+
+## Data, downloads and credits
+
+The world map (Natural Earth, with the provinces of every country) is inside the panel and works
+offline. Everything else is downloaded only when you ask, and the size is shown first: OpenStreetMap
+areas (the free Protomaps planet build), satellite pictures (NASA Blue Marble, 20 MB) and shaded
+relief (Natural Earth, 48 MB), district boundaries per country (geoBoundaries), elevation packs
+(Mapterhorn), and any OpenStreetMap search (Overpass). Downloads live in `%APPDATA%\LazyMapLayers`
+(Windows) or `~/Library/Application Support/LazyMapLayers` (macOS).
+
+The panel never sends anything about you or your project. Rendering OpenStreetMap data, district
+boundaries or terrain adds one small credit text layer to the scene; keep it, or put the credit in
+your end titles.
+
+## If something goes wrong
+
+- The panel is not in the Window menu: restart After Effects, which looks for new panels while it
+  starts.
+- The panel opens blank: run "Fix a blank panel.bat" (Windows) or, on macOS, `defaults write
+  com.adobe.CSXS.12 PlayerDebugMode 1` in Terminal, then restart After Effects.
+- The preview stays black: the panel needs WebGL 2; update the graphics driver.
+- Expression errors in a new project: the project uses the Legacy ExtendScript expression engine;
+  the panel's expressions run on it, but File > Project Settings > Expressions > JavaScript plays
+  back faster.
+- Anything else: Maps > About > **Report a problem**, and paste the report into the issue it opens.

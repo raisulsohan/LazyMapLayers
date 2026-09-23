@@ -7,6 +7,7 @@ import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../
 import { DEFAULT_HEAT, heatPoints, type HeatSetting } from "../core/style/heat.ts";
 import { evalScript, fs, path } from "./cep.ts";
 import { createMapComp } from "./mapApi.ts";
+import { addLegend } from "./overlays/legend.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
 
@@ -67,6 +68,10 @@ export async function runHeatTest(log: SpikeLog): Promise<Record<string, unknown
   if (!heatLayer) problems.push(`the map comp holds ${JSON.stringify(layers)}`);
   else if (heatLayer.name !== "Heat: Incidents") problems.push(`the layer is called "${heatLayer.name}"`);
 
+  // The legend of the heat alone: three steps, low to high, named after the column.
+  const legend = await addLegend(map.id, null, { theme: "midnight", heat, corner: "topLeft" });
+  if (legend.rows !== 3 || legend.name !== "Legend: Incidents") problems.push(`the heat legend has ${legend.rows} rows and is called "${legend.name}"`);
+
   // A frame of the scene, for looking at afterwards.
   const shot = path().join(spikeDir(), "ht1-heat.png").split(String.fromCharCode(92)).join("/");
   fs().rmSync(shot, { force: true });
@@ -87,5 +92,5 @@ export async function runHeatTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, layer: heatLayer?.name ?? null, samples, problems };
+  return { passed, layer: heatLayer?.name ?? null, legendRows: legend.rows, samples, problems };
 }

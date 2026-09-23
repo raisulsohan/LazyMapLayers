@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **A legend for the heat.** Add legend works with heat alone, or with heat and colours together: three
+  steps, low to high, in the ramp's colours, named after the column.
+- **Districts from the Data sheet.** With Match set to Districts, pick any country: if its districts
+  are not on this computer yet, the sheet says so and offers the download right there (the same
+  geoBoundaries download the Highlight sheet makes), and the table joins to them as soon as they
+  arrive.
 - **The names already on the map follow the template.** Changing a name's colour, size, halo,
   capitals or font in the Labels sheet - or picking a style up from a text layer - now restyles the
   names Auto labels placed and the numbers of a data map at once, in one undo step, instead of

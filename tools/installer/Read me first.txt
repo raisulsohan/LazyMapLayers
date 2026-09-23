@@ -255,6 +255,9 @@ UNINSTALL
 ------------------------------------------------------------
 SUPPORT
 ------------------------------------------------------------
+  The full guide, sheet by sheet:
+  https://github.com/raisulsohan/LazyMapLayers/blob/main/docs/GUIDE.md
+
   Maps list > About > "Report a problem" writes a report with
   the panel's last messages to your LazyMapLayers folder and
   opens a new issue on GitHub for you to paste it into. Nothing

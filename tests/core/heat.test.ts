@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { DEFAULT_HEAT, heatColorStops, heatFeatures, heatPoints, MAX_HEAT_POINTS, normaliseHeat } from "../../src/core/style/heat.ts";
+import { DEFAULT_HEAT, heatColorStops, heatFeatures, heatLegendColors, heatPoints, MAX_HEAT_POINTS, normaliseHeat } from "../../src/core/style/heat.ts";
 
 test("places with numbers become weighted points, heaviest first, and nothing warms nothing", () => {
   const points = heatPoints([
@@ -60,4 +60,13 @@ test("the colours run from see-through to the deep end of the ramp, or the other
   assert.equal(turned[turned.length - 1][1], "#fff1d0");
   // Densities climb, so the renderer's interpolation is valid.
   for (let i = 1; i < stops.length; i++) assert.ok(stops[i][0] > stops[i - 1][0]);
+});
+
+test("the legend of the heat has three steps, low to high, turned over with the ramp", () => {
+  const steps = heatLegendColors("warm", false);
+  assert.deepEqual(steps.map((s) => s.label), ["Low", "Medium", "High"]);
+  assert.equal(steps[1].color, "#f0902f");
+  assert.equal(steps[2].color, "#7a2503");
+  assert.notEqual(steps[0].color, steps[1].color, "low sits between the pale end and the middle");
+  assert.equal(heatLegendColors("warm", true)[2].color, "#fff1d0");
 });
