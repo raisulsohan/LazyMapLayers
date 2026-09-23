@@ -16,6 +16,8 @@ export type OwnImagery = {
   opacity: number;
   /** The pixels a tile has along its edge (most XYZ services serve 256). */
   tileSize: 256 | 512;
+  /** The first zoom the source has tiles for (nothing is asked below it); null leaves it to the source. */
+  minZoom: number | null;
   /** The last zoom the source has tiles for (drawn enlarged beyond it); null leaves it to the source. */
   maxZoom: number | null;
 };
@@ -37,22 +39,26 @@ export function normaliseOwnImagery(raw: unknown): OwnImagery | null {
   const url = typeof source.url === "string" ? source.url.trim() : "";
   if (!isTileAddress(url)) return null;
   const opacity = typeof source.opacity === "number" && Number.isFinite(source.opacity) ? Math.max(0, Math.min(1, source.opacity)) : 1;
-  const maxZoom = typeof source.maxZoom === "number" && Number.isFinite(source.maxZoom) ? Math.max(0, Math.min(24, Math.round(source.maxZoom))) : null;
+  const zoom = (value: unknown) => (typeof value === "number" && Number.isFinite(value) ? Math.max(0, Math.min(24, Math.round(value))) : null);
+  const maxZoom = zoom(source.maxZoom);
+  const minZoom = zoom(source.minZoom);
   return {
     url,
     attribution: typeof source.attribution === "string" ? source.attribution.trim().slice(0, 160) : "",
     opacity,
     tileSize: source.tileSize === 512 ? 512 : 256,
+    minZoom: minZoom !== null && maxZoom !== null && minZoom >= maxZoom ? null : minZoom,
     maxZoom
   };
 }
 
-export type OwnImagerySource = { type: "raster"; tiles?: string[]; url?: string; tileSize: number; attribution: string; maxzoom?: number };
+export type OwnImagerySource = { type: "raster"; tiles?: string[]; url?: string; tileSize: number; attribution: string; minzoom?: number; maxzoom?: number };
 
 /** The style source for the address: a tile template, or the archive through the pmtiles protocol. */
 export function ownImagerySource(setting: OwnImagery): OwnImagerySource {
   const pmtiles = /\.pmtiles(\?.*)?$/i.test(setting.url);
   const source: OwnImagerySource = pmtiles ? { type: "raster", url: `pmtiles://${setting.url}`, tileSize: setting.tileSize, attribution: setting.attribution } : { type: "raster", tiles: [setting.url], tileSize: setting.tileSize, attribution: setting.attribution };
+  if (setting.minZoom !== null) source.minzoom = setting.minZoom;
   if (setting.maxZoom !== null) source.maxzoom = setting.maxZoom;
   return source;
 }

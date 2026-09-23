@@ -30,6 +30,7 @@ import { spikeSet } from "../core/style/spikes.ts";
 import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
 import { DEFAULT_DETAILS, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
 import { describeOwnImagery, isTileAddress, normaliseOwnImagery, type OwnImagery } from "../core/style/ownImagery.ts";
+import { imageryService, ownImageryFromService } from "../core/style/imageryCatalogue.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
@@ -1923,6 +1924,20 @@ export const changeOwnImagery = (next: Partial<OwnImagery>) =>
       await readMaps();
     }
     log(ownImagery.value ? `the map draws ${describeOwnImagery(ownImagery.value)}; its terms are yours to keep, and the credit goes on the credit line` : "the map draws its own data again", "ok");
+  });
+
+/** One of the open services the panel knows: its address, credit and zooms, in one go. */
+export const useImageryService = (id: string) =>
+  run("own imagery", async () => {
+    const service = imageryService(id);
+    if (!service) return;
+    ownImagery.value = normaliseOwnImagery(ownImageryFromService(service));
+    ownImageryDraft.value = ownImagery.value?.url ?? "";
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, ownImagery: ownImagery.value });
+      await readMaps();
+    }
+    log(`the map draws ${service.name} (${service.country}): ${service.licence}; credit "${service.attribution}" goes on the credit line. Terms: ${service.terms}`, "ok");
   });
 
 /** Takes the colours of a picture and makes a look of them. */

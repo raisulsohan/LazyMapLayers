@@ -22,11 +22,15 @@ test("a stored setting is repaired, and one without a usable address is none", (
   assert.equal(own.opacity, 1);
   assert.equal(own.tileSize, 256);
   assert.equal(own.maxZoom, 19);
+  assert.equal(own.minZoom, null);
+  assert.equal(normaliseOwnImagery({ url: own.url, minZoom: 14, maxZoom: 18 })!.minZoom, 14);
+  assert.equal(normaliseOwnImagery({ url: own.url, minZoom: 20, maxZoom: 18 })!.minZoom, null, "a first zoom past the last is dropped");
   const plain = normaliseOwnImagery({ url: "https://t.example.org/{z}/{x}/{y}.png", tileSize: 512, opacity: 0.5 })!;
   assert.equal(plain.attribution, "");
   assert.equal(plain.tileSize, 512);
   assert.equal(plain.opacity, 0.5);
   assert.equal(plain.maxZoom, null);
+  assert.equal(plain.minZoom, null);
 });
 
 test("the source and the layer the style gets", () => {

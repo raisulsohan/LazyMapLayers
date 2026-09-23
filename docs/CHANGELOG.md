@@ -7,7 +7,10 @@
   under every line - in a downloaded area, under its roads and buildings too - in the preview and the
   render alike, at the opacity you set. The credit you type goes on the map's credit line and into
   the scene's credit layer. Nothing is bundled and nothing is cached beyond the session: the source's
-  terms are yours to keep.
+  terms are yours to keep. **Open services** lists aerial pictures governments publish for anyone to
+  use - the United States (USGS), the Netherlands (PDOK), Switzerland (swisstopo), France (IGN), Japan
+  (GSI) and Spain (PNOA), each checked with its licence - and picking one fills the address and the
+  credit.
 - **A legend for the heat.** Add legend works with heat alone, or with heat and colours together: three
   steps, low to high, in the ramp's colours, named after the column.
 - **Districts from the Data sheet.** With Match set to Districts, pick any country: if its districts

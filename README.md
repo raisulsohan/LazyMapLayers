@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Adobe%20After%20Effects-2024+-9999FF?style=for-the-badge&logo=adobeaftereffects&logoColor=white" alt="AE Support" />
   <img src="https://img.shields.io/badge/CEP-12-FF5722?style=for-the-badge" alt="CEP Version" />
-  <img src="https://img.shields.io/badge/Version-0.1-orange?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.4-orange?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT%20%C2%B7%20Free-yellow?style=for-the-badge" alt="MIT License" />
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
@@ -18,7 +18,8 @@ Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy sui
 
 **Privacy.** The panel never sends anything about you or your project. It goes online only when you
 ask for a download or an OpenStreetMap search, and once a day to look at the release list on GitHub
-for a newer version (one request, nothing sent; the switch is on the Maps screen).
+for a newer version (one request, nothing sent; the switch is on the Maps screen). With imagery of
+your own switched on, tiles are fetched from the address you gave while you preview and render.
 
 ## Install
 
@@ -100,6 +101,8 @@ Dhaka to Chittagong with an arrow, say:
 - **Imagery of your own.** Any XYZ tile address or PMTiles archive on the web - a national orthophoto
   service, a provider with your key, tiles you made - drawn over the ground and under the lines in
   the preview and the render, at the opacity you set, with the credit you type on the credit line.
+  Six open government services (USGS, PDOK, swisstopo, IGN, GSI, PNOA) are listed with their
+  licences, one pick away.
 - **What is here.** A readout under the pointer: the coordinates, the nearest place, its district and
   province, and the country, offline. Pins and routes are named after their places.
 

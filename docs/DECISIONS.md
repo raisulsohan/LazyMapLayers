@@ -873,6 +873,23 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D60 — A catalogue of open orthophoto services, checked one by one (2026-09-23)
+
+- **Why.** The plan (P4) asked for a curated list of national open aerial imagery. With the address
+  setting (D59) a service is just an address, a credit and its zooms, so the list is a list.
+- **Decision.** core/style/imageryCatalogue.ts holds six services, each checked on 2026-09-23 by
+  fetching one tile (a JPEG came back) and reading the publisher’s terms: USGS The National Map
+  (public domain), PDOK Luchtfoto (CC BY 4.0), swisstopo SWISSIMAGE (free under the FSDI terms,
+  fair use), IGN BD ORTHO through the Géoplateforme (Licence Ouverte, WMTS without limit), GSI’s
+  seamless photo (source stated; tiles from zoom 14, so the setting gained a first zoom) and PNOA
+  (CC BY 4.0 SCNE). The entry carries the credit wording the publisher asks for and a link to the
+  terms, and the log repeats both when a service is picked. Picking one is the user asking: only
+  then are tiles fetched.
+- **Left out, and why.** Denmark (a token is needed), Estonia (a TMS with a flipped row, which the
+  address setting does not take yet), and any provider whose terms forbid use outside its own
+  products. A service that changes its address stops working until the list is updated: the
+  address field stays for that.
+
 ## D59 — Bring-your-own imagery: an address, not a provider (2026-09-23)
 
 - **Why.** The one thing the panel could not show was a sharp aerial picture of a street: Blue Marble

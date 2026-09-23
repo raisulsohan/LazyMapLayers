@@ -131,7 +131,9 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
 - **Imagery of your own**: any XYZ tile address (`https://…/{z}/{x}/{y}.png`, with your own key if
   it needs one) or a PMTiles archive on the web, drawn over the ground and under every line, with
   an opacity and the credit the source asks for. The source's terms are yours to keep; tiles are
-  fetched while previewing and rendering.
+  fetched while previewing and rendering. **Open services** lists aerial pictures governments
+  publish for anyone to use (USGS, PDOK, swisstopo, IGN, GSI, PNOA), each with its licence; picking
+  one fills the address and the credit.
 - **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
   picked up from a selected layer.
 - **Terrain**: **Download…** an elevation pack for the area in the preview (open data through

@@ -40,7 +40,8 @@ import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpike
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
-import { changeOwnImagery, ownImagery, ownImageryDraft } from "../store.ts";
+import { changeOwnImagery, ownImagery, ownImageryDraft, useImageryService } from "../store.ts";
+import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -218,6 +219,19 @@ export function LookSheetView(): JSX.Element | null {
           </button>
         </div>
       )}
+      <div class="sheet-row import-row">
+        <label class="num-field grow" title="Aerial pictures governments publish for anyone to use, free, commercial use included, with the credit shown. Picking one fills the address above; tiles come from that service while you preview and render.">
+          <span>Open services</span>
+          <select data-id="own-service" value="" disabled={busy.value} onChange={(e) => { const id = (e.target as HTMLSelectElement).value; (e.target as HTMLSelectElement).value = ""; if (id) void useImageryService(id); }}>
+            <option value="">Pick a country…</option>
+            {IMAGERY_SERVICES.map((service) => (
+              <option key={service.id} value={service.id}>
+                {service.country} · {service.name} · {service.licence}
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
       <div class="muted small">Its terms are yours to keep. Nothing is bundled: a national orthophoto service, a provider with your key, tiles you made.</div>
       <div class="sheet-row import-row">
         <span title="Shaded slopes from real elevation data, sharp at any zoom. An elevation pack is downloaded once for an area (open data through Mapterhorn) and then works offline.">Terrain</span>

@@ -56,7 +56,7 @@ export async function runOwnImageryTest(log: SpikeLog): Promise<Record<string, u
   try {
     const view: View = { center: { lat: 47, lng: 8 }, zoom: 3.2, bearing: 0, pitch: 0 };
     const map = await createMapComp({ name: "OI1 own imagery", ...SIZE, duration: 1, frameRate: 25, view, newScene: true });
-    const own: OwnImagery = { url: `http://127.0.0.1:${server.port}/{z}/{x}/{y}.png`, attribution: "Test tiles", opacity: 1, tileSize: 256, maxZoom: null };
+    const own: OwnImagery = { url: `http://127.0.0.1:${server.port}/{z}/{x}/{y}.png`, attribution: "Test tiles", opacity: 1, tileSize: 256, minZoom: null, maxZoom: null };
     const settings = normaliseSettings({ ...DEFAULT_FINAL_SETTINGS, supersample: 1, passes: ["base", "landMatte"] }, DEFAULT_FINAL_SETTINGS);
     const rendered = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, theme: "daylight", own });
     requests = server.requests();
