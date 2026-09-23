@@ -85,6 +85,54 @@ export const IMAGERY_SERVICES: ImageryService[] = [
     maxZoom: 18
   },
   {
+    id: "basemap-at",
+    country: "Austria",
+    name: "basemap.at orthophoto (30 cm)",
+    url: "https://mapsneu.wien.gv.at/basemap/bmaporthofoto30cm/normal/google3857/{z}/{y}/{x}.jpeg",
+    attribution: "Grundkarte: basemap.at",
+    licence: "CC BY 4.0",
+    terms: "https://basemap.at/",
+    tileSize: 256,
+    minZoom: null,
+    maxZoom: 19
+  },
+  {
+    id: "cuzk",
+    country: "Czechia",
+    name: "ČÚZK Ortofoto ČR",
+    url: "https://ags.cuzk.gov.cz/arcgis1/rest/services/ORTOFOTO_WM/MapServer/tile/{z}/{y}/{x}",
+    attribution: "© ČÚZK",
+    licence: "CC BY 4.0",
+    terms: "https://geoportal.cuzk.cz/Default.aspx?lng=EN&mode=TextMeta&metadataXSL=full&side=wmts.uvod&metadataID=CZ-CUZK-WMTS-ORTOFOTO_900913",
+    tileSize: 256,
+    minZoom: null,
+    maxZoom: 19
+  },
+  {
+    id: "act-lu",
+    country: "Luxembourg",
+    name: "BD-L-ORTHO (Administration du cadastre et de la topographie)",
+    url: "https://wmts1.geoportail.lu/opendata/wmts/ortho_latest/GLOBAL_WEBMERCATOR_4_V3/{z}/{x}/{y}.jpeg",
+    attribution: "Administration du cadastre et de la topographie, Luxembourg",
+    licence: "CC0 1.0",
+    terms: "https://data.public.lu/en/datasets/bd-l-ortho-webservices-wms-et-wmts/",
+    tileSize: 256,
+    minZoom: null,
+    maxZoom: 19
+  },
+  {
+    id: "maaamet",
+    country: "Estonia",
+    name: "Maa-amet orthophoto",
+    url: "https://tiles.maaamet.ee/tm/tms/1.0.0/foto@GMC/{z}/{x}/{-y}.png",
+    attribution: "Maa-amet (Estonian Land and Spatial Development Board)",
+    licence: "CC BY 4.0",
+    terms: "https://geoportaal.maaamet.ee/eng/spatial-data/orthophotos-p309.html",
+    tileSize: 256,
+    minZoom: null,
+    maxZoom: 18
+  },
+  {
     id: "pnoa",
     country: "Spain",
     name: "PNOA orthophotos (Instituto Geográfico Nacional)",

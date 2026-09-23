@@ -9,8 +9,9 @@
   the scene's credit layer. Nothing is bundled and nothing is cached beyond the session: the source's
   terms are yours to keep. **Open services** lists aerial pictures governments publish for anyone to
   use - the United States (USGS), the Netherlands (PDOK), Switzerland (swisstopo), France (IGN), Japan
-  (GSI) and Spain (PNOA), each checked with its licence - and picking one fills the address and the
-  credit.
+  (GSI), Spain (PNOA), Austria (basemap.at), Czechia (ČÚZK), Luxembourg (ACT) and Estonia
+  (Maa-amet), each checked with its licence - and picking one fills the address and the credit. An
+  address that counts tile rows from the south ({-y}) works too.
 - **A legend for the heat.** Add legend works with heat alone, or with heat and colours together: three
   steps, low to high, in the ramp's colours, named after the column.
 - **Districts from the Data sheet.** With Match set to Districts, pick any country: if its districts

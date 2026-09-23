@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { describeOwnImagery, isTileAddress, normaliseOwnImagery, OWN_IMAGERY_LAYER, OWN_IMAGERY_SOURCE, ownImageryLayer, ownImagerySource } from "../../src/core/style/ownImagery.ts";
+import { countsRowsFromSouth, describeOwnImagery, isTileAddress, normaliseOwnImagery, OWN_IMAGERY_LAYER, OWN_IMAGERY_SOURCE, ownImageryLayer, ownImagerySource } from "../../src/core/style/ownImagery.ts";
 
 test("only web addresses with a tile template, or a PMTiles archive, are tile addresses", () => {
   assert.ok(isTileAddress("https://tiles.example.org/ortho/{z}/{x}/{y}.jpg?key=abc"));
@@ -8,6 +8,8 @@ test("only web addresses with a tile template, or a PMTiles archive, are tile ad
   assert.ok(isTileAddress("https://example.org/ortho.pmtiles"));
   assert.ok(isTileAddress("https://example.org/ortho.pmtiles?token=1"));
   assert.ok(!isTileAddress("https://tiles.example.org/ortho/{z}/{x}.jpg"), "no {y}");
+  assert.ok(isTileAddress("https://tiles.example.org/tms/{z}/{x}/{-y}.png"), "rows counted from the south");
+  assert.ok(countsRowsFromSouth("https://tiles.example.org/tms/{z}/{x}/{-y}.png") && !countsRowsFromSouth("https://t.example.org/{z}/{x}/{y}.png"));
   assert.ok(!isTileAddress("C:/tiles/{z}/{x}/{y}.png"), "a local path is not served");
   assert.ok(!isTileAddress("ftp://example.org/{z}/{x}/{y}.png"));
   assert.ok(!isTileAddress("https://example.org/{z}/{x}/{y} .png"), "no spaces");
@@ -38,6 +40,8 @@ test("the source and the layer the style gets", () => {
   assert.deepEqual(ownImagerySource(xyz), { type: "raster", tiles: ["https://t.example.org/{z}/{x}/{y}.png"], tileSize: 256, attribution: "Example", maxzoom: 17 });
   const archive = normaliseOwnImagery({ url: "https://example.org/ortho.pmtiles", tileSize: 512 })!;
   assert.deepEqual(ownImagerySource(archive), { type: "raster", url: "pmtiles://https://example.org/ortho.pmtiles", tileSize: 512, attribution: "" });
+  const tms = ownImagerySource(normaliseOwnImagery({ url: "https://tiles.example.org/tms/{z}/{x}/{-y}.png" })!);
+  assert.deepEqual(tms, { type: "raster", tiles: ["https://tiles.example.org/tms/{z}/{x}/{y}.png"], tileSize: 256, attribution: "", scheme: "tms" });
   const layer = ownImageryLayer(xyz);
   assert.equal(layer.id, OWN_IMAGERY_LAYER);
   assert.equal(layer.source, OWN_IMAGERY_SOURCE);

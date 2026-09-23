@@ -4,7 +4,7 @@ import { IMAGERY_SERVICES, imageryService, ownImageryFromService } from "../../s
 import { isTileAddress, normaliseOwnImagery, ownImagerySource } from "../../src/core/style/ownImagery.ts";
 
 test("every open service in the catalogue is a usable, credited address", () => {
-  assert.ok(IMAGERY_SERVICES.length >= 6);
+  assert.ok(IMAGERY_SERVICES.length >= 10);
   const ids = new Set<string>();
   for (const service of IMAGERY_SERVICES) {
     assert.ok(!ids.has(service.id), `${service.id} twice`);
@@ -31,4 +31,7 @@ test("a service that has no tiles below a zoom asks for none there", () => {
   assert.equal(source.maxzoom, 18);
   const usgs = ownImagerySource(normaliseOwnImagery(ownImageryFromService(imageryService("usgs")!))!);
   assert.equal(usgs.minzoom, undefined);
+  const estonia = ownImagerySource(normaliseOwnImagery(ownImageryFromService(imageryService("maaamet")!))!);
+  assert.equal(estonia.scheme, "tms", "Estonia counts rows from the south");
+  assert.ok(estonia.tiles![0].endsWith("/{z}/{x}/{y}.png"));
 });

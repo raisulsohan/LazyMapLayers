@@ -8,7 +8,7 @@ export const OWN_IMAGERY_SOURCE = "lml-own-imagery";
 export const OWN_IMAGERY_LAYER = "own-imagery";
 
 export type OwnImagery = {
-  /** An https address with {z}, {x} and {y}, or one ending in .pmtiles. */
+  /** An https address with {z}, {x} and {y} (or {-y} for rows counted from the south), or one ending in .pmtiles. */
   url: string;
   /** The credit the source asks for; it goes on the map's credit line and into the scene's credit layer. */
   attribution: string;
@@ -29,8 +29,11 @@ export function isTileAddress(url: string): boolean {
   const text = url.trim();
   if (!XYZ.test(text)) return false;
   if (/\.pmtiles(\?.*)?$/i.test(text)) return true;
-  return text.includes("{z}") && text.includes("{x}") && text.includes("{y}");
+  return text.includes("{z}") && text.includes("{x}") && (text.includes("{y}") || text.includes("{-y}"));
 }
+
+/** Whether the address counts tile rows from the south, as TMS services do. */
+export const countsRowsFromSouth = (url: string): boolean => url.includes("{-y}") && !url.includes("{y}");
 
 /** What a map carries, repaired; null without a usable address. */
 export function normaliseOwnImagery(raw: unknown): OwnImagery | null {
@@ -52,12 +55,13 @@ export function normaliseOwnImagery(raw: unknown): OwnImagery | null {
   };
 }
 
-export type OwnImagerySource = { type: "raster"; tiles?: string[]; url?: string; tileSize: number; attribution: string; minzoom?: number; maxzoom?: number };
+export type OwnImagerySource = { type: "raster"; tiles?: string[]; url?: string; tileSize: number; attribution: string; scheme?: "tms"; minzoom?: number; maxzoom?: number };
 
 /** The style source for the address: a tile template, or the archive through the pmtiles protocol. */
 export function ownImagerySource(setting: OwnImagery): OwnImagerySource {
   const pmtiles = /\.pmtiles(\?.*)?$/i.test(setting.url);
-  const source: OwnImagerySource = pmtiles ? { type: "raster", url: `pmtiles://${setting.url}`, tileSize: setting.tileSize, attribution: setting.attribution } : { type: "raster", tiles: [setting.url], tileSize: setting.tileSize, attribution: setting.attribution };
+  const source: OwnImagerySource = pmtiles ? { type: "raster", url: `pmtiles://${setting.url}`, tileSize: setting.tileSize, attribution: setting.attribution } : { type: "raster", tiles: [setting.url.replace("{-y}", "{y}")], tileSize: setting.tileSize, attribution: setting.attribution };
+  if (!pmtiles && countsRowsFromSouth(setting.url)) source.scheme = "tms";
   if (setting.minZoom !== null) source.minzoom = setting.minZoom;
   if (setting.maxZoom !== null) source.maxzoom = setting.maxZoom;
   return source;

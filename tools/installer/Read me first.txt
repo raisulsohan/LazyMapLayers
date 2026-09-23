@@ -168,7 +168,8 @@ MAKING YOUR OWN MAP
                    the credit you type. Its terms are yours.
                    "Open services" lists free government aerial
                    pictures (USA, Netherlands, Switzerland,
-                   France, Japan, Spain) with their licences.
+                   France, Japan, Spain, Austria, Czechia,
+                   Luxembourg, Estonia) with their licences.
                    "Your own colours" sets the sea, the land, the
                    lines and the names, and works the rest of the
                    map out from them. "From a picture" takes the

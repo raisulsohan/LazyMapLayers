@@ -101,8 +101,8 @@ Dhaka to Chittagong with an arrow, say:
 - **Imagery of your own.** Any XYZ tile address or PMTiles archive on the web - a national orthophoto
   service, a provider with your key, tiles you made - drawn over the ground and under the lines in
   the preview and the render, at the opacity you set, with the credit you type on the credit line.
-  Six open government services (USGS, PDOK, swisstopo, IGN, GSI, PNOA) are listed with their
-  licences, one pick away.
+  Ten open government services (USGS, PDOK, swisstopo, IGN, GSI, PNOA, basemap.at, ČÚZK, ACT
+  Luxembourg, Maa-amet) are listed with their licences, one pick away.
 - **What is here.** A readout under the pointer: the coordinates, the nearest place, its district and
   province, and the country, offline. Pins and routes are named after their places.
 
