@@ -1940,6 +1940,36 @@ export const useImageryService = (id: string) =>
     log(`the map draws ${service.name} (${service.country}): ${service.licence}; credit "${service.attribution}" goes on the credit line. Terms: ${service.terms}`, "ok");
   });
 
+/**
+ * Every other map in the project takes this map's look (the look, its colours, details, layer style,
+ * relief, sky and imagery) or its names (the label template and the keep-out zones); names already
+ * placed on those maps are restyled too.
+ */
+export const shareWithAllMaps = (what: "look" | "names") =>
+  run("share with every map", async () => {
+    const from = selectedId.value;
+    if (!from) return;
+    const others = maps.value.filter((map) => map.mapId !== from);
+    if (!others.length) {
+      log("this project has no other map", "muted");
+      return;
+    }
+    const settings = what === "look"
+      ? { theme: themeId.value, look: lookOverride.value, lookDetails: lookDetails.value, layerStyle: layerStyle.value, relief: reliefOn.value, sky: skyOn.value, ownImagery: ownImagery.value }
+      : { labelTemplate: labelTemplate.value, keepOut: keepOut.value };
+    let restyled = 0;
+    for (const map of others) {
+      await callHost("setMapSettings", { mapId: map.mapId, ...settings });
+      if (what === "names") {
+        // The other map's own look decides what a null field of the template falls back to.
+        const template = resolveLabelTemplate(applyLook(themeById(map.theme), normaliseLook(map.look)), labelTemplate.value);
+        for (const kind of ["label", "value"]) restyled += (await restyleLabels(map.mapId, { template, kind })).labels;
+      }
+    }
+    await readMaps();
+    log(`${others.length} other ${others.length === 1 ? "map takes" : "maps take"} this map's ${what === "look" ? "look" : "names"} now${restyled ? ` (${restyled} placed names restyled)` : ""}`, "ok");
+  });
+
 /** Takes the colours of a picture and makes a look of them. */
 export const lookFromImage = (file: File) =>
   run("look from a picture", async () => {

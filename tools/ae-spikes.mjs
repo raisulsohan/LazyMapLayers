@@ -529,6 +529,13 @@ async function runUiScenario() {
   console.log(`U1 numbers sample: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-4)"))}`);
   await sleep(800);
   await shot("08-numbers-sample");
+  // Two maps now: the look of this one goes to the other in one click.
+  await click("look");
+  await sleep(300);
+  await click("look-share");
+  await idle();
+  console.log(`U1 share look: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await click("look");
   console.log(["UI log:", (await panel.evaluate("window.lmlDebug.log()")).join(String.fromCharCode(10))].join(String.fromCharCode(10)));
   panel.close();
 }

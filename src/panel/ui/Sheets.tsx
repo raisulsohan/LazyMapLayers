@@ -40,7 +40,7 @@ import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpike
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
-import { changeOwnImagery, ownImagery, ownImageryDraft, useImageryService } from "../store.ts";
+import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -174,6 +174,9 @@ export function LookSheetView(): JSX.Element | null {
         </button>
         <button class="small-button" data-id="look-reset" disabled={busy.value || lookFollowsTheme.value} title="Back to the colours of the look above" onClick={() => void changeLook({ ocean: null, land: null, accent: null, border: null, text: null })}>
           Back to {current?.label ?? "the look"}
+        </button>
+        <button class="small-button" data-id="look-share" disabled={busy.value || projectMaps.value.length < 2} title="Every other map in this project takes this look: the colours, the details, the layer style, relief, sky and imagery" onClick={() => void shareWithAllMaps("look")}>
+          Use for every map
         </button>
       </div>
       {(["blue-marble", "relief"] as const)
@@ -1082,6 +1085,9 @@ export function LabelsSheetView(): JSX.Element | null {
         </button>
         <button class="small-button" data-id="label-style-reset" disabled={busy.value || labelTemplateFollows.value} title="Back to the names of this look" onClick={() => void changeLabelTemplate({ color: null, countryColor: null, haloColor: null, halo: null, size: null, caps: null, dots: null, font: null })}>
           Follow the look
+        </button>
+        <button class="small-button" data-id="labels-share" disabled={busy.value || projectMaps.value.length < 2} title="Every other map in this project takes these names: the template and the keep-out zones; names already placed on them are restyled" onClick={() => void shareWithAllMaps("names")}>
+          Use for every map
         </button>
       </div>
       {labels.font && <div class="muted small">Latin names use {labels.font}.</div>}

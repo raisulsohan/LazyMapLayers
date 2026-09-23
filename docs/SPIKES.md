@@ -5,9 +5,10 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
-Last full offline run: 2026-09-23, after D49-D56 (spikes, heat, district joins, layer copies, the readout, look
-details, the update check): H1, P1, C1, E1, X1, R1, G2, D1, SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1,
-ST1, DT1, LK1, FL1, HT1 and U1 all pass on the dev build.
+Last full offline run: 2026-09-23, after D49-D61 (spikes, heat, district joins, layer copies, the readout, look
+details, the update check, label restyling, the heat legend, imagery of the user's own): H1, P1, C1, E1, X1, R1,
+G2, D1, SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1, ST1, DT1, LK1, FL1, HT1, OI1 and U1 all pass on the dev
+build.
 
 ## The in-AE tests, and what each one settles
 

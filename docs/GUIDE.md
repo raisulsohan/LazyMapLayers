@@ -115,7 +115,8 @@ data adds a small credit layer, which the licence asks for.
 one language, with or without an English line under it), as editable text layers that never overlap
 or flicker. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
 capitals for countries, and dots for cities, or takes them **From the selected text layer** you
-styled yourself; a change restyles the names already on the map too. **Keep the names out of**
+styled yourself; a change restyles the names already on the map too, and **Use for every map**
+gives the template (and the keep-out zones) to the other maps in the project. **Keep the names out of**
 blocks the lower third, a top bar, or whatever your own selected layers cover, for the seconds those
 layers are on screen; the zones are drawn over the preview.
 
@@ -128,6 +129,8 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
   picture** takes the palette of a still from your film; **Open a look** reads a saved look or an
   Illustrator / Photoshop palette (.ase, .act); **Save the look** keeps yours in a file.
 - **Details**: lines and roads heavier or lighter, fewer or more names, in every look.
+- **Use for every map**: the other maps in the project take this look, its details, the layer style,
+  relief, sky and imagery.
 - **Imagery of your own**: any XYZ tile address (`https://…/{z}/{x}/{y}.png`, with your own key if
   it needs one) or a PMTiles archive on the web, drawn over the ground and under every line, with
   an opacity and the credit the source asks for. The source's terms are yours to keep; tiles are

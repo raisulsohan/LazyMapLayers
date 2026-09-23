@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Use for every map.** A button under the look and one under the names give every other map in
+  the project this map's look (colours, details, layer style, relief, sky, imagery) or its names
+  (template and keep-out zones), restyling the names already placed on them.
 - **Imagery of your own.** Under the Look sheet: any XYZ tile address (`https://…/{z}/{x}/{y}.png`,
   with your own key if it needs one) or a PMTiles archive on the web is drawn over the ground and
   under every line - in a downloaded area, under its roads and buildings too - in the preview and the

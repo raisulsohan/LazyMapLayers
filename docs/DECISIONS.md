@@ -873,6 +873,16 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D61 — A look or a label template shared with every map in one click (2026-09-23)
+
+- **Why.** Phase 6 left "a template is not shared between maps"; a project with three maps wants
+  them to match. Sharing by copying the settings once is plain and undoable; a live link between
+  maps would make one map's change silently alter another's render.
+- **Decision.** "Use for every map" under the look writes this map's theme, look, details, layer
+  style, relief, sky and imagery to every other map; under the names it writes the template and the
+  keep-out zones and restyles the names already placed there, each map's template resolved against
+  that map's own look. One host call per map, one undo step.
+
 ## D60 — A catalogue of open orthophoto services, checked one by one (2026-09-23)
 
 - **Why.** The plan (P4) asked for a curated list of national open aerial imagery. With the address
