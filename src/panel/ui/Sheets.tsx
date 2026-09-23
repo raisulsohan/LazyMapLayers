@@ -1044,6 +1044,7 @@ export function LabelsSheetView(): JSX.Element | null {
         </button>
       </div>
       {labels.font && <div class="muted small">Latin names use {labels.font}.</div>}
+      <div class="muted small">A change restyles the names already on the map too; dots come with the next placing.</div>
       <div class="section-title">Keep the names out of</div>
       <div class="sheet-row chips">
         {KEEP_OUT_PRESETS.map((preset) => (

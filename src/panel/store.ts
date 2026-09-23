@@ -56,6 +56,7 @@ import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
+import { restyleLabels } from "./labels/restyleLabels.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -1113,13 +1114,28 @@ export const pickUpLayerStyle = () =>
     log(`new pins, routes and callouts take their colour ${found.accent} from "${found.from}"`, "ok");
   });
 
-/** Changes how the names on this map look (a null field follows the look). */
+/** The names already on the map (Auto labels and the numbers of a data map) take the template's new look, at once. */
+async function restylePlacedLabels(): Promise<void> {
+  const mapId = selectedId.value;
+  if (!mapId) return;
+  let names = 0;
+  let dotsMissing = 0;
+  for (const kind of ["label", "value"]) {
+    const made = await restyleLabels(mapId, { template: currentLabelTemplate.value, kind, onProgress: (done, total) => (progress.value = { label: "Restyling names", done, total }) });
+    names += made.labels;
+    if (kind === "label") dotsMissing = made.dotsMissing;
+  }
+  if (names) log(`${names} names on the map restyled${dotsMissing ? `; ${dotsMissing} have no dot yet: place the names again to get dots` : ""}`, "ok");
+}
+
+/** Changes how the names on this map look (a null field follows the look), on the names already placed too. */
 export const changeLabelTemplate = (next: Partial<LabelTemplateOverride>) =>
   run("label template", async () => {
     labelTemplate.value = normaliseLabelTemplate({ ...labelTemplate.value, ...next });
     if (selectedId.value) {
       await callHost("setMapSettings", { mapId: selectedId.value, labelTemplate: labelTemplate.value });
       await readMaps();
+      await restylePlacedLabels();
     }
   });
 
@@ -1142,7 +1158,8 @@ export const pickUpLabelStyle = () =>
     });
     await callHost("setMapSettings", { mapId: selectedId.value, labelTemplate: labelTemplate.value });
     await readMaps();
-    log(`new labels follow "${found.from}": ${found.font ?? "its font"} at ${found.size} px${found.color ? `, ${found.color}` : ""}. Latin, Cyrillic and Greek names use that font; other scripts keep fonts that shape them correctly`, "ok");
+    await restylePlacedLabels();
+    log(`the names follow "${found.from}": ${found.font ?? "its font"} at ${found.size} px${found.color ? `, ${found.color}` : ""}. Latin, Cyrillic and Greek names use that font; other scripts keep fonts that shape them correctly`, "ok");
   });
 
 const storeKeepOut = async (next: KeepOutZone[]) => {

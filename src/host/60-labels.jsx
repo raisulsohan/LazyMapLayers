@@ -33,9 +33,11 @@ LML.labels.removeTagged = function (scene, mapId, kind) {
     return removed;
 };
 
-LML.labels.styleText = function (layer, style) {
+/** Styles a text layer; with `text`, its words change as well (capitals on or off). */
+LML.labels.styleText = function (layer, style, text) {
     var prop = layer.property("ADBE Text Properties").property("ADBE Text Document");
     var doc = prop.value;
+    if (text !== undefined && text !== null && doc.text !== text) doc.text = text;
     doc.resetCharStyle();
     doc.resetParagraphStyle();
     doc.fontSize = style.size;
@@ -87,6 +89,94 @@ LML.labels.link = function (layer, mapLayer, expression, errors, label, check) {
     link.name = "Map";
     link.property(1).setValue(mapLayer.index);
     LML.pins.setExpression(layer.property("ADBE Transform Group").property("ADBE Position"), expression, errors, label, check);
+};
+
+/** The label layers of a map, for restyling: which label, which part, and what each says. args: { mapId, kind } */
+LML.labels.list = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var kind = args.kind || "label";
+    var out = [];
+    for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== kind || tag.mapId !== args.mapId || !tag.labelId) continue;
+        var text = "";
+        var properties = layer.property("ADBE Text Properties");
+        if (properties) text = properties.property("ADBE Text Document").value.text;
+        out.push({ labelId: tag.labelId, part: tag.part || "text", text: text, raw: tag.raw || null });
+    }
+    return out;
+};
+
+/**
+ * Restyles the labels already on a map. args: { mapId, kind, first, last,
+ *   texts: [{ labelId, part, text, style }], dots: [{ labelId, style: { radius, color, strokeColor, strokeWidth } }],
+ *   remove: [labelId] }
+ * Sent in batches like addLabels: the first takes the scene out of the viewer, the last brings it back.
+ */
+LML.labels.restyle = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var kind = args.kind || "label";
+    if (args.first !== false) {
+        LML.labels.finish();
+        var viewerWasScene = app.project.activeItem === scene;
+        try {
+            if (viewerWasScene) mapLayer.source.openInViewer();
+        } catch (e0) {
+            viewerWasScene = false;
+        }
+        LML.labels.pending = { mapId: args.mapId, viewerWasScene: viewerWasScene };
+    }
+    var byKey = {};
+    for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== kind || tag.mapId !== args.mapId || !tag.labelId) continue;
+        byKey[tag.labelId + "|" + (tag.part || "text")] = layer;
+    }
+    var fonts = {};
+    var fontFor = function (names) {
+        var key = names ? names.join(",") : "";
+        if (!(key in fonts)) fonts[key] = LML.labels.pickFont(names);
+        return fonts[key];
+    };
+    var texts = 0;
+    var dots = 0;
+    var removed = 0;
+    var items = args.texts || [];
+    for (var t = 0; t < items.length; t++) {
+        var item = items[t];
+        var target = byKey[item.labelId + "|" + item.part];
+        if (!target || !target.property("ADBE Text Properties")) continue;
+        item.style.font = fontFor(item.style.fonts);
+        LML.labels.styleText(target, item.style, item.text);
+        texts++;
+    }
+    var dotItems = args.dots || [];
+    for (var d = 0; d < dotItems.length; d++) {
+        var dot = byKey[dotItems[d].labelId + "|dot"];
+        if (!dot) continue;
+        var style = dotItems[d].style;
+        var contents = dot.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group");
+        contents.property("ADBE Vector Shape - Ellipse").property("ADBE Vector Ellipse Size").setValue([style.radius * 2, style.radius * 2]);
+        var stroke = contents.property("ADBE Vector Graphic - Stroke");
+        stroke.property("ADBE Vector Stroke Color").setValue(style.strokeColor);
+        stroke.property("ADBE Vector Stroke Width").setValue(style.strokeWidth);
+        contents.property("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue(style.color);
+        dots++;
+    }
+    var gone = args.remove || [];
+    for (var r = 0; r < gone.length; r++) {
+        var old = byKey[gone[r] + "|dot"];
+        if (!old) continue;
+        old.locked = false;
+        old.remove();
+        removed++;
+    }
+    if (args.last !== false) LML.labels.finish();
+    return { texts: texts, dots: dots, removed: removed };
 };
 
 /** Where a batched label build stands between host calls: { mapId, viewerWasScene }. */
@@ -199,7 +289,10 @@ LML.labels.addLabels = function (args) {
             lap("keys");
             layer.moveBefore(mapLayer);
             lap("order");
-            LML.tag.write(layer, { kind: kind, v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] });
+            var written = { kind: kind, v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] };
+            // The words the name was placed with, so capitals can come off again when the template changes.
+            if (parts[p][1] === "text" && spec.raw) written.raw = spec.raw;
+            LML.tag.write(layer, written);
             lap("tag");
             layers++;
         }

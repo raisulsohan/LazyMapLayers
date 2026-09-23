@@ -43,6 +43,16 @@ LML.api.addLabels = function (args) {
 };
 
 /** Ends a batched label build that was cancelled or failed (brings the scene back into the viewer). */
+LML.api.listLabels = function (args) {
+    return LML.labels.list(args);
+};
+
+LML.api.restyleLabels = function (args) {
+    return LML.withUndo("Restyle names", function () {
+        return LML.labels.restyle(args);
+    });
+};
+
 LML.api.finishLabels = function () {
     return LML.labels.finish();
 };

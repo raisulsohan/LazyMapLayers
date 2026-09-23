@@ -4,10 +4,11 @@
 import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
 import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
-import { resolveLabelTemplate, templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
+import { resolveLabelTemplate, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
+import { capsFor, dotStyle, textStyle, type PlacedTextStyle } from "../../core/labels/restyle.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
-import { hexToRgb, themeFrom, type ThemeLike } from "../../core/style/themes.ts";
+import { themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
 import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
@@ -63,10 +64,8 @@ export type AutoLabelResult = {
 /** Labels per call into After Effects: small enough that it never blocks for more than a second or two. */
 export const LABEL_BATCH = 8;
 
-type TextStyle = { size: number; color: number[]; haloColor: number[]; haloWidth: number; fonts: string[]; tracking: number; rtl: boolean };
+type TextStyle = PlacedTextStyle;
 
-const RTL: Script[] = ["arabic", "hebrew"];
-const UPPERCASE: Script[] = ["latin", "cyrillic", "greek"];
 
 const loadRecords = () => loadWorldLabels() as { countries: LabelRecord[]; places: LabelRecord[] };
 
@@ -102,16 +101,10 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const placeMaxZoom = options.placeMaxZoom ?? 10;
   const theme = themeFrom(options.theme);
   const template = options.template ?? resolveLabelTemplate(theme);
-  const colors = {
-    place: hexToRgb(template.color),
-    country: hexToRgb(template.countryColor),
-    halo: hexToRgb(template.haloColor),
-    subtitle: hexToRgb(template.subtitleColor)
-  };
   const lowestZoom = Math.min(...cameras.map((c) => c.zoom));
   const highestZoom = Math.max(...cameras.map((c) => c.zoom));
 
-  type Prepared = { candidate: LabelCandidate; record: LabelRecord; text: string; subtitle: string | null; main: TextStyle; sub: TextStyle; mainDy: number; subDy: number; dx: number };
+  type Prepared = { candidate: LabelCandidate; record: LabelRecord; text: string; raw: string; subtitle: string | null; main: TextStyle; sub: TextStyle; mainDy: number; subDy: number; dx: number };
   const prepared: Prepared[] = [];
   const add = (record: LabelRecord) => {
     const isCountry = record.kind === "country";
@@ -122,21 +115,14 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const { text: raw, subtitle } = labelText(record.names, record.country, record.region, language, english);
     if (!raw) return;
     const script = scriptOf(raw);
-    const caps = template.caps && isCountry && UPPERCASE.includes(script);
+    const caps = capsFor(template, isCountry, script);
     const text = caps ? raw.toLocaleUpperCase() : raw;
-    const size = Math.round((isCountry ? template.countrySize : template.size) * scale);
-    const tracking = caps ? 160 : 0;
-    const main: TextStyle = {
-      size,
-      color: isCountry ? colors.country : colors.place,
-      haloColor: colors.halo,
-      haloWidth: template.halo > 0 ? Math.max(1, Math.round(template.halo * scale)) : 0,
-      fonts: templateFonts(template, SCRIPT_FONTS[script].bold, script),
-      tracking,
-      rtl: RTL.includes(script)
-    };
+    // The same style a restyle gives later, so a name placed today and restyled tomorrow look the same.
+    const main: TextStyle = textStyle(template, scale, { country: isCountry, script, part: "text" });
+    const size = main.size;
+    const tracking = main.tracking;
     const subScript = subtitle ? scriptOf(subtitle) : "latin";
-    const sub: TextStyle = { ...main, size: Math.round(size * 0.62), color: colors.subtitle, fonts: templateFonts(template, SCRIPT_FONTS[subScript].regular, subScript), tracking: 20, rtl: RTL.includes(subScript) };
+    const sub: TextStyle = textStyle(template, scale, { country: isCountry, script: subScript, part: "subtitle" });
     const mainWidth = measure(text, script, size, 600, tracking);
     const subWidth = subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0;
     const width = Math.max(mainWidth, subWidth) + main.haloWidth * 2;
@@ -160,7 +146,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       minZoom,
       maxZoom
     };
-    prepared.push({ candidate, record, text, subtitle, main, sub, mainDy, subDy, dx: isCountry ? 0 : offset + width / 2 });
+    prepared.push({ candidate, record, text, raw, subtitle, main, sub, mainDy, subDy, dx: isCountry ? 0 : offset + width / 2 });
   };
   if (options.countries ?? true) data.countries.forEach(add);
   if (options.places ?? true) data.places.forEach(add);
@@ -208,12 +194,13 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       id: record.id,
       name: record.names.en ?? label.text,
       text: label.text,
+      raw: label.raw,
       subtitle: label.subtitle,
       keys,
       dot: record.kind === "place" && template.dots,
       main: label.main,
       sub: label.sub,
-      dotStyle: { radius: 4.5 * scale, color: colors.place, strokeColor: colors.halo, strokeWidth: 2 * scale },
+      dotStyle: dotStyle(template, scale),
       expressions: {
         main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
         sub: label.subtitle ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,

@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **The names already on the map follow the template.** Changing a name's colour, size, halo,
+  capitals or font in the Labels sheet - or picking a style up from a text layer - now restyles the
+  names Auto labels placed and the numbers of a data map at once, in one undo step, instead of
+  only the names placed afterwards. Capitals come off again as well as on: every name keeps the
+  words it was placed with. Switching dots off removes them; switching them on needs the names
+  placed again, and the panel says so.
+
 ## 0.4.0 — spikes, heat, flows in colour, your layer on every place, and the look's details (2026-09-23)
 
 - **The numbers sample.** Maps list > Build the numbers sample: a world map of every country by its

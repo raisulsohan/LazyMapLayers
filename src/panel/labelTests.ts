@@ -7,6 +7,7 @@ import { resolveLabelTemplate } from "../core/labels/labelTemplate.ts";
 import { hexToRgb, themeById } from "../core/style/themes.ts";
 import { callHost, evalScript } from "./cep.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
+import { restyleLabels } from "./labels/restyleLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import type { SpikeLog } from "./spikes.ts";
 
@@ -87,6 +88,35 @@ export async function runLabelTemplateTest(log: SpikeLog): Promise<Record<string
   const subtitle = styled.texts.find((t) => t.name.includes("(subtitle)"));
   if (subtitle && near(subtitle.fill, hexToRgb(fromLook.subtitleColor))) problems.push(`a subtitle kept the look's colour: ${JSON.stringify(subtitle.fill)}`);
 
+  // The names already placed follow a changed template: bigger, green, a halo.
+  const changed = resolveLabelTemplate(paper, { color: "#22aa44", countryColor: "#22aa44", haloColor: "#ffffff", halo: 2, size: 30, caps: true, dots: true, font: null });
+  const restyled = await restyleLabels(map.id, { template: changed });
+  const after = await labelLayers(map.id);
+  const afterNames = mainNames(after.texts);
+  if (restyled.labels !== styledNames.length || restyled.texts !== after.texts.length) problems.push(`restyled ${restyled.labels} names and ${restyled.texts} layers of ${styledNames.length} names, ${after.texts.length} layers`);
+  const green = hexToRgb("#22aa44");
+  for (const text of afterNames.slice(0, 6)) {
+    if (!near(text.fill, green)) problems.push(`after restyling "${text.text}" is ${JSON.stringify(text.fill)}, expected green`);
+    if (!text.stroke) problems.push(`after restyling "${text.text}" has no halo`);
+    if (Math.round(text.size) !== 30 && Math.round(text.size) !== changed.countrySize) problems.push(`after restyling "${text.text}" is ${text.size} px, expected 30 or ${changed.countrySize}`);
+  }
+  if (after.dots) problems.push(`restyling made ${after.dots} dots out of nothing`);
+  if (!restyled.dotsMissing) problems.push("restyling did not count the place names that lack a dot");
+  // Capitals go on and come off again on names already placed: countries placed without them.
+  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: false, template: custom });
+  const lower = mainNames((await labelLayers(map.id)).texts);
+  if (lower.some((t) => isCaps(t.text))) problems.push("country names placed without capitals came in capitals");
+  const capsOn = await restyleLabels(map.id, { template: changed });
+  const upper = mainNames((await labelLayers(map.id)).texts).filter((t) => isCaps(t.text));
+  if (upper.length < 2) problems.push(`only ${upper.length} of ${lower.length} country names went to capitals on restyling`);
+  const back = await restyleLabels(map.id, { template: custom });
+  const backNames = mainNames((await labelLayers(map.id)).texts);
+  if (back.removed !== 0 || back.labels !== capsOn.labels) problems.push(`restyling back removed ${back.removed} and touched ${back.labels} of ${capsOn.labels} names`);
+  if (backNames.some((t) => isCaps(t.text))) problems.push("a country name kept its capitals after restyling back");
+  for (const text of backNames.slice(0, 4)) {
+    if (!near(text.fill, pink)) problems.push(`"${text.text}" is ${JSON.stringify(text.fill)} after restyling back, expected pink`);
+  }
+
   // The style of a text layer the user made: colour, size, halo and font.
   await evalScript(`(function () {
     var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp;
@@ -111,11 +141,11 @@ export async function runLabelTemplateTest(log: SpikeLog): Promise<Record<string
 
   const passed = problems.length === 0;
   log(
-    `LB2 label template: ${plainNames.length} names from the look (${capsNames.length} in capitals), ${styledNames.length} from a template (${styled.dots} dots), picked up ${picked.size} px ${picked.color} from a text layer, ${problems.length} problems`,
+    `LB2 label template: ${plainNames.length} names from the look (${capsNames.length} in capitals), ${styledNames.length} from a template (${styled.dots} dots), picked up ${picked.size} px ${picked.color} from a text layer, ${restyled.labels} names restyled in ${restyled.longestCallMs} ms at most per call, ${upper.length} to capitals and back, ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, fromLook: plainNames.length, caps: capsNames.length, fromTemplate: styledNames.length, picked, problems };
+  return { passed, fromLook: plainNames.length, caps: capsNames.length, fromTemplate: styledNames.length, restyled, picked, problems };
 }
 
 // LB3: keep-out zones. Names stay out of the parts of the frame the user blocked, for as long as

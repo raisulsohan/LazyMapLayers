@@ -25,7 +25,7 @@ that go online run only when they are named.
 | TH1, SAT1 | Every look, with and without the imagery packs | PASS |
 | HL1 | Highlights as their own render pass, one layer each | PASS |
 | LB1 | Auto labels in batches: no call longer than about a second | PASS |
-| LB2 | The label template: colour, size, halo, capitals, dots, and a style picked up from a layer | PASS |
+| LB2 | The label template: colour, size, halo, capitals, dots, a style picked up from a layer, and the names already placed restyled (capitals on and off again) | PASS |
 | LB3 | Keep-out zones: 42 names in the lower third become 0, and only while the zone holds | PASS |
 | RT1 | Imported routes, travellers and recorded pace | PASS |
 | SL1 | Outlines as editable shape layers: the drawn shape covers the rendered country to 98 % | PASS |

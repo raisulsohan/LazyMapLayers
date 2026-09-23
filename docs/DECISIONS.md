@@ -873,6 +873,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D58 — A changed label template restyles the names already placed (2026-09-23)
+
+- **Why.** Phase 6 left it undone: the template only shaped names placed after it changed, so a
+  designer who tuned the look after placing names had to place them again and lose nothing but
+  time. Names are ordinary text layers; changing their text documents is cheap.
+- **Decision.** One function in core (`textStyle` / `dotStyle` in core/labels/restyle.ts) gives a
+  label's style from the template, and both paths use it: placing names, and restyling them. The
+  host lists a map’s label layers by their tag (label id and part); core plans the new text and
+  style per layer; the host applies them in batches of forty, taking the scene out of the viewer
+  while it does, like a build. Auto labels and the values of a data map are restyled together.
+- **Capitals both ways.** The words a name was placed with go into its tag (`raw`) when it is
+  built, so capitals can be taken off again; names placed before this keep the words they show.
+- **Dots.** The template dropping dots removes them; wanting dots that were never made is counted
+  and said, not done: a dot needs the place’s position, which only placing knows.
+
 ## D57 — No translations of the panel (2026-09-23)
 
 - **Decision.** The panel stays in English only; the plan’s “translations (Bengali first)” is dropped.
