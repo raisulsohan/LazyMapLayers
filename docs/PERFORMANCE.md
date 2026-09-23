@@ -11,7 +11,7 @@ failure is confirmed on a fresh instance before anything is changed.
 |---|---|---|---|
 | One 1080p basemap frame, base pass, steady state | 300 ms | 75–170 ms | S1 |
 | One 4K basemap frame, base pass, steady state | 1200 ms | 280–640 ms | S1 |
-| One 1080p frame with all 8 passes and 2× supersampling | 400 ms per drawn frame | 206–245 ms | R1 |
+| One 1080p frame with all 8 passes and 2× supersampling | 400 ms per drawn frame | 206–316 ms | R1 |
 | A 10-second 4K move, 2× supersampling | 250 ms per frame | 125 ms | R2 (runs only when named) |
 | Rendering again with nothing changed | 0 frames drawn | 0 | R1 |
 | Changing one keyframe of a 750-frame move | only the affected frames drawn | 63 of 750 | R1 |

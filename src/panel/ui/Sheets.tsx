@@ -40,6 +40,7 @@ import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpike
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
+import { changeOwnImagery, ownImagery, ownImageryDraft } from "../store.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -194,6 +195,30 @@ export function LookSheetView(): JSX.Element | null {
         <input type="checkbox" data-id="sky" checked={skyOn.value} disabled={busy.value} onChange={(e) => void changeSky((e.target as HTMLInputElement).checked)} />
         Sky above the horizon
       </label>
+      <div class="section-title">Imagery of your own</div>
+      <div class="sheet-row import-row">
+        <input class="grow" type="text" data-id="own-url" placeholder="https://…/{z}/{x}/{y}.png, or a .pmtiles file on the web" value={ownImageryDraft.value} disabled={busy.value} title="Any XYZ tile address or PMTiles archive on the web, with your own key if it needs one. Drawn over the ground and under the lines, in the preview and the render; tiles are fetched while previewing and rendering." onInput={(e) => (ownImageryDraft.value = (e.target as HTMLInputElement).value)} onChange={(e) => void changeOwnImagery({ url: (e.target as HTMLInputElement).value })} />
+      </div>
+      {ownImagery.value && (
+        <div class="sheet-row import-row">
+          <input class="grow" type="text" data-id="own-attribution" placeholder="The credit the source asks for" value={ownImagery.value.attribution} disabled={busy.value} title="Goes on the map's credit line and into the scene's credit layer" onChange={(e) => void changeOwnImagery({ attribution: (e.target as HTMLInputElement).value })} />
+          <label class="num-field" title="How strongly the tiles show over the ground">
+            <span>Opacity</span>
+            <input type="number" min={0} max={100} step={5} data-id="own-opacity" value={Math.round(ownImagery.value.opacity * 100)} disabled={busy.value} onChange={(e) => void changeOwnImagery({ opacity: Number((e.target as HTMLInputElement).value) / 100 })} />
+            <span class="muted">%</span>
+          </label>
+          <label class="num-field" title="The pixels along a tile's edge: 256 for most services, 512 for some">
+            <select data-id="own-tile-size" value={ownImagery.value.tileSize} disabled={busy.value} onChange={(e) => void changeOwnImagery({ tileSize: Number((e.target as HTMLSelectElement).value) === 512 ? 512 : 256 })}>
+              <option value="256">256 px tiles</option>
+              <option value="512">512 px tiles</option>
+            </select>
+          </label>
+          <button class="small-button" data-id="own-off" disabled={busy.value} title="Back to the map's own data" onClick={() => void changeOwnImagery({ url: "" })}>
+            Off
+          </button>
+        </div>
+      )}
+      <div class="muted small">Its terms are yours to keep. Nothing is bundled: a national orthophoto service, a provider with your key, tiles you made.</div>
       <div class="sheet-row import-row">
         <span title="Shaded slopes from real elevation data, sharp at any zoom. An elevation pack is downloaded once for an area (open data through Mapterhorn) and then works offline.">Terrain</span>
         <select

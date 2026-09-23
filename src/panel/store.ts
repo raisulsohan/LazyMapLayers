@@ -29,6 +29,7 @@ import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import { spikeSet } from "../core/style/spikes.ts";
 import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
 import { DEFAULT_DETAILS, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
+import { describeOwnImagery, isTileAddress, normaliseOwnImagery, type OwnImagery } from "../core/style/ownImagery.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
 import { countryCodeRows, countryJoinTargets } from "./data/countries.ts";
@@ -105,6 +106,7 @@ export type MapEntry = {
   heat?: { column: string; points: number } | null;
   look?: LookOverride | null;
   lookDetails?: LookDetails | null;
+  ownImagery?: OwnImagery | null;
   highlights: Highlight[];
   view: View;
   /** "javascript-1.0" or "extendscript" (the project's expression engine). */
@@ -156,6 +158,10 @@ export const layerStyle = signal<LayerStyleOverride>(NO_OVERRIDE);
 export const lookOverride = signal<LookOverride>(NO_LOOK);
 /** The look's smaller details: how heavy its lines are, how wide its roads, how many names it draws. */
 export const lookDetails = signal<LookDetails>(DEFAULT_DETAILS);
+/** Tiles of the user's own over the map (an XYZ address or a PMTiles archive), or none. */
+export const ownImagery = signal<OwnImagery | null>(null);
+/** The address as typed, so a half-typed one is not lost. */
+export const ownImageryDraft = signal("");
 /** The look the map really draws with. */
 export const currentTheme = computed(() => applyLook(themeById(themeId.value), lookOverride.value));
 export const lookFollowsTheme = computed(() => lookFollows(lookOverride.value));
@@ -183,7 +189,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, own: ownImagery.value, sky: skyOn.value, terrain: terrain.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -288,6 +294,8 @@ function showMap(entry: MapEntry): void {
   themeId.value = themeById(typeof entry.theme === "string" ? entry.theme : null).id;
   lookOverride.value = normaliseLook(entry.look);
   lookDetails.value = normaliseDetails(entry.lookDetails);
+  ownImagery.value = normaliseOwnImagery(entry.ownImagery);
+  ownImageryDraft.value = ownImagery.value?.url ?? "";
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
   terrain.value = normaliseTerrain(entry.terrain);
@@ -1335,7 +1343,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value, lookDetails: lookDetails.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value, lookDetails: lookDetails.value, own: ownImagery.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -1897,6 +1905,24 @@ export const changeLookDetails = (next: Partial<LookDetails>) =>
       await callHost("setMapSettings", { mapId: selectedId.value, lookDetails: lookDetails.value });
       await readMaps();
     }
+  });
+
+/** Sets, changes or clears the user's own tiles; an empty address switches them off. */
+export const changeOwnImagery = (next: Partial<OwnImagery>) =>
+  run("own imagery", async () => {
+    const current = ownImagery.value;
+    const url = (next.url ?? current?.url ?? "").trim();
+    if (url && !isTileAddress(url)) {
+      log("that is not a tile address: it needs https://…/{z}/{x}/{y}… or a .pmtiles file on the web", "fail");
+      return;
+    }
+    ownImagery.value = url ? normaliseOwnImagery({ ...(current ?? {}), ...next, url }) : null;
+    ownImageryDraft.value = ownImagery.value?.url ?? "";
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, ownImagery: ownImagery.value });
+      await readMaps();
+    }
+    log(ownImagery.value ? `the map draws ${describeOwnImagery(ownImagery.value)}; its terms are yours to keep, and the credit goes on the credit line` : "the map draws its own data again", "ok");
   });
 
 /** Takes the colours of a picture and makes a look of them. */

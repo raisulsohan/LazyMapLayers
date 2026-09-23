@@ -29,6 +29,7 @@ import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
+import { runOwnImageryTest } from "./ownImageryTests.ts";
 import { runCustomLookTest } from "./lookTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
@@ -351,6 +352,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.FL1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`FL1 failed: ${results.FL1_error}`, "fail");
+    }
+  }
+
+  if (wants("OI1")) {
+    try {
+      results.OI1_ownImagery = await runOwnImageryTest(log);
+    } catch (error) {
+      results.OI1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`OI1 failed: ${results.OI1_error}`, "fail");
     }
   }
 

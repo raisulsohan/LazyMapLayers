@@ -128,6 +128,10 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
   picture** takes the palette of a still from your film; **Open a look** reads a saved look or an
   Illustrator / Photoshop palette (.ase, .act); **Save the look** keeps yours in a file.
 - **Details**: lines and roads heavier or lighter, fewer or more names, in every look.
+- **Imagery of your own**: any XYZ tile address (`https://…/{z}/{x}/{y}.png`, with your own key if
+  it needs one) or a PMTiles archive on the web, drawn over the ground and under every line, with
+  an opacity and the credit the source asks for. The source's terms are yours to keep; tiles are
+  fetched while previewing and rendering.
 - **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
   picked up from a selected layer.
 - **Terrain**: **Download…** an elevation pack for the area in the preview (open data through

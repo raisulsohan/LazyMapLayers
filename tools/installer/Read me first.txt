@@ -162,6 +162,10 @@ MAKING YOUR OWN MAP
                    the sky above the horizon; terrain (below).
                    "Details" turns the lines and roads heavier or
                    lighter and draws fewer or more names.
+                   "Imagery of your own" draws tiles from any
+                   XYZ or PMTiles address on the web (your own
+                   key if it needs one), under the lines, with
+                   the credit you type. Its terms are yours.
                    "Your own colours" sets the sea, the land, the
                    lines and the names, and works the rest of the
                    map out from them. "From a picture" takes the

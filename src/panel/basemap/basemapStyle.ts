@@ -20,6 +20,7 @@ import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeFrom, type Theme, type ThemeLike } from "../../core/style/themes.ts";
 import type { DataFill } from "../../core/style/dataFill.ts";
 import type { HeatSetting } from "../../core/style/heat.ts";
+import { OWN_IMAGERY_LAYER, OWN_IMAGERY_SOURCE, ownImageryLayer, ownImagerySource, type OwnImagery } from "../../core/style/ownImagery.ts";
 import type { Areas, Highlight } from "../../core/style/highlights.ts";
 import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
@@ -57,6 +58,8 @@ export type BasemapStyleOptions = {
   countryHits?: boolean;
   /** The sky above the horizon of a tilted flat map (default on; off leaves it transparent). */
   sky?: boolean;
+  /** Tiles of the user's own (an XYZ address or a PMTiles archive), drawn over the ground and under the lines. */
+  own?: OwnImagery | null;
   /** The map's elevation pack and how strongly slopes are shaded; ignored when the pack is not on this computer. */
   terrain?: TerrainSetting | null;
 };
@@ -176,6 +179,18 @@ export function bordersGradient(percent: number, color: string): unknown {
   return ["interpolate", ["linear"], ["line-progress"], 0, color, p - soft, color, p, clear, 1, clear];
 }
 
+/** The user's tiles after the last ground fill of the world (background, land, water, imagery) and before its first line. */
+function withOwnImagery(style: StyleSpecification, own: OwnImagery): StyleSpecification {
+  const groupOf = (l: LayerSpecification) => String((l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"] ?? "");
+  const layers = [...style.layers];
+  let at = 0;
+  layers.forEach((layer, index) => {
+    if ((layer.type === "background" || layer.type === "fill" || layer.type === "raster") && ["background", "land", "water", "imagery"].includes(groupOf(layer))) at = index + 1;
+  });
+  layers.splice(at, 0, ownImageryLayer(own) as unknown as LayerSpecification);
+  return { ...style, sources: { ...style.sources, [OWN_IMAGERY_SOURCE]: ownImagerySource(own) as unknown as StyleSpecification["sources"][string] }, layers };
+}
+
 export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOptions): StyleSpecification {
   const theme = themeFrom(options.theme);
   const imagery: WorldImagery = {};
@@ -183,10 +198,12 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
   let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, heat: options.heat, countryHits: options.countryHits });
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
+  if (options.own) world = withOwnImagery(world, options.own);
   let style = world;
   const regions = regionNames(basemap);
   if (regions.length) {
     const groupOf = (l: LayerSpecification) => (l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"];
+    const ground = (l: LayerSpecification) => (l.type === "background" || l.type === "fill" || l.type === "raster") && ["background", "land", "water", "imagery"].includes(String(groupOf(l)));
     const viewport = options.viewport ?? { width: 1920, height: 1080 };
     const headers = regions.map((name) => ({ name, header: regionHeader(name) }));
     const tiers = regionTiers(
@@ -231,13 +248,26 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       name: `${world.name} + ${regions.join(", ")}`,
       sources,
       light,
-      layers: [
-        ...worldLayers.filter((l) => groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
-        ...regionLayers.filter((l) => groupOf(l) !== "labels"),
-        ...worldLayers.filter((l) => groupOf(l) === "highlight"),
-        ...worldLayers.filter((l) => groupOf(l) === "labels"),
-        ...regionLayers.filter((l) => groupOf(l) === "labels")
-      ]
+      // With the user's own tiles, every ground fill (world and region) goes under them and every line
+      // over them, so a downloaded area's roads and buildings stand on the picture.
+      layers: options.own
+        ? [
+            ...worldLayers.filter((l) => ground(l) && l.id !== OWN_IMAGERY_LAYER),
+            ...regionLayers.filter((l) => ground(l)),
+            ...worldLayers.filter((l) => l.id === OWN_IMAGERY_LAYER),
+            ...worldLayers.filter((l) => !ground(l) && groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
+            ...regionLayers.filter((l) => !ground(l) && groupOf(l) !== "labels"),
+            ...worldLayers.filter((l) => groupOf(l) === "highlight"),
+            ...worldLayers.filter((l) => groupOf(l) === "labels"),
+            ...regionLayers.filter((l) => groupOf(l) === "labels")
+          ]
+        : [
+            ...worldLayers.filter((l) => groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
+            ...regionLayers.filter((l) => groupOf(l) !== "labels"),
+            ...worldLayers.filter((l) => groupOf(l) === "highlight"),
+            ...worldLayers.filter((l) => groupOf(l) === "labels"),
+            ...regionLayers.filter((l) => groupOf(l) === "labels")
+          ]
     };
   }
   if (terrainUsable(options.terrain) && options.terrain.height > 0) {

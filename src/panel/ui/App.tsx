@@ -22,6 +22,7 @@ import {
   dataSheetOpen,
   dataTable,
   osmData,
+  ownImagery,
   osmSheetOpen,
   keyframeView,
   liveLink,
@@ -351,7 +352,7 @@ export function App(): JSX.Element {
             />
           </div>
           <div class="credit" title="Where the map data comes from. Rendering an OpenStreetMap region adds a credit layer to your scene.">
-            {[basemap.value.kind === "world" && !osmData.value ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, "Natural Earth"].filter(Boolean).join(" · ")}
+            {[basemap.value.kind === "world" && !osmData.value ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, ownImagery.value?.attribution || null, "Natural Earth"].filter(Boolean).join(" · ")}
           </div>
           {v && (
             <div class="view-readout" title="Latitude, longitude · zoom · bearing · pitch of the frame">

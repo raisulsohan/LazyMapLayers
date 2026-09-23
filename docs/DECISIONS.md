@@ -873,6 +873,28 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D59 — Bring-your-own imagery: an address, not a provider (2026-09-23)
+
+- **Why.** The one thing the panel could not show was a sharp aerial picture of a street: Blue Marble
+  stops at zoom 5, the free open orthophotos are per country and the big providers forbid caching
+  their tiles (D1, D18). The plan (P4) kept a way out: any XYZ, WMTS or PMTiles address the user
+  supplies, under that source’s terms.
+- **Decision.** One setting per map (core/style/ownImagery.ts): an https address with {z}/{x}/{y}
+  or ending in .pmtiles, an attribution, an opacity, the tile size and an optional top zoom. It
+  becomes a raster source and a raster layer of the imagery group, so it is in the base, land and
+  water passes and never in a matte (OI1 checks the land matte stays white and clear). The layer
+  goes after the last ground fill and before the first line; with downloaded areas the region
+  fills move under it and the region lines over it, which only happens when the setting is on, so
+  every other render stays as it was.
+- **Nothing bundled, nothing stored.** The panel ships no address and no key; tiles are fetched
+  while previewing and rendering and kept only in the renderer’s memory for the session. The
+  attribution the user types is the credit (the map’s credit line, the scene’s credit layer).
+  Because tiles come from the network, a render with the setting on needs it - the one case where
+  a render goes online, and it is the user’s own address.
+- **Tested offline.** OI1 serves magenta tiles from a Node http server inside the panel and checks
+  the base pass over land and sea, the half-opacity blend and the credit; U1 uses an address that
+  refuses, so no tile leaves the machine.
+
 ## D58 — A changed label template restyles the names already placed (2026-09-23)
 
 - **Why.** Phase 6 left it undone: the template only shaped names placed after it changed, so a

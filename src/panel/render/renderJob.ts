@@ -9,6 +9,7 @@ import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor
 import { DATA_CODE, normaliseDataFill, type DataFill } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, normaliseHeat, type HeatSetting } from "../../core/style/heat.ts";
 import { applyLookDetails, normaliseDetails, type LookDetails } from "../../core/style/lookDetails.ts";
+import { normaliseOwnImagery, type OwnImagery } from "../../core/style/ownImagery.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
@@ -52,6 +53,8 @@ export type RenderJobSpec = {
   heat?: HeatSetting | null;
   /** The look's smaller details: line and road widths, how many names. */
   lookDetails?: LookDetails | null;
+  /** Tiles of the user's own, fetched from their address while rendering. */
+  own?: OwnImagery | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
 };
@@ -166,7 +169,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // sliders the style needs the terrain as soon as any frame lifts the ground.
   let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
   if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
-  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), sky: spec.sky, terrain }), normaliseDetails(spec.lookDetails));
+  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), own: normaliseOwnImagery(spec.own), sky: spec.sky, terrain }), normaliseDetails(spec.lookDetails));
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -324,7 +327,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
-    attribution: [regionNames(spec.basemap).length || spec.osmData ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length || spec.osmData ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });

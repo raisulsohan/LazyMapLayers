@@ -18,6 +18,7 @@ import type { Areas, Highlight } from "../core/style/highlights.ts";
 import type { ThemeLike } from "../core/style/themes.ts";
 import type { DataFill } from "../core/style/dataFill.ts";
 import type { HeatSetting } from "../core/style/heat.ts";
+import type { OwnImagery } from "../core/style/ownImagery.ts";
 import { applyLookDetails, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
 import { scaleStyleSizes } from "../core/style/scaleStyle.ts";
 import type { TerrainSetting } from "../core/style/terrain.ts";
@@ -51,7 +52,7 @@ const BY_USER = { lmlByUser: true };
 const BLANK_STYLE: StyleSpecification = { version: 8, sources: {}, layers: [{ id: "background", type: "background", paint: { "background-color": "#0d1b2a" } }] };
 
 /** What the preview shows now, so the style can be rebuilt when the panel is resized. */
-export type Look = { theme: ThemeLike; relief: boolean; highlights?: Highlight[]; areas?: Areas; data?: DataFill | null; heat?: HeatSetting | null; details?: LookDetails | null; sky?: boolean; terrain?: TerrainSetting | null };
+export type Look = { theme: ThemeLike; relief: boolean; highlights?: Highlight[]; areas?: Areas; data?: DataFill | null; heat?: HeatSetting | null; details?: LookDetails | null; own?: OwnImagery | null; sky?: boolean; terrain?: TerrainSetting | null };
 let shown: { source: BasemapSource; projection: MapProjection; look: Look } = { source: { kind: "world" }, projection: "mercator", look: { theme: null, relief: false } };
 /** False shows sizes exactly as they render (tiny in a small panel). */
 let readable = true;
@@ -105,7 +106,7 @@ function withImportOverlay(style: StyleSpecification): StyleSpecification {
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
   if (!isInCep()) return withImportOverlay(BLANK_STYLE);
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  const style = scaleStyleSizes(applyLookDetails(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, data: look.data, heat: look.heat, countryHits: true, sky: look.sky, terrain: look.terrain }), normaliseDetails(look.details)), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  const style = scaleStyleSizes(applyLookDetails(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, data: look.data, heat: look.heat, countryHits: true, own: look.own, sky: look.sky, terrain: look.terrain }), normaliseDetails(look.details)), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
   return withImportOverlay(style);
 }
 

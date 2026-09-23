@@ -97,6 +97,9 @@ Dhaka to Chittagong with an arrow, say:
 - **Twelve looks, and their details.** Noir, Slate, Terracotta, Arctic and Emerald join the seven, and
   three knobs under the colours turn the lines and roads heavier or lighter and draw fewer or more
   names, in every look, in the preview and the render alike.
+- **Imagery of your own.** Any XYZ tile address or PMTiles archive on the web - a national orthophoto
+  service, a provider with your key, tiles you made - drawn over the ground and under the lines in
+  the preview and the render, at the opacity you set, with the credit you type on the credit line.
 - **What is here.** A readout under the pointer: the coordinates, the nearest place, its district and
   province, and the country, offline. Pins and routes are named after their places.
 

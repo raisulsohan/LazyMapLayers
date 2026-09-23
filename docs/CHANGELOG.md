@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Imagery of your own.** Under the Look sheet: any XYZ tile address (`https://…/{z}/{x}/{y}.png`,
+  with your own key if it needs one) or a PMTiles archive on the web is drawn over the ground and
+  under every line - in a downloaded area, under its roads and buildings too - in the preview and the
+  render alike, at the opacity you set. The credit you type goes on the map's credit line and into
+  the scene's credit layer. Nothing is bundled and nothing is cached beyond the session: the source's
+  terms are yours to keep.
 - **A legend for the heat.** Add legend works with heat alone, or with heat and colours together: three
   steps, low to high, in the ramp's colours, named after the column.
 - **Districts from the Data sheet.** With Match set to Districts, pick any country: if its districts

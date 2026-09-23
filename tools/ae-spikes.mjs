@@ -226,6 +226,17 @@ async function runUiScenario() {
     "(() => { const t = window.lmlDebug.store.currentTheme.value; return JSON.stringify({ ocean: t.ocean, land: t.land, text: t.text, border: t.border, dark: t.dark }); })()"
   );
   console.log(`U1 own colours: ${ownLook}`);
+  // Imagery of the user's own: a local address that refuses, so nothing goes online; the credit line names it; Off clears it.
+  await panel.evaluate(`(() => { const i = ${control("own-url")}; i.value = "http://127.0.0.1:9/{z}/{x}/{y}.png"; i.dispatchEvent(new Event("input", { bubbles: true })); i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await panel.evaluate(`(() => { const i = ${control("own-attribution")}; i.value = "Test tiles"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  const ownState = await panel.evaluate("JSON.stringify(window.lmlDebug.store.ownImagery.value)");
+  const creditLine = await panel.evaluate('document.querySelector(".credit").textContent');
+  console.log(`U1 own imagery: ${ownState} credit line ${JSON.stringify(creditLine)}`);
+  await click("own-off");
+  await idle();
+  console.log(`U1 own imagery off: ${await panel.evaluate("JSON.stringify(window.lmlDebug.store.ownImagery.value)")}`);
   // The look's details: heavier lines, fewer names, then back to plain.
   await panel.evaluate(`(() => { const i = ${control("detail-lines")}; i.value = "2"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
   await idle();
