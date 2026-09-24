@@ -1951,38 +1951,43 @@ async function rereadWatchedTable(first: boolean): Promise<void> {
 }
 
 /** Watches a file of numbers: reads it now, then re-reads it whenever it changes on disk. */
-export const watchTableFile = (path: string) =>
-  run("live numbers", async () => {
+export const watchTableFile = (path: string) => run("live numbers", () => startWatching(path));
+
+/**
+ * The watching itself, without the busy flag: pickTableToWatch already holds it while the file
+ * dialog is open, and run() does nothing at all while the panel is busy.
+ */
+async function startWatching(path: string): Promise<void> {
+  stopWatchingTable();
+  const name = path.split(/[\\/]/).pop() || "table.csv";
+  watchedTable.value = { path, name, changes: 0, at: Date.now(), error: null };
+  watchStamp = stampOf(path);
+  await rereadWatchedTable(true);
+  const failed = watchedTable.value?.error;
+  if (failed) {
+    log(`${name}: ${failed}`, "fail");
     stopWatchingTable();
-    const name = path.split(/[\\/]/).pop() || "table.csv";
-    watchedTable.value = { path, name, changes: 0, at: Date.now(), error: null };
-    watchStamp = stampOf(path);
-    await rereadWatchedTable(true);
-    const failed = watchedTable.value?.error;
-    if (failed) {
-      log(`${name}: ${failed}`, "fail");
-      stopWatchingTable();
-      return;
-    }
-    watchTimer = setInterval(() => {
-      const stamp = stampOf(path);
-      if (!stamp || stamp === watchStamp) return;
-      watchStamp = stamp;
-      void rereadWatchedTable(false).then(() => {
-        const state = watchedTable.value;
-        if (state?.error) log(`${state.name}: ${state.error}`, "fail");
-        else if (state) log(`${state.name} changed: ${dataTable.value?.rows.length ?? 0} rows read again${dataFill.value ? " and the map coloured again" : ""}`, "ok");
-      });
-    }, WATCH_EVERY_MS);
-    log(`watching ${name} (${dataTable.value?.rows.length ?? 0} rows). Edit and save it anywhere and the map follows`, "ok");
-  });
+    return;
+  }
+  watchTimer = setInterval(() => {
+    const stamp = stampOf(path);
+    if (!stamp || stamp === watchStamp) return;
+    watchStamp = stamp;
+    void rereadWatchedTable(false).then(() => {
+      const state = watchedTable.value;
+      if (state?.error) log(`${state.name}: ${state.error}`, "fail");
+      else if (state) log(`${state.name} changed: ${dataTable.value?.rows.length ?? 0} rows read again${dataFill.value ? " and the map coloured again" : ""}`, "ok");
+    });
+  }, WATCH_EVERY_MS);
+  log(`watching ${name} (${dataTable.value?.rows.length ?? 0} rows). Edit and save it anywhere and the map follows`, "ok");
+}
 
 /** Picks a file of numbers to watch. */
 export const pickTableToWatch = () =>
   run("live numbers", async () => {
     const picked = await callHost<{ path: string; text: string } | null>("openTextFile", { title: "Watch a table of numbers" });
     if (!picked) return;
-    await watchTableFile(picked.path);
+    await startWatching(picked.path);
   });
 
 /** Where the legend of the numbers sits in the frame. */

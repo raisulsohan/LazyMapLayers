@@ -23,6 +23,12 @@ failure is confirmed on a fresh instance before anything is changed.
 | Placing the names already on the map again: the longest call | 1500 ms | measured by LB2 | LB2 |
 | A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
 | Shape layers from a data map | at most 40, largest first | 40 | core/style/dataShapes.ts |
+| Shape layers from the feature browser | at most 40 in one go, with progress and a stop | 40 | src/panel/store.ts |
+| Bars in a chart of the numbers | 8 by default, 30 at most | 8 | core/style/chart.ts |
+| Connection lines between features | 60 drawn in one go, 200 in core | 60 | src/panel/overlays/mesh.ts |
+| The scale bar and the north arrow | 2 expression evaluations per frame each | 2 | core/ae/mapFurniture.ts |
+| The inset map's view box | 32 projected points per frame | 32 | core/ae/mapFurniture.ts |
+| A watched table re-read after the file changes | 2 s | the poll's own interval | src/panel/store.ts |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
 
 ## Rules the budgets come from

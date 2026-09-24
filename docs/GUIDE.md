@@ -295,6 +295,17 @@ The panel never sends anything about you or your project. Rendering OpenStreetMa
 boundaries or terrain adds one small credit text layer to the scene; keep it, or put the credit in
 your end titles.
 
+## What it does not do yet
+
+- **Cut out** only works when the shape being taken away lies wholly inside the one it comes out
+  of. A shape that half overlaps is counted and left alone rather than cut wrongly; a full polygon
+  clipper is not part of the panel yet.
+- Feature properties can be searched, filtered and sorted, but not edited. Rename the layers in
+  After Effects instead.
+- A Google Earth Studio camera export cannot be imported yet.
+- Everything here is tested on Windows. macOS should work the same way; it has not been run
+  through yet.
+
 ## If something goes wrong
 
 - The panel is not in the Window menu: restart After Effects, which looks for new panels while it
