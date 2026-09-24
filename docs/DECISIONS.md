@@ -124,6 +124,11 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Later.** A renderer cross-fade between tile levels (drawing near a level change with the lower
   level too and blending by zoom) would remove the remaining small steps. It needs a per-pixel
   blend for pitched views, so it waits for Phase 3's camera work.
+- **Closed 2026-09-24.** Measured again on the finished camera: R2's 10-second 4K descent (250
+  frames, 2x supersampling, 88 ms per drawn frame) has **no pops at all**, and the largest
+  frame-to-frame change is 17.3 of 255 - the camera moving, not a level change. The style's fades
+  are enough; a renderer cross-fade would cost a second draw per frame for a step no test can find.
+  It is dropped, not deferred. If a pop ever shows up, R1 and R2 report it with the frame.
 
 ## D11 — Globe until zoom 7, flat map from zoom 8 (2026-09-17)
 
@@ -149,7 +154,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   flicker. Building 140 labels (340 layers) takes about 30 s; the scene comp is taken out of the
   viewer meanwhile, which made it almost three times faster.
 
-## D13 — Regions appear when the frame fits inside them (2026-09-17)
+## D13 — Regions appear when the frame fits inside them (2026-09-17, measured again 2026-09-24)
 
 - **Context.** A downloaded region only has tiles inside its bounds. Seen from far out, its detail
   sits on the world map as a sharp-edged patch. Its water polygons below zoom 12 can also be
@@ -164,6 +169,15 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   levels (for example Tokyo to zoom 15 inside Kanto to zoom 12), the wider region's roads, borders,
   buildings and labels fade out while the detailed one fades in; its land stays to fill the far
   field (`regionTiers` in `src/core/tiles/regionFade.ts`).
+- **The empty band, measured (2026-09-24).** Every downloaded region carries the whole pyramid from
+  zoom 0 inside its bounds, so nothing stops a region from drawing early except the rule itself. At
+  1920x1080 the frame is as large as a 161 km wide region (paris-wide) at zoom 9.26, and the floor
+  of 9.8 delays it by half a zoom level - not the cause of anything. The real gap is zoom 7 to 9 of
+  a descent: the frame is then 300 to 800 km across, wider than any city region, and the bundled
+  world data (Natural Earth) holds no urban areas and no roads, so those frames show land, borders
+  and rivers alone (the demo's frame at 11 s). Filling them needs data the panel does not bundle:
+  Natural Earth's urban areas and major roads, about 5 MB once, in the world tiles. Left for a
+  decision, because it is a download.
 - **Water (revised).** Wedges also appear in zoom-12 water polygons, so region water polygons wait
   for zoom 13 and regions without zoom-13 tiles never draw them. Rivers and canals are drawn as lines
   from the line features in the same tiles, at every zoom.
@@ -872,6 +886,34 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   exotic; twelve looks is the top of the range the plan set (8 to 12).
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
+
+## D63 — The shaded slopes as their own pass (2026-09-24)
+
+- **Why.** D8 left three passes out: labels, terrain shading and a selected-region matte. Labels
+  became After Effects text layers (S6), so a label pass would be a picture of what the scene
+  already has; a selected region is a highlight, and every highlight is its own pass since D26. The
+  terrain shading was the one that was only waiting for terrain to exist, and it does (D28).
+- **Decision.** The hillshade layer leaves the imagery group for a group of its own, `terrain`,
+  which the land and water renders still draw (so those passes are unchanged) and which the new
+  `terrain` pass draws alone, held out by buildings like any other ground pass. A map with no
+  elevation pack has no layer in that group, so the render job drops the pass rather than importing
+  an empty layer.
+- **Left out for good.** A label pass (labels are AE text layers) and a selected-region matte (a
+  highlight is already its own pass, with its own matte in its alpha).
+
+## D62 — A template change places the names again, without choosing them again (2026-09-24)
+
+- **Why.** D58 restyled the names already on a map but left them where they were, so raising the
+  size could make two names overlap and the only cure was placing them again, which chooses a
+  different set of names and loses the user’s density and language choices.
+- **Decision.** After a restyle, the panel reads the placed names’ ids and the words in their tags,
+  rebuilds their boxes at the new sizes, and runs the same `placeLabels` over the same cameras
+  (panel/labels/repositionLabels.ts). Only positions and fades are written (host `moveLabels`), in
+  batches of forty; nothing is created or removed, so the set of names, their words and their zoom
+  bands are exactly what the user had. A name the placement can no longer fit gets no fade keys and
+  stays hidden, and the log says how many.
+- **Not done.** A name the world data no longer knows (an old project, a renamed place) is left
+  where it is and counted, rather than guessed at.
 
 ## D61 — A look or a label template shared with every map in one click (2026-09-23)
 

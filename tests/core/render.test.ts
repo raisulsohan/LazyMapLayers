@@ -69,7 +69,16 @@ test("pass renders: holdouts only with buildings, mattes share renders", () => {
   assert.deepEqual(rendersFor(["roads"], true), ["roads", "buildings"]);
   assert.deepEqual(rendersFor(["landMatte", "waterMatte"], true), ["land", "waterShapes"]);
   assert.deepEqual(rendersFor(["water"], false), ["land", "waterFill", "waterShapes"]);
-  assert.deepEqual(rendersFor([...PASS_IDS], true), ["base", "land", "waterFill", "waterShapes", "boundaries", "roads", "buildings"]);
+  assert.deepEqual(rendersFor([...PASS_IDS], true), ["base", "land", "waterFill", "waterShapes", "boundaries", "roads", "terrain", "buildings"]);
+  // The shaded slopes are their own pass, held out by buildings like any other ground pass, and they
+  // still colour the land and water passes.
+  assert.deepEqual(rendersFor(["terrain"], false), ["terrain"]);
+  assert.deepEqual(rendersFor(["terrain"], true), ["terrain", "buildings"]);
+  assert.equal(groupVisibleIn("terrain", "terrain", { labels: false }), true);
+  assert.equal(groupVisibleIn("terrain", "land", { labels: false }), false);
+  assert.equal(groupVisibleIn("land", "terrain", { labels: false }), true);
+  assert.equal(groupVisibleIn("waterFill", "terrain", { labels: false }), true);
+  assert.equal(groupVisibleIn("base", "terrain", { labels: false }), true);
   assert.equal(groupVisibleIn("base", "labels", { labels: false }), false);
   assert.equal(groupVisibleIn("base", "overlay", { labels: false }), true);
   assert.equal(groupVisibleIn("waterFill", "background", { labels: false }), true);

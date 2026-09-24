@@ -115,8 +115,10 @@ data adds a small credit layer, which the licence asks for.
 one language, with or without an English line under it), as editable text layers that never overlap
 or flicker. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
 capitals for countries, and dots for cities, or takes them **From the selected text layer** you
-styled yourself; a change restyles the names already on the map too, and **Use for every map**
-gives the template (and the keep-out zones) to the other maps in the project. **Keep the names out of**
+styled yourself; a change restyles the names already on the map and places them again, so bigger
+names step apart instead of overlapping (one that no longer fits anywhere fades out, and the log
+says how many). **Use for every map** gives the template and the keep-out zones to the other maps in
+the project, and places their names again too. **Keep the names out of**
 blocks the lower third, a top bar, or whatever your own selected layers cover, for the seconds those
 layers are on screen; the zones are drawn over the preview.
 
@@ -187,8 +189,9 @@ full quality and imports the passes into the map comp. Only frames that changed 
 are drawn again, and a changed keyframe redraws only the frames it moved.
 
 The **Render tab** holds the settings of the selected map:
-- **Passes**: Base (everything), or Land, Water, Boundaries, Roads and Buildings as separate layers,
-  plus Land Matte and Water Matte - white where land or water is - for compositing. Highlights and
+- **Passes**: Base (everything), or Land, Water, Boundaries, Roads, Buildings and Terrain (the
+  shaded slopes alone, when the map has an elevation pack) as separate layers, plus Land Matte and
+  Water Matte - white where land or water is - for compositing. Highlights and
   the numbers always come as their own layers.
 - **Supersampling**: 1× to 4×, averaged on the GPU. **Motion blur**: sub-frame samples; the shutter
   angle and phase come from the scene comp, so the basemap blurs like the layers above it.

@@ -286,7 +286,8 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     layers.splice(hillshadeIndex(layers.map((l) => String((l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"] ?? "overlay"))), 0, {
       id: "hillshade",
       type: "hillshade",
-      metadata: { "lml:group": "imagery" },
+      // Its own group, so it can be rendered as its own pass; the land and water passes still hold it.
+      metadata: { "lml:group": "terrain" },
       source: HILLSHADE_SOURCE,
       paint: hillshadePaint(theme, options.terrain.shade)
     } as LayerSpecification);

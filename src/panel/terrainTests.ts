@@ -65,6 +65,27 @@ export async function runTerrainTest(log: SpikeLog): Promise<Record<string, unkn
   );
   if (credit !== "Terrain: © Mapterhorn") problems.push(`the data credit reads "${credit}"`);
 
+  // The shaded slopes as their own pass: a layer of shadows and highlights with alpha, to grade or
+  // switch off in After Effects. Without an elevation pack the pass would be empty, so it is dropped.
+  const withTerrainPass = normaliseSettings({ ...DEFAULT_FINAL_SETTINGS, supersample: 1, passes: ["base", "terrain"] }, DEFAULT_FINAL_SETTINGS);
+  const shadedPass = await runRenderJob({ mapId: map.id, quality: "final", settings: withTerrainPass, basemap: { kind: "world" }, theme: "daylight", terrain: { pack: "everest", shade: 0.7, height: 0, ground: 0 } });
+  const flatPass = await runRenderJob({ mapId: map.id, quality: "final", settings: withTerrainPass, basemap: { kind: "world" }, theme: "daylight" });
+  if (!shadedPass.passes.includes("terrain")) problems.push(`with a pack the passes are ${shadedPass.passes.join(",")}`);
+  if (flatPass.passes.includes("terrain")) problems.push(`without a pack the terrain pass was rendered anyway: ${flatPass.passes.join(",")}`);
+  const terrainPixels = read(shadedPass, "terrain");
+  let shadedPixels = 0;
+  let darkest = 255;
+  let brightest = 0;
+  for (let i = 0; i < terrainPixels.length; i += 4) {
+    if (terrainPixels[i + 3] === 0) continue;
+    shadedPixels++;
+    darkest = Math.min(darkest, terrainPixels[i]);
+    brightest = Math.max(brightest, terrainPixels[i]);
+  }
+  const shadedShare = shadedPixels / (terrainPixels.length / 4);
+  if (shadedShare < 0.2) problems.push(`the terrain pass covers ${(shadedShare * 100).toFixed(1)} % of the frame`);
+  if (brightest - darkest < 30) problems.push(`the terrain pass is flat: ${darkest} to ${brightest}`);
+
   const style = basemapStyle({ kind: "world" }, { labels: false, theme: "daylight", viewport: size, terrain: { pack: "everest", shade: 0.7, height: 0, ground: 0 } });
   const renderer = new FrameRenderer({ width: size.width, height: size.height, style, antialias: false });
   let sameTwice = false;
@@ -194,7 +215,7 @@ export async function runTerrainTest(log: SpikeLog): Promise<Record<string, unkn
   const passed = problems.length === 0;
   log(`TR1 terrain: shading changes the base by ${change.toFixed(1)} per channel, ${sameTwice ? "deterministic" : "NOT deterministic"}, sky ${topBase.join(",")}, 3D pin ${off3d.toFixed(2)} px off the rendered peak, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, change, landChange, sameTwice, topBase, off3d, peakElevation, centreElevation, downloads, problems };
+  return { passed, change, landChange, sameTwice, topBase, off3d, peakElevation, centreElevation, terrainPass: { share: +shadedShare.toFixed(3), darkest, brightest }, downloads, problems };
 }
 
 /** TS1: how MapLibre's 3D terrain places things against the core camera maths (a spike, not a test of the product). */

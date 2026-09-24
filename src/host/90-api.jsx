@@ -53,6 +53,12 @@ LML.api.restyleLabels = function (args) {
     });
 };
 
+LML.api.moveLabels = function (args) {
+    return LML.withUndo("Move names", function () {
+        return LML.labels.move(args);
+    });
+};
+
 LML.api.finishLabels = function () {
     return LML.labels.finish();
 };

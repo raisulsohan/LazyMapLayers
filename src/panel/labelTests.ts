@@ -8,12 +8,15 @@ import { hexToRgb, themeById } from "../core/style/themes.ts";
 import { callHost, evalScript } from "./cep.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
+import { repositionLabels } from "./labels/repositionLabels.ts";
+import { measure } from "./labels/autoLabels.ts";
+import { scriptOf } from "../core/labels/language.ts";
 import { createMapComp } from "./mapApi.ts";
 import type { SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 1920, height: 1080 };
 
-type TextLayerState = { name: string; text: string; font: string; size: number; fill: number[]; stroke: boolean; strokeWidth: number };
+type TextLayerState = { name: string; text: string; font: string; size: number; fill: number[]; stroke: boolean; strokeWidth: number; x: number; y: number; opacity: number };
 
 /** What the text layers of a map's labels really hold, and how many dots were made. */
 async function labelLayers(mapId: string): Promise<{ texts: TextLayerState[]; dots: number }> {
@@ -36,7 +39,10 @@ async function labelLayers(mapId: string): Promise<{ texts: TextLayerState[]; do
           size: doc.fontSize,
           fill: doc.applyFill ? doc.fillColor : [0, 0, 0],
           stroke: doc.applyStroke === true,
-          strokeWidth: doc.applyStroke ? doc.strokeWidth : 0
+          strokeWidth: doc.applyStroke ? doc.strokeWidth : 0,
+          x: layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(0, false)[0],
+          y: layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(0, false)[1],
+          opacity: layer.property("ADBE Transform Group").property("ADBE Opacity").valueAtTime(0, false)
         });
       }
       return LML.json.stringify({ texts: texts, dots: dots });
@@ -119,6 +125,39 @@ export async function runLabelTemplateTest(log: SpikeLog): Promise<Record<string
     if (!near(text.fill, pink)) problems.push(`"${text.text}" is ${JSON.stringify(text.fill)} after restyling back, expected pink`);
   }
 
+  // Bigger names need more room: the ones on the map are placed again, and none overlaps.
+  const wasAt = mainNames((await labelLayers(map.id)).texts).map((t) => ({ text: t.text, x: t.x, y: t.y }));
+  const huge = resolveLabelTemplate(paper, { color: null, countryColor: null, haloColor: null, halo: 2, size: 64, caps: false, dots: false, font: null });
+  await restyleLabels(map.id, { template: huge });
+  const placedAgain = await repositionLabels(map.id, { template: huge });
+  const nowAt = mainNames((await labelLayers(map.id)).texts);
+  if (placedAgain.labels < 3) problems.push(`only ${placedAgain.labels} names were placed again`);
+  if (placedAgain.unknown) problems.push(`${placedAgain.unknown} names on the map are unknown to the world data`);
+  const shifted = nowAt.filter((t) => {
+    const was = wasAt.find((b) => b.text === t.text);
+    return was && (Math.abs(was.x - t.x) > 0.5 || Math.abs(was.y - t.y) > 0.5);
+  });
+  if (!shifted.length) problems.push("no name moved although they are three times bigger");
+  // Every name that still shows keeps clear of every other, at the frame the check reads.
+  const boxes = nowAt
+    .filter((t) => t.opacity > 1)
+    .map((t) => {
+      const width = measure(t.text, scriptOf(t.text), t.size, 600, 0) + t.strokeWidth * 2;
+      const height = t.size * 1.1;
+      return { text: t.text, x: t.x - width / 2, y: t.y - height * 0.85, width, height };
+    });
+  for (let a = 0; a < boxes.length; a++) {
+    for (let b = a + 1; b < boxes.length; b++) {
+      const one = boxes[a];
+      const two = boxes[b];
+      if (one.x < two.x + two.width && two.x < one.x + one.width && one.y < two.y + two.height && two.y < one.y + one.height) {
+        problems.push(`"${one.text}" and "${two.text}" overlap after the names were made bigger`);
+      }
+    }
+  }
+  // docs/PERFORMANCE.md: placing the names again keeps to short calls as well.
+  if (placedAgain.longestCallMs > 1500) problems.push(`one move call kept After Effects busy for ${placedAgain.longestCallMs} ms`);
+
   // The style of a text layer the user made: colour, size, halo and font.
   await evalScript(`(function () {
     var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp;
@@ -143,11 +182,11 @@ export async function runLabelTemplateTest(log: SpikeLog): Promise<Record<string
 
   const passed = problems.length === 0;
   log(
-    `LB2 label template: ${plainNames.length} names from the look (${capsNames.length} in capitals), ${styledNames.length} from a template (${styled.dots} dots), picked up ${picked.size} px ${picked.color} from a text layer, ${restyled.labels} names restyled in ${restyled.longestCallMs} ms at most per call, ${upper.length} to capitals and back, ${problems.length} problems`,
+    `LB2 label template: ${plainNames.length} names from the look (${capsNames.length} in capitals), ${styledNames.length} from a template (${styled.dots} dots), picked up ${picked.size} px ${picked.color} from a text layer, ${restyled.labels} names restyled in ${restyled.longestCallMs} ms at most per call, ${upper.length} to capitals and back, ${placedAgain.moved} placed again (${placedAgain.hidden} hidden), ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, fromLook: plainNames.length, caps: capsNames.length, fromTemplate: styledNames.length, restyled, picked, problems };
+  return { passed, fromLook: plainNames.length, caps: capsNames.length, fromTemplate: styledNames.length, restyled, placedAgain, picked, problems };
 }
 
 // LB3: keep-out zones. Names stay out of the parts of the frame the user blocked, for as long as

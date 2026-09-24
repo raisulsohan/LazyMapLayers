@@ -179,6 +179,50 @@ LML.labels.restyle = function (args) {
     return { texts: texts, dots: dots, removed: removed };
 };
 
+/**
+ * Moves the labels already on a map: a new position expression and new fade keys per part.
+ * args: { mapId, kind, first, last, items: [{ labelId, part, positionExpression, keys }] }
+ * Batched like addLabels: the first takes the scene out of the viewer, the last brings it back.
+ */
+LML.labels.move = function (args) {
+    var mapLayer = LML.pins.findMapLayer(args.mapId);
+    var scene = mapLayer.containingComp;
+    var kind = args.kind || "label";
+    if (args.first !== false) {
+        LML.labels.finish();
+        var viewerWasScene = app.project.activeItem === scene;
+        try {
+            if (viewerWasScene) mapLayer.source.openInViewer();
+        } catch (e0) {
+            viewerWasScene = false;
+        }
+        LML.labels.pending = { mapId: args.mapId, viewerWasScene: viewerWasScene };
+    }
+    var byKey = {};
+    for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i);
+        var tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== kind || tag.mapId !== args.mapId || !tag.labelId) continue;
+        byKey[tag.labelId + "|" + (tag.part || "text")] = layer;
+    }
+    var errors = [];
+    var moved = 0;
+    var items = args.items || [];
+    for (var t = 0; t < items.length; t++) {
+        var item = items[t];
+        var target = byKey[item.labelId + "|" + item.part];
+        if (!target) continue;
+        LML.pins.setExpression(target.property("ADBE Transform Group").property("ADBE Position"), item.positionExpression, errors, item.labelId, t === 0 && args.first !== false);
+        // The old fades go before the new ones, so a name that now hides keeps no stray keys.
+        var opacity = target.property("ADBE Transform Group").property("ADBE Opacity");
+        while (opacity.numKeys > 0) opacity.removeKey(1);
+        LML.labels.setOpacityKeys(target, mapLayer, item.keys || []);
+        moved++;
+    }
+    if (args.last !== false) LML.labels.finish();
+    return { moved: moved, expressionErrors: errors };
+};
+
 /** Where a batched label build stands between host calls: { mapId, viewerWasScene }. */
 LML.labels.pending = null;
 

@@ -9,6 +9,8 @@
 //   water        background and water fills, masked to water, held out by buildings
 //   boundaries   boundary and coastline lines, held out by buildings
 //   roads        roads and rail, held out by buildings
+//   terrain      the shaded slopes alone, with alpha, held out by buildings (only with an elevation
+//                pack; without one the pass is dropped, like a highlight pass with no highlight)
 //   buildings    3D buildings
 //   landMatte    white where land (inland water excluded), no holdout
 //   waterMatte   white where water; landMatte + waterMatte cover every pixel exactly once
@@ -21,9 +23,9 @@
 // building covers. Laying a roads pass with a glow over the base pass then never glows through a
 // building.
 
-export type LayerGroup = "background" | "imagery" | "land" | "water" | "boundaries" | "roads" | "buildings" | "highlight" | "labels" | "overlay";
+export type LayerGroup = "background" | "imagery" | "terrain" | "land" | "water" | "boundaries" | "roads" | "buildings" | "highlight" | "labels" | "overlay";
 
-export const PASS_IDS = ["base", "land", "water", "boundaries", "roads", "buildings", "landMatte", "waterMatte"] as const;
+export const PASS_IDS = ["base", "land", "water", "boundaries", "roads", "buildings", "terrain", "landMatte", "waterMatte"] as const;
 export type HighlightPassId = "highlight" | `highlight-${string}`;
 /** Passes the user can switch on, plus the highlight passes that follow the map's highlights. */
 export type PassId = (typeof PASS_IDS)[number] | HighlightPassId;
@@ -38,7 +40,7 @@ export function isHighlightPass(pass: string): pass is HighlightPassId {
   return pass === HIGHLIGHT_PASS || pass.startsWith("highlight-");
 }
 
-export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings" | HighlightPassId;
+export type RenderId = "base" | "land" | "landShapes" | "waterFill" | "waterShapes" | "boundaries" | "roads" | "buildings" | "terrain" | HighlightPassId;
 
 export const PASS_INFO: Record<(typeof PASS_IDS)[number] | "highlight", { label: string; kind: "color" | "matte" }> = {
   base: { label: "Base", kind: "color" },
@@ -47,6 +49,7 @@ export const PASS_INFO: Record<(typeof PASS_IDS)[number] | "highlight", { label:
   boundaries: { label: "Boundaries", kind: "color" },
   roads: { label: "Roads", kind: "color" },
   buildings: { label: "Buildings", kind: "color" },
+  terrain: { label: "Terrain", kind: "color" },
   landMatte: { label: "Land Matte", kind: "matte" },
   waterMatte: { label: "Water Matte", kind: "matte" },
   highlight: { label: "Highlight", kind: "color" }
@@ -64,13 +67,14 @@ export function skyVisibleIn(render: RenderId): boolean {
 // Imagery (satellite pictures, shaded relief) covers land and sea alike, so it colours the land and
 // water passes, while "landShapes" (the land polygons alone) says where the land is.
 const RENDER_GROUPS: Record<Exclude<RenderId, "base" | HighlightPassId>, LayerGroup[]> = {
-  land: ["land", "imagery"],
+  land: ["land", "imagery", "terrain"],
   landShapes: ["land"],
-  waterFill: ["background", "imagery", "water"],
+  waterFill: ["background", "imagery", "terrain", "water"],
   waterShapes: ["water"],
   boundaries: ["boundaries"],
   roads: ["roads"],
-  buildings: ["buildings"]
+  buildings: ["buildings"],
+  terrain: ["terrain"]
 };
 
 export function isPassId(value: string): value is PassId {
@@ -116,6 +120,10 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
       case "buildings":
         if (hasBuildings) needed.add("buildings");
         break;
+      case "terrain":
+        needed.add("terrain");
+        if (holdout) needed.add("buildings");
+        break;
       case "landMatte":
       case "waterMatte":
         needed.add("land").add("waterShapes");
@@ -128,7 +136,7 @@ export function rendersFor(passes: readonly PassId[], hasBuildings: boolean, has
     }
   }
   if (hasImagery && (needed.has("land") || needed.has("waterFill"))) needed.add("landShapes");
-  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "buildings"];
+  const order: RenderId[] = ["base", "land", "landShapes", "waterFill", "waterShapes", "boundaries", "roads", "terrain", "buildings"];
   return [...order.filter((r) => needed.has(r)), ...[...needed].filter(isHighlightPass)];
 }
 
@@ -206,6 +214,7 @@ export function composePasses(renders: Partial<Record<RenderId, Uint8Array>>, pa
       }
       case "boundaries":
       case "roads":
+      case "terrain":
         out[pass] = scaled(need(pass), holdoutAt);
         break;
       case "buildings":

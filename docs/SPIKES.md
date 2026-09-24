@@ -20,7 +20,7 @@ that go online run only when they are named.
 | H1 | The host API through the real panel bridge | PASS 9/9 |
 | P1, C1 | Pins and the matched 3D camera against the camera maths | 0.0061 px worst, 0.004 px in 3D |
 | E1, X1 | After Effects' own render, and both expression engines | 20/20; 21 expressions, both engines |
-| R1, R2 | The renderer, its passes and a 10-second 4K move | 15/15; no pops |
+| R1, R2 | The renderer, its passes and a 10-second 4K move | 16/16; no pops (measured again 2026-09-24: 88 ms per frame) |
 | G2, D1, D1L | The globe, and the world flight demo at 1080p and 4K | PASS |
 | SH1 | The shot list: 601 frames match the core maths, Apply in ~30 ms | PASS |
 | TH1, SAT1 | Every look, with and without the imagery packs | PASS |

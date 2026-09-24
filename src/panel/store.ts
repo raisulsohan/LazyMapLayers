@@ -59,6 +59,7 @@ import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
+import { repositionLabels } from "./labels/repositionLabels.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -1136,7 +1137,23 @@ async function restylePlacedLabels(): Promise<void> {
     names += made.labels;
     if (kind === "label") dotsMissing = made.dotsMissing;
   }
-  if (names) log(`${names} names on the map restyled${dotsMissing ? `; ${dotsMissing} have no dot yet: place the names again to get dots` : ""}`, "ok");
+  // Bigger or smaller names need different room, so the ones on the map are placed again.
+  let moved = 0;
+  let hidden = 0;
+  if (names) {
+    const again = await repositionLabels(mapId, {
+      template: currentLabelTemplate.value,
+      terrain: terrain.value,
+      zones: keepOut.value,
+      onProgress: (done, total) => (progress.value = { label: "Moving names", done, total })
+    });
+    moved = again.moved;
+    hidden = again.hidden;
+  }
+  if (names) {
+    const room = moved ? `, ${moved} placed again${hidden ? ` (${hidden} no longer fit and stay hidden)` : ""}` : "";
+    log(`${names} names on the map restyled${room}${dotsMissing ? `; ${dotsMissing} have no dot yet: place the names again to get dots` : ""}`, "ok");
+  }
 }
 
 /** Changes how the names on this map look (a null field follows the look), on the names already placed too. */
@@ -1964,6 +1981,8 @@ export const shareWithAllMaps = (what: "look" | "names") =>
         // The other map's own look decides what a null field of the template falls back to.
         const template = resolveLabelTemplate(applyLook(themeById(map.theme), normaliseLook(map.look)), labelTemplate.value);
         for (const kind of ["label", "value"]) restyled += (await restyleLabels(map.mapId, { template, kind })).labels;
+        // Sizes differ, so that map's names are placed again over its own move.
+        await repositionLabels(map.mapId, { template, terrain: normaliseTerrain(map.terrain), zones: normaliseKeepOut(map.keepOut) });
       }
     }
     await readMaps();

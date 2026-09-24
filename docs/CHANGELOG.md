@@ -1,5 +1,17 @@
 # Changelog
 
+## Unreleased
+
+- **A terrain pass.** The shaded slopes can be rendered as their own layer, with alpha, to grade or
+  switch off in After Effects; the land and water passes still carry them as before. Switch it on in
+  the Render tab. A map without an elevation pack leaves the pass out instead of making an empty
+  layer.
+- **Names move when the template resizes them.** Changing the size (or the halo, or capitals) of the
+  names now places the ones already on the map again over the whole timeline, with the same
+  collision rules that placed them: bigger names step apart, and one that no longer fits anywhere
+  fades out instead of sitting on another. The words, the language and which places were chosen stay
+  as they were.
+
 ## 0.5.0 — imagery of your own, open aerial services, names that follow the template, and the guide (2026-09-23)
 
 - **Use for every map.** A button under the look and one under the names give every other map in

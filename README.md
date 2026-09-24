@@ -91,7 +91,8 @@ Dhaka to Chittagong with an arrow, say:
   preview: a lake with its islands as real holes, a river, a district outline. It arrives as an
   import, so everything you do with a GeoJSON file works with it.
 - **Label templates and keep-out zones.** One row sets the colour, size, halo, capitals and dots of
-  every name, or takes them from a text layer you styled yourself; names can be kept out of the lower
+  every name, or takes them from a text layer you styled yourself, and the names already on the map
+  follow at once - restyled and placed again, so bigger names never overlap; names can be kept out of the lower
   third, a top bar, or whatever your own layers cover while they are on screen.
 - **Areas of your own.** Merge the highlights into one shape with the borders between them gone, grow
   or shrink them by a distance in kilometres, or drop a distance circle.

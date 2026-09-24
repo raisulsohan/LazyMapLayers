@@ -12,13 +12,15 @@ failure is confirmed on a fresh instance before anything is changed.
 | One 1080p basemap frame, base pass, steady state | 300 ms | 75–170 ms | S1 |
 | One 4K basemap frame, base pass, steady state | 1200 ms | 280–640 ms | S1 |
 | One 1080p frame with all 8 passes and 2× supersampling | 400 ms per drawn frame | 206–316 ms | R1 |
-| A 10-second 4K move, 2× supersampling | 250 ms per frame | 125 ms | R2 (runs only when named) |
+| A 10-second 4K move, 2× supersampling | 250 ms per frame | 88 ms (2026-09-24) | R2 (runs only when named) |
+| Pops in a 4K descent | none | none, largest frame change 17.3 of 255 | R2 |
 | Rendering again with nothing changed | 0 frames drawn | 0 | R1 |
 | Changing one keyframe of a 750-frame move | only the affected frames drawn | 63 of 750 | R1 |
 | Applying the shot list again | 800 ms | about 30 ms | SH1 |
 | Auto labels: the longest single call into After Effects | 3000 ms | 1.1–1.6 s | LB1 |
 | Auto labels: 60 names on a fresh instance | about 10 s in all | 9.8 s | LB1 (reported) |
 | Restyling the names already on the map: the longest call | 1500 ms | 587 ms for 32 layers | LB2 |
+| Placing the names already on the map again: the longest call | 1500 ms | measured by LB2 | LB2 |
 | A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
 

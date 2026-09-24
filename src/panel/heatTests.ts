@@ -2,6 +2,7 @@
 // nothing away from them, and the heaviest point the warmest.
 
 import { project, type View } from "../core/camera/camera.ts";
+import { projectPoint as globeProject } from "../core/camera/globe.ts";
 import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { DEFAULT_HEAT, heatPoints, type HeatSetting } from "../core/style/heat.ts";
@@ -68,6 +69,31 @@ export async function runHeatTest(log: SpikeLog): Promise<Record<string, unknown
   if (!heatLayer) problems.push(`the map comp holds ${JSON.stringify(layers)}`);
   else if (heatLayer.name !== "Heat: Incidents") problems.push(`the layer is called "${heatLayer.name}"`);
 
+  // On the globe: the same points, from space. The warmth sits on the places, and the sky around
+  // the planet stays empty (a heat layer that ignored the projection would smear across the frame).
+  const globeView: View = { center: { lat: 24, lng: 95 }, zoom: 2.2, bearing: 0, pitch: 0 };
+  const globe = await createMapComp({ name: "HT1 heat on the globe", ...SIZE, duration: 1, frameRate: 25, view: globeView, newScene: true, projection: "globe" });
+  const onGlobe = await runRenderJob({ mapId: globe.id, quality: "final", settings, basemap: { kind: "world" }, theme: "midnight", heat });
+  const globeSequence = onGlobe.sequences.find((s) => s.pass === "highlight-HEAT");
+  if (!globeSequence) problems.push(`the globe rendered ${onGlobe.passes.join(",")}`);
+  else {
+    const rgba = decodePng(new Uint8Array(fs().readFileSync(path().join(globeSequence.folder, sequenceFileName(0))))).rgba;
+    const atGlobe = (place: { lat: number; lng: number }) => {
+      const p = globeProject(globeView, SIZE, place, { projection: "globe" });
+      const i = (Math.round(p.y) * SIZE.width + Math.round(p.x)) * 4;
+      return [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]];
+    };
+    samples.globeDhaka = atGlobe({ lat: 23.8, lng: 90.4 });
+    samples.globeMongolia = atGlobe({ lat: 46.9, lng: 103.8 });
+    // A corner of the frame, where the planet is not: on the globe that is empty space.
+    const corner = (rgba[3], [rgba[0], rgba[1], rgba[2], rgba[3]]);
+    samples.globeCorner = corner;
+    if (samples.globeDhaka[3] < 100) problems.push(`on the globe Dhaka is barely warm: ${samples.globeDhaka}`);
+    if (samples.globeMongolia[3] !== 0) problems.push(`on the globe there is heat far from any point: ${samples.globeMongolia}`);
+    if (samples.globeCorner[3] !== 0) problems.push(`the space around the planet carries heat: ${samples.globeCorner}`);
+  }
+  await saveGlobeFrame(globe.id);
+
   // The legend of the heat alone: three steps, low to high, named after the column.
   const legend = await addLegend(map.id, null, { theme: "midnight", heat, corner: "topLeft" });
   if (legend.rows !== 3 || legend.name !== "Legend: Incidents") problems.push(`the heat legend has ${legend.rows} rows and is called "${legend.name}"`);
@@ -88,9 +114,20 @@ export async function runHeatTest(log: SpikeLog): Promise<Record<string, unknown
 
   const passed = problems.length === 0;
   log(
-    `HT1 heat: ${heat.points.length} points rendered as "${heatLayer?.name ?? "-"}", Dhaka alpha ${samples.dhaka?.[3] ?? "-"}, Tokyo ${samples.tokyo?.[3] ?? "-"}, Mongolia ${samples.mongolia?.[3] ?? "-"}, ${problems.length} problems`,
+    `HT1 heat: ${heat.points.length} points rendered as "${heatLayer?.name ?? "-"}", Dhaka alpha ${samples.dhaka?.[3] ?? "-"}, Tokyo ${samples.tokyo?.[3] ?? "-"}, Mongolia ${samples.mongolia?.[3] ?? "-"}, on the globe Dhaka ${samples.globeDhaka?.[3] ?? "-"} and space ${samples.globeCorner?.[3] ?? "-"}, ${problems.length} problems`,
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
   return { passed, layer: heatLayer?.name ?? null, legendRows: legend.rows, samples, problems };
+}
+
+/** A frame of a scene, for looking at afterwards. */
+async function saveGlobeFrame(mapId: string): Promise<void> {
+  const shot = path().join(spikeDir(), "ht1-heat-globe.png").split(String.fromCharCode(92)).join("/");
+  fs().rmSync(shot, { force: true });
+  await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp.saveFrameToPng(0, new File(${JSON.stringify(shot)})); return "1"; })()`);
+  for (let i = 0; i < 60; i++) {
+    await new Promise((resolve) => setTimeout(resolve, 250));
+    if (fs().existsSync(shot) && fs().statSync(shot).size > 0) return;
+  }
 }

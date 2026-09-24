@@ -197,7 +197,9 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
       else highlightPasses.push({ pass, label: code === DATA_CODE ? `Data: ${normaliseDataFill(spec.dataFill)?.column ?? "values"}` : code === HEAT_CODE ? `Heat: ${normaliseHeat(spec.heat)?.column ?? "points"}` : `Highlight: ${shown.find((h) => h.code === code)?.name ?? code}`, layers: [layer], codes: [code] });
     }
   }
-  const passes: PassId[] = [...settings.passes.filter((p) => !isHighlightPass(p)), ...highlightPasses.map((p) => p.pass)];
+  // A terrain pass without an elevation pack would be an empty layer: it is left out instead.
+  const hasTerrain = style.layers.some((l) => layerGroup(l) === "terrain");
+  const passes: PassId[] = [...settings.passes.filter((p) => !isHighlightPass(p) && (p !== "terrain" || hasTerrain)), ...highlightPasses.map((p) => p.pass)];
   const geometry = outputGeometry({ width: info.width, height: info.height }, settings.scale, settings.supersample);
   // Highlights are left out of the base pass, so changing them must not redraw it: a highlight pass
   // is keyed by its own layers and areas (one highlight changes, one pass redraws), every other pass
