@@ -43,7 +43,7 @@ import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, 
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
 import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
-import { addMapNorthArrow, addMapScaleBar, northCorner, northLetter, removeMapFurniture, scaleBarCorner, scaleBarUnits } from "../store.ts";
+import { addMapMinimap, addMapNorthArrow, addMapScaleBar, minimapCorner, minimapZoomOut, northCorner, northLetter, removeMapFurniture, removeMapMinimap, scaleBarCorner, scaleBarUnits } from "../store.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -350,6 +350,27 @@ export function LookSheetView(): JSX.Element | null {
           <span>N</span>
         </label>
         <button class="small-button" data-id="north-arrow-remove" disabled={busy.value} title="Takes the north arrow off the scene" onClick={() => void removeMapFurniture("northArrow")}>
+          Remove
+        </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="minimap-add" disabled={busy.value} title="A small map in the corner showing where this map is looking, with a box that moves and turns with it. The inset is a map of its own: give it a look and render it like any other." onClick={() => void addMapMinimap()}>
+          Add inset map
+        </button>
+        <label class="num-field" title="How many zoom levels wider than this map the inset looks">
+          <span>Wider by</span>
+          <input type="number" min={1} max={12} step={1} data-id="minimap-zoom-out" value={minimapZoomOut.value} disabled={busy.value} onChange={(e) => (minimapZoomOut.value = Math.max(1, Math.min(12, Number((e.target as HTMLInputElement).value) || 4)))} />
+          <span class="muted">zooms</span>
+        </label>
+        <label class="num-field" title="Which corner of the frame the inset sits in">
+          <select data-id="minimap-corner" value={minimapCorner.value} disabled={busy.value} onChange={(e) => (minimapCorner.value = (e.target as HTMLSelectElement).value as LegendCorner)}>
+            <option value="bottomLeft">Bottom left</option>
+            <option value="bottomRight">Bottom right</option>
+            <option value="topLeft">Top left</option>
+            <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <button class="small-button" data-id="minimap-remove" disabled={busy.value} title="Takes the inset map, its frame and its box off the scene" onClick={() => void removeMapMinimap()}>
           Remove
         </button>
       </div>

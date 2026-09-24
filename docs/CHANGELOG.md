@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **An inset map.** **Add inset map** puts a small locator in the corner: a second map, as many
+  zoom levels wider as you ask, with a framed box on it that moves and turns with the big map on
+  every frame. The inset is a map of its own - pick it at the top of the panel to give it its own
+  look, its own names and its own render - and the box is clipped to it, so a map that flies away
+  never draws over the scene.
 - **A scale bar and a north arrow.** Two buttons under the look put them in any corner. The bar
   measures itself from the map on every frame, so it always shows a round distance (1, 2 or 5 of
   something) and stays right through a zoom, in metres and kilometres or in feet and miles; the

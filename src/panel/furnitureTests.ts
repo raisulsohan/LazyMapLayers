@@ -6,10 +6,43 @@ import type { View } from "../core/camera/camera.ts";
 import { metersPerPixel } from "../core/geo/mercator.ts";
 import { evalScript } from "./cep.ts";
 import { createMapComp, setView } from "./mapApi.ts";
-import { addNorthArrow, addScaleBar, removeFurniture } from "./overlays/furniture.ts";
+import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap } from "./overlays/furniture.ts";
 import type { SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 1920, height: 1080 };
+
+type Inset = { box: { x: number; y: number }[] | null; errors: string[]; layers: string[]; insetWidth: number; insetHeight: number; at: { x: number; y: number } | null };
+
+/** The inset map's layers, and the box After Effects works out on it. */
+async function readInset(mapId: string): Promise<Inset> {
+  return JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp;
+      var out = { box: null, errors: [], layers: [], insetWidth: 0, insetHeight: 0, at: null };
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag) continue;
+        if (tag.kind === "mapLayer" && tag.inset === ${JSON.stringify(mapId)}) {
+          out.layers.push("inset");
+          out.insetWidth = layer.source.width;
+          out.insetHeight = layer.source.height;
+          var at = layer.property("ADBE Transform Group").property("ADBE Position").valueAtTime(scene.time, false);
+          out.at = { x: at[0], y: at[1] };
+        } else if (tag.kind === "minimapFrame" && tag.mapId === ${JSON.stringify(mapId)}) {
+          out.layers.push("frame");
+        } else if (tag.kind === "minimapBox" && tag.mapId === ${JSON.stringify(mapId)}) {
+          out.layers.push("box");
+          var path = layer.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property(1).property("ADBE Vector Shape");
+          if (path.expressionError) out.errors.push("box: " + path.expressionError);
+          var shape = path.valueAtTime(scene.time, false), points = [];
+          for (var v = 0; v < shape.vertices.length; v++) points.push({ x: shape.vertices[v][0], y: shape.vertices[v][1] });
+          out.box = points;
+        }
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as Inset;
+}
 
 type Furniture = {
   bar: { x: number; y: number }[] | null;
@@ -120,6 +153,33 @@ export async function runFurnitureTest(log: SpikeLog): Promise<Record<string, un
   if (polar.north === null || !Number.isFinite(polar.north)) problems.push(`north reads ${polar.north} on the globe`);
   else if (Math.abs(polar.north) > 30) problems.push(`north points ${polar.north}° at 78° north`);
 
+  // An inset map in the corner, with a box on it that says where the big map is looking.
+  await setView(map.id, view, false);
+  const inset = await addMinimap(map.id, { theme: "midnight", corner: "topLeft", zoomOut: 4 });
+  for (const problem of inset.expressionErrors) problems.push(`the inset reported ${problem}`);
+  const shown = await readInset(map.id);
+  for (const kind of ["inset", "frame", "box"]) {
+    if (!shown.layers.includes(kind)) problems.push(`no ${kind} layer for the inset`);
+  }
+  for (const problem of shown.errors) problems.push(problem);
+  if (Math.abs(inset.zoom - (view.zoom - 4)) > 0.001) problems.push(`the inset is at zoom ${inset.zoom}`);
+  if (!shown.box || shown.box.length < 8) {
+    problems.push(`the box has ${shown.box ? shown.box.length : 0} points`);
+  } else {
+    const xs = shown.box.map((point) => point.x);
+    const ys = shown.box.map((point) => point.y);
+    const width = Math.max(...xs) - Math.min(...xs);
+    const height = Math.max(...ys) - Math.min(...ys);
+    // Four zooms out, the big map's frame covers a sixteenth of its own size on the inset.
+    if (Math.abs(width - SIZE.width / 16) > 1) problems.push(`the box is ${Math.round(width)} px wide, expected ${SIZE.width / 16}`);
+    if (Math.abs(height - SIZE.height / 16) > 1) problems.push(`the box is ${Math.round(height)} px tall`);
+    // Both maps look at the same place, so the box sits in the middle of the inset.
+    if (Math.abs((Math.max(...xs) + Math.min(...xs)) / 2 - shown.insetWidth / 2) > 1) problems.push("the box is not on the inset's centre");
+  }
+  const goneInset = await removeMinimap(map.id);
+  if (goneInset.removed !== 3) problems.push(`removing the inset took ${goneInset.removed} layers, expected the map, its frame and its box`);
+  if ((await readInset(map.id)).layers.length) problems.push("the inset is still in the scene");
+
   const goneBar = await removeFurniture(map.id, "scaleBar");
   const goneArrow = await removeFurniture(map.id, "northArrow");
   const left = await readFurniture(map.id);
@@ -130,5 +190,5 @@ export async function runFurnitureTest(log: SpikeLog): Promise<Record<string, un
   const passed = problems.length === 0;
   log(`MF1 map furniture: bar "${first.distance}" then "${second.distance}", north ${first.north}° then ${second.north}°, ${problems.length} problems`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, first, second, polarNorth: polar.north, problems };
+  return { passed, first, second, polarNorth: polar.north, inset: { zoom: inset.zoom, points: shown.box ? shown.box.length : 0 }, problems };
 }

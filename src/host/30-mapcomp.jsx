@@ -91,6 +91,41 @@ LML.map.controlValueProperty = function (layer, name) {
     return effect ? effect.property(1) : null;
 };
 
+/**
+ * Builds a map comp and adds it to a scene as a tagged map layer with its controls. Every map in the
+ * project is made here: the one a scene starts with, and an inset map beside it.
+ */
+LML.map.addMapTo = function (scene, args) {
+    var folder = LML.map.projectFolder();
+    var id = LML.map.uid();
+    var width = args.width || scene.width;
+    var height = args.height || scene.height;
+    var comp = app.project.items.addComp(LML.map.uniqueCompName(args.name || "Map"), width, height, 1, scene.duration, scene.frameRate);
+    comp.parentFolder = folder;
+    comp.bgColor = [0.05, 0.07, 0.1];
+    LML.tag.write(comp, { kind: "mapComp", v: 1, id: id });
+
+    var layer = scene.layers.add(comp);
+    LML.tag.write(layer, { kind: "mapLayer", v: 1, mapId: id });
+    var effects = layer.property("ADBE Effect Parade");
+    for (var i = 0; i < LML.map.CONTROLS.length; i++) {
+        var control = LML.map.CONTROLS[i];
+        var effect = effects.addProperty(control.matchName);
+        effect.name = control.name;
+    }
+    LML.map.setViewAtTime(layer, args.view, null);
+    // Projection: a checkbox the expressions read; the renderer reads it at render time.
+    var globe = effects.addProperty("ADBE Checkbox Control");
+    globe.name = LML.map.GLOBE_CONTROL;
+    globe.property(1).setValue(args.projection === "globe" ? 1 : 0);
+    if (args.projection === "globe") {
+        var mapTag = LML.tag.read(layer);
+        mapTag.projection = "globe";
+        LML.tag.write(layer, mapTag);
+    }
+    return { id: id, comp: comp, layer: layer };
+};
+
 LML.map.createMapComp = function (args) {
     args = args || {};
     var active = app.project.activeItem;
@@ -101,37 +136,14 @@ LML.map.createMapComp = function (args) {
     var frameRate = args.frameRate || (reference ? reference.frameRate : 25);
     var view = args.view || { center: { lng: 0, lat: 20 }, zoom: 1.5, bearing: 0, pitch: 0 };
 
-    var folder = LML.map.projectFolder();
-    var id = LML.map.uid();
-    var mapComp = app.project.items.addComp(LML.map.uniqueCompName(args.name || "Map"), width, height, 1, duration, frameRate);
-    mapComp.parentFolder = folder;
-    mapComp.bgColor = [0.05, 0.07, 0.1];
-    LML.tag.write(mapComp, { kind: "mapComp", v: 1, id: id });
-
     var scene = reference;
     if (!scene) {
         scene = app.project.items.addComp(LML.map.uniqueCompName("Map Scene"), width, height, 1, duration, frameRate);
         LML.tag.write(scene, { kind: "scene", v: 1 });
     }
 
-    var layer = scene.layers.add(mapComp);
-    LML.tag.write(layer, { kind: "mapLayer", v: 1, mapId: id });
-    var effects = layer.property("ADBE Effect Parade");
-    for (var i = 0; i < LML.map.CONTROLS.length; i++) {
-        var control = LML.map.CONTROLS[i];
-        var effect = effects.addProperty(control.matchName);
-        effect.name = control.name;
-    }
-    LML.map.setViewAtTime(layer, view, null);
-    // Projection: a checkbox the expressions read; the renderer reads it at render time.
-    var globe = effects.addProperty("ADBE Checkbox Control");
-    globe.name = LML.map.GLOBE_CONTROL;
-    globe.property(1).setValue(args.projection === "globe" ? 1 : 0);
-    if (args.projection === "globe") {
-        var mapTag = LML.tag.read(layer);
-        mapTag.projection = "globe";
-        LML.tag.write(layer, mapTag);
-    }
+    var made = LML.map.addMapTo(scene, { name: args.name, width: width, height: height, view: view, projection: args.projection });
+    var id = made.id, mapComp = made.comp, layer = made.layer;
 
     try {
         scene.openInViewer();

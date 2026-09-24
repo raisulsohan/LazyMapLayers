@@ -145,6 +145,10 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
   the credit.
 - **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
   picked up from a selected layer.
+- **Inset map**: **Add inset map** puts a small locator in the corner you pick, **Wider by** as
+  many zoom levels as you like, with a framed box on it showing where this map is looking. The box
+  moves and turns with the map on every frame. The inset is a map of its own: pick it at the top of
+  the panel to give it a look, names and a render.
 - **Scale bar and north arrow**: **Add scale bar** puts a bar in the corner you pick, in metres
   and kilometres or in feet and miles. It measures itself from the map on every frame, so it
   always shows a round distance and stays right through a zoom, even if you scale the map layer.

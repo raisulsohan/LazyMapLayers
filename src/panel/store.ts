@@ -60,7 +60,7 @@ import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addChart, removeChart } from "./overlays/chart.ts";
-import { addNorthArrow, addScaleBar, removeFurniture, type FurnitureKind } from "./overlays/furniture.ts";
+import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap, type FurnitureKind } from "./overlays/furniture.ts";
 import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
@@ -1537,6 +1537,32 @@ export const removeMapFurniture = (kind: FurnitureKind) =>
     const gone = await removeFurniture(selectedId.value, kind);
     const what = kind === "scaleBar" ? "scale bar" : "north arrow";
     log(gone.removed ? `the ${what} is off the scene` : `this map has no ${what}`, gone.removed ? "ok" : "muted");
+  });
+
+export const minimapCorner = signal<LegendCorner>("topLeft");
+export const minimapZoomOut = signal(4);
+
+export const addMapMinimap = () =>
+  run("furniture", async () => {
+    if (!selectedId.value) return;
+    const made = await addMinimap(selectedId.value, {
+      theme: currentTheme.value,
+      corner: minimapCorner.value,
+      zoomOut: minimapZoomOut.value
+    });
+    if (made.expressionErrors.length) log(`inset expression problems: ${made.expressionErrors.join("; ")}`, "fail");
+    else {
+      await refreshMaps();
+      log(`"${made.insetComp}" is in the scene at zoom ${made.zoom.toFixed(1)}, with a box showing where this map is looking. It is a map of its own: pick it above to give it a look and render it`, "ok");
+    }
+  });
+
+export const removeMapMinimap = () =>
+  run("furniture", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeMinimap(selectedId.value);
+    if (gone.removed) await refreshMaps();
+    log(gone.removed ? "the inset map is off the scene" : "this map has no inset", gone.removed ? "ok" : "muted");
   });
 
 /** Where the legend of the numbers sits in the frame. */

@@ -86,6 +86,9 @@ Dhaka to Chittagong with an arrow, say:
   writes the numbers as text layers, and builds a legend and a bar chart as precomps. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.
+- **An inset map that is a real map.** A locator in the corner, as many zooms wider as you ask,
+  with a box on it that moves and turns with the big map on every frame. The inset takes its own
+  look, its own names and its own render, because it is another map in the same scene.
 - **A scale bar and a north arrow that stay honest.** Both read the map through expressions, so the
   bar re-measures itself on every frame and always shows a round distance through a zoom, in metric
   or imperial, and the arrow turns with the bearing and follows the pole on the globe. Plain layers:

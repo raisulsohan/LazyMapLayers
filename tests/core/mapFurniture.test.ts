@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { northArrowPath, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression, type ScaleUnits } from "../../src/core/ae/mapFurniture.ts";
+import { BOX_SAMPLES, minimapBoxExpression, northArrowPath, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression, type ScaleUnits } from "../../src/core/ae/mapFurniture.ts";
 import { metersPerPixel } from "../../src/core/geo/mercator.ts";
 
 type View = { lat: number; lng: number; zoom: number; bearing?: number; pitch?: number; globe?: number };
@@ -125,4 +125,55 @@ test("the arrow is a kite pointing up, the size it was asked for", () => {
   assert.ok(points[1][0] > 0 && points[3][0] === -points[1][0]);
   assert.ok(points[2][1] < points[1][1], "the tail notch sits above the wings");
   assert.equal(northArrowPath(80)[0][1], -40);
+});
+
+/** The box on an inset: the inset is the layer's "Map", the big map is its "Main map". */
+function boxOn(inset: View, main: View, mainSize = { width: 1920, height: 1080 }) {
+  const insetLayer = mapLayer(inset);
+  const mainLayer = { ...mapLayer(main), source: mainSize };
+  const effect = (name: string) => () => (name === "Main map" ? mainLayer : insetLayer);
+  const createPath = (points: number[][], _in: unknown, _out: unknown, closed: boolean) => ({ points, closed });
+  const fromComp = (q: number[]) => q;
+  return new Function("effect", "thisComp", "createPath", "fromComp", "code", "return eval(code);")(
+    effect,
+    COMP,
+    createPath,
+    fromComp,
+    minimapBoxExpression()
+  ) as { points: number[][]; closed: boolean };
+}
+
+test("the box on an inset is the big map's frame, at the inset's scale", () => {
+  const main: View = { lat: 23.8, lng: 90.4, zoom: 8 };
+  const box = boxOn({ lat: 23.8, lng: 90.4, zoom: 4 }, main);
+  assert.equal(box.closed, true);
+  assert.equal(box.points.length, 4 * BOX_SAMPLES);
+  const xs = box.points.map((q) => q[0]);
+  const ys = box.points.map((q) => q[1]);
+  const width = Math.max(...xs) - Math.min(...xs);
+  const height = Math.max(...ys) - Math.min(...ys);
+  // Four zoom levels out, the big map's frame is a sixteenth of its own size on the inset.
+  assert.ok(Math.abs(width - 1920 / 16) < 0.5, `the box is ${width} px wide`);
+  assert.ok(Math.abs(height - 1080 / 16) < 0.5, `the box is ${height} px tall`);
+  // It sits on the inset's centre, because both maps are looking at the same place.
+  assert.ok(Math.abs((Math.max(...xs) + Math.min(...xs)) / 2 - SOURCE.width / 2) < 0.5);
+  assert.ok(Math.abs((Math.max(...ys) + Math.min(...ys)) / 2 - SOURCE.height / 2) < 0.5);
+});
+
+test("the box follows the big map away from the inset's centre, and turns with it", () => {
+  const inset: View = { lat: 23.8, lng: 90.4, zoom: 4 };
+  const east = boxOn(inset, { lat: 23.8, lng: 92.4, zoom: 8 });
+  const middle = boxOn(inset, { lat: 23.8, lng: 90.4, zoom: 8 });
+  const eastX = east.points.reduce((sum, q) => sum + q[0], 0) / east.points.length;
+  const middleX = middle.points.reduce((sum, q) => sum + q[0], 0) / middle.points.length;
+  // Two degrees of longitude are 2/360 of the world, which at the inset's zoom is 45.5 px.
+  const expected = (2 / 360) * 512 * 2 ** 4;
+  assert.ok(Math.abs(eastX - middleX - expected) < 0.5, `the box moved ${eastX - middleX} px, expected ${expected}`);
+  // Turned 45 degrees, the same frame covers a wider span of the inset.
+  const turned = boxOn(inset, { lat: 23.8, lng: 90.4, zoom: 8, bearing: 45 });
+  const span = (points: number[][]) => Math.max(...points.map((q) => q[0])) - Math.min(...points.map((q) => q[0]));
+  // Turned 45 degrees, a 120 by 67.5 box spans (120 + 67.5) / root 2 of the inset.
+  const corner = (120 + 67.5) / Math.SQRT2;
+  assert.ok(Math.abs(span(middle.points) - 120) < 0.5, `flat, the box spans ${span(middle.points)} px`);
+  assert.ok(Math.abs(span(turned.points) - corner) < 0.5, `turned, the box spans ${span(turned.points)} px, expected ${corner}`);
 });

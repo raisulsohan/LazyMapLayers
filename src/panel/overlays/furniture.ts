@@ -1,7 +1,7 @@
 // The map's furniture: a scale bar and a north arrow. The panel works out where they sit and in what
 // style; core writes the expressions that keep them honest; the host builds the layers.
 
-import { DEFAULT_BAR_LENGTH, northArrowPath, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression, type ScaleUnits } from "../../core/ae/mapFurniture.ts";
+import { DEFAULT_BAR_LENGTH, minimapBoxExpression, northArrowPath, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression, type ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { SCRIPT_FONTS, scriptOf } from "../../core/labels/language.ts";
 import { templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { legendPosition, type LegendCorner } from "../../core/style/legend.ts";
@@ -103,5 +103,39 @@ export async function addNorthArrow(mapId: string, options: NorthArrowOptions = 
     expressions: { rotation: northRotationExpression() }
   });
 }
+
+/** An inset map in a corner - a locator - with a box on it showing where the big map is looking. */
+export type MinimapOptions = FurnitureOptions & {
+  /** How many zoom levels wider than the map itself the inset looks. */
+  zoomOut?: number;
+  /** How much of the frame the inset takes, as a share of its width. */
+  share?: number;
+  projection?: "mercator" | "globe";
+};
+
+export type MinimapResult = { insetId: string; insetComp: string; name: string; zoom: number; removed: number; expressionErrors: string[] };
+
+export async function addMinimap(mapId: string, options: MinimapOptions = {}): Promise<MinimapResult> {
+  const info = await callHost<Info>("renderInfo", { mapId });
+  const theme = themeFrom(options.theme);
+  const scale = info.height / 1080;
+  const share = Math.max(0.1, Math.min(0.5, options.share ?? 0.25));
+  const box = { width: Math.round(info.width * share), height: Math.round(info.height * share), scale };
+  const at = legendPosition(box, info, options.corner ?? "topLeft");
+  return callHost<MinimapResult>("addMinimap", {
+    mapId,
+    name: "Inset map",
+    width: box.width,
+    height: box.height,
+    position: [Math.round(at.x), Math.round(at.y)],
+    zoomOut: options.zoomOut ?? 4,
+    projection: options.projection ?? "mercator",
+    frame: { color: hexToRgb(theme.border), width: Math.max(1, Math.round(2 * scale)) },
+    box: { color: hexToRgb(theme.accent), width: Math.max(1, Math.round(2 * scale)) },
+    expressions: { box: minimapBoxExpression() }
+  });
+}
+
+export const removeMinimap = (mapId: string) => callHost<{ removed: number }>("removeMinimap", { mapId });
 
 export const removeFurniture = (mapId: string, kind: FurnitureKind) => callHost<{ removed: number }>("removeFurniture", { mapId, kind });

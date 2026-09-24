@@ -887,6 +887,26 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D68 — The inset map is a map, not a picture of one (2026-09-24)
+
+- **Why.** A locator inset is the oldest furniture on a map, and the one a viewer reads first: it
+  says where in the world this is. Faking it with a still would leave it out of every look change,
+  every render and every camera move.
+- **Decision.** **Add inset map** builds a second real map in the same scene through the same
+  builder as the first one (LML.map.addMapTo, pulled out of createMapComp for this), at the big
+  map's centre and as many zooms wider as asked. It carries the same controls, the panel lists it,
+  and it takes a look, names and a render like any other map.
+- **The box is drawn from the big map's own controls.** A shape layer with two links - one to the
+  inset, one to the map it follows - turns the big map's frame into mercator coordinates from its
+  centre, zoom and bearing, and projects every point of it through the inset. So the box moves,
+  turns and resizes on every frame, and bends when the inset is a globe. A pitched map is shown by
+  its flat footprint, which is what a locator wants. The layer carries a mask the size of the inset,
+  so a map that flies outside the locator does not draw the box across the scene.
+- **Tested.** Unit tests check the box is the big map's frame at the inset's scale, that it moves
+  the right number of pixels for two degrees east, and that turning the map 45 degrees widens its
+  span by exactly the diagonal; 48 new fixtures run the path in the ES3 engine (1,089 expressions
+  now); MF1 builds an inset in After Effects and reads back the box it works out.
+
 ## D67 — The map's furniture measures itself, every frame (2026-09-24)
 
 - **Why.** A scale bar that is drawn once is a lie the moment the camera zooms, and a north arrow

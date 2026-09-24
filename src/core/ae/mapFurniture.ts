@@ -3,7 +3,7 @@
 // expressions, so they follow every camera keyframe without a re-render, and both stay right when the
 // map layer is moved, scaled or rotated in the scene.
 
-import { EARTH_CIRCUMFERENCE_M, TILE_SIZE } from "../geo/mercator.ts";
+import { EARTH_CIRCUMFERENCE_M, MAX_LATITUDE, TILE_SIZE } from "../geo/mercator.ts";
 import { compTransformSource, projectionPrelude } from "./projectionExpression.ts";
 
 export const SCALE_BAR_MARKER = "// LazyMapLayers scale bar";
@@ -107,6 +107,55 @@ if (lmlA.visible && lmlB.visible) {
   if (lmlDx * lmlDx + lmlDy * lmlDy > 1e-12) lmlTurn = Math.atan2(lmlDx, lmlDy) * 180 / Math.PI;
 }
 lmlTurn;`;
+}
+
+export const MINIMAP_MARKER = "// LazyMapLayers minimap box";
+
+/** How many points each edge of the box is drawn with, so it bends with the inset's projection. */
+export const BOX_SAMPLES = 8;
+
+/**
+ * The box on an inset map that says where the big map is looking.
+ *
+ * The layer carries two links: "Map" is the inset it is drawn on, "Main map" is the map it follows.
+ * The big map's frame is turned into mercator coordinates from its own centre, zoom and bearing, and
+ * every point of it is projected through the inset, so the box turns when the map turns and bends
+ * when the inset is a globe. A pitched map is shown by its flat footprint.
+ */
+export function minimapBoxExpression(samples = BOX_SAMPLES, marker = MINIMAP_MARKER): string {
+  const steps = Math.max(1, Math.round(samples));
+  return `${marker} (generated)
+var map = effect("Map")(1);
+var main = effect("Main map")(1);
+${projectionPrelude()}${compTransformSource()}var lmlMain = { lat: main.effect("Latitude")(1).value, lng: main.effect("Longitude")(1).value, zoom: main.effect("Zoom")(1).value, bearing: main.effect("Bearing")(1).value };
+var lmlSize = ${num(TILE_SIZE)} * Math.pow(2, lmlMain.zoom);
+var lmlHx = main.source.width / 2 / lmlSize, lmlHy = main.source.height / 2 / lmlSize;
+var lmlCx = (180 + lmlMain.lng) / 360;
+var lmlCy = (function () {
+  var c = Math.max(-${num(MAX_LATITUDE)}, Math.min(${num(MAX_LATITUDE)}, lmlMain.lat));
+  return (180 - (180 / Math.PI) * Math.log(Math.tan(Math.PI / 4 + c * (Math.PI / 180) / 2))) / 360;
+})();
+var lmlCb = Math.cos(lmlMain.bearing * Math.PI / 180), lmlSb = Math.sin(lmlMain.bearing * Math.PI / 180);
+var lmlEdges = [[-1, -1, 1, -1], [1, -1, 1, 1], [1, 1, -1, 1], [-1, 1, -1, -1]];
+var lmlOut = [];
+for (var lmlE = 0; lmlE < 4; lmlE++) {
+  for (var lmlS = 0; lmlS < ${steps}; lmlS++) {
+    var lmlT = lmlS / ${steps};
+    var lmlU = lmlEdges[lmlE][0] + (lmlEdges[lmlE][2] - lmlEdges[lmlE][0]) * lmlT;
+    var lmlV = lmlEdges[lmlE][1] + (lmlEdges[lmlE][3] - lmlEdges[lmlE][1]) * lmlT;
+    var lmlSx = lmlU * lmlHx, lmlSy = lmlV * lmlHy;
+    var lmlMx = lmlCx + lmlCb * lmlSx - lmlSb * lmlSy;
+    var lmlMy = lmlCy + lmlSb * lmlSx + lmlCb * lmlSy;
+    if (lmlMy < 0) lmlMy = 0;
+    if (lmlMy > 1) lmlMy = 1;
+    var lmlLat = (360 / Math.PI) * Math.atan(Math.exp((180 - lmlMy * 360) * Math.PI / 180)) - 90;
+    var lmlPoint = lmlProject(lmlLat, lmlMx * 360 - 180, 0);
+    if (!lmlPoint.visible) continue;
+    lmlOut[lmlOut.length] = lmlFromComp(lmlToComp([lmlPoint.x, lmlPoint.y]));
+  }
+}
+if (lmlOut.length < 3) lmlOut = [[0, 0], [0, 0], [0, 0]];
+createPath(lmlOut, [], [], true);`;
 }
 
 /** The arrow's own shape, in layer pixels: a slim kite pointing up, drawn once at build time. */

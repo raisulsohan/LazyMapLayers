@@ -13,7 +13,7 @@ import { anchoredPositionExpression, leaderPathExpression, routePathExpression, 
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
-import { northRotationExpression, scaleBarPathExpression, scaleBarTextExpression } from "../src/core/ae/mapFurniture.ts";
+import { minimapBoxExpression, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression } from "../src/core/ae/mapFurniture.ts";
 import type { View } from "../src/core/camera/camera.ts";
 import { greatCircle } from "../src/core/geo/greatCircle.ts";
 
@@ -121,6 +121,9 @@ for (const globe of [false, true]) {
     add(`scale bar path ${kind} ${i}`, scaleBarPathExpression(barLength, units, 8), { own: { Map: "MAP" }, map, comp, value: null });
     add(`scale bar text ${kind} ${i}`, scaleBarTextExpression(barLength, units), { own: { Map: "MAP" }, map, comp, value: "" }, 0);
     add(`north arrow ${kind} ${i}`, northRotationExpression(), { own: { Map: "MAP" }, map, comp, value: 0 }, 1e-5);
+    // The box on an inset map: here the inset and the map it follows are the same one, which draws
+    // the inset's own frame - the maths the ES3 engine has to agree on is the same.
+    add(`minimap box ${kind} ${i}`, minimapBoxExpression(), { own: { Map: "MAP", "Main map": "MAP" }, map, comp, value: null });
 
     const label = near(view, spread);
     add(`label ${kind} ${i}`, anchoredPositionExpression(label.lat, label.lng, (random() - 0.5) * 80, -30 * random()), { own: { Map: "MAP" }, map, comp, value: [0, 0] });
