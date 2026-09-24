@@ -59,6 +59,9 @@ import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
+import { addChart, removeChart } from "./overlays/chart.ts";
+import { addNorthArrow, addScaleBar, removeFurniture, type FurnitureKind } from "./overlays/furniture.ts";
+import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
 import { repositionLabels } from "./labels/repositionLabels.ts";
@@ -1496,6 +1499,46 @@ export const drawFlows = () =>
     }
   });
 
+/** The map's furniture: a scale bar and a north arrow, both in the corner they are given. */
+export const scaleBarUnits = signal<ScaleUnits>("metric");
+export const scaleBarCorner = signal<LegendCorner>("bottomLeft");
+export const northCorner = signal<LegendCorner>("topRight");
+export const northLetter = signal(true);
+
+export const addMapScaleBar = () =>
+  run("furniture", async () => {
+    if (!selectedId.value) return;
+    const made = await addScaleBar(selectedId.value, {
+      theme: currentTheme.value,
+      template: currentLabelTemplate.value,
+      corner: scaleBarCorner.value,
+      units: scaleBarUnits.value
+    });
+    if (made.expressionErrors.length) log(`scale bar expression problems: ${made.expressionErrors.join("; ")}`, "fail");
+    else log("a scale bar is on the scene. It measures itself from the map on every frame, so it stays right through a zoom; move it, restyle it, keyframe it", "ok");
+  });
+
+export const addMapNorthArrow = () =>
+  run("furniture", async () => {
+    if (!selectedId.value) return;
+    const made = await addNorthArrow(selectedId.value, {
+      theme: currentTheme.value,
+      template: currentLabelTemplate.value,
+      corner: northCorner.value,
+      letter: northLetter.value ? "N" : null
+    });
+    if (made.expressionErrors.length) log(`north arrow expression problems: ${made.expressionErrors.join("; ")}`, "fail");
+    else log("a north arrow is on the scene. It turns with the map, and on the globe it follows the pole", "ok");
+  });
+
+export const removeMapFurniture = (kind: FurnitureKind) =>
+  run("furniture", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeFurniture(selectedId.value, kind);
+    const what = kind === "scaleBar" ? "scale bar" : "north arrow";
+    log(gone.removed ? `the ${what} is off the scene` : `this map has no ${what}`, gone.removed ? "ok" : "muted");
+  });
+
 /** Where the legend of the numbers sits in the frame. */
 export const legendCorner = signal<LegendCorner>("bottomLeft");
 
@@ -1814,6 +1857,39 @@ export const removeDataSpikes = () =>
     const gone = await removeSpikes(selectedId.value);
     spikesOn.value = false;
     log(gone.removed ? "the spikes are off the map" : "this map has no spikes", gone.removed ? "ok" : "muted");
+  });
+
+/** How many bars the chart of the numbers shows, and where it sits. */
+export const chartBars = signal(8);
+export const chartCorner = signal<LegendCorner>("bottomRight");
+
+/** The numbers as a chart in the scene: a bar per place, longest first, each growing in turn. */
+export const addDataChart = () =>
+  run("chart", async () => {
+    const fill = dataFill.value;
+    const entry = (await readMaps()).find((map) => map.mapId === selectedId.value);
+    if (!fill || !entry) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const places = Object.entries(fill.values).map(([code, value]) => ({ code, name: nameOfPlace(fill, code), value }));
+    const made = await addChart(entry.mapId, fill, places, {
+      theme: currentTheme.value,
+      style: currentLayerStyle.value,
+      template: currentLabelTemplate.value,
+      corner: chartCorner.value,
+      limit: chartBars.value,
+      startFrame: currentMapFrame(entry)
+    });
+    const dropped = made.dropped ? `, ${made.dropped} smaller ones left out` : "";
+    log(`"${made.name}" added to the scene (${made.bars} bars${dropped}). The bars grow one after another from the current time; it is an ordinary precomp: move it, restyle it, animate it`, "ok");
+  });
+
+export const removeDataChart = () =>
+  run("chart", async () => {
+    if (!selectedId.value) return;
+    const gone = await removeChart(selectedId.value);
+    log(gone.removed ? "the chart is off the scene" : "this map has no chart", gone.removed ? "ok" : "muted");
   });
 
 /** How strongly the shapes of a data map are filled and stroked (the largest value's values). */

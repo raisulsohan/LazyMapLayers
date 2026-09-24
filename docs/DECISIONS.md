@@ -887,6 +887,45 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D67 — The map's furniture measures itself, every frame (2026-09-24)
+
+- **Why.** A scale bar that is drawn once is a lie the moment the camera zooms, and a north arrow
+  that is drawn once is a lie the moment the map turns. A map that animates needs furniture that
+  animates with it, and the paid tools' users ask for both more than for almost anything else.
+- **Decision.** Both are expressions on ordinary layers (src/core/ae/mapFurniture.ts), reading the
+  map through the same Layer Control link as pins and routes. The bar is one path: a bracket the
+  expression rebuilds every frame at the roundest distance (1, 2 or 5 times a power of ten) that
+  fits the length it is given, with its text on a second layer parented to it. The arrow is a
+  rotation.
+- **Measured through the map layer, not from the zoom alone.** Metres per comp pixel comes from the
+  Mercator ground resolution at the map's centre and is then carried through the map layer's own
+  transform, so a map the user has scaled down or rotated still gets a bar that tells the truth.
+- **North from two projected points, not from the bearing.** On a flat map north is the bearing
+  turned back; on the globe, and near the poles, it is not. Projecting the centre and a point a
+  hundredth of a degree north of it, and taking the angle between them in comp space, is right in
+  both projections and follows the map layer's rotation as well. The letter under the arrow
+  counter-rotates, so it stays the right way up while the arrow turns.
+- **Tested.** Unit tests evaluate the generated expressions against the core maths at seven zooms
+  and five latitudes, with a scaled and rotated map layer; 144 new fixtures run them in the ES3
+  engine (1,041 expressions now); MF1 reads back what After Effects itself works out for the path,
+  the text and the rotation, on a flat map, after a turn and a zoom, and on the globe at 78 north.
+
+## D66 — The numbers as a bar chart, built in the comp (2026-09-24)
+
+- **Why.** A choropleth says which place is darker; it does not say by how much. A chart does, and
+  a motion designer who has to leave After Effects to build one in a spreadsheet loses the colours,
+  the font and the timing that make it part of the film.
+- **Decision.** core/style/chart.ts lays out the box, the bars and the growth frames from the same
+  data fill the map is coloured by; the panel measures the text (only a browser can) and the host
+  builds a precomp like the legend's. Each bar is a rectangle whose size and position are keyed
+  together, so it grows from its left edge, and each starts a few frames after the one above it.
+- **Longest first, eight by default.** A chart of two hundred countries is unreadable; the bars are
+  sorted by value, the count is the user's, and the ones left out are counted and said. A place
+  with no value gets no bar at all.
+- **Tested.** Unit tests for the layout, the ordering, the stagger and the scaling; DT1 builds a
+  chart in After Effects and checks the bar keys start at nothing, the longest bar is the largest
+  place, the names and numbers are there, and removal takes the comp with it.
+
 ## D65 — The numbers drive shape layers, not only the rendered fill (2026-09-24)
 
 - **Why.** The rendered data layer is one image: quick, and right for two hundred countries, but a

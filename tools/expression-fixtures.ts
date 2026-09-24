@@ -13,6 +13,7 @@ import { anchoredPositionExpression, leaderPathExpression, routePathExpression, 
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
+import { northRotationExpression, scaleBarPathExpression, scaleBarTextExpression } from "../src/core/ae/mapFurniture.ts";
 import type { View } from "../src/core/camera/camera.ts";
 import { greatCircle } from "../src/core/geo/greatCircle.ts";
 
@@ -113,6 +114,13 @@ for (const globe of [false, true]) {
     add(`pin scale ${kind} ${i}`, e.scale, { own, map, comp, value: i % 3 === 0 ? [100, 100, 100] : [100, 100] });
     add(`pin rotation ${kind} ${i}`, e.rotation, { own, map, comp, value: 5 });
     add(`pin opacity ${kind} ${i}`, e.opacity, { own, map, comp, value: 80 });
+
+    // The map's furniture reads the same view: a bar that measures itself, and an arrow that finds north.
+    const units = i % 2 ? "imperial" : "metric";
+    const barLength = 120 + i * 9;
+    add(`scale bar path ${kind} ${i}`, scaleBarPathExpression(barLength, units, 8), { own: { Map: "MAP" }, map, comp, value: null });
+    add(`scale bar text ${kind} ${i}`, scaleBarTextExpression(barLength, units), { own: { Map: "MAP" }, map, comp, value: "" }, 0);
+    add(`north arrow ${kind} ${i}`, northRotationExpression(), { own: { Map: "MAP" }, map, comp, value: 0 }, 1e-5);
 
     const label = near(view, spread);
     add(`label ${kind} ${i}`, anchoredPositionExpression(label.lat, label.lng, (random() - 0.5) * 80, -30 * random()), { own: { Map: "MAP" }, map, comp, value: [0, 0] });

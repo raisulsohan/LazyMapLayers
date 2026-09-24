@@ -27,6 +27,7 @@ import { runRouteTests } from "./routeTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
+import { runFurnitureTest } from "./furnitureTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -380,6 +381,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LD1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LD1 failed: ${results.LD1_error}`, "fail");
+    }
+  }
+
+  if (wants("MF1")) {
+    try {
+      results.MF1_mapFurniture = await runFurnitureTest(log);
+    } catch (error) {
+      results.MF1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`MF1 failed: ${results.MF1_error}`, "fail");
     }
   }
 

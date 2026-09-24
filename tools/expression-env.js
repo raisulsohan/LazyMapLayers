@@ -52,13 +52,16 @@ function lmlRunExpression(code, env) {
     return eval(code);
 }
 
-/** Numbers, booleans, arrays and paths as one flat list, for comparing results across engines. */
+/** Numbers, strings, booleans, arrays and paths as one flat list, for comparing results across engines. */
 function lmlFlatten(result, out) {
     out = out || [];
     if (result === null || result === undefined) {
         out.push("null");
     } else if (typeof result === "number") {
         out.push(result);
+    } else if (typeof result === "string") {
+        // A source text expression: kept apart from the list markers.
+        out.push("text:" + result);
     } else if (typeof result === "boolean") {
         out.push(result ? 1 : 0);
     } else if (result instanceof Array) {

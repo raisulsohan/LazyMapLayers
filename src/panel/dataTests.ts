@@ -21,6 +21,7 @@ import { countryOutline } from "./data/countries.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
+import { addChart, removeChart } from "./overlays/chart.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import type { SpikeLog } from "./spikes.ts";
 
@@ -255,6 +256,50 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     if (widestShape.color === thinnestShape.color) problems.push(`both shapes are ${widestShape.color}`);
   }
 
+  // A chart of the same numbers: a bar per place, longest first, each growing in its turn.
+  const chart = await addChart(map.id, fill, places.map((place) => ({ code: place.id, name: place.name, value: place.value })), { theme: "midnight", corner: "topRight", limit: 3, startFrame: 5 });
+  if (chart.bars !== 3 || chart.dropped !== 1) problems.push(`the chart has ${chart.bars} bars and left out ${chart.dropped}`);
+  const chartLayers = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = null;
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "chart") continue;
+        var comp = layer.source, bars = [], texts = [];
+        for (var l = 1; l <= comp.numLayers; l++) {
+          var inner = comp.layer(l);
+          if (inner.name === "Bars") {
+            var groups = inner.property("ADBE Root Vectors Group");
+            for (var g = 1; g <= groups.numProperties; g++) {
+              var rect = groups.property(g).property("ADBE Vectors Group").property("ADBE Vector Shape - Rect");
+              var size = rect.property("ADBE Vector Rect Size");
+              bars.push({ name: groups.property(g).name, keys: size.numKeys, start: size.numKeys ? size.keyValue(1)[0] : null, end: size.numKeys ? size.keyValue(size.numKeys)[0] : null });
+            }
+          }
+          if (inner.property("ADBE Text Properties")) texts.push(inner.name);
+        }
+        out = { name: layer.name, comp: comp.name, width: comp.width, height: comp.height, bars: bars, texts: texts };
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; comp: string; width: number; height: number; bars: { name: string; keys: number; start: number; end: number }[]; texts: string[] } | null;
+  if (!chartLayers) problems.push("no chart layer is in the scene");
+  else {
+    if (chartLayers.bars.length !== 3) problems.push(`the chart comp holds ${chartLayers.bars.length} bars`);
+    for (const bar of chartLayers.bars) {
+      if (bar.keys !== 2) problems.push(`the bar of ${bar.name} has ${bar.keys} keys`);
+      if (bar.start !== 0) problems.push(`the bar of ${bar.name} starts ${bar.start} px wide`);
+      if (!(bar.end > 0)) problems.push(`the bar of ${bar.name} ends ${bar.end} px wide`);
+    }
+    // The longest bar is the largest number, and every place has a name and a value written.
+    const widest = chartLayers.bars.reduce((most, bar) => (bar.end > most.end ? bar : most), chartLayers.bars[0]);
+    if (widest.name !== "India") problems.push(`the longest bar belongs to ${widest.name}`);
+    if (chartLayers.texts.filter((name) => name.indexOf("Name: ") === 0).length !== 3) problems.push(`the chart writes ${chartLayers.texts.join(", ")}`);
+    if (chartLayers.texts.filter((name) => name.indexOf("Value: ") === 0).length !== 3) problems.push(`the chart writes ${chartLayers.texts.join(", ")}`);
+  }
+  const chartGone = await removeChart(map.id);
+  if (chartGone.removed !== 1) problems.push(`removing the chart removed ${chartGone.removed}`);
+
   // The numbers themselves, written under the circles.
   const written = await addValueLabels(map.id, fill, places, { theme: "midnight", maxRadius: 50, withNames: false });
   if (written.expressionErrors.length) problems.push(`value expressions: ${written.expressionErrors.slice(0, 2).join("; ")}`);
@@ -437,5 +482,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, shapes: drawnShapes.length, districts, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, shapes: drawnShapes.length, chartBars: chart.bars, districts, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

@@ -2,6 +2,17 @@
 
 ## Unreleased
 
+- **A scale bar and a north arrow.** Two buttons under the look put them in any corner. The bar
+  measures itself from the map on every frame, so it always shows a round distance (1, 2 or 5 of
+  something) and stays right through a zoom, in metres and kilometres or in feet and miles; the
+  arrow turns with the bearing, and on the globe it follows the pole, where north stops being
+  straight up. Both are plain layers you can move, recolour and keyframe, and they hold even if you
+  scale the map layer itself.
+- **A chart of the numbers.** **Add chart** in the Numbers sheet builds a bar chart of the places
+  you coloured the map by: longest first, each bar growing in turn from the current time, with the
+  place's name and its number beside it, in the colour that place has on the map. It is an ordinary
+  precomp in the scene: move it, restyle it, animate it.
+
 - **Shapes from the numbers.** **Add shapes** in the Numbers sheet turns every place that has a
   number into its own editable shape layer: the fill strength and the stroke width follow the value,
   and the colour is the step the map gives it. They are ordinary shape layers with real paths that

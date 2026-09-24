@@ -83,9 +83,13 @@ Dhaka to Chittagong with an arrow, say:
   or spikes whose height is, draws flows between places as arcs whose width (and colour) is the amount,
   renders the places' warmth as a heat layer, gives every place its own shape layer filled and
   stroked by its number, copies a layer of your own onto every place sized by its number,
-  writes the numbers as text layers, and builds a legend precomp. Places are found by name in 26
+  writes the numbers as text layers, and builds a legend and a bar chart as precomps. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.
+- **A scale bar and a north arrow that stay honest.** Both read the map through expressions, so the
+  bar re-measures itself on every frame and always shows a round distance through a zoom, in metric
+  or imperial, and the arrow turns with the bearing and follows the pole on the globe. Plain layers:
+  move them, recolour them, keyframe them.
 - **Any OpenStreetMap feature.** Type a name (or pick water, parks, islands, airports, boundaries,
   buildings, roads or railways) and the panel finds what OpenStreetMap holds for the area in the
   preview: a lake with its islands as real holes, a river, a district outline. It arrives as an

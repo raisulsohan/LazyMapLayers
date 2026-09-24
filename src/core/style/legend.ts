@@ -105,7 +105,7 @@ export function legendLayout(rows: LegendRow[], options: LegendOptions): LegendL
 export type LegendCorner = "bottomLeft" | "bottomRight" | "topLeft" | "topRight";
 
 /** Where the box sits in the comp: a corner, a margin in from the frame. */
-export function legendPosition(layout: LegendLayout, comp: { width: number; height: number }, corner: LegendCorner, margin = 48): { x: number; y: number } {
+export function legendPosition(layout: { width: number; height: number; scale: number }, comp: { width: number; height: number }, corner: LegendCorner, margin = 48): { x: number; y: number } {
   const inset = margin * layout.scale;
   const left = corner === "bottomLeft" || corner === "topLeft";
   const top = corner === "topLeft" || corner === "topRight";

@@ -145,6 +145,12 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
   the credit.
 - **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
   picked up from a selected layer.
+- **Scale bar and north arrow**: **Add scale bar** puts a bar in the corner you pick, in metres
+  and kilometres or in feet and miles. It measures itself from the map on every frame, so it
+  always shows a round distance and stays right through a zoom, even if you scale the map layer.
+  **Add north arrow** puts an arrow that turns with the bearing, and follows the pole on the
+  globe, with an upright **N** under it. Both are plain layers: move them, recolour them, keyframe
+  them. Each has its own **Remove**.
 - **Terrain**: **Download…** an elevation pack for the area in the preview (open data through
   Mapterhorn). With a pack: **Shaded slopes** at any zoom, and **3D height** - real mountains,
   1× true to scale or more. Pins, labels and routes made with the pack sit on the ground; key the map
@@ -183,6 +189,9 @@ Import a CSV with a column of names and a column of numbers. The Numbers sheet o
 - **Add shapes**: every place that has a number as its own editable shape layer - fill strength and
   stroke width from the value, colour from its step. Real paths that follow the map, so you can
   animate or restyle one country by hand. Up to forty, largest first.
+- **Add chart**: a bar chart of the places in the corner you pick - longest first, each bar
+  growing in turn from the current time, with the name and the number beside it in that place's
+  colour. **Bars** sets how many. An ordinary precomp: move it, restyle it, animate it.
 - **Add legend**: a precomp with the colours, the bubble sizes, the spike heights and the heat's
   three steps, in the corner you pick. It is an ordinary precomp: move it, restyle it, animate it.
 

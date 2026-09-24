@@ -36,13 +36,15 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataChart, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, chartBars, chartCorner, removeDataChart, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, refreshLabelDesigns } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
 import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
+import { addMapNorthArrow, addMapScaleBar, northCorner, northLetter, removeMapFurniture, scaleBarCorner, scaleBarUnits } from "../store.ts";
+import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -306,6 +308,49 @@ export function LookSheetView(): JSX.Element | null {
         </button>
         <button class="small-button" data-id="layer-style-reset" disabled={busy.value || layerStyleFollowsLook.value} title="Back to the colours of this look" onClick={() => void changeLayerStyle({ accent: null, stroke: null, glow: null })}>
           Follow the look
+        </button>
+      </div>
+      <div class="section-title">Scale bar and north arrow</div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="scale-bar-add" disabled={busy.value} title="A bar that says how far a screen distance is on the ground. It measures itself from the map on every frame, so it stays right through a zoom." onClick={() => void addMapScaleBar()}>
+          Add scale bar
+        </button>
+        <label class="num-field" title="Metres and kilometres, or feet and miles">
+          <select data-id="scale-bar-units" value={scaleBarUnits.value} disabled={busy.value} onChange={(e) => (scaleBarUnits.value = (e.target as HTMLSelectElement).value as ScaleUnits)}>
+            <option value="metric">m and km</option>
+            <option value="imperial">ft and mi</option>
+          </select>
+        </label>
+        <label class="num-field" title="Which corner of the frame the scale bar sits in">
+          <select data-id="scale-bar-corner" value={scaleBarCorner.value} disabled={busy.value} onChange={(e) => (scaleBarCorner.value = (e.target as HTMLSelectElement).value as LegendCorner)}>
+            <option value="bottomLeft">Bottom left</option>
+            <option value="bottomRight">Bottom right</option>
+            <option value="topLeft">Top left</option>
+            <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <button class="small-button" data-id="scale-bar-remove" disabled={busy.value} title="Takes the scale bar off the scene" onClick={() => void removeMapFurniture("scaleBar")}>
+          Remove
+        </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="north-arrow-add" disabled={busy.value} title="An arrow that turns with the map: on a flat map it follows the bearing, on the globe it follows the pole." onClick={() => void addMapNorthArrow()}>
+          Add north arrow
+        </button>
+        <label class="num-field" title="Which corner of the frame the north arrow sits in">
+          <select data-id="north-corner" value={northCorner.value} disabled={busy.value} onChange={(e) => (northCorner.value = (e.target as HTMLSelectElement).value as LegendCorner)}>
+            <option value="bottomLeft">Bottom left</option>
+            <option value="bottomRight">Bottom right</option>
+            <option value="topLeft">Top left</option>
+            <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <label class="check" title="The letter N under the arrow, staying upright while the arrow turns">
+          <input type="checkbox" data-id="north-letter" checked={northLetter.value} disabled={busy.value} onChange={(e) => (northLetter.value = (e.target as HTMLInputElement).checked)} />
+          <span>N</span>
+        </label>
+        <button class="small-button" data-id="north-arrow-remove" disabled={busy.value} title="Takes the north arrow off the scene" onClick={() => void removeMapFurniture("northArrow")}>
+          Remove
         </button>
       </div>
       <div class="muted small">The look is saved with the map. Render again to see it in the comp; labels, pins, routes and callouts made from now on match it.</div>
@@ -628,6 +673,26 @@ export function DataSheetView(): JSX.Element | null {
             <option value="topRight">Top right</option>
           </select>
         </label>
+        <button class="small-button" data-id="data-chart-add" disabled={busy.value || !fill} title="A chart of the numbers in the scene: a bar per place, longest first, each growing in turn from the current time. An ordinary precomp: move it, restyle it, animate it." onClick={() => void addDataChart()}>
+          Add chart
+        </button>
+        <label class="num-field" title="How many bars the chart shows, longest first">
+          <input type="number" min={2} max={30} step={1} data-id="chart-bars" value={chartBars.value} disabled={busy.value} onChange={(e) => (chartBars.value = Math.max(2, Math.min(30, Number((e.target as HTMLInputElement).value) || 8)))} />
+          <span class="muted">bars</span>
+        </label>
+        <label class="num-field" title="Which corner of the frame the chart starts in">
+          <select data-id="chart-corner" value={chartCorner.value} disabled={busy.value} onChange={(e) => (chartCorner.value = (e.target as HTMLSelectElement).value as LegendCorner)}>
+            <option value="bottomLeft">Bottom left</option>
+            <option value="bottomRight">Bottom right</option>
+            <option value="topLeft">Top left</option>
+            <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <button class="small-button" data-id="data-chart-remove" disabled={busy.value} title="Takes the chart off the scene" onClick={() => void removeDataChart()}>
+          Remove chart
+        </button>
+      </div>
+      <div class="sheet-row">
         <button class="small-button" data-id="data-legend-remove" disabled={busy.value} title="Takes the legend off the scene" onClick={() => void removeDataLegend()}>
           Remove legend
         </button>
