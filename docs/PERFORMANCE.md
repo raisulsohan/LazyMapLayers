@@ -19,7 +19,7 @@ failure is confirmed on a fresh instance before anything is changed.
 | Applying the shot list again | 800 ms | about 30 ms | SH1 |
 | Auto labels: the longest single call into After Effects | 3000 ms | 1.1–1.6 s | LB1 |
 | Auto labels: 60 names on a fresh instance | about 10 s in all | 9.8 s | LB1 (reported) |
-| Restyling the names already on the map: the longest call | 1500 ms | 587 ms for 32 layers | LB2 |
+| Restyling the names already on the map: the longest call | 1500 ms | 316 ms for 32 layers on a fresh instance (2,955 ms in the same instance right after D1 has rendered the 4K demo, as LB1 also does) | LB2 |
 | Placing the names already on the map again: the longest call | 1500 ms | measured by LB2 | LB2 |
 | A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
 | Shape layers from a data map | at most 40, largest first | 40 | core/style/dataShapes.ts |

@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.6.0 — a feature browser, live numbers, charts, map furniture, an inset map, labels of your own design, and a scripting API (2026-09-24)
 
 - **Live numbers.** **Watch a file…** in the Numbers sheet reads a table from a file on disk and
   keeps reading it: edit and save that file in a spreadsheet, a script or anything else, and the
@@ -40,7 +40,6 @@
   you coloured the map by: longest first, each bar growing in turn from the current time, with the
   place's name and its number beside it, in the colour that place has on the map. It is an ordinary
   precomp in the scene: move it, restyle it, animate it.
-
 - **Shapes from the numbers.** **Add shapes** in the Numbers sheet turns every place that has a
   number into its own editable shape layer: the fill strength and the stroke width follow the value,
   and the colour is the step the map gives it. They are ordinary shape layers with real paths that
