@@ -29,6 +29,7 @@ failure is confirmed on a fresh instance before anything is changed.
 | The scale bar and the north arrow | 2 expression evaluations per frame each | 2 | core/ae/mapFurniture.ts |
 | The inset map's view box | 32 projected points per frame | 32 | core/ae/mapFurniture.ts |
 | A watched table re-read after the file changes | 2 s | the poll's own interval | src/panel/store.ts |
+| A satellite area of nine tiles at zoom 13 | 30 s and 8 MB | 18 s and 3.9 MB (2026-09-25, measured outside the panel) | SN1 |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
 
 ## Rules the budgets come from

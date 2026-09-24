@@ -30,6 +30,7 @@ import { runDataTest } from "./dataTests.ts";
 import { runFurnitureTest } from "./furnitureTests.ts";
 import { runFeatureTest } from "./featureTests.ts";
 import { runEarthStudioTest } from "./earthStudioTests.ts";
+import { runSentinelTest } from "./sentinelTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -432,6 +433,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
   }
 
   // Online: only when it is named.
+  if (only && only.includes("SN1")) {
+    try {
+      results.SN1_satellite = await runSentinelTest(log);
+    } catch (error) {
+      results.SN1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SN1 failed: ${results.SN1_error}`, "fail");
+    }
+  }
+
   if (only && only.includes("OSM1")) {
     try {
       results.OSM1_openStreetMap = await runOsmTest(log);

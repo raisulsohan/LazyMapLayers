@@ -225,6 +225,27 @@ Import a CSV with a column of names and a column of numbers. The Numbers sheet o
 
 Every one of these has a **Remove**; **Remove** at the bottom takes the numbers off the map.
 
+## A satellite picture of your area
+
+Under the look, **Build for this area…** makes a real satellite basemap of whatever the preview is
+showing, at ten metres a pixel, from the European Union's Sentinel-2 imagery. It is free for any
+use, films you are paid for included, as long as the credit stays on the map, and it needs no
+account and no key.
+
+1. Frame the area in the preview.
+2. **Build for this area…**, give it a name, choose the detail (zoom 14 is ten metres a pixel) and
+   how far back to look for a clear pass.
+3. The panel says how many scenes it found, how cloudy they were, and about how much it will
+   download. Press **Build**.
+
+Each pixel comes from the clearest pass over that ground; where the clearest one had cloud or its
+shadow, the next pass fills in. The finished area is kept on your computer and drawn under every
+line and label, like any other imagery. Pick it again for another map from the same row, or remove
+it with the ✕ beside its name.
+
+A city at zoom 13 is a few megabytes and a couple of minutes; zoom 14 is four times that. Very
+cloudy places may need a longer window, and the panel says when it found nothing clear.
+
 ## A camera from Google Earth Studio
 
 Earth Studio (earth.google.com/studio, free with a Google account) renders photoreal Google Earth

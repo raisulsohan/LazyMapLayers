@@ -57,7 +57,7 @@ import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
-import { AttachSheetView, DataSheetView, FeatureSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
+import { AttachSheetView, DataSheetView, FeatureSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, SatelliteSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { IMPORT_ACCEPT } from "../data/importFile.ts";
 import { ShotsTab } from "./ShotsTab.tsx";
 
@@ -321,6 +321,7 @@ export function App(): JSX.Element {
         <DataSheetView />
         <OsmSheetView />
         <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
+        <SatelliteSheetView />
         <FeatureSheetView />
         <HighlightSheetView />
         <AttachSheetView />

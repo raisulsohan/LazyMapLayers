@@ -39,6 +39,7 @@ import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flo
 import { addDataBubbles, addDataChart, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, chartBars, chartCorner, removeDataChart, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { featureCountry, featureFilterText, featurePicks, featureScope, featureSheetOpen, featureSort, featureText, featureView, goToFeature, highlightPickedFeatures, mergePickedFeatures, pickEveryFeature, shapePickedFeatures, toggleFeaturePick } from "../store.ts";
+import { buildSatelliteArea, changeSatelliteSheet, satelliteSheet } from "../store.ts";
 import { connectPickedFeatures, countPointsInPicked, cutPickedFeatures, explodePickedFeatures, meshNeighbours } from "../store.ts";
 import { pickTableToWatch, stopWatchingTable, watchedTable } from "../store.ts";
 import type { FeatureScope } from "../features.ts";
@@ -48,6 +49,8 @@ import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride
 import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
 import { addMapMinimap, addMapNorthArrow, addMapScaleBar, minimapCorner, minimapZoomOut, northCorner, northLetter, removeMapFurniture, removeMapMinimap, scaleBarCorner, scaleBarUnits } from "../store.ts";
+import { openSatelliteSheet, removeSatelliteArea, satellitePacks, useSatelliteArea } from "../store.ts";
+import { satelliteNameOf } from "../../core/style/ownImagery.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -314,6 +317,42 @@ export function LookSheetView(): JSX.Element | null {
           Follow the look
         </button>
       </div>
+      <div class="section-title">Satellite picture</div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="satellite-open" disabled={busy.value} title="Builds a real satellite picture of the area in the preview from Sentinel-2, the European Union's open imagery: ten metres a pixel, free for any use with a credit." onClick={() => void openSatelliteSheet()}>
+          Build for this area…
+        </button>
+        {satellitePacks.value.length > 0 && (
+          <label class="num-field" title="Draw a satellite area you have already built on this map">
+            <select
+              data-id="satellite-pick"
+              value={satelliteNameOf(ownImagery.value?.url ?? "") ?? ""}
+              disabled={busy.value}
+              onChange={(e) => {
+                const picked = (e.target as HTMLSelectElement).value;
+                if (picked) void useSatelliteArea(picked);
+              }}
+            >
+              <option value="">Pick an area…</option>
+              {satellitePacks.value.map((pack) => (
+                <option key={pack.name} value={pack.name}>
+                  {pack.name} ({(pack.sizeBytes / 1048576).toFixed(0)} MB)
+                </option>
+              ))}
+            </select>
+          </label>
+        )}
+      </div>
+      {satellitePacks.value.map((pack) => (
+        <div key={pack.name} class="sheet-row import-row">
+          <span class="grow small" title={pack.scenes ?? ""}>
+            {pack.name} <span class="muted">· {(pack.sizeBytes / 1048576).toFixed(0)} MB · to zoom {pack.maxZoom ?? "?"}</span>
+          </span>
+          <button class="small-button" title="Takes this satellite area off this computer" onClick={() => void removeSatelliteArea(pack.name)}>
+            ✕
+          </button>
+        </div>
+      ))}
       <div class="section-title">Scale bar and north arrow</div>
       <div class="sheet-row">
         <button class="small-button" data-id="scale-bar-add" disabled={busy.value} title="A bar that says how far a screen distance is on the ground. It measures itself from the map on every frame, so it stays right through a zoom." onClick={() => void addMapScaleBar()}>
@@ -1077,6 +1116,70 @@ export function FeatureSheetView(): JSX.Element | null {
         <span class="spacer" />
         <button class="small-button" data-id="feature-close" onClick={() => (featureSheetOpen.value = false)}>
           Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
+/**
+ * Satellite pictures built from Sentinel-2 for the area in the preview: what the catalogue found,
+ * what a build would download, and the areas already on this computer.
+ */
+export function SatelliteSheetView(): JSX.Element | null {
+  const sheet = satelliteSheet.value;
+  if (!sheet) return null;
+  const plan = sheet.plan;
+  return (
+    <div class="sheet" data-id="satellite-sheet">
+      <div class="sheet-title">Satellite picture</div>
+      <div class="muted small">
+        The European Union's Sentinel-2 satellites photograph everywhere every few days and give the pictures away, for any use including films you are paid for, as long as they are credited. The panel builds the area in the
+        preview at ten metres a pixel, taking each pixel from the clearest pass over that ground.
+      </div>
+      <div class="sheet-row">
+        <label class="num-field grow">
+          <span>Name</span>
+          <input data-id="satellite-name" type="text" value={sheet.name} onInput={(e) => void changeSatelliteSheet({ name: (e.target as HTMLInputElement).value })} />
+        </label>
+        <label class="num-field" title="How much detail to build. Fourteen is about ten metres a pixel, the finest these satellites hold.">
+          <span>Detail</span>
+          <select data-id="satellite-zoom" value={String(sheet.maxZoom)} disabled={busy.value} onChange={(e) => void changeSatelliteSheet({ maxZoom: Number((e.target as HTMLSelectElement).value) })}>
+            {[11, 12, 13, 14, 15].map((z) => (
+              <option key={z} value={String(z)}>
+                zoom {z}
+              </option>
+            ))}
+          </select>
+        </label>
+        <label class="num-field" title="How far back to look for a clear pass over this ground">
+          <span>Within</span>
+          <select data-id="satellite-months" value={String(sheet.months)} disabled={busy.value} onChange={(e) => void changeSatelliteSheet({ months: Number((e.target as HTMLSelectElement).value) })}>
+            {[3, 6, 14, 24].map((m) => (
+              <option key={m} value={String(m)}>
+                {m} months
+              </option>
+            ))}
+          </select>
+        </label>
+      </div>
+      {sheet.looking && <div class="muted small">Asking the Copernicus catalogue what it has…</div>}
+      {!sheet.looking && sheet.message && <div class={plan?.scenes.length ? "muted small" : "warning small"}>{sheet.message}</div>}
+      {!!plan?.scenes.length && (
+        <div class="muted small">
+          {plan.scenes
+            .slice(0, 3)
+            .map((scene) => `${scene.date.slice(0, 10)} (${scene.cloud.toFixed(1)} % cloud)`)
+            .join(", ")}
+          {plan.scenes.length > 3 ? `, and ${plan.scenes.length - 3} more` : ""}
+        </div>
+      )}
+      <div class="sheet-row">
+        <button class="primary" data-id="satellite-build" disabled={busy.value || !plan?.scenes.length || !sheet.name.trim()} onClick={() => void buildSatelliteArea()}>
+          Build {plan ? `${plan.tiles.length} tiles (about ${(plan.estimateBytes / 1048576).toFixed(0)} MB)` : ""}
+        </button>
+        <button class="small-button" data-id="satellite-cancel" onClick={() => (satelliteSheet.value = null)}>
+          Cancel
         </button>
       </div>
     </div>

@@ -24,9 +24,15 @@ export type OwnImagery = {
 
 const XYZ = /^https?:\/\/\S+$/i;
 
+/** The address a satellite area the panel built answers to: its archive, by name, in the user folder. */
+export const SATELLITE_PREFIX = "satellite://";
+export const satelliteAddress = (name: string) => `${SATELLITE_PREFIX}${name}`;
+export const satelliteNameOf = (url: string): string | null => (url.startsWith(SATELLITE_PREFIX) ? url.slice(SATELLITE_PREFIX.length) : null);
+
 /** Whether an address is one the panel can draw: an XYZ template, or a PMTiles archive on the web. */
 export function isTileAddress(url: string): boolean {
   const text = url.trim();
+  if (satelliteNameOf(text)) return true;
   if (!XYZ.test(text)) return false;
   if (/\.pmtiles(\?.*)?$/i.test(text)) return true;
   return text.includes("{z}") && text.includes("{x}") && (text.includes("{y}") || text.includes("{-y}"));
@@ -58,7 +64,15 @@ export function normaliseOwnImagery(raw: unknown): OwnImagery | null {
 export type OwnImagerySource = { type: "raster"; tiles?: string[]; url?: string; tileSize: number; attribution: string; scheme?: "tms"; minzoom?: number; maxzoom?: number };
 
 /** The style source for the address: a tile template, or the archive through the pmtiles protocol. */
-export function ownImagerySource(setting: OwnImagery): OwnImagerySource {
+export function ownImagerySource(setting: OwnImagery, resolve?: (name: string) => string | null): OwnImagerySource {
+  const satellite = satelliteNameOf(setting.url);
+  if (satellite) {
+    const url = resolve?.(satellite);
+    const source: OwnImagerySource = { type: "raster", url: url ?? "", tileSize: setting.tileSize, attribution: setting.attribution };
+    if (setting.minZoom !== null) source.minzoom = setting.minZoom;
+    if (setting.maxZoom !== null) source.maxzoom = setting.maxZoom;
+    return source;
+  }
   const pmtiles = /\.pmtiles(\?.*)?$/i.test(setting.url);
   const source: OwnImagerySource = pmtiles ? { type: "raster", url: `pmtiles://${setting.url}`, tileSize: setting.tileSize, attribution: setting.attribution } : { type: "raster", tiles: [setting.url.replace("{-y}", "{y}")], tileSize: setting.tileSize, attribution: setting.attribution };
   if (!pmtiles && countsRowsFromSouth(setting.url)) source.scheme = "tms";
@@ -81,6 +95,8 @@ export function ownImageryLayer(setting: OwnImagery): { id: string; type: "raste
 
 /** What the sheet and the log say. */
 export const describeOwnImagery = (setting: OwnImagery): string => {
+  const satellite = satelliteNameOf(setting.url);
+  if (satellite) return `the satellite area "${satellite}"${setting.attribution ? ` (${setting.attribution})` : ""} at ${Math.round(setting.opacity * 100)} %`;
   let host = setting.url;
   try {
     host = new URL(setting.url).host;

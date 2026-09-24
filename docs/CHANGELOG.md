@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **A real satellite picture, built for your area, free.** **Build for this area…** under the look
+  makes a satellite basemap of whatever the preview is showing, at ten metres a pixel, from the
+  European Union's Sentinel-2 imagery. No account, no key, no trial: the catalogue and the scenes
+  are open, and the panel downloads only the pieces your area needs. Each pixel is taken from the
+  clearest pass over that ground, with cloud and its shadow left to the next pass, so a cloudy day
+  does not spoil the picture. It is kept as an archive on your computer, drawn under every line and
+  label, credited as Copernicus asks.
 - **A camera from Google Earth Studio.** Render your animation in Earth Studio, export its camera
   there (**File > Export > 3D Tracking Data**, as JSON), and open that file under **New map**. The
   panel builds a scene the size, length and frame rate of your render and keys this map's camera

@@ -887,6 +887,38 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D73 — A satellite picture built from Sentinel-2, with nobody signing up (2026-09-25)
+
+- **Why.** The plan's middle layer of imagery was missing: Blue Marble is the whole planet at half
+  a kilometre a pixel, the national orthophoto services are street scale but only in a handful of
+  countries, and everything in between was the user's own address. Ten metres a pixel, everywhere,
+  is what a city map needs, and Sentinel-2 gives it away for any use with a credit.
+- **Decision.** The panel reads the scenes itself. Element 84's open STAC catalogue says what was
+  photographed over an area and how cloudy it was; Amazon's open bucket holds each scene's
+  true-colour picture as a cloud-optimised GeoTIFF. Neither asks for an account, a key or a token,
+  which is what makes this fit the free-forever rule. core/image/geotiff.ts reads the directories
+  and decodes the deflate tiles (fflate, already here for PNG and PMTiles), so only the pieces of a
+  scene the area needs are ever downloaded - a city at zoom 13 is a few megabytes, not the 300 MB a
+  scene weighs.
+- **The true-colour asset, not the raw bands.** ESA already writes a colour-corrected 8-bit picture
+  (TCI) beside the raw reflectance bands. Using it means no band maths and no stretching to argue
+  about, and it is what the agency itself considers the scene's true colour.
+- **Each pixel from the clearest pass.** Scenes are taken clearest day first; a pixel is filled from
+  the first scene that has real ground there, with Sentinel-2's own classification saying what is
+  cloud, cloud shadow, snow or the black edge of a scene. A pixel the first pass lost is filled by
+  the next one, so one cloudy day does not spoil an area.
+- **The pieces are fetched before the painting, not during it.** A tile is 65,536 pixels; asking the
+  network per pixel was measured at 25 s for nine tiles, and fetching every scene up front at 87 s
+  and 13 MB. Fetching one scene's pieces, painting, and only opening the next scene if pixels are
+  still empty took 18 s and 3.9 MB for the same nine tiles.
+- **It is imagery of the user's own.** A built area is addressed as `satellite://<name>` and slots
+  into the own-imagery layer (D59), so the render passes, the credit line and the opacity all work
+  as they already did.
+- **Tested.** Unit tests for the grid (against Snyder's own series, worldwide, within a centimetre),
+  the GeoTIFF reader (a file written by the test, overviews included), the catalogue and the tile
+  painting (cloud fallback, black edges, nothing invented for a tile no scene covers). SN1, online
+  and only when named, builds a piece of Dhaka inside the panel and reads the archive back.
+
 ## D72 — The Earth Studio camera is read from its numbers, not from its script (2026-09-25)
 
 - **Why.** Earth Studio is the one way a designer can legally put photoreal Google Earth imagery in

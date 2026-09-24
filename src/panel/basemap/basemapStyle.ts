@@ -14,6 +14,7 @@ import { extensionRoot, fs, path } from "../cep.ts";
 import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
 import { naturalEarthStyle, type WorldImagery } from "./naturalEarthStyle.ts";
 import { hasImagery, imageryPath } from "../imagery/packs.ts";
+import { hasSatellite, satellitePath } from "../imagery/sentinelBuild.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
 import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
@@ -188,7 +189,8 @@ function withOwnImagery(style: StyleSpecification, own: OwnImagery): StyleSpecif
     if ((layer.type === "background" || layer.type === "fill" || layer.type === "raster") && ["background", "land", "water", "imagery"].includes(groupOf(layer))) at = index + 1;
   });
   layers.splice(at, 0, ownImageryLayer(own) as unknown as LayerSpecification);
-  return { ...style, sources: { ...style.sources, [OWN_IMAGERY_SOURCE]: ownImagerySource(own) as unknown as StyleSpecification["sources"][string] }, layers };
+  const source = ownImagerySource(own, (name) => (hasSatellite(name) ? registerLocalArchive(`lml-satellite-${name}`, satellitePath(name)) : null));
+  return { ...style, sources: { ...style.sources, [OWN_IMAGERY_SOURCE]: source as unknown as StyleSpecification["sources"][string] }, layers };
 }
 
 export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOptions): StyleSpecification {

@@ -67,6 +67,9 @@ import { cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
 import { addMesh } from "./overlays/mesh.ts";
 import { importCsvText } from "./data/importFile.ts";
 import { importEarthStudio } from "./earthStudio.ts";
+import { buildSatellite, encodeTile as encodeSatelliteTile, isSatelliteName, listSatellitePacks, planSatellite, satellitePath, type SatellitePackInfo, type SatellitePlan } from "./imagery/sentinelBuild.ts";
+import { SENTINEL_CREDIT } from "../core/imagery/sentinel.ts";
+import { satelliteAddress, satelliteNameOf } from "../core/style/ownImagery.ts";
 import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
@@ -2037,6 +2040,132 @@ export const importEarthStudioFile = (path?: string) =>
     );
   });
 
+/**
+ * Satellite areas built from Sentinel-2: the European Union photographs the whole world every few
+ * days and gives the pictures away, so the panel can build a real satellite basemap for an area with
+ * nobody signing up for anything.
+ */
+export const satellitePacks = signal<SatellitePackInfo[]>([]);
+export const satelliteSheet = signal<{ name: string; maxZoom: number; months: number; plan: SatellitePlan | null; looking: boolean; message: string | null } | null>(null);
+
+export async function refreshSatellitePacks(): Promise<void> {
+  try {
+    satellitePacks.value = await listSatellitePacks();
+  } catch (error) {
+    fail("reading the satellite areas", error);
+  }
+}
+
+/** Opens the sheet for the area in the preview, and asks the catalogue what there is. */
+export const openSatelliteSheet = () =>
+  run("satellite", async () => {
+    const view = compView();
+    if (!view) {
+      log("move the preview over the area you want first", "muted");
+      return;
+    }
+    const suggested = safeRegionName(lastPlaceName.value ?? "satellite");
+    satelliteSheet.value = { name: suggested, maxZoom: 14, months: 14, plan: null, looking: true, message: null };
+    await planSatelliteNow();
+  });
+
+async function planSatelliteNow(): Promise<void> {
+  const sheet = satelliteSheet.value;
+  const bbox = previewArea();
+  if (!sheet || !bbox) return;
+  satelliteSheet.value = { ...sheet, looking: true, message: null };
+  try {
+    const plan = await planSatellite(bbox, { maxZoom: sheet.maxZoom, months: sheet.months });
+    const now = satelliteSheet.value;
+    if (!now) return;
+    satelliteSheet.value = {
+      ...now,
+      plan,
+      looking: false,
+      message: plan.scenes.length
+        ? `${plan.scenes.length} clear ${plan.scenes.length === 1 ? "scene" : "scenes"} found, newest ${plan.scenes[0].date.slice(0, 10)}. ${plan.tiles.length} tiles to build, about ${(plan.estimateBytes / 1048576).toFixed(0)} MB to download.`
+        : "no clear Sentinel-2 scene covers this area in that window. Try more months, or a smaller area."
+    };
+  } catch (error) {
+    const now = satelliteSheet.value;
+    if (now) satelliteSheet.value = { ...now, looking: false, plan: null, message: error instanceof Error ? error.message : String(error) };
+  }
+}
+
+export const changeSatelliteSheet = (change: Partial<{ name: string; maxZoom: number; months: number }>) =>
+  run("satellite", async () => {
+    const sheet = satelliteSheet.value;
+    if (!sheet) return;
+    satelliteSheet.value = { ...sheet, ...change };
+    if (change.maxZoom !== undefined || change.months !== undefined) await planSatelliteNow();
+  });
+
+/** Builds the archive for the area, and gives it to this map as its imagery. */
+export const buildSatelliteArea = () =>
+  run("satellite", async () => {
+    const sheet = satelliteSheet.value;
+    if (!sheet?.plan) return;
+    const name = safeRegionName(sheet.name);
+    if (!isSatelliteName(name)) {
+      log("give the area a name of small letters, numbers, dashes or underscores", "muted");
+      return;
+    }
+    const stopper = new AbortController();
+    const label = `Building the satellite picture of ${name}`;
+    progress.value = { label, done: 0, total: sheet.plan.tiles.length, cancel: () => stopper.abort() };
+    const started = performance.now();
+    try {
+      const made = await buildSatellite(name, sheet.plan, {
+        signal: stopper.signal,
+        onProgress: (p) => (progress.value = { label: `${label} (${(p.bytes / 1048576).toFixed(1)} MB)`, done: p.done, total: p.total, cancel: () => stopper.abort() }),
+        encode: encodeSatelliteTile
+      });
+      await refreshSatellitePacks();
+      satelliteSheet.value = null;
+      const seconds = ((performance.now() - started) / 1000).toFixed(0);
+      log(
+        `"${name}" built: ${made.tiles} tiles from ${made.scenes.length} ${made.scenes.length === 1 ? "scene" : "scenes"} in ${seconds} s, ${(made.downloaded / 1048576).toFixed(1)} MB downloaded, ${(made.bytes / 1048576).toFixed(1)} MB kept${made.cancelled ? " (stopped early)" : ""}`,
+        "ok"
+      );
+      await useSatelliteArea(name);
+    } catch (error) {
+      fail("building the satellite picture", error);
+    } finally {
+      progress.value = null;
+    }
+  });
+
+/** Draws a built area on this map, as imagery over the ground and under the lines. */
+export const useSatelliteArea = (name: string) =>
+  run("satellite", async () => {
+    const pack = satellitePacks.value.find((entry) => entry.name === name) ?? (await listSatellitePacks()).find((entry: SatellitePackInfo) => entry.name === name);
+    if (!pack) {
+      log(`there is no satellite area called "${name}"`, "fail");
+      return;
+    }
+    await changeOwnImagery({
+      url: satelliteAddress(name),
+      attribution: pack.attribution ?? `${SENTINEL_CREDIT}`,
+      opacity: 1,
+      tileSize: 256,
+      minZoom: pack.minZoom,
+      maxZoom: pack.maxZoom
+    });
+  });
+
+export const removeSatelliteArea = (name: string) =>
+  run("satellite", async () => {
+    try {
+      nodeFs().unlinkSync(satellitePath(name));
+    } catch (error) {
+      fail("removing the satellite area", error);
+      return;
+    }
+    if (ownImagery.value && satelliteNameOf(ownImagery.value.url) === name) await changeOwnImagery({ url: "" });
+    await refreshSatellitePacks();
+    log(`the satellite area "${name}" is off this computer`, "ok");
+  });
+
 /** Where the legend of the numbers sits in the frame. */
 export const legendCorner = signal<LegendCorner>("bottomLeft");
 
@@ -2848,6 +2977,14 @@ export const findOsm = () =>
     }
   });
 
+/** The ground the preview is showing, which is what a download or a build covers. */
+export function previewArea(): Bbox | null {
+  const map = previewMap();
+  if (!map) return null;
+  const b = map.getBounds();
+  return { west: Math.max(-180, b.getWest()), south: Math.max(-85, b.getSouth()), east: Math.min(180, b.getEast()), north: Math.min(85, b.getNorth()) };
+}
+
 export function openRegionSheet(): void {
   const map = previewMap();
   if (!map) return;
@@ -3000,6 +3137,7 @@ export function startStore(): () => void {
   void refreshMaps(true);
   void refreshRegions();
   void refreshTerrainPacks();
+  void refreshSatellitePacks();
   renderQueue.load();
   jobs.value = [...renderQueue.jobs];
   const stopQueue = renderQueue.subscribe((event) => {

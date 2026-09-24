@@ -100,7 +100,7 @@ Good ideas from the category that users expect, which we implement in our own wa
   - Whole planet at low zoom: NASA Blue Marble and Black Marble (public domain).
   - Whole planet at about 10 m per pixel (city scale): a cloud-free Sentinel-2 mosaic that the
     panel builds locally for the region the user needs, from Copernicus open data (commercial
-    use allowed with attribution).
+    use allowed with attribution). Done 2026-09-25 (D73, SN1).
   - Street scale where governments publish open aerial photos: a curated catalogue of national
     open orthophoto services. Examples: USGS/NAIP (United States, public domain), IGN (France),
     PNOA (Spain), PDOK (Netherlands), swisstopo (Switzerland), Denmark, Estonia, Japan GSI. Each

@@ -86,6 +86,10 @@ Dhaka to Chittagong with an arrow, say:
   writes the numbers as text layers, and builds a legend and a bar chart as precomps. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.
+- **A real satellite picture of any area, free.** The panel builds a ten metre a pixel basemap from
+  the European Union's Sentinel-2 imagery, taking each pixel from the clearest pass and leaving
+  cloud to the next one. No account, no key: the catalogue and the scenes are open, and only the
+  pieces your area needs are downloaded.
 - **A camera from Google Earth Studio.** Export the camera of your own Earth Studio render as
   JSON, open it in the panel, and the map's camera is keyed to theirs frame by frame, so names,
   pins and routes sit on your footage. Track points arrive as pins.
