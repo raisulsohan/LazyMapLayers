@@ -36,7 +36,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
+import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, refreshLabelDesigns } from "../store.ts";
@@ -563,6 +563,25 @@ export function DataSheetView(): JSX.Element | null {
         <button class="small-button" data-id="data-spikes-remove" disabled={busy.value} title="Takes the spikes off the map" onClick={() => void removeDataSpikes()}>
           Remove spikes
         </button>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="data-shapes-add" disabled={busy.value || !fill} title="Every place with a number as its own editable shape layer: the fill and the stroke follow the value, and the colour is its step. Restyle or animate each one in After Effects." onClick={() => void addDataShapes()}>
+          Add shapes
+        </button>
+        <label class="num-field" title="How strongly the largest value is filled (the smallest is a quarter of it)">
+          <span>Fill</span>
+          <input type="number" min={0} max={100} step={5} data-id="shape-fill" value={Math.round(shapeFillMost.value * 100)} disabled={busy.value} onChange={(e) => (shapeFillMost.value = Math.max(0, Math.min(1, Number((e.target as HTMLInputElement).value) / 100)))} />
+          <span class="muted">%</span>
+        </label>
+        <label class="num-field" title="The stroke of the largest value, in pixels at 1080 lines">
+          <span>Stroke</span>
+          <input type="number" min={0} max={20} step={0.5} data-id="shape-stroke" value={shapeStrokeMost.value} disabled={busy.value} onChange={(e) => (shapeStrokeMost.value = Math.max(0, Math.min(20, Number((e.target as HTMLInputElement).value))))} />
+          <span class="muted">px</span>
+        </label>
+        <label class="check" title="Each shape in the colour of its step; off, all in the layer colour of this map">
+          <input type="checkbox" data-id="shapes-by-value" checked={shapesByValue.value} disabled={busy.value} onChange={(e) => (shapesByValue.value = (e.target as HTMLInputElement).checked)} />
+          <span>In step colours</span>
+        </label>
       </div>
       <div class="sheet-row">
         <button class="small-button" data-id="data-heat-add" disabled={busy.value || (!fill && !imported.value?.places.length)} title="Heat: every place warms the map around it by its number (or every place of the last imported file, alike). The renderer draws it as its own layer that follows the camera." onClick={() => void addDataHeat()}>

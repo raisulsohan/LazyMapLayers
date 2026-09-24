@@ -22,6 +22,7 @@ failure is confirmed on a fresh instance before anything is changed.
 | Restyling the names already on the map: the longest call | 1500 ms | 587 ms for 32 layers | LB2 |
 | Placing the names already on the map again: the longest call | 1500 ms | measured by LB2 | LB2 |
 | A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
+| Shape layers from a data map | at most 40, largest first | 40 | core/style/dataShapes.ts |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
 
 ## Rules the budgets come from

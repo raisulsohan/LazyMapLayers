@@ -180,6 +180,9 @@ Import a CSV with a column of names and a column of numbers. The Numbers sheet o
 - **Flows**: when the table has a place at each end of a row and an amount (origin, destination,
   passengers), **Draw flows** makes one great-circle arc per row, its width the amount, all drawing
   on together from the current time, with **Arrows** riding and **In step colours** if you like.
+- **Add shapes**: every place that has a number as its own editable shape layer - fill strength and
+  stroke width from the value, colour from its step. Real paths that follow the map, so you can
+  animate or restyle one country by hand. Up to forty, largest first.
 - **Add legend**: a precomp with the colours, the bubble sizes, the spike heights and the heat's
   three steps, in the corner you pick. It is an ordinary precomp: move it, restyle it, animate it.
 

@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Shapes from the numbers.** **Add shapes** in the Numbers sheet turns every place that has a
+  number into its own editable shape layer: the fill strength and the stroke width follow the value,
+  and the colour is the step the map gives it. They are ordinary shape layers with real paths that
+  follow the camera, so a single country can be animated, glowed or restyled by hand. Up to forty,
+  largest first.
 - **Labels you design yourself.** Make a comp - a box, an icon, a line, whatever you draw - with text
   layers that say `{name}`, `Pop. {populationShort}`, `{country}` and so on, and pick it under **Your
   own design** in the Labels sheet. Every place then gets a copy of your comp with its fields filled

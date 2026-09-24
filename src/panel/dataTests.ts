@@ -15,6 +15,9 @@ import { districtJoinTargets, districtSetOf } from "./data/districts.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { createMapComp } from "./mapApi.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
+import { addFeatureShape } from "./overlays/shapeFeature.ts";
+import { dataShapes } from "../core/style/dataShapes.ts";
+import { countryOutline } from "./data/countries.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -214,6 +217,44 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     }
     if (worst > 0.05) problems.push(`a spike is ${worst.toFixed(2)} px off its place`);
   }
+  // Shapes from the numbers: one editable shape layer per country, filled and stroked by its value.
+  const shapeSet = dataShapes(fill, { limit: 4 });
+  let shapesMade = 0;
+  for (const shape of shapeSet.shapes) {
+    const outline = countryOutline(shape.code);
+    if (!outline) continue;
+    await addFeatureShape(map.id, { name: `${shape.code} (${shape.value})`, polygons: outline.polygons, code: shape.code }, { color: shape.color, fill: shape.fill, outline: shape.outline });
+    shapesMade++;
+  }
+  const drawnShapes = JSON.parse(
+    await evalScript(`(function () {
+      var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, out = [];
+      for (var i = 1; i <= scene.numLayers; i++) {
+        var layer = scene.layer(i), tag = LML.tag.read(layer);
+        if (!tag || tag.kind !== "feature") continue;
+        var contents = layer.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group");
+        var fillProp = contents.property("ADBE Vector Graphic - Fill");
+        var strokeProp = contents.property("ADBE Vector Graphic - Stroke");
+        out.push({
+          name: layer.name,
+          fillOpacity: fillProp ? fillProp.property("ADBE Vector Fill Opacity").value : null,
+          strokeWidth: strokeProp ? strokeProp.property("ADBE Vector Stroke Width").value : null,
+          color: fillProp ? fillProp.property("ADBE Vector Fill Color").value.slice(0, 3).join(",") : null
+        });
+      }
+      return LML.json.stringify(out);
+    })()`)
+  ) as { name: string; fillOpacity: number | null; strokeWidth: number | null; color: string | null }[];
+  if (drawnShapes.length !== shapesMade) problems.push(`${shapesMade} shapes were drawn, ${drawnShapes.length} are in the scene`);
+  const widestShape = drawnShapes.find((shape) => shape.name.indexOf("IND") >= 0);
+  const thinnestShape = drawnShapes.find((shape) => shape.name.indexOf("JPN") >= 0);
+  if (!widestShape || !thinnestShape) problems.push(`the shapes are ${drawnShapes.map((shape) => shape.name).join(", ")}`);
+  else {
+    if (!(widestShape.fillOpacity! > thinnestShape.fillOpacity!)) problems.push(`the largest value is filled ${widestShape.fillOpacity} and the smallest ${thinnestShape.fillOpacity}`);
+    if (!(widestShape.strokeWidth! > thinnestShape.strokeWidth!)) problems.push(`the largest value is stroked ${widestShape.strokeWidth} and the smallest ${thinnestShape.strokeWidth}`);
+    if (widestShape.color === thinnestShape.color) problems.push(`both shapes are ${widestShape.color}`);
+  }
+
   // The numbers themselves, written under the circles.
   const written = await addValueLabels(map.id, fill, places, { theme: "midnight", maxRadius: 50, withNames: false });
   if (written.expressionErrors.length) problems.push(`value expressions: ${written.expressionErrors.slice(0, 2).join("; ")}`);
@@ -396,5 +437,5 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     passed ? "ok" : "fail"
   );
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, districts, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
+  return { passed, values: written.labels, bubbleOffset: Math.round(bubbleOffset * 1000) / 1000, spikes: spikes.set.spikes.map((spike) => ({ id: spike.id, height: spike.height })), states: byState.matched.length, shapes: drawnShapes.length, districts, joined: joined.matched.length, unmatched: joined.unmatched.length, codes, legend: colours.legend.map((step) => step.label), layer: dataLayer?.name ?? null, legendComp: built ? `${built.width}x${built.height} at ${built.x}, ${built.y}` : null, problems };
 }

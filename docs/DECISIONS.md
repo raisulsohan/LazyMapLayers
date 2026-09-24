@@ -887,6 +887,20 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D65 — The numbers drive shape layers, not only the rendered fill (2026-09-24)
+
+- **Why.** The rendered data layer is one image: quick, and right for two hundred countries, but a
+  designer cannot animate one country in it. The paid tools drive a shape layer's fill, stroke and
+  opacity from a feature's property; that is what makes a data map feel hand-made.
+- **Decision.** core/style/dataShapes.ts turns a data fill into a shape per place: the value's share
+  of the span between the smallest and the largest sets the fill strength and the stroke width
+  (the sheet sets what the largest is worth), and the colour is the step the choropleth would give,
+  so the shapes and the rendered layer agree. Each becomes an ordinary shape layer through the same
+  path builder as a highlight's outline (D30, D48), with its level of detail and its draw-on.
+- **Capped at forty, largest first.** Every shape projects its points on every frame; forty is what
+  keeps a 1080p frame under the budget (docs/PERFORMANCE.md). Places whose outline the panel does
+  not hold - a district set that is not downloaded - are counted and said, not guessed.
+
 ## D64 — Labels from a comp of the user's own (2026-09-24)
 
 - **Why.** The one thing a designer sees first in a map animation is the label: a box, a rule, an

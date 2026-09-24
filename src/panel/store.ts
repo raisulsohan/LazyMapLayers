@@ -27,6 +27,8 @@ import { lookFileName, readLookFile, writeLookFile } from "../core/style/lookFil
 import { readSwatchFile } from "../core/style/swatchFile.ts";
 import { bubbleSet, type BubblePlace } from "../core/style/bubbles.ts";
 import { spikeSet } from "../core/style/spikes.ts";
+import { dataShapes, DEFAULT_DATA_SHAPES, MAX_DATA_SHAPES } from "../core/style/dataShapes.ts";
+import { formatValue } from "../core/style/valueScale.ts";
 import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
 import { DEFAULT_DETAILS, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
 import { describeOwnImagery, isTileAddress, normaliseOwnImagery, type OwnImagery } from "../core/style/ownImagery.ts";
@@ -1812,6 +1814,61 @@ export const removeDataSpikes = () =>
     const gone = await removeSpikes(selectedId.value);
     spikesOn.value = false;
     log(gone.removed ? "the spikes are off the map" : "this map has no spikes", gone.removed ? "ok" : "muted");
+  });
+
+/** How strongly the shapes of a data map are filled and stroked (the largest value's values). */
+export const shapeFillMost = signal(DEFAULT_DATA_SHAPES.fillMost);
+export const shapeStrokeMost = signal(DEFAULT_DATA_SHAPES.strokeMost);
+export const shapesByValue = signal(true);
+
+/** What a place with a number is called: the name its own data carries. */
+function nameOfPlace(fill: DataFill, code: string): string {
+  if (fill.level === "country") return countryCodeRows().find((row) => row.code === code)?.names[0] ?? code;
+  if (fill.level === "district" && fill.country) return districtPoint(fill.country, code)?.name ?? code;
+  return provincePoint(code)?.name ?? code;
+}
+
+/** The outline of a place a data fill names: a country, a province of one, or a district. */
+function outlineOfPlace(fill: DataFill, code: string): number[][][][] | null {
+  if (fill.level === "country") return countryOutline(code)?.polygons ?? null;
+  if (!fill.country) return null;
+  const units = fill.level === "province" ? provincesOf(fill.country) : districtsOf(fill.country);
+  return units.find((unit) => unit.id === code)?.polygons ?? null;
+}
+
+/** Every place with a number as its own editable shape layer, filled and stroked by that number. */
+export const addDataShapes = () =>
+  run("shapes from the numbers", async () => {
+    const fill = dataFill.value;
+    const entry = (await readMaps()).find((map) => map.mapId === selectedId.value);
+    if (!fill || !entry) {
+      log("colour the map by a table first", "muted");
+      return;
+    }
+    const set = dataShapes(fill, { fillMost: shapeFillMost.value, strokeMost: shapeStrokeMost.value, colorByValue: shapesByValue.value, color: currentLayerStyle.value.accent, limit: MAX_DATA_SHAPES });
+    const start = currentMapFrame(entry);
+    const draw = shapeDrawOn.value ? Math.round(4 * entry.frameRate) : 0;
+    let made = 0;
+    let missing = 0;
+    const errors: string[] = [];
+    for (const [index, shape] of set.shapes.entries()) {
+      const polygons = outlineOfPlace(fill, shape.code);
+      if (!polygons) {
+        missing++;
+        continue;
+      }
+      progress.value = { label: `Drawing ${set.shapes.length} shapes`, done: index, total: set.shapes.length };
+      const name = `${nameOfPlace(fill, shape.code)} (${formatValue(shape.value)})`;
+      const built = await addFeatureShape(entry.mapId, { name, polygons, code: shape.code }, { color: shape.color, fill: shape.fill, outline: shape.outline, startFrame: start, drawFrames: draw, terrain: terrain.value });
+      errors.push(...built.expressionErrors);
+      made++;
+    }
+    const dropped = set.dropped ? `, ${set.dropped} smaller ones left out` : "";
+    const gone = missing ? `, ${missing} without an outline in this build` : "";
+    log(
+      `${made} shape layers from ${fill.column}${dropped}${gone}. Each is an ordinary shape layer: restyle or animate it, and it follows the map`,
+      errors.length ? "fail" : "ok"
+    );
   });
 
 /** Heat on the map: the table's places warm it by their numbers, or the last import's places do, alike. */
