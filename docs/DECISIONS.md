@@ -943,7 +943,9 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** Unit tests for the filter language, the sorting, the limits and the four operations,
   including that a half-overlapping shape is not cut and that a hole takes exactly its own area out;
   U1 opens the browser in After Effects, filters the countries by population, ticks them and builds
-  the shape layers.
+  the shape layers; FB1 breaks the Philippines into its 97 islands (their areas add up to the whole),
+  cuts a hole and counts the points left inside it, and draws the mesh between four countries as six
+  route layers whose paths After Effects evaluates without an error.
 
 ## D68 — The inset map is a map, not a picture of one (2026-09-24)
 

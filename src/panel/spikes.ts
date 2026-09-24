@@ -28,6 +28,7 @@ import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
 import { runFurnitureTest } from "./furnitureTests.ts";
+import { runFeatureTest } from "./featureTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -381,6 +382,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LD1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LD1 failed: ${results.LD1_error}`, "fail");
+    }
+  }
+
+  if (wants("FB1")) {
+    try {
+      results.FB1_features = await runFeatureTest(log);
+    } catch (error) {
+      results.FB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`FB1 failed: ${results.FB1_error}`, "fail");
     }
   }
 
