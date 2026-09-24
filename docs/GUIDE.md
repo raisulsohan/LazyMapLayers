@@ -225,6 +225,24 @@ Import a CSV with a column of names and a column of numbers. The Numbers sheet o
 
 Every one of these has a **Remove**; **Remove** at the bottom takes the numbers off the map.
 
+## A camera from Google Earth Studio
+
+Earth Studio (earth.google.com/studio, free with a Google account) renders photoreal Google Earth
+animations in the browser. To put the panel's layers on that footage:
+
+1. Animate and render your shot in Earth Studio as usual.
+2. There, **File > Export > 3D Tracking Data…**, pick **JSON**, and save it.
+3. In the panel: **+** (new map) > **Open a tracking file…** under *From Google Earth Studio*.
+
+The panel makes a scene the size, length and frame rate of your render and keys the map's camera
+to theirs, frame by frame. Import your rendered frames in After Effects and drop them under the
+map layer: the names, pins, routes and outlines you add from then on sit on the footage. Track
+points you set in Earth Studio come in as pins with their names.
+
+A flat or gently tilted shot lines up closely. A steep, low shot over hills or tall buildings will
+not line up as well, because Earth Studio renders real 3D and the panel renders a map; the panel
+says so when the camera tilts past 25 degrees.
+
 ## Live numbers
 
 **Watch a file…** in the Numbers sheet reads a table from a file on disk and keeps reading it.

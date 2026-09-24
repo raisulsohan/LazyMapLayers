@@ -887,6 +887,35 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D72 — The Earth Studio camera is read from its numbers, not from its script (2026-09-25)
+
+- **Why.** Earth Studio is the one way a designer can legally put photoreal Google Earth imagery in
+  a film: they render it themselves, under Google's terms. What they then need is for the panel's
+  layers to sit on that footage, which means the panel has to know where their camera was. It was
+  the last item left in Phase 4.
+- **Decision.** The panel reads the JSON export, not the .jsx. The .jsx is an After Effects script
+  that builds a comp, two helper nulls and a camera, and would have to be run and then read back;
+  the JSON carries the same camera as plain numbers - per frame a latitude, longitude, altitude, a
+  field of view and an After Effects rotation - which is what core/earth/earthStudio.ts turns into a
+  view of ours. (Chrome also blocks a .jsx download as a script, which a user should not have to
+  fight.)
+- **What the numbers mean, checked against a real export.** Their Earth-centred positions sit on a
+  sphere of 6,371,010 m: every frame and track point of a real export agrees within 3 m. The
+  rotation is applied X then Y then Z and turns the camera's own axes into Earth-centred ones, with
+  the camera looking down its own +Z; from it the panel takes the tilt from straight down and the
+  way the camera faces. A track point's place is written as shares of a range, which read back as
+  degrees and metres.
+- **The scale is matched at the middle of the frame.** Their camera at altitude h, tilted by p, is
+  h / cos(p) from the ground it points at, and covers 2 tan(fov/2) of that distance over the comp's
+  height; the zoom that shows the same ground follows. A flat or gently tilted view lines up
+  closely; a steep one over hills or towers will not, because they render true 3D and the panel
+  renders a map, and the panel says so when the tilt passes 25 degrees.
+- **Tested.** Unit tests read a file shaped as Earth Studio writes them, put a real export's first
+  frame back on the sphere within 3 m, and take 256 camera orientations around the loop from view
+  to rotation and back. ES1 imports a 60-frame flight that turns, tilts and descends, then reads the
+  camera keys back out of After Effects and compares every sampled one with the view the file asks
+  for.
+
 ## D71 — Scripts drive the panel through a folder, not through a port (2026-09-24)
 
 - **Why.** A studio that makes forty maps a week wants them made by a script, and the paid tools

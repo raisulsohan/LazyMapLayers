@@ -66,6 +66,7 @@ import { featureCentre, featurePolygons, featureRows, type FeatureScope, type Fe
 import { cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
 import { addMesh } from "./overlays/mesh.ts";
 import { importCsvText } from "./data/importFile.ts";
+import { importEarthStudio } from "./earthStudio.ts";
 import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
@@ -1988,6 +1989,52 @@ export const pickTableToWatch = () =>
     const picked = await callHost<{ path: string; text: string } | null>("openTextFile", { title: "Watch a table of numbers" });
     if (!picked) return;
     await startWatching(picked.path);
+  });
+
+/**
+ * A camera from Google Earth Studio: the panel builds a scene the size and length of that render and
+ * keys this map's camera to theirs, so the panel's layers sit on their footage.
+ */
+export const earthStudioPins = signal(true);
+
+export const importEarthStudioFile = (path?: string) =>
+  run("Earth Studio", async () => {
+    let text = "";
+    let name = "";
+    if (path) {
+      text = nodeFs().readFileSync(path, "utf8") as string;
+      name = path.split(/[\\/]/).pop() ?? "";
+    } else {
+      const picked = await callHost<{ path: string; text: string } | null>("openTextFile", { title: "Open an Earth Studio 3D tracking file (JSON)" });
+      if (!picked) return;
+      text = picked.text;
+      name = picked.path.split(/[\\/]/).pop() ?? "";
+    }
+    const label = "Reading the Earth Studio camera";
+    progress.value = { label, done: 0, total: 1 };
+    let made;
+    try {
+      made = await importEarthStudio(text, {
+        pinTrackPoints: earthStudioPins.value,
+        onProgress: (done, total) => (progress.value = { label, done, total })
+      });
+    } catch (error) {
+      log(`${name || "that file"}: ${error instanceof Error ? error.message : String(error)}`, "fail");
+      return;
+    } finally {
+      progress.value = null;
+    }
+    selectedId.value = made.map.id;
+    screen.value = "main";
+    const list = await readMaps();
+    const entry = list.find((m) => m.mapId === made.map.id) ?? null;
+    if (entry) showMap(entry);
+    for (const listener of mapListeners) listener(entry);
+    const tilted = made.mostPitch > 25 ? `. The camera tilts to ${Math.round(made.mostPitch)} degrees; a tilted view of hills or towers will not line up as closely as a flat one` : "";
+    log(
+      `"${made.project.name}" read: ${made.keys} camera keys at ${made.project.frameRate} fps, ${made.project.width}x${made.project.height}${made.pins ? `, ${made.pins} track ${made.pins === 1 ? "point" : "points"} pinned` : ""}. Import your Earth Studio footage and drop it under the map layer${tilted}`,
+      "ok"
+    );
   });
 
 /** Where the legend of the numbers sits in the frame. */

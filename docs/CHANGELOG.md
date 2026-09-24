@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **A camera from Google Earth Studio.** Render your animation in Earth Studio, export its camera
+  there (**File > Export > 3D Tracking Data**, as JSON), and open that file under **New map**. The
+  panel builds a scene the size, length and frame rate of your render and keys this map's camera
+  to theirs, frame by frame, so names, pins, routes and outlines sit on your footage. The track
+  points you set in Earth Studio arrive as pins with their names. Import the footage yourself and
+  drop it under the map layer; nothing of Google's is bundled or fetched by the panel.
+
 ## 0.6.0 — a feature browser, live numbers, charts, map furniture, an inset map, labels of your own design, and a scripting API (2026-09-24)
 
 - **Live numbers.** **Watch a file…** in the Numbers sheet reads a table from a file on disk and

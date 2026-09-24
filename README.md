@@ -86,6 +86,9 @@ Dhaka to Chittagong with an arrow, say:
   writes the numbers as text layers, and builds a legend and a bar chart as precomps. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.
+- **A camera from Google Earth Studio.** Export the camera of your own Earth Studio render as
+  JSON, open it in the panel, and the map's camera is keyed to theirs frame by frame, so names,
+  pins and routes sit on your footage. Track points arrive as pins.
 - **Live numbers.** Watch a CSV on disk: edit it anywhere and the table is read again and the map
   coloured again, with no import.
 - **Driven by your own scripts.** Turn it on and any program on the computer can make maps, move

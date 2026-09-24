@@ -7,6 +7,7 @@ import { callHost, isInCep } from "../cep.ts";
 import { compSize } from "../preview.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
 import { buildNumbersSample, hostInfo, reportProblem, scriptingOn, setScriptingOn, setUpdatesOn, updatesOn } from "../store.ts";
+import { earthStudioPins, importEarthStudioFile } from "../store.ts";
 import { openUrl } from "../cep.ts";
 import { RELEASES_URL } from "../updates.ts";
 import { formatTime } from "../shots/shotsStore.ts";
@@ -207,6 +208,18 @@ export function NewMapScreen(): JSX.Element {
           onClick={() => void createMap({ name: name.trim(), width, height, frameRate, duration, newScene: !useActive })}
         >
           Create map
+        </button>
+        <div class="section-title">From Google Earth Studio</div>
+        <div class="muted small">
+          Render your animation in Earth Studio, then export its camera there with <b>File &gt; Export &gt; 3D Tracking Data</b> as <b>JSON</b>. The panel makes a scene the size and length of that render and keys this map's camera to
+          theirs, so names, pins, routes and outlines sit on your footage. Import the footage yourself and drop it under the map layer.
+        </div>
+        <label class="check" title="A pin on each track point you set in Earth Studio, with its name">
+          <input type="checkbox" data-id="earth-studio-pins" checked={earthStudioPins.value} onChange={(e) => (earthStudioPins.value = (e.target as HTMLInputElement).checked)} />
+          Pin the track points
+        </label>
+        <button class="wide" data-id="earth-studio-import" disabled={busy.value} onClick={() => void importEarthStudioFile()}>
+          Open a tracking file…
         </button>
       </div>
     </div>
