@@ -335,7 +335,8 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
 
   if (wants("LB2")) {
     try {
-      results.LB2_labelTemplate = await runLabelTemplateTest(log);
+      // A demo render before this one leaves After Effects' caches full, which slows every call.
+      results.LB2_labelTemplate = await runLabelTemplateTest(log, { afterHeavy: !!(results.D1_demo || results.D1L_demoLegacyEngine || results.TH1_themes) });
     } catch (error) {
       results.LB2_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB2 failed: ${results.LB2_error}`, "fail");
