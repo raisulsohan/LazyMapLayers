@@ -359,6 +359,33 @@ async function runUiScenario() {
   console.log(`U1 circle: ${await areaState()} ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   await sleep(1200);
   await shot("07i-combined");
+  // The feature browser: every country in one list, filtered by a property, ticked and turned into
+  // shape layers.
+  await click("feature-browse");
+  await sleep(400);
+  await type('[data-id="feature-filter"]', "population > 200000000");
+  await sleep(500);
+  const filtered = await panel.evaluate(
+    "JSON.stringify({ rows: window.lmlDebug.store.featureView.value.rows.map((r) => r.name), total: window.lmlDebug.store.featureView.value.total, keys: window.lmlDebug.store.featureView.value.keys })"
+  );
+  console.log(`U1 feature filter: ${filtered}`);
+  await shot("07p-features");
+  await click("feature-pick-all");
+  await sleep(200);
+  console.log(`U1 features ticked: ${await panel.evaluate("window.lmlDebug.store.featurePicks.value.length")}`);
+  // One small country as a shape layer: the same path, without minutes of outline building.
+  await type('[data-id="feature-filter"]', "", true);
+  await type('[data-id="feature-text"]', "Luxembourg");
+  await sleep(400);
+  await click("feature-pick-all");
+  await sleep(200);
+  console.log(`U1 feature picked: ${await panel.evaluate("JSON.stringify(window.lmlDebug.store.featurePicks.value)")}`);
+  await click("feature-shapes");
+  await idle();
+  console.log(`U1 feature shapes: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  await type('[data-id="feature-text"]', "", true);
+  await click("feature-close");
+  await sleep(200);
     await panel.evaluate(`(() => { [...${control("highlight-sheet")}.querySelectorAll("button")].find((b) => b.textContent.trim() === "Done").click(); return true; })()`);
   // The attach tool reads what is selected in After Effects (nothing, here).
   await click("tool-attach");
@@ -433,6 +460,54 @@ async function runUiScenario() {
   );
   console.log(`U1 data join: ${joinText}`);
   console.log(`U1 data fill: ${dataState}`);
+  // The scripting API: a request left in the folder by something outside the panel, and answered.
+  await panel.evaluate("(window.lmlDebug.store.setScriptingOn(true), true)");
+  const apiFolder = path.join(process.env.APPDATA || path.join(os.homedir(), "Library", "Application Support"), "LazyMapLayers", "api");
+  fs.mkdirSync(apiFolder, { recursive: true });
+  const ask = async (name, body, waitMs = 12000) => {
+    const answerFile = path.join(apiFolder, `${name}.result.json`);
+    fs.rmSync(answerFile, { force: true });
+    fs.writeFileSync(path.join(apiFolder, `${name}.json`), JSON.stringify(body), "utf8");
+    for (let waited = 0; waited < waitMs; waited += 250) {
+      await sleep(250);
+      if (fs.existsSync(answerFile)) {
+        const text = fs.readFileSync(answerFile, "utf8");
+        fs.rmSync(answerFile, { force: true });
+        return text;
+      }
+    }
+    return "(no answer)";
+  };
+  console.log(`U1 scripting version: ${await ask("u1-version", { id: "u1-version", call: "version" })}`);
+  console.log(`U1 scripting view: ${await ask("u1-view", { id: "u1-view", call: "view" })}`);
+  console.log(`U1 scripting refused: ${await ask("u1-bad", { id: "u1-bad", call: "deleteEverything" })}`);
+  await panel.evaluate("(window.lmlDebug.store.setScriptingOn(false), true)");
+  console.log(`U1 scripting off: ${await ask("u1-after", { id: "u1-after", call: "version" }, 3000)}`);
+  fs.rmSync(path.join(apiFolder, "u1-after.json"), { force: true });
+
+  // Live numbers: a file on disk, watched. Changing it re-reads the table and colours the map again.
+  const livePath = path.join(spikeDir, "live-people.csv");
+  const liveFirst = ["Country,People (millions)", "France,68.1", "Germany,84.4", "Italy,59"].join("\n");
+  fs.writeFileSync(livePath, liveFirst, "utf8");
+  await panel.evaluate(`window.lmlDebug.store.watchTableFile(${JSON.stringify(livePath)}).then(() => true)`);
+  await idle();
+  await click("data-apply");
+  await idle();
+  const liveBefore = await panel.evaluate(
+    '(() => { const f = window.lmlDebug.store.dataFill.value; const w = window.lmlDebug.store.watchedTable.value; return JSON.stringify({ rows: window.lmlDebug.store.dataTable.value.rows.length, values: f && f.values, watching: w && w.name, changes: w && w.changes }); })()'
+  );
+  console.log(`U1 live numbers: ${liveBefore}`);
+  // The file changes behind the panel: a new country and a different number.
+  fs.writeFileSync(livePath, [liveFirst, "Spain,48.4"].join("\n"), "utf8");
+  await sleep(4000);
+  await idle();
+  const liveAfter = await panel.evaluate(
+    '(() => { const f = window.lmlDebug.store.dataFill.value; const w = window.lmlDebug.store.watchedTable.value; return JSON.stringify({ rows: window.lmlDebug.store.dataTable.value.rows.length, values: f && f.values, changes: w && w.changes, log: window.lmlDebug.log().slice(-1)[0] }); })()'
+  );
+  console.log(`U1 live numbers after the file changed: ${liveAfter}`);
+  await panel.evaluate("(window.lmlDebug.store.stopWatchingTable(), true)");
+  await sleep(200);
+  console.log(`U1 live numbers stopped: ${await panel.evaluate("JSON.stringify(window.lmlDebug.store.watchedTable.value)")}`);
   await click("data-bubbles-add");
   await idle();
   await click("data-spikes-add");

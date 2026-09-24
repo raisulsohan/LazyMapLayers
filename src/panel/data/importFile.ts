@@ -58,19 +58,28 @@ function zipToGeoJson(bytes: Uint8Array, fileName: string): unknown {
 /** What a file held: lines, places and areas, or - for a CSV of numbers about countries - a table. */
 export type ImportedFile = Imported & { fileName: string; table?: DataTable };
 
+/**
+ * A table (or a set of points) read from text the panel already holds: the same reading as an
+ * imported file, for a watched file that changed on disk.
+ */
+export function importCsvText(text: string, fileName: string): ImportedFile {
+  const parsed = Papa.parse<string[]>(text, { skipEmptyLines: "greedy", preview: MAX_TABLE_ROWS + 50 });
+  const imported = importTable(parsed.data, fileName);
+  if (!imported.lines.length && !imported.places.length) {
+    const table = readDataTable(parsed.data, fileName);
+    if (table) return { lines: [], places: [], areas: [], skipped: 0, fileName, table };
+    throw new Error(`${fileName}: no latitude and longitude columns found (name them lat and lng, or latitude and longitude), and no column of numbers to colour countries by`);
+  }
+  return { ...imported, fileName };
+}
+
 export async function importFile(file: File): Promise<ImportedFile> {
   if (file.size > MAX_IMPORT_BYTES) throw new Error(`${file.name} is ${(file.size / 1048576).toFixed(0)} MB; files up to ${MAX_IMPORT_BYTES / 1048576} MB can be imported`);
   const extension = extensionOf(file.name);
   let imported: Imported;
   if (extension === "csv" || extension === "tsv" || extension === "txt") {
-    const parsed = Papa.parse<string[]>(await file.text(), { skipEmptyLines: "greedy", preview: MAX_TABLE_ROWS + 50 });
-    imported = importTable(parsed.data, file.name);
-    if (!imported.lines.length && !imported.places.length) {
-      // No coordinates: a table of numbers about countries, which colours the map instead.
-      const table = readDataTable(parsed.data, file.name);
-      if (table) return { lines: [], places: [], areas: [], skipped: 0, fileName: file.name, table };
-      throw new Error(`${file.name}: no latitude and longitude columns found (name them lat and lng, or latitude and longitude), and no column of numbers to colour countries by`);
-    }
+    // No coordinates in it: a table of numbers about places, which colours the map instead.
+    return importCsvText(await file.text(), file.name);
   } else {
     let data: unknown;
     if (extension === "kmz" || extension === "zip") data = zipToGeoJson(new Uint8Array(await file.arrayBuffer()), file.name);

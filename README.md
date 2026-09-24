@@ -86,6 +86,14 @@ Dhaka to Chittagong with an arrow, say:
   writes the numbers as text layers, and builds a legend and a bar chart as precomps. Places are found by name in 26
   languages, by ISO code, by a state's short code or by the map's own code; rows that match nothing
   are listed rather than coloured on a guess.
+- **Live numbers.** Watch a CSV on disk: edit it anywhere and the table is read again and the map
+  coloured again, with no import.
+- **Driven by your own scripts.** Turn it on and any program on the computer can make maps, move
+  the camera, add layers and render, by leaving a small file for the panel to answer.
+- **A feature browser.** Every country, province, district or imported shape in one list: search
+  it, sort it by any property, filter it in words (`population > 200000000`), then highlight what
+  is left, add it as shape layers, merge it, break it apart, cut one shape out of another, count
+  the points inside each, or join them all with connection lines.
 - **An inset map that is a real map.** A locator in the corner, as many zooms wider as you ask,
   with a box on it that moves and turns with the big map on every frame. The inset takes its own
   look, its own names and its own render, because it is another map in the same scene.

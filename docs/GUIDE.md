@@ -165,6 +165,30 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
 preview - roads, buildings, water, 3D buildings - once, then it works offline. Give it a name; pick
 the detail level (the tile count is shown). Several areas layer on top of the world map.
 
+## The feature browser
+
+**Browse features…** in the Highlight sheet lists everything the panel can put on a map: every
+country, the provinces or districts of one country, the shapes of the file you last imported, and
+the areas this map already holds.
+
+- **Search** looks through names and every property.
+- **Filter** is one written line: `population > 200000000`, `kind = country`, `name has delta`.
+  The tests are `>` `>=` `<` `<=` `=` `!=` and `has` (text that contains). A feature that does not
+  carry that property is left out.
+- **Sort** by any property, largest or smallest first.
+- **Go to** frames one feature in the preview.
+
+Tick what you want, then:
+
+- **Highlight** them all, **Shape layers** for editable outlines, **Merge** into one area.
+- **Break apart** splits one outline into its parts, largest first.
+- **Cut out** takes the other ticked shapes out of the first as holes (each has to lie wholly
+  inside it).
+- **Count points** counts the imported points inside each one, as a property called `inside` you
+  can sort or filter on.
+- **Connect** draws a line between them all, or only between the **nearest** neighbours you ask
+  for, all drawing on from the current time.
+
 ## Numbers on the map
 
 Import a CSV with a column of names and a column of numbers. The Numbers sheet opens with the columns guessed; change **Country** and **Colour by** if it guessed wrong.
@@ -200,6 +224,21 @@ Import a CSV with a column of names and a column of numbers. The Numbers sheet o
   three steps, in the corner you pick. It is an ordinary precomp: move it, restyle it, animate it.
 
 Every one of these has a **Remove**; **Remove** at the bottom takes the numbers off the map.
+
+## Live numbers
+
+**Watch a file…** in the Numbers sheet reads a table from a file on disk and keeps reading it.
+Edit and save that file anywhere - a spreadsheet, a script, an export from somewhere else - and
+the table is read again and the map coloured again. The columns you picked are kept as long as
+the headings still fit. **Stop watching** leaves everything on the map as it is.
+
+## Driving the panel from a script
+
+Turn on **Let scripts on this computer drive the panel** in About and another program can leave a
+request in a folder for the panel to do: make a map, move and keyframe the camera, add pins,
+names, highlights, a scale bar, an inset map, a chart, read a CSV, render. docs/SCRIPTING.md lists
+the calls and has an ExtendScript helper you can paste into your own script. It is off until you
+turn it on, and only the listed calls can ever be asked for.
 
 ## Rendering
 

@@ -5,7 +5,9 @@ import "./polyfills.ts";
 import { render } from "preact";
 import type { RenderSettings } from "../core/render/plan.ts";
 import { fs, isInCep, path } from "./cep.ts";
+import { apiHandlers } from "./apiCalls.ts";
 import { startDevAutomation } from "./devAutomation.ts";
+import { startScriptingApi } from "./scripting.ts";
 import { previewMap, showCompView, compView, countryAt, compSize } from "./preview.ts";
 import { renderQueue } from "./render/renderQueue.ts";
 import * as shots from "./shots/shotsStore.ts";
@@ -49,6 +51,8 @@ logToFile(`panel start: ${navigator.userAgent}`);
   store,
   shots
 };
+
+store.registerScriptingApi(() => startScriptingApi(apiHandlers(), store.log));
 
 const root = document.getElementById("app");
 if (root) render(<App />, root);

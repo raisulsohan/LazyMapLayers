@@ -15,7 +15,7 @@ import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, nearestPlaceName, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
-import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type Areas, type Highlight } from "../core/style/highlights.ts";
+import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type AreaGeometry, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
 import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
 import { flowRows, guessFlowColumns } from "../core/data/flows.ts";
@@ -46,7 +46,7 @@ import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, ty
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
-import { callHost, isInCep } from "./cep.ts";
+import { callHost, fs as nodeFs, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
 import { districtAt, districtJoinTargets, districtPoint, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
 import { buildGeoJson, type ExportLayer } from "../core/data/geoJsonExport.ts";
@@ -61,6 +61,11 @@ import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addChart, removeChart } from "./overlays/chart.ts";
 import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap, type FurnitureKind } from "./overlays/furniture.ts";
+import { featureKeys, filterFeatures, parseFilter, type FeatureRow } from "../core/data/featureList.ts";
+import { featureCentre, featurePolygons, featureRows, type FeatureScope, type FeatureSources } from "./features.ts";
+import { cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
+import { addMesh } from "./overlays/mesh.ts";
+import { importCsvText } from "./data/importFile.ts";
 import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
@@ -1565,6 +1570,421 @@ export const removeMapMinimap = () =>
     log(gone.removed ? "the inset map is off the scene" : "this map has no inset", gone.removed ? "ok" : "muted");
   });
 
+/**
+ * The feature browser: every shape the panel can put on a map, filtered by name or by a property,
+ * and acted on together. The rows come from src/panel/features.ts, the filtering from core.
+ */
+export const featureSheetOpen = signal(false);
+export const featureScope = signal<FeatureScope>("country");
+export const featureCountry = signal<string | null>(null);
+export const featureText = signal("");
+export const featureFilterText = signal("");
+export const featureSort = signal<{ key: string; descending: boolean } | null>(null);
+export const featurePicks = signal<string[]>([]);
+
+/** How many features one click may turn into shape layers, for the reason the data map has a cap. */
+export const MAX_FEATURE_SHAPES = 40;
+
+const featureSources = (): FeatureSources => ({
+  country: featureCountry.value,
+  fill: dataFill.value,
+  areas: areas.value,
+  imported: imported.value?.areas ?? [],
+  counts: featureCounts.value
+});
+
+/** The rows of the browser as it stands: the scope, the words typed and the filter written. */
+export const featureView = computed(() => {
+  const rows = featureRows(featureScope.value, featureSources());
+  const filter = parseFilter(featureFilterText.value);
+  const found = filterFeatures(rows, { text: featureText.value, filter, sort: featureSort.value });
+  return { ...found, keys: featureKeys(rows), filter, filterFailed: featureFilterText.value.trim().length > 0 && !filter };
+});
+
+export function toggleFeaturePick(id: string): void {
+  const picks = featurePicks.value;
+  featurePicks.value = picks.includes(id) ? picks.filter((pick) => pick !== id) : [...picks, id];
+}
+
+export function pickEveryFeature(): void {
+  const shown = featureView.value.rows.map((row) => row.id);
+  featurePicks.value = shown.every((id) => featurePicks.value.includes(id)) ? [] : shown;
+}
+
+const pickedFeatures = (): FeatureRow[] => featureView.value.rows.filter((row) => featurePicks.value.includes(row.id));
+
+/** Flies the preview to one feature, framing the whole of it. */
+export function goToFeature(row: FeatureRow): void {
+  const polygons = featurePolygons(row, featureSources());
+  if (!polygons || !polygons.length) {
+    log(`no outline for "${row.name}" in this build`, "muted");
+    return;
+  }
+  const points: { lat: number; lng: number }[] = [];
+  for (const polygon of polygons) for (const point of polygon[0] ?? []) points.push({ lng: point[0], lat: point[1] });
+  if (!points.length) return;
+  const current = compView();
+  showCompView(fitPoints(points, compSize(), { bearing: current?.bearing ?? 0, pitch: 0, padding: 0.1, maxZoom: 12 }), true);
+  lastPlaceName.value = row.name;
+}
+
+/** Highlights every ticked feature at once: countries by their code, everything else by its outline. */
+export const highlightPickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    if (!picks.length) {
+      log("tick some features first", "muted");
+      return;
+    }
+    const sources = featureSources();
+    let next = highlights.value;
+    const geometry: Areas = { ...areas.value };
+    const missing: string[] = [];
+    let added = 0;
+    let full = false;
+    for (const row of picks) {
+      if (row.source === "country") {
+        const code = String(row.props.code ?? "");
+        if (code && !next.some((highlight) => highlight.code === code)) {
+          next = toggleHighlight(next, code, row.name);
+          added++;
+        }
+        continue;
+      }
+      const polygons = featurePolygons(row, sources);
+      if (!polygons) {
+        missing.push(row.name);
+        continue;
+      }
+      const thinned = simplifyPolygons(polygons, AREA_MAX_POINTS);
+      if (!thinned.length) {
+        missing.push(row.name);
+        continue;
+      }
+      const code = row.source === "import" ? madeAreaCode(row.name, thinned) : `${AREA_PREFIX}${row.id.slice(row.id.indexOf(":") + 1)}`;
+      const id = code.slice(AREA_PREFIX.length);
+      if (!geometry[id] && Object.keys(geometry).length >= MAX_AREAS) {
+        full = true;
+        break;
+      }
+      geometry[id] = thinned;
+      if (!next.some((highlight) => highlight.code === code)) {
+        next = toggleHighlight(next, code, row.name);
+        added++;
+      }
+    }
+    await setHighlights(next, geometry);
+    const notes = [missing.length ? `${missing.length} had no outline in this build` : "", full ? `the map holds up to ${MAX_AREAS} areas` : ""].filter(Boolean).join("; ");
+    log(added ? `${added} highlighted${notes ? ` (${notes})` : ""}. Render to get them as layers above the basemap` : notes || "those features are highlighted already", added ? "ok" : "muted");
+  });
+
+/** Every ticked feature as its own editable shape layer. */
+export const shapePickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    const entry = (await readMaps()).find((m) => m.mapId === selectedId.value);
+    if (!entry || !picks.length) {
+      log(entry ? "tick some features first" : "create or select a map first", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const style = currentLayerStyle.value;
+    const wanted = picks.slice(0, MAX_FEATURE_SHAPES);
+    let made = 0;
+    const missing: string[] = [];
+    // A large outline takes a moment to build, so the panel says how far it is and can be stopped.
+    const stopper = new AbortController();
+    const label = "Adding shape layers";
+    progress.value = { label, done: 0, total: wanted.length, cancel: () => stopper.abort() };
+    try {
+      for (const row of wanted) {
+        if (stopper.signal.aborted) break;
+        const polygons = featurePolygons(row, sources);
+        if (!polygons) {
+          missing.push(row.name);
+          continue;
+        }
+        await addFeatureShape(
+          entry.mapId,
+          { name: row.name, polygons, code: row.id },
+          { color: style.accent, fill: 0, outline: style.stroke, startFrame: currentMapFrame(entry), drawFrames: shapeDrawOn.value ? Math.round(4 * entry.frameRate) : 0, terrain: terrain.value }
+        );
+        made++;
+        progress.value = { label, done: made, total: wanted.length, cancel: () => stopper.abort() };
+      }
+    } finally {
+      progress.value = null;
+    }
+    const left = picks.length - wanted.length;
+    const notes = [
+      missing.length ? `${missing.length} had no outline` : "",
+      left ? `${left} left out (${MAX_FEATURE_SHAPES} at a time)` : "",
+      stopper.signal.aborted ? "stopped" : ""
+    ]
+      .filter(Boolean)
+      .join("; ");
+    log(made ? `${made} shape ${made === 1 ? "layer" : "layers"} added${notes ? ` (${notes})` : ""}. They follow the map; restyle them like any shape layer` : notes || "nothing to add", made ? "ok" : "muted");
+  });
+
+/** The outline of every ticked feature as one area, with the borders between the touching ones gone. */
+export const mergePickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    if (picks.length < 2) {
+      log("tick at least two features to merge them", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const parts = picks.map((row) => ({ row, polygons: featurePolygons(row, sources) })).filter((part): part is { row: FeatureRow; polygons: AreaGeometry } => !!part.polygons);
+    if (parts.length < 2) {
+      log("this build has outlines for fewer than two of those", "fail");
+      return;
+    }
+    const name = combinedName(parts.map((part) => part.row.name));
+    const merged = mergeAreas(parts.map((part) => part.polygons));
+    const kept = await addMadeArea(name, merged, highlights.value, undefined);
+    if (kept) log(`"${name}" made from ${parts.length} features (${Math.round(areaKm2(kept)).toLocaleString("en-US")} km2). Render to see it, or add it as a shape layer`, "ok");
+  });
+
+/** How many points fell inside each feature, the last time they were counted. */
+export const featureCounts = signal<Record<string, number>>({});
+
+/** Every part of a ticked outline as an area of its own: a mainland away from its islands. */
+export const explodePickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    if (picks.length !== 1) {
+      log("tick one feature to break it into its parts", "muted");
+      return;
+    }
+    const polygons = featurePolygons(picks[0], featureSources());
+    if (!polygons) {
+      log(`no outline for "${picks[0].name}" in this build`, "fail");
+      return;
+    }
+    const parts = explodeArea(polygons);
+    if (parts.length < 2) {
+      log(`"${picks[0].name}" is one piece already`, "muted");
+      return;
+    }
+    let next = highlights.value;
+    const geometry: Areas = { ...areas.value };
+    let added = 0;
+    for (let i = 0; i < parts.length; i++) {
+      const thinned = simplifyPolygons(parts[i].polygons, AREA_MAX_POINTS);
+      if (!thinned.length) continue;
+      if (Object.keys(geometry).length >= MAX_AREAS) break;
+      const name = `${picks[0].name} ${i + 1}`;
+      const code = madeAreaCode(name, thinned);
+      geometry[code.slice(AREA_PREFIX.length)] = thinned;
+      if (!next.some((highlight) => highlight.code === code)) next = toggleHighlight(next, code, name);
+      added++;
+    }
+    await setHighlights(next, geometry);
+    const left = parts.length - added;
+    log(`"${picks[0].name}" broken into ${added} ${added === 1 ? "part" : "parts"}, largest first${left > 0 ? `, ${left} left out (a map holds ${MAX_AREAS} areas)` : ""}`, added ? "ok" : "fail");
+  });
+
+/** The ticked areas taken out of the first one, as holes. */
+export const cutPickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    if (picks.length < 2) {
+      log("tick the area to cut from first, then the ones to take out of it", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const host = featurePolygons(picks[0], sources);
+    if (!host) {
+      log(`no outline for "${picks[0].name}" in this build`, "fail");
+      return;
+    }
+    let result = host;
+    let cut = 0;
+    let outside = 0;
+    for (const row of picks.slice(1)) {
+      const polygons = featurePolygons(row, sources);
+      if (!polygons) continue;
+      const step = cutHole(result, polygons);
+      result = step.polygons;
+      cut += step.cut;
+      outside += step.outside;
+    }
+    if (!cut) {
+      log(`nothing was cut: a shape has to lie wholly inside "${picks[0].name}" to become a hole in it`, "fail");
+      return;
+    }
+    const name = `${picks[0].name} without ${picks.length - 1} ${picks.length === 2 ? "shape" : "shapes"}`;
+    const kept = await addMadeArea(name, result, highlights.value, undefined);
+    if (kept) log(`"${name}" made: ${cut} ${cut === 1 ? "hole" : "holes"} cut${outside ? `, ${outside} left alone (they are not wholly inside)` : ""}`, "ok");
+  });
+
+/** How many of the imported points fall inside each ticked feature, as a property to sort and filter on. */
+export const countPointsInPicked = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    const places = imported.value?.places ?? [];
+    if (!picks.length || !places.length) {
+      log(picks.length ? "import a file of points first (KML, GeoJSON, CSV or a shapefile)" : "tick some features first", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const counts: Record<string, number> = { ...featureCounts.value };
+    let counted = 0;
+    let missing = 0;
+    for (const row of picks) {
+      const polygons = featurePolygons(row, sources);
+      if (!polygons) {
+        missing++;
+        continue;
+      }
+      counts[row.id] = pointsInside(polygons, places).length;
+      counted++;
+    }
+    featureCounts.value = counts;
+    const busiest = picks
+      .filter((row) => counts[row.id] !== undefined)
+      .sort((a, b) => (counts[b.id] ?? 0) - (counts[a.id] ?? 0))
+      .slice(0, 3)
+      .map((row) => `${row.name} ${counts[row.id]}`)
+      .join(", ");
+    log(
+      counted
+        ? `${places.length} imported ${places.length === 1 ? "point" : "points"} counted in ${counted} ${counted === 1 ? "feature" : "features"} (${busiest}). Sort or filter on "inside"${missing ? `; ${missing} had no outline` : ""}`
+        : "none of those has an outline in this build",
+      counted ? "ok" : "fail"
+    );
+  });
+
+/** A line between every pair of ticked features, drawing on together: a network map. */
+export const connectPickedFeatures = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    const entry = (await readMaps()).find((m) => m.mapId === selectedId.value);
+    if (!entry || picks.length < 2) {
+      log(entry ? "tick at least two features to join them" : "create or select a map first", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const places = picks
+      .map((row) => ({ row, centre: featureCentre(row, sources) }))
+      .filter((place): place is { row: FeatureRow; centre: { lat: number; lng: number } } => !!place.centre)
+      .map((place) => ({ name: place.row.name, lat: place.centre.lat, lng: place.centre.lng }));
+    if (places.length < 2) {
+      log("this build has outlines for fewer than two of those", "fail");
+      return;
+    }
+    const start = currentMapFrame(entry);
+    const made = await addMesh(entry.mapId, places, {
+      startFrame: start,
+      endFrame: start + Math.max(1, Math.round(flowSeconds.value * entry.frameRate)),
+      theme: currentTheme.value,
+      style: currentLayerStyle.value,
+      terrain: terrain.value,
+      neighbours: meshNeighbours.value > 0 ? meshNeighbours.value : undefined
+    });
+    if (made.expressionErrors.length) log(`connection expression problems: ${made.expressionErrors.join("; ")}`, "fail");
+    else log(`${made.lines} ${made.lines === 1 ? "line" : "lines"} drawn between ${places.length} places, all drawing on from ${entry.time.toFixed(2)} s${made.dropped ? `; ${made.dropped} left out` : ""}`, made.lines ? "ok" : "muted");
+  });
+
+/** How many nearest neighbours each place joins; 0 joins every pair. */
+export const meshNeighbours = signal(0);
+
+/**
+ * Live numbers: the table is read from a file on disk, and the panel re-reads it whenever that file
+ * changes, so a map can be left open while the numbers behind it are edited elsewhere.
+ */
+export type WatchedTable = { path: string; name: string; changes: number; at: number; error: string | null };
+export const watchedTable = signal<WatchedTable | null>(null);
+export const WATCH_EVERY_MS = 2000;
+
+let watchTimer: ReturnType<typeof setInterval> | null = null;
+let watchStamp = "";
+
+const stampOf = (path: string): string => {
+  try {
+    const stat = nodeFs().statSync(path) as { mtimeMs?: number; mtime?: Date; size: number };
+    const when = stat.mtimeMs ?? (stat.mtime ? stat.mtime.getTime() : 0);
+    return `${when}:${stat.size}`;
+  } catch {
+    return "";
+  }
+};
+
+/** Stops watching, leaving the numbers already on the map as they are. */
+export function stopWatchingTable(): void {
+  if (watchTimer !== null) clearInterval(watchTimer);
+  watchTimer = null;
+  watchStamp = "";
+  watchedTable.value = null;
+}
+
+/** Reads the watched file again, keeping the columns the user picked when the headings still fit. */
+async function rereadWatchedTable(first: boolean): Promise<void> {
+  const watched = watchedTable.value;
+  if (!watched) return;
+  let text = "";
+  try {
+    text = nodeFs().readFileSync(watched.path, "utf8") as string;
+  } catch (error) {
+    watchedTable.value = { ...watched, error: error instanceof Error ? error.message : String(error) };
+    return;
+  }
+  let table: DataTable | undefined;
+  try {
+    table = importCsvText(text, watched.name).table;
+  } catch (error) {
+    watchedTable.value = { ...watched, error: error instanceof Error ? error.message : String(error) };
+    return;
+  }
+  if (!table) {
+    watchedTable.value = { ...watched, error: `${watched.name} holds no column of numbers to colour places by` };
+    return;
+  }
+  const before = dataTable.value;
+  const sameShape = !first && !!before && before.headings.length === table.headings.length && before.headings.every((heading, i) => heading === table.headings[i]);
+  if (sameShape) dataTable.value = table;
+  else openDataTable(table);
+  watchedTable.value = { ...watched, changes: watched.changes + (first ? 0 : 1), at: Date.now(), error: null };
+  // Numbers already on the map follow the file; a table that has not been used yet only waits.
+  if (!first && dataFill.value) await applyDataFillNow();
+}
+
+/** Watches a file of numbers: reads it now, then re-reads it whenever it changes on disk. */
+export const watchTableFile = (path: string) =>
+  run("live numbers", async () => {
+    stopWatchingTable();
+    const name = path.split(/[\\/]/).pop() || "table.csv";
+    watchedTable.value = { path, name, changes: 0, at: Date.now(), error: null };
+    watchStamp = stampOf(path);
+    await rereadWatchedTable(true);
+    const failed = watchedTable.value?.error;
+    if (failed) {
+      log(`${name}: ${failed}`, "fail");
+      stopWatchingTable();
+      return;
+    }
+    watchTimer = setInterval(() => {
+      const stamp = stampOf(path);
+      if (!stamp || stamp === watchStamp) return;
+      watchStamp = stamp;
+      void rereadWatchedTable(false).then(() => {
+        const state = watchedTable.value;
+        if (state?.error) log(`${state.name}: ${state.error}`, "fail");
+        else if (state) log(`${state.name} changed: ${dataTable.value?.rows.length ?? 0} rows read again${dataFill.value ? " and the map coloured again" : ""}`, "ok");
+      });
+    }, WATCH_EVERY_MS);
+    log(`watching ${name} (${dataTable.value?.rows.length ?? 0} rows). Edit and save it anywhere and the map follows`, "ok");
+  });
+
+/** Picks a file of numbers to watch. */
+export const pickTableToWatch = () =>
+  run("live numbers", async () => {
+    const picked = await callHost<{ path: string; text: string } | null>("openTextFile", { title: "Watch a table of numbers" });
+    if (!picked) return;
+    await watchTableFile(picked.path);
+  });
+
 /** Where the legend of the numbers sits in the frame. */
 export const legendCorner = signal<LegendCorner>("bottomLeft");
 
@@ -2453,6 +2873,32 @@ export const panelVersion = signal("");
 /** A newer release than the one running, when one is known and not waved away. */
 export const updateAvailable = signal<Update | null>(null);
 /** Whether the panel looks for a newer release once a day. */
+/**
+ * The scripting API: off unless the user turns it on. main.tsx hands in the starter, so the store
+ * does not have to know what the calls are.
+ */
+export const scriptingOn = signal(readPrefs().scripting);
+let startApi: (() => () => void) | null = null;
+let stopApi: (() => void) | null = null;
+
+export function registerScriptingApi(start: () => () => void): void {
+  startApi = start;
+  if (scriptingOn.value && !stopApi) stopApi = start();
+}
+
+export const setScriptingOn = (on: boolean): void => {
+  scriptingOn.value = on;
+  writePrefs({ scripting: on });
+  if (!on) {
+    stopApi?.();
+    stopApi = null;
+    log("scripts can no longer drive the panel", "muted");
+    return;
+  }
+  if (startApi && !stopApi) stopApi = startApi();
+  log("scripts can drive the panel: leave a request in the api folder inside your LazyMapLayers folder (docs/SCRIPTING.md)", "ok");
+};
+
 export const updatesOn = signal(readPrefs().updates);
 
 export const setUpdatesOn = (on: boolean): void => {

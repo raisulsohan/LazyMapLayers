@@ -87,7 +87,8 @@ test("GeoJSON becomes lines and places, with names, times and sensible order", (
     ]
   };
   const result = importGeoJson(data, "trip.geojson");
-  assert.deepEqual(result.places, [{ name: "Dhaka", lng: 90.4, lat: 23.8 }]);
+  // A place keeps the properties its file gave it, for the feature browser to filter on.
+  assert.deepEqual(result.places, [{ name: "Dhaka", lng: 90.4, lat: 23.8, props: { name: "Dhaka" } }]);
   assert.deepEqual(
     result.lines.map((l) => [l.name, l.points.length, l.closed]),
     [

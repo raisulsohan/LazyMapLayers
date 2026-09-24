@@ -2,6 +2,29 @@
 
 ## Unreleased
 
+- **Live numbers.** **Watch a file…** in the Numbers sheet reads a table from a file on disk and
+  keeps reading it: edit and save that file in a spreadsheet, a script or anything else, and the
+  table is read again and the map coloured again, without an import. The columns you picked are
+  kept as long as the headings still fit.
+- **Scripts can drive the panel.** Turn it on in About and another program on the same computer -
+  your own ExtendScript, a Node job, anything that can write a file - can leave a request in a
+  folder and the panel does it: make a map, move and keyframe the camera, add pins, names,
+  highlights, a scale bar, an inset, a chart, read a CSV, render. docs/SCRIPTING.md has the calls
+  and an ExtendScript helper. It is off by default, and only the listed calls can ever be asked
+  for.
+- **A feature browser.** **Browse features…** in the Highlight sheet opens a list of everything the
+  panel can put on a map: every country, the provinces or districts of one country, the shapes of
+  the file you imported and the areas this map already holds. Search it, sort it by any property,
+  and filter it in words, like `population > 200000000` or `name has delta`. Tick what you want and
+  highlight it, add it as shape layers, or merge it into one area.
+- **What a shape can be made into.** With features ticked: **Break apart** splits an outline into
+  its parts, largest first, so a mainland comes away from its islands. **Cut out** takes the other
+  ticked shapes out of the first one as holes. **Count points** counts the imported points that
+  fall inside each one and writes it as a property you can then sort or filter on. **Connect**
+  draws a line between them all, or only between nearest neighbours, drawing on together: a
+  network map in one click.
+- **Imported shapes keep their properties.** A GeoJSON, KML or shapefile feature arrives with the
+  fields the file gave it, so the browser can list and filter on them.
 - **An inset map.** **Add inset map** puts a small locator in the corner: a second map, as many
   zoom levels wider as you ask, with a framed box on it that moves and turns with the big map on
   every frame. The inset is a map of its own - pick it at the top of the panel to give it its own

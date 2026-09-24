@@ -985,3 +985,30 @@ select.compact {
   gap: 6px;
   padding: 4px 0;
 }
+
+/* The feature browser: a long list that scrolls inside the sheet. */
+.feature-list {
+  max-height: 260px;
+  overflow-y: auto;
+  border: 1px solid var(--line);
+  border-radius: 4px;
+  padding: 2px 4px;
+}
+
+.feature-row {
+  align-items: center;
+  flex-wrap: nowrap;
+  gap: 6px;
+  padding: 1px 0;
+}
+
+.feature-row .check {
+  min-width: 0;
+  overflow: hidden;
+}
+
+.feature-row .check span {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

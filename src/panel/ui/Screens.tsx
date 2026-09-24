@@ -6,7 +6,7 @@ import { useEffect, useState } from "preact/hooks";
 import { callHost, isInCep } from "../cep.ts";
 import { compSize } from "../preview.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
-import { buildNumbersSample, hostInfo, reportProblem, setUpdatesOn, updatesOn } from "../store.ts";
+import { buildNumbersSample, hostInfo, reportProblem, scriptingOn, setScriptingOn, setUpdatesOn, updatesOn } from "../store.ts";
 import { openUrl } from "../cep.ts";
 import { RELEASES_URL } from "../updates.ts";
 import { formatTime } from "../shots/shotsStore.ts";
@@ -80,6 +80,10 @@ export function MapsScreen(): JSX.Element {
         <label class="check" title="One request to GitHub's release list a day, sending nothing but the request. Off, the panel never goes online by itself.">
           <input type="checkbox" data-id="about-updates" checked={updatesOn.value} onChange={(e) => setUpdatesOn((e.target as HTMLInputElement).checked)} />
           Look for new versions once a day
+        </label>
+        <label class="check" title="Lets a script on this computer drive the panel: it leaves a request in the api folder inside your LazyMapLayers folder and the panel answers beside it. Only the calls listed in docs/SCRIPTING.md can be asked for. Off by default.">
+          <input type="checkbox" data-id="about-scripting" checked={scriptingOn.value} onChange={(e) => setScriptingOn((e.target as HTMLInputElement).checked)} />
+          Let scripts on this computer drive the panel
         </label>
       </div>
     </div>

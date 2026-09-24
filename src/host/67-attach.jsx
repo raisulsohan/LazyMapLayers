@@ -245,6 +245,20 @@ LML.api.exportLayers = function (args) {
     return out;
 };
 
+/**
+ * Reads a text file the user picks. args: { title, filter } - returns { path, text }, or null when
+ * the dialog is cancelled. The path comes back so the panel can read the file again when it changes.
+ */
+LML.api.openTextFile = function (args) {
+    var file = File.openDialog((args && args.title) || "Open a file", (args && args.filter) || undefined);
+    if (!file) return null;
+    file.encoding = "UTF-8";
+    if (!file.open("r")) throw LML.util.error("READ_FAILED", "Could not read " + file.fsName);
+    var text = file.read();
+    file.close();
+    return { path: file.fsName, text: text };
+};
+
 /** Writes text where the user chooses. args: { text, suggestedName } - returns the path, or null. */
 LML.api.saveTextFile = function (args) {
     var file = File.saveDialog("Save as", args.suggestedName || "map.geojson");

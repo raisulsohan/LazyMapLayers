@@ -887,6 +887,64 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D71 — Scripts drive the panel through a folder, not through a port (2026-09-24)
+
+- **Why.** A studio that makes forty maps a week wants them made by a script, and the paid tools
+  offer that. After Effects itself cannot reach a CEP panel: a .jsx from the Scripts menu runs in
+  another engine and cannot see the panel at all.
+- **Decision.** The panel watches a folder in the user own data folder. A request is a small JSON
+  file naming one call and its arguments; the panel answers beside it and removes the request. No
+  port is opened, nothing listens on the network, and a request is data: the call has to be one of
+  the names in src/panel/apiCalls.ts, so a file can never name a function of its own.
+- **Off until it is turned on.** Anything that can write to the user folder could otherwise drive
+  After Effects. The switch is in About, the setting is the user own, and turning it off stops the
+  watcher at once.
+- **The calls are the ones a person has.** Every call is something the panel already does, and each
+  answers with what the panel said about it, so a script can log it. The panel does one thing at a
+  time, so a call that arrives while it is busy is refused rather than queued behind the user.
+- **Tested.** Unit tests for reading a request: a made-up call, a broken file, an id that is a path,
+  and the bounds every argument is read within. U1 turns it on, asks for the version and the view
+  from outside the panel, is refused a call that does not exist, and gets nothing once it is off.
+
+## D70 — Numbers read from a file that keeps changing (2026-09-24)
+
+- **Why.** An election night, a league table, a sales week: the numbers behind a map change while
+  the map is being made. Importing the file again for every change, and setting the columns again
+  each time, is the kind of work a tool should take.
+- **Decision.** The panel remembers the path a table came from and watches its size and time every
+  two seconds. A change re-reads the file, keeps the columns the user picked as long as the
+  headings still fit, and colours the map again when it was already coloured. Polling, not a file
+  watcher, because a spreadsheet writes through a temporary file and a watcher fires three times
+  for one save.
+- **The file is picked through After Effects, not the browser.** A dropped file in the panel has no
+  path to go back to, so a new host call opens the file and gives the path with the text.
+- **Tested.** U1 writes a CSV, watches it, colours the map, changes the file behind the panel and
+  checks the table was read again with the new row and the fill followed.
+
+## D69 — A feature browser, and what a shape can be made into (2026-09-24)
+
+- **Why.** Everything the panel could do to a shape needed a click on the map or a search by name.
+  That is fine for one country and useless for a hundred: a designer who wants every province above
+  a million people, or every imported plot owned by one survey, had no way to ask for it. The paid
+  tools answer this with a feature list, filters and a few geometry operations.
+- **Decision.** core/data/featureList.ts holds the list, the filter and the sort as plain data, and
+  src/panel/features.ts gathers the rows from what the panel already carries: the bundled countries
+  and provinces, the downloaded district sets, the last import and the map own areas. A filter is
+  one written line - a property, a test and a value - because a menu of operators would fill the
+  panel and read worse. A feature without that property is left out rather than guessed at.
+- **The operations are the ones that need no clipper.** Break apart, cut out (as a hole), count the
+  points inside, and connect. Cutting works when the shape taken away lies wholly inside the one it
+  comes out of - a lake out of a country, an enclave out of a state - which is what a map asks for;
+  a shape that only partly overlaps is counted and left alone, not cut wrongly. A general polygon
+  difference would need a clipping library the panel does not carry yet; it is a known limitation,
+  not a silent failure.
+- **Caps that keep a scene a scene.** Forty shape layers in one go, sixty connection lines (the
+  core allows two hundred), the map own limit on areas. Everything left out is counted and said.
+- **Tested.** Unit tests for the filter language, the sorting, the limits and the four operations,
+  including that a half-overlapping shape is not cut and that a hole takes exactly its own area out;
+  U1 opens the browser in After Effects, filters the countries by population, ticks them and builds
+  the shape layers.
+
 ## D68 — The inset map is a map, not a picture of one (2026-09-24)
 
 - **Why.** A locator inset is the oldest furniture on a map, and the one a viewer reads first: it

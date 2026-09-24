@@ -16,10 +16,37 @@ export type ImportedLine = {
   leaves?: number[];
 };
 
-export type ImportedPlace = { name: string; lat: number; lng: number };
+export type ImportedPlace = { name: string; lat: number; lng: number; props?: FeatureProps };
 
 /** A filled shape: GeoJSON MultiPolygon coordinates ([polygon][ring][lng, lat]) and its size. */
-export type ImportedArea = { name: string; polygons: number[][][][]; points: number; bbox: [number, number, number, number] };
+export type ImportedArea = { name: string; polygons: number[][][][]; points: number; bbox: [number, number, number, number]; props?: FeatureProps };
+
+/** The plain properties a feature carries, kept as the file wrote them, for the feature browser. */
+export type FeatureProps = Record<string, string | number>;
+
+export const MAX_PROPS = 24;
+const MAX_PROP_LENGTH = 120;
+
+/**
+ * The scalar properties of a GeoJSON feature: what a filter can test and a list can show. Nested
+ * objects and arrays are left out, and so is the point-by-point time list GPX files carry.
+ */
+export function featureProps(properties: Record<string, unknown> | null | undefined): FeatureProps | undefined {
+  if (!properties || typeof properties !== "object") return undefined;
+  const out: FeatureProps = {};
+  let kept = 0;
+  for (const key in properties) {
+    if (!Object.prototype.hasOwnProperty.call(properties, key)) continue;
+    if (kept >= MAX_PROPS || key === "coordinateProperties" || key === "coordTimes") continue;
+    const value = properties[key];
+    if (typeof value === "number" && Number.isFinite(value)) out[key] = value;
+    else if (typeof value === "boolean") out[key] = value ? "yes" : "no";
+    else if (typeof value === "string" && value.trim()) out[key] = value.trim().slice(0, MAX_PROP_LENGTH);
+    else continue;
+    kept++;
+  }
+  return kept ? out : undefined;
+}
 
 export type Imported = { lines: ImportedLine[]; places: ImportedPlace[]; areas: ImportedArea[]; skipped: number };
 
@@ -114,7 +141,7 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
     result.lines.push({ name, points, closed, lengthKm: lineLengthKm(points), ...(closed ? {} : trackTimes(timesOf(properties, part), rawCount, first, last)) });
   };
 
-  const addArea = (polygons: unknown, name: string) => {
+  const addArea = (polygons: unknown, name: string, properties: Record<string, unknown> | null | undefined) => {
     const clean: number[][][][] = [];
     let points = 0;
     let west = Infinity;
@@ -138,7 +165,10 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
       }
       if (rings.length) clean.push(rings);
     }
-    if (clean.length) result.areas.push({ name, polygons: clean, points, bbox: [west, south, east, north] });
+    if (clean.length) {
+      const props = featureProps(properties);
+      result.areas.push({ name, polygons: clean, points, bbox: [west, south, east, north], ...(props ? { props } : {}) });
+    }
   };
 
   const addGeometry = (geometry: unknown, name: string, properties: Record<string, unknown> | null | undefined): void => {
@@ -150,11 +180,11 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
     const c = g.coordinates as unknown[];
     switch (g.type) {
       case "Point":
-        if (validPosition(c)) result.places.push({ name, lng: (c as Position)[0], lat: (c as Position)[1] });
+        if (validPosition(c)) result.places.push({ name, lng: (c as Position)[0], lat: (c as Position)[1], ...(featureProps(properties) ? { props: featureProps(properties) } : {}) });
         else result.skipped++;
         break;
       case "MultiPoint":
-        (c ?? []).forEach((p, i) => (validPosition(p) ? result.places.push({ name: `${name} ${i + 1}`, lng: p[0], lat: p[1] }) : result.skipped++));
+        (c ?? []).forEach((p, i) => (validPosition(p) ? result.places.push({ name: `${name} ${i + 1}`, lng: p[0], lat: p[1], ...(featureProps(properties) ? { props: featureProps(properties) } : {}) }) : result.skipped++));
         break;
       case "LineString":
         addLine(c, name, false, properties, 0);
@@ -164,11 +194,11 @@ export function importGeoJson(data: unknown, fileName = "Import"): Imported {
         break;
       case "Polygon":
         addLine((c ?? [])[0], name, true, null, 0);
-        addArea([c], name);
+        addArea([c], name, properties);
         break;
       case "MultiPolygon":
         (c ?? []).forEach((polygon, i) => addLine((polygon as unknown[])[0], (c ?? []).length > 1 ? `${name} (${i + 1})` : name, true, null, 0));
-        addArea(c, name);
+        addArea(c, name, properties);
         break;
       case "GeometryCollection":
         (g.geometries ?? []).forEach((inner) => addGeometry(inner, name, properties));

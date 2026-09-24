@@ -38,6 +38,10 @@ import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
 import { addDataBubbles, addDataChart, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, chartBars, chartCorner, removeDataChart, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
+import { featureCountry, featureFilterText, featurePicks, featureScope, featureSheetOpen, featureSort, featureText, featureView, goToFeature, highlightPickedFeatures, mergePickedFeatures, pickEveryFeature, shapePickedFeatures, toggleFeaturePick } from "../store.ts";
+import { connectPickedFeatures, countPointsInPicked, cutPickedFeatures, explodePickedFeatures, meshNeighbours } from "../store.ts";
+import { pickTableToWatch, stopWatchingTable, watchedTable } from "../store.ts";
+import type { FeatureScope } from "../features.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, refreshLabelDesigns } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
@@ -446,6 +450,7 @@ export function DataSheetView(): JSX.Element | null {
   if (!table) return null;
   const fill = dataFill.value;
   const colours = fill ? dataFillColors(fill) : null;
+  const watched = watchedTable.value;
   return (
     <div class="sheet" data-id="data-sheet">
       <div class="sheet-title">{table.name}</div>
@@ -453,6 +458,25 @@ export function DataSheetView(): JSX.Element | null {
         {table.rows.length} rows. Every country - or every province of one country - that has a number is filled with the colour of its step, as one layer above the basemap. They are found by name in
         any language, by ISO code, by a state's short code, or by the number.
       </div>
+      <div class="sheet-row">
+        {!watched && (
+          <button class="small-button" data-id="watch-table" disabled={busy.value} title="Reads a table from a file and keeps reading it: edit and save that file anywhere and the map follows, with no import." onClick={() => void pickTableToWatch()}>
+            Watch a file…
+          </button>
+        )}
+        {watched && (
+          <>
+            <span class="grow small" title={watched.path}>
+              Watching <b>{watched.name}</b>
+              {watched.changes ? ` · read again ${watched.changes} ${watched.changes === 1 ? "time" : "times"}` : " · waiting for a change"}
+            </span>
+            <button class="small-button" data-id="watch-stop" title="Stops watching. The numbers already on the map stay as they are." onClick={() => stopWatchingTable()}>
+              Stop watching
+            </button>
+          </>
+        )}
+      </div>
+      {watched?.error && <div class="warning small">{watched.error}</div>}
       <div class="sheet-row">
         <label class="num-field grow" title="The column that names the country">
           <span>Country</span>
@@ -909,6 +933,156 @@ function DistrictSets(): JSX.Element {
 }
 
 /** The highlighted countries: colour, fill and outline; shown while the highlight tool is on. */
+/**
+ * The feature browser: everything the panel can put on a map, in a list you can search, filter by a
+ * property, sort and act on together.
+ */
+export function FeatureSheetView(): JSX.Element | null {
+  if (!featureSheetOpen.value) return null;
+  const scope = featureScope.value;
+  const view = featureView.value;
+  const picks = featurePicks.value;
+  const needsCountry = (scope === "province" || scope === "district") && !featureCountry.value;
+  const sort = featureSort.value;
+  const setScope = (next: FeatureScope) => {
+    featureScope.value = next;
+    featurePicks.value = [];
+  };
+  return (
+    <div class="sheet" data-id="feature-sheet">
+      <div class="sheet-title">Features</div>
+      <div class="chips">
+        <button class={`chip ${scope === "country" ? "on" : ""}`} data-id="feature-scope-country" onClick={() => setScope("country")} title="Every country of the bundled data">
+          Countries
+        </button>
+        <button class={`chip ${scope === "province" ? "on" : ""}`} data-id="feature-scope-province" onClick={() => setScope("province")} title="The provinces, states or divisions of one country">
+          Provinces
+        </button>
+        <button class={`chip ${scope === "district" ? "on" : ""}`} data-id="feature-scope-district" onClick={() => setScope("district")} title="The districts of one country, from the set downloaded for it">
+          Districts
+        </button>
+        <button class={`chip ${scope === "import" ? "on" : ""}`} data-id="feature-scope-import" onClick={() => setScope("import")} title="The shapes of the file last imported, with the properties the file gave them">
+          Imported
+        </button>
+        <button class={`chip ${scope === "area" ? "on" : ""}`} data-id="feature-scope-area" onClick={() => setScope("area")} title="The areas this map already holds">
+          On this map
+        </button>
+      </div>
+      {(scope === "province" || scope === "district") && (
+        <div class="sheet-row">
+          <label class="num-field" title="Which country to list">
+            <span>Country</span>
+            <select data-id="feature-country" value={featureCountry.value ?? ""} onChange={(e) => ((featureCountry.value = (e.target as HTMLSelectElement).value || null), (featurePicks.value = []))}>
+              <option value="">Pick a country…</option>
+              {countryChoices(scope === "district" ? "district" : "province").map((choice) => (
+                <option key={choice.code} value={choice.code}>
+                  {choice.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <div class="sheet-row">
+        <input class="grow" placeholder="Search names and properties" data-id="feature-text" value={featureText.value} onInput={(e) => (featureText.value = (e.target as HTMLInputElement).value)} />
+        <input
+          class="grow"
+          placeholder="Filter, e.g. population > 1000000"
+          data-id="feature-filter"
+          title="A property, a test and a value. Tests: > >= < <= = != and has (text that contains). A feature without that property is left out."
+          value={featureFilterText.value}
+          onInput={(e) => (featureFilterText.value = (e.target as HTMLInputElement).value)}
+        />
+      </div>
+      {view.keys.length > 0 && (
+        <div class="sheet-row">
+          <label class="num-field" title="What the list is sorted by">
+            <span>Sort</span>
+            <select
+              data-id="feature-sort"
+              value={sort?.key ?? ""}
+              onChange={(e) => {
+                const key = (e.target as HTMLSelectElement).value;
+                featureSort.value = key ? { key, descending: sort?.descending ?? false } : null;
+              }}
+            >
+              <option value="">As they come</option>
+              <option value="name">Name</option>
+              {view.keys.map((key) => (
+                <option key={key} value={key}>
+                  {key}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button class="small-button" data-id="feature-sort-order" disabled={!sort} title="Largest first, or smallest first" onClick={() => (featureSort.value = sort ? { ...sort, descending: !sort.descending } : null)}>
+            {sort?.descending ? "Largest first" : "Smallest first"}
+          </button>
+          <span class="spacer" />
+          <span class="muted small">
+            {view.total} {view.total === 1 ? "feature" : "features"}
+            {view.hidden ? `, ${view.hidden} not shown` : ""}
+            {picks.length ? `, ${picks.length} ticked` : ""}
+          </span>
+        </div>
+      )}
+      {view.filterFailed && <div class="warning small">That filter needs a property, a test and a value, like population &gt; 1000000 or name has delta.</div>}
+      {needsCountry && <div class="muted small">Pick a country to see its {scope === "district" ? "districts" : "provinces"}.</div>}
+      {!needsCountry && view.rows.length === 0 && <div class="muted small">Nothing matches. {scope === "import" ? "Import a KML, GeoJSON or shapefile first." : scope === "district" ? "Districts are downloaded per country in the Highlight sheet." : "Try fewer words."}</div>}
+      <div class="feature-list" data-id="feature-list">
+        {view.rows.map((row) => (
+          <div key={row.id} class="sheet-row feature-row">
+            <label class="check grow" title={Object.entries(row.props).map(([key, value]) => `${key}: ${value}`).join("\n")}>
+              <input type="checkbox" checked={picks.includes(row.id)} onChange={() => toggleFeaturePick(row.id)} />
+              <span class="grow">{row.name}</span>
+            </label>
+            {sort?.key && row.props[sort.key] !== undefined && <span class="muted small">{String(row.props[sort.key])}</span>}
+            <button class="small-button" title="Frames this feature in the preview" onClick={() => goToFeature(row)}>
+              Go to
+            </button>
+          </div>
+        ))}
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="feature-explode" disabled={busy.value || picks.length !== 1} title="Breaks one ticked outline into its separate parts, largest first: a mainland away from its islands." onClick={() => void explodePickedFeatures()}>
+          Break apart
+        </button>
+        <button class="small-button" data-id="feature-cut" disabled={busy.value || picks.length < 2} title="Cuts the other ticked shapes out of the first one as holes. A shape has to lie wholly inside it." onClick={() => void cutPickedFeatures()}>
+          Cut out
+        </button>
+        <button class="small-button" data-id="feature-count" disabled={busy.value || !picks.length} title="Counts the imported points that fall inside each ticked feature, as a property called inside, which you can then sort or filter on." onClick={() => void countPointsInPicked()}>
+          Count points
+        </button>
+        <button class="small-button" data-id="feature-connect" disabled={busy.value || picks.length < 2} title="A line between the ticked features, all drawing on together: a network map." onClick={() => void connectPickedFeatures()}>
+          Connect
+        </button>
+        <label class="num-field" title="Each place joins only this many of its nearest neighbours; 0 joins every pair">
+          <input type="number" min={0} max={8} step={1} data-id="mesh-neighbours" value={meshNeighbours.value} disabled={busy.value} onChange={(e) => (meshNeighbours.value = Math.max(0, Math.min(8, Number((e.target as HTMLInputElement).value) || 0)))} />
+          <span class="muted">nearest</span>
+        </label>
+      </div>
+      <div class="sheet-row">
+        <button class="small-button" data-id="feature-pick-all" disabled={!view.rows.length} title="Ticks everything in the list, or unticks it" onClick={() => pickEveryFeature()}>
+          Tick all
+        </button>
+        <button class="small-button" data-id="feature-highlight" disabled={busy.value || !picks.length} title="Highlights every ticked feature. Render to get them as layers above the basemap." onClick={() => void highlightPickedFeatures()}>
+          Highlight
+        </button>
+        <button class="small-button" data-id="feature-shapes" disabled={busy.value || !picks.length} title="Every ticked feature as its own editable shape layer with real paths that follow the map" onClick={() => void shapePickedFeatures()}>
+          Shape layers
+        </button>
+        <button class="small-button" data-id="feature-merge" disabled={busy.value || picks.length < 2} title="One area out of every ticked feature, with the borders between the touching ones gone" onClick={() => void mergePickedFeatures()}>
+          Merge
+        </button>
+        <span class="spacer" />
+        <button class="small-button" data-id="feature-close" onClick={() => (featureSheetOpen.value = false)}>
+          Close
+        </button>
+      </div>
+    </div>
+  );
+}
+
 export function HighlightSheetView(): JSX.Element | null {
   if (tool.value !== "highlight") return null;
   const list = highlights.value;
@@ -928,6 +1102,11 @@ export function HighlightSheetView(): JSX.Element | null {
         </button>
       </div>
       {highlightLevel.value === "district" && <DistrictSets />}
+      <div class="sheet-row">
+        <button class="small-button" data-id="feature-browse" title="Every country, province, district or imported shape in one list: search it, filter it by a property, and highlight or add what is left." onClick={() => (featureSheetOpen.value = true)}>
+          Browse features…
+        </button>
+      </div>
       <div class="muted small">Click a country, province or district on the map to highlight it, click it again to remove it (or use the highlight button next to a search result). Any shape of your own: import a KML, GeoJSON or shapefile and press Highlight next to the area. Render to get every highlight as its own layer above the basemap: fade them in one after another, colour them or add a glow in After Effects.</div>
       {list.map((h) => (
         <div key={h.code} class="sheet-row highlight-row">

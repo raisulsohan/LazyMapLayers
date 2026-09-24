@@ -12,9 +12,11 @@ export type Prefs = {
   latestKnown: { version: string; url: string } | null;
   /** A version the user chose not to hear about again. */
   dismissedVersion: string | null;
+  /** Let other scripts drive the panel through the request folder (docs/SCRIPTING.md). Off by default. */
+  scripting: boolean;
 };
 
-export const DEFAULT_PREFS: Prefs = { updates: true, lastUpdateCheck: null, latestKnown: null, dismissedVersion: null };
+export const DEFAULT_PREFS: Prefs = { updates: true, lastUpdateCheck: null, latestKnown: null, dismissedVersion: null, scripting: false };
 
 const file = () => path().join(userDataDir(), "settings.json");
 
@@ -28,7 +30,8 @@ export function normalisePrefs(raw: unknown): Prefs {
     updates: source.updates !== false,
     lastUpdateCheck: typeof source.lastUpdateCheck === "string" ? source.lastUpdateCheck : null,
     latestKnown: known,
-    dismissedVersion: typeof source.dismissedVersion === "string" ? source.dismissedVersion : null
+    dismissedVersion: typeof source.dismissedVersion === "string" ? source.dismissedVersion : null,
+    scripting: source.scripting === true
   };
 }
 
