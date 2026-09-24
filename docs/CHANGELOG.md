@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.0 — a satellite picture of any area, and a camera from Google Earth Studio (2026-09-25)
 
 - **A real satellite picture, built for your area, free.** **Build for this area…** under the look
   makes a satellite basemap of whatever the preview is showing, at ten metres a pixel, from the
