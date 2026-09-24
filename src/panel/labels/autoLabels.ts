@@ -6,6 +6,7 @@ import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNa
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import { resolveLabelTemplate, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { capsFor, dotStyle, textStyle, type PlacedTextStyle } from "../../core/labels/restyle.ts";
+import { designValues, type LabelDesign } from "./labelDesigns.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
 import { themeFrom, type ThemeLike } from "../../core/style/themes.ts";
@@ -36,6 +37,8 @@ export type AutoLabelOptions = {
   terrain?: TerrainSetting | null;
   /** How the names look; without one they follow the map's look. */
   template?: LabelTemplate;
+  /** A comp of the user's own, put on every place instead of a plain name. */
+  design?: LabelDesign | null;
   /**
    * Areas labels must avoid, such as pins and callouts: a box relative to a place (map comp pixels),
    * between two frames.
@@ -104,6 +107,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const lowestZoom = Math.min(...cameras.map((c) => c.zoom));
   const highestZoom = Math.max(...cameras.map((c) => c.zoom));
 
+  const design = options.design ?? null;
   type Prepared = { candidate: LabelCandidate; record: LabelRecord; text: string; raw: string; subtitle: string | null; main: TextStyle; sub: TextStyle; mainDy: number; subDy: number; dx: number };
   const prepared: Prepared[] = [];
   const add = (record: LabelRecord) => {
@@ -125,9 +129,10 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const sub: TextStyle = textStyle(template, scale, { country: isCountry, script: subScript, part: "subtitle" });
     const mainWidth = measure(text, script, size, 600, tracking);
     const subWidth = subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0;
-    const width = Math.max(mainWidth, subWidth) + main.haloWidth * 2;
+    // A design keeps the room its comp takes at this comp's size; a plain name is measured.
+    const width = design ? design.width * scale : Math.max(mainWidth, subWidth) + main.haloWidth * 2;
     const gap = size * 0.18;
-    const height = size * 1.1 + (subtitle ? gap + sub.size * 1.1 : 0);
+    const height = design ? design.height * scale : size * 1.1 + (subtitle ? gap + sub.size * 1.1 : 0);
     // Baselines inside a block centred on the anchor.
     const top = -height / 2;
     const mainDy = top + size * 0.85;
@@ -140,13 +145,14 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       priority: isCountry ? record.rank * 10 + 5 : record.rank * 10 - (record.capital ? 4 : 0) - Math.min(3, Math.log10(record.population + 1) / 3),
       width,
       height,
-      anchor: isCountry ? "center" : "right",
+      // A design sits centred on its own anchor, wherever the designer put it.
+      anchor: design || isCountry ? "center" : "right",
       offset,
-      markerRadius: isCountry || !template.dots ? 0 : 5 * scale,
+      markerRadius: design || isCountry || !template.dots ? 0 : 5 * scale,
       minZoom,
       maxZoom
     };
-    prepared.push({ candidate, record, text, raw, subtitle, main, sub, mainDy, subDy, dx: isCountry ? 0 : offset + width / 2 });
+    prepared.push({ candidate, record, text, raw, subtitle, main, sub, mainDy, subDy, dx: design || isCountry ? 0 : offset + width / 2 });
   };
   if (options.countries ?? true) data.countries.forEach(add);
   if (options.places ?? true) data.places.forEach(add);
@@ -195,15 +201,17 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       name: record.names.en ?? label.text,
       text: label.text,
       raw: label.raw,
-      subtitle: label.subtitle,
+      subtitle: design ? null : label.subtitle,
       keys,
-      dot: record.kind === "place" && template.dots,
+      dot: !design && record.kind === "place" && template.dots,
       main: label.main,
       sub: label.sub,
+      // A design of the user's own: a copy of their comp per place, with its fields filled in.
+      design: design ? { compId: design.compId, anchorX: design.anchorX, anchorY: design.anchorY, width: design.width, height: design.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle) } : null,
       dotStyle: dotStyle(template, scale),
       expressions: {
         main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
-        sub: label.subtitle ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
+        sub: label.subtitle && !design ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
         dot: anchoredPositionExpression(record.lat, record.lng, 0, 0, undefined, elevation)
       }
     };

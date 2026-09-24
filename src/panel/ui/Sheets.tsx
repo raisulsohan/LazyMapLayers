@@ -39,6 +39,7 @@ import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flo
 import { addDataBubbles, addDataCopies, addDataHeat, addDataLegend, addDataSpikes, addDataValues, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
+import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, refreshLabelDesigns } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
 import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
@@ -1055,6 +1056,27 @@ export function LabelsSheetView(): JSX.Element | null {
           </select>
         </label>
       </div>
+      <div class="section-title">Your own design</div>
+      <div class="sheet-row import-row">
+        <label class="num-field grow" title="Any comp in this project whose text layers carry {name}, {population} and the like. Every place gets a copy of it with its fields filled in, instead of a plain name.">
+          <select data-id="label-design" value={labelDesignId.value === null ? "" : String(labelDesignId.value)} disabled={busy.value} onChange={(e) => void changeLabelDesign((e.target as HTMLSelectElement).value ? Number((e.target as HTMLSelectElement).value) : null)}>
+            <option value="">Plain names</option>
+            {labelDesignList.value.map((design) => (
+              <option key={design.compId} value={String(design.compId)}>
+                {design.name}
+              </option>
+            ))}
+          </select>
+        </label>
+        <button class="small-button" data-id="label-designs-refresh" disabled={busy.value} title="Reads the comps in this project again" onClick={() => void refreshLabelDesigns()}>
+          Refresh
+        </button>
+      </div>
+      {currentLabelDesign.value ? (
+        <div class="muted small">It fills {currentLabelDesign.value.fields.map((field) => `{${field}}`).join(", ")}. Other fields you can use: {"{name} {english} {country} {countryName} {region} {population} {populationShort} {capital} {lat} {lng}"}. A layer called "Anchor" marks where the place sits.</div>
+      ) : (
+        <div class="muted small">Design a comp with text layers like {"{name}"} or {"Pop. {populationShort}"}, then pick it here and place the names again.</div>
+      )}
       <div class="section-title">How the names look</div>
       <div class="sheet-row import-row">
         <input type="color" data-id="label-color" value={labels.color} disabled={busy.value} title="The colour of city names (country names take it too when you pick a style up from a layer)" onChange={(e) => void changeLabelTemplate({ color: (e.target as HTMLInputElement).value, countryColor: (e.target as HTMLInputElement).value })} />

@@ -60,6 +60,7 @@ import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
 import { repositionLabels } from "./labels/repositionLabels.ts";
+import { labelDesigns, type LabelDesign } from "./labels/labelDesigns.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
@@ -102,6 +103,7 @@ export type MapEntry = {
   highlightLayers?: "each" | "one";
   layerStyle?: LayerStyleOverride | null;
   labelTemplate?: LabelTemplateOverride | null;
+  labelDesign?: number | null;
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
   dataFill?: DataFill | null;
@@ -214,6 +216,32 @@ export const labelLanguage = signal("local+en");
 export const LABEL_DENSITIES = { few: { label: "Few (up to 20)", max: 20 }, normal: { label: "Normal (up to 45)", max: 45 }, many: { label: "Many (up to 120)", max: 120 } } as const;
 export type LabelDensity = keyof typeof LABEL_DENSITIES;
 export const labelDensity = signal<LabelDensity>("normal");
+/** A comp of the user's own put on every place instead of a plain name, and the comps to choose from. */
+export const labelDesignId = signal<number | null>(null);
+export const labelDesignList = signal<LabelDesign[]>([]);
+export const currentLabelDesign = computed(() => labelDesignList.value.find((design) => design.compId === labelDesignId.value) ?? null);
+
+/** Reads the project's comps again: any comp with a {field} in a text layer can be a label. */
+export const refreshLabelDesigns = () =>
+  run("label designs", async () => {
+    labelDesignList.value = await labelDesigns();
+    if (labelDesignId.value !== null && !labelDesignList.value.some((design) => design.compId === labelDesignId.value)) {
+      labelDesignId.value = null;
+      log("the label design comp is not in this project any more; names are plain text again", "muted");
+    }
+  });
+
+/** Chooses the design (or none) and keeps it with the map. */
+export const changeLabelDesign = (compId: number | null) =>
+  run("label design", async () => {
+    labelDesignId.value = compId;
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, labelDesign: compId });
+      await readMaps();
+    }
+    const design = currentLabelDesign.value;
+    log(design ? `names will be copies of "${design.name}" (${design.fields.map((field) => `{${field}}`).join(" ")}). Place the names again to use it` : "names are plain text again. Place the names again to use it", "ok");
+  });
 export const liveLink = signal(false);
 /** Preview names and lines at their rendered size instead of enlarged to stay readable. */
 export const exactLook = signal(false);
@@ -303,6 +331,7 @@ function showMap(entry: MapEntry): void {
   terrain.value = normaliseTerrain(entry.terrain);
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
+  labelDesignId.value = typeof entry.labelDesign === "number" ? entry.labelDesign : null;
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
   dataFill.value = normaliseDataFill(entry.dataFill);
@@ -1284,6 +1313,7 @@ export const runAutoLabels = () =>
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,
       template: currentLabelTemplate.value,
+      design: currentLabelDesign.value,
       zones: keepOut.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.

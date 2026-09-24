@@ -118,3 +118,24 @@ export function legendSteps(scale: Scale): LegendStep[] {
     return { color: scale.colors[index], from, to, label: `${formatValue(from)} - ${formatValue(to)}` };
   });
 }
+
+/**
+ * A number in as few characters as a label can spare: 940, 8.9K, 14.8M, 1.4B. Whole thousands keep
+ * no decimal ("2M", not "2.0M"), so a label never carries a digit that says nothing.
+ */
+export function formatShort(value: number): string {
+  if (!Number.isFinite(value)) return "";
+  const size = Math.abs(value);
+  const units: [number, string][] = [
+    [1e9, "B"],
+    [1e6, "M"],
+    [1e3, "K"]
+  ];
+  for (const [scale, suffix] of units) {
+    if (size < scale) continue;
+    const short = value / scale;
+    const decimals = Math.abs(short) >= 100 ? 0 : 1;
+    return `${Number(short.toFixed(decimals))}${suffix}`;
+  }
+  return String(Math.round(value));
+}

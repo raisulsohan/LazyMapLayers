@@ -44,7 +44,7 @@ export type RepositionResult = {
   longestCallMs: number;
 };
 
-type Part = { main?: PlacedLabel; subtitle?: PlacedLabel; dot?: PlacedLabel };
+type Part = { main?: PlacedLabel; subtitle?: PlacedLabel; dot?: PlacedLabel; design?: PlacedLabel };
 
 /** The label records by their id, so a placed name finds the place it stands for. */
 function recordsById(): Map<string, WorldLabel> {
@@ -68,6 +68,7 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     const part = parts.get(label.labelId) ?? {};
     if (label.part === "subtitle") part.subtitle = label;
     else if (label.part === "dot") part.dot = label;
+    else if (label.part === "design") part.design = label;
     else part.main = label;
     parts.set(label.labelId, part);
   }
@@ -84,21 +85,24 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
   const prepared: Prepared[] = [];
   for (const [labelId, part] of parts) {
     const record = records.get(labelId);
-    if (!record || !part.main) {
+    if (!record || !(part.main || part.design)) {
       result.unknown++;
       continue;
     }
     const isCountry = isCountryLabel(labelId);
-    const raw = part.main.raw ?? part.main.text;
+    const placed = (part.design ?? part.main)!;
+    const raw = placed.raw ?? placed.text;
     const script = scriptOf(raw);
     const text = capsFor(options.template, isCountry, script) ? raw.toLocaleUpperCase() : raw;
     const subtitle = part.subtitle?.text ?? null;
     const subScript = subtitle ? scriptOf(subtitle) : "latin";
     const main = textStyle(options.template, scale, { country: isCountry, script, part: "text" });
     const sub = textStyle(options.template, scale, { country: isCountry, script: subScript, part: "subtitle" });
-    const width = Math.max(measure(text, script, main.size, 600, main.tracking), subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0) + main.haloWidth * 2;
+    // A design keeps the room its comp took when it was placed (its tag holds it).
+    const design = part.design ? { width: (part.design.w ?? 0) * scale, height: (part.design.h ?? 0) * scale } : null;
+    const width = design ? design.width : Math.max(measure(text, script, main.size, 600, main.tracking), subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0) + main.haloWidth * 2;
     const gap = main.size * 0.18;
-    const height = main.size * 1.1 + (subtitle ? gap + sub.size * 1.1 : 0);
+    const height = design ? design.height : main.size * 1.1 + (subtitle ? gap + sub.size * 1.1 : 0);
     const top = -height / 2;
     const offset = Math.round(10 * scale);
     // The same zoom band the name was placed in, so a template change never lengthens its stay.
@@ -113,16 +117,16 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
         priority: isCountry ? record.rank * 10 + 5 : record.rank * 10 - (record.capital ? 4 : 0) - Math.min(3, Math.log10(record.population + 1) / 3),
         width,
         height,
-        anchor: isCountry ? "center" : "right",
+        anchor: design || isCountry ? "center" : "right",
         offset,
         // A name whose dot is gone keeps nothing free around its place.
-        markerRadius: isCountry || !part.dot ? 0 : 5 * scale,
+        markerRadius: design || isCountry || !part.dot ? 0 : 5 * scale,
         minZoom,
         maxZoom
       },
       record,
       part,
-      dx: isCountry ? 0 : offset + width / 2,
+      dx: design || isCountry ? 0 : offset + width / 2,
       mainDy: top + main.size * 0.85,
       subDy: top + main.size * 1.1 + gap + sub.size * 0.85
     });
@@ -153,7 +157,7 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     sampler?.close();
   }
 
-  type Item = { labelId: string; part: "text" | "subtitle" | "dot"; positionExpression: string; keys: number[][] };
+  type Item = { labelId: string; part: "text" | "subtitle" | "dot" | "design"; positionExpression: string; keys: number[][] };
   const items: Item[] = [];
   for (const [index, entry] of prepared.entries()) {
     const elevation = elevations[index];
@@ -163,7 +167,8 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     const keys = track ? opacityKeys(track, fade).map(([frame, value]) => [frame, (value * peak) / 100]) : [];
     if (!keys.length) result.hidden++;
     const at = (dy: number) => anchoredPositionExpression(entry.record.lat, entry.record.lng, entry.dx, dy, undefined, elevation);
-    items.push({ labelId: entry.candidate.id, part: "text", positionExpression: at(entry.mainDy), keys });
+    if (entry.part.design) items.push({ labelId: entry.candidate.id, part: "design", positionExpression: at(0), keys });
+    else items.push({ labelId: entry.candidate.id, part: "text", positionExpression: at(entry.mainDy), keys });
     if (entry.part.subtitle) items.push({ labelId: entry.candidate.id, part: "subtitle", positionExpression: at(entry.subDy), keys });
     if (entry.part.dot) items.push({ labelId: entry.candidate.id, part: "dot", positionExpression: anchoredPositionExpression(entry.record.lat, entry.record.lng, 0, 0, undefined, elevation), keys });
   }

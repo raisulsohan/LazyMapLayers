@@ -10,10 +10,11 @@ export const RTL_SCRIPTS: Script[] = ["arabic", "hebrew"];
 /** Scripts that have capitals: only these are set in capitals when the template asks. */
 export const UPPERCASE_SCRIPTS: Script[] = ["latin", "cyrillic", "greek"];
 
-export type PlacedPart = "text" | "subtitle" | "dot";
+export type PlacedPart = "text" | "subtitle" | "dot" | "design";
 
-/** A label layer as the host lists it: its label, which part it is, and what it says. */
-export type PlacedLabel = { labelId: string; part: PlacedPart; text: string; raw?: string | null };
+/** A label layer as the host lists it: its label, which part it is, what it says, and (for a design of
+ * the user's own) the room its comp takes. */
+export type PlacedLabel = { labelId: string; part: PlacedPart; text: string; raw?: string | null; w?: number | null; h?: number | null };
 
 export type PlacedTextStyle = { size: number; color: Rgb; haloColor: Rgb; haloWidth: number; fonts: string[]; tracking: number; rtl: boolean };
 export type PlacedDotStyle = { radius: number; color: Rgb; strokeColor: Rgb; strokeWidth: number };
@@ -64,6 +65,8 @@ export function restylePlan(labels: PlacedLabel[], template: LabelTemplate, scal
   const dotted = new Set(labels.filter((label) => label.part === "dot").map((label) => label.labelId));
   for (const label of labels) {
     const country = isCountryLabel(label.labelId);
+    // A label built from the user's own comp wears what they drew; only its place is ours to set.
+    if (label.part === "design") continue;
     if (label.part === "dot") {
       if (template.dots) plan.dots.push({ labelId: label.labelId, style: dotStyle(template, scale) });
       else plan.remove.push(label.labelId);

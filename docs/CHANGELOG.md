@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Labels you design yourself.** Make a comp - a box, an icon, a line, whatever you draw - with text
+  layers that say `{name}`, `Pop. {populationShort}`, `{country}` and so on, and pick it under **Your
+  own design** in the Labels sheet. Every place then gets a copy of your comp with its fields filled
+  in, placed over the whole timeline with the same collision rules as plain names. A layer called
+  **Anchor** marks where the place sits inside your design; without one the comp's centre is used.
+  Fields: name, english, subtitle, country, countryName, region, population, populationShort,
+  capital, kind, lat, lng.
 - **A terrain pass.** The shaded slopes can be rendered as their own layer, with alpha, to grade or
   switch off in After Effects; the land and water passes still carry them as before. Switch it on in
   the Render tab. A map without an elevation pack leaves the pass out instead of making an empty

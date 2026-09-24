@@ -887,6 +887,23 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D64 — Labels from a comp of the user's own (2026-09-24)
+
+- **Why.** The one thing a designer sees first in a map animation is the label: a box, a rule, an
+  icon, a population line. A template of colour, size and halo cannot make that. This was the
+  biggest thing the panel could not do that the paid tools can.
+- **Decision.** Any comp in the project whose text layers contain `{field}` is a design (host
+  `listLabelDesigns`; our own comps carry a tag and are never offered). Auto labels then duplicates
+  that comp per place into a "LazyMapLayers Labels" folder, fills every `{field}` from the place's
+  record, adds the copy as a layer, and sets its anchor point to the design's "Anchor" layer (or the
+  comp's centre) so the place lands exactly there. The copy is scaled by the map's height, like
+  every other size in the panel.
+- **Placement is the same.** A design's box is its comp size, so the collision placement, the fades
+  and the keep-out zones work as they do for plain names; the label carries the box in its tag, so
+  a template change can place it again (D62) without opening the comp.
+- **The design is the user's.** A restyle never touches a design label's look: what they drew is
+  what renders. Removing the labels removes the copies as well, so a project does not silt up.
+
 ## D63 — The shaded slopes as their own pass (2026-09-24)
 
 - **Why.** D8 left three passes out: labels, terrain shading and a selected-region matte. Labels

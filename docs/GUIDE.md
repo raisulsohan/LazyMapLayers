@@ -113,7 +113,10 @@ data adds a small credit layer, which the licence asks for.
 
 **Auto labels**: country and city names over the whole timeline, in each place's own language (or
 one language, with or without an English line under it), as editable text layers that never overlap
-or flicker. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
+or flicker. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
+rule, and give its text layers fields like `{name}` or `Pop. {populationShort}`; a layer called
+**Anchor** marks where the place sits. The panel fills the fields per place and places the copies
+with the same collision rules. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
 capitals for countries, and dots for cities, or takes them **From the selected text layer** you
 styled yourself; a change restyles the names already on the map and places them again, so bigger
 names step apart instead of overlapping (one that no longer fits anywhere fades out, and the log

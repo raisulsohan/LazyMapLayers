@@ -26,8 +26,17 @@ LML.labels.removeTagged = function (scene, mapId, kind) {
         var layer = scene.layer(i);
         var tag = LML.tag.read(layer);
         if (!tag || tag.kind !== kind || tag.mapId !== mapId) continue;
+        // A label built from a design owns its copied comp: it goes with the layer.
+        var source = tag.part === "design" && layer.source instanceof CompItem ? layer.source : null;
         layer.locked = false;
         layer.remove();
+        if (source) {
+            try {
+                source.remove();
+            } catch (e) {
+                // A copy the user reused somewhere else stays.
+            }
+        }
         removed++;
     }
     return removed;
@@ -223,6 +232,96 @@ LML.labels.move = function (args) {
     return { moved: moved, expressionErrors: errors };
 };
 
+/**
+ * Label designs: comps of the user's own with {field} text layers. Every comp in the project that
+ * holds a text layer with a field and is not one of ours can be a label's design; the panel lists
+ * them and Auto labels puts a copy of the chosen one on every place.
+ */
+LML.labels.FIELD = /\{[a-zA-Z_]+\}/g;
+
+/** The anchor inside a design: the position of a layer called "Anchor", else the comp's centre. */
+LML.labels.designAnchor = function (comp) {
+    for (var i = 1; i <= comp.numLayers; i++) {
+        var layer = comp.layer(i);
+        if (layer.name.toLowerCase() !== "anchor") continue;
+        var p = layer.property("ADBE Transform Group").property("ADBE Position").value;
+        return [p[0], p[1]];
+    }
+    return [comp.width / 2, comp.height / 2];
+};
+
+/** Every design in the project: its size, its anchor and the fields it asks for. */
+LML.api.listLabelDesigns = function () {
+    var out = [];
+    for (var i = 1; i <= app.project.numItems; i++) {
+        var item = app.project.item(i);
+        if (!(item instanceof CompItem)) continue;
+        // Our own comps (maps, scenes, legends, label copies) are never designs.
+        if (LML.tag.read(item)) continue;
+        var fields = [];
+        var seen = {};
+        for (var l = 1; l <= item.numLayers; l++) {
+            var prop = item.layer(l).property("ADBE Text Properties");
+            if (!prop) continue;
+            var found = prop.property("ADBE Text Document").value.text.match(LML.labels.FIELD);
+            if (!found) continue;
+            for (var f = 0; f < found.length; f++) {
+                var name = found[f].substring(1, found[f].length - 1);
+                if (seen[name]) continue;
+                seen[name] = true;
+                fields.push(name);
+            }
+        }
+        if (!fields.length) continue;
+        var anchor = LML.labels.designAnchor(item);
+        out.push({ compId: item.id, name: item.name, width: item.width, height: item.height, anchorX: anchor[0], anchorY: anchor[1], fields: fields });
+    }
+    return out;
+};
+
+/** The folder the copies of a design live in, made once. */
+LML.labels.designFolder = function () {
+    for (var i = 1; i <= app.project.numItems; i++) {
+        var item = app.project.item(i);
+        if (item instanceof FolderItem && item.name === "LazyMapLayers Labels") return item;
+    }
+    var folder = app.project.items.addFolder("LazyMapLayers Labels");
+    return folder;
+};
+
+/**
+ * A copy of the design with its fields filled in. values: { name: "Dhaka", population: "8.9 M", ... }
+ * A text layer's whole source text is kept, so "Pop. {population}" reads "Pop. 8.9 M".
+ */
+LML.labels.fillDesign = function (design, values, label) {
+    var copy = design.duplicate();
+    copy.name = "Label: " + label;
+    copy.parentFolder = LML.labels.designFolder();
+    for (var i = 1; i <= copy.numLayers; i++) {
+        var layer = copy.layer(i);
+        var prop = layer.property("ADBE Text Properties");
+        if (!prop) continue;
+        var doc = prop.property("ADBE Text Document").value;
+        var text = doc.text;
+        if (!text.match(LML.labels.FIELD)) continue;
+        var filled = "";
+        var rest = text;
+        while (true) {
+            var at = rest.indexOf("{");
+            if (at < 0) break;
+            var end = rest.indexOf("}", at);
+            if (end < 0) break;
+            var key = rest.substring(at + 1, end);
+            var value = values.hasOwnProperty(key) ? String(values[key]) : "";
+            filled += rest.substring(0, at) + value;
+            rest = rest.substring(end + 1);
+        }
+        doc.text = filled + rest;
+        prop.property("ADBE Text Document").setValue(doc);
+    }
+    return copy;
+};
+
 /** Where a batched label build stands between host calls: { mapId, viewerWasScene }. */
 LML.labels.pending = null;
 
@@ -307,15 +406,27 @@ LML.labels.addLabels = function (args) {
             lap("link");
             parts.push([dot, "dot"]);
         }
-        var main = scene.layers.addText(spec.text);
+        var main;
+        if (spec.design) {
+            // A design of the user's own: a copy of their comp, its fields filled, on the place.
+            var design = LML.tag.findItemById(spec.design.compId);
+            if (!design) throw LML.util.error("DESIGN_GONE", "The label design comp is not in this project any more");
+            main = scene.layers.add(LML.labels.fillDesign(design, spec.design.values, spec.name));
+            main.anchorPoint.setValue([spec.design.anchorX, spec.design.anchorY, 0]);
+            if (spec.design.scale && spec.design.scale !== 100) main.property("ADBE Transform Group").property("ADBE Scale").setValue([spec.design.scale, spec.design.scale, 100]);
+        } else {
+            main = scene.layers.addText(spec.text);
+        }
         main.name = prefix + ": " + spec.name;
         lap("create");
-        spec.main.font = fontFor(spec.main.fonts);
-        LML.labels.styleText(main, spec.main);
-        lap("style");
+        if (!spec.design) {
+            spec.main.font = fontFor(spec.main.fonts);
+            LML.labels.styleText(main, spec.main);
+            lap("style");
+        }
         LML.labels.link(main, mapLayer, spec.expressions.main, errors, spec.name, check);
         lap("link");
-        parts.push([main, "text"]);
+        parts.push([main, spec.design ? "design" : "text"]);
         if (spec.subtitle) {
             var sub = scene.layers.addText(spec.subtitle);
             sub.name = prefix + ": " + spec.name + " (subtitle)";
@@ -336,6 +447,11 @@ LML.labels.addLabels = function (args) {
             var written = { kind: kind, v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] };
             // The words the name was placed with, so capitals can come off again when the template changes.
             if (parts[p][1] === "text" && spec.raw) written.raw = spec.raw;
+            if (parts[p][1] === "design") {
+                written.raw = spec.raw;
+                written.w = spec.design.width;
+                written.h = spec.design.height;
+            }
             LML.tag.write(layer, written);
             lap("tag");
             layers++;

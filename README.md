@@ -90,6 +90,9 @@ Dhaka to Chittagong with an arrow, say:
   buildings, roads or railways) and the panel finds what OpenStreetMap holds for the area in the
   preview: a lake with its islands as real holes, a river, a district outline. It arrives as an
   import, so everything you do with a GeoJSON file works with it.
+- **Labels you design yourself.** Make a comp - a box, an icon, a population line - with text layers
+  like `{name}` and `Pop. {populationShort}`, and every place gets a copy of it with its fields
+  filled in, placed over the whole timeline without overlaps.
 - **Label templates and keep-out zones.** One row sets the colour, size, halo, capitals and dots of
   every name, or takes them from a text layer you styled yourself, and the names already on the map
   follow at once - restyled and placed again, so bigger names never overlap; names can be kept out of the lower

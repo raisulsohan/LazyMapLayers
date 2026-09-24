@@ -200,6 +200,7 @@ LML.api.setMapSettings = function (args) {
     if (args.highlights !== undefined) tag.highlights = args.highlights;
     if (args.layerStyle !== undefined) tag.layerStyle = args.layerStyle;
     if (args.labelTemplate !== undefined) tag.labelTemplate = args.labelTemplate;
+    if (args.labelDesign !== undefined) tag.labelDesign = args.labelDesign;
     if (args.keepOut !== undefined) tag.keepOut = args.keepOut;
     if (args.osmData !== undefined) tag.osmData = args.osmData;
     if (args.dataFill !== undefined) tag.dataFill = args.dataFill;
