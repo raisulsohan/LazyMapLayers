@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Saving a project no longer puts its renders at risk.** A map rendered before its project was
+  saved kept its frames in the data folder, and **Remove** under Renders on disk could delete them
+  while another project was open, so the first one opened with missing files. Those frames now stay
+  where the footage points, know which project they belong to, and are kept for as long as that
+  project file exists. Saving a project also no longer draws a map's frames all over again.
 - **Cities and the roads between them, on the world map.** The map inside the panel now carries
   built-up areas and the motorways between cities, so the zooms between the countries and a
   downloaded area are no longer bare land with an outline on it: a flight from the globe down to a

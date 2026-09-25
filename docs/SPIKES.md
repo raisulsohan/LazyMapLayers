@@ -20,7 +20,7 @@ that go online run only when they are named.
 | H1 | The host API through the real panel bridge | PASS 9/9 |
 | P1, C1 | Pins and the matched 3D camera against the camera maths | 0.0061 px worst, 0.004 px in 3D |
 | E1, X1 | After Effects' own render, and both expression engines | 20/20; 21 expressions, both engines |
-| R1, R2 | The renderer, its passes and a 10-second 4K move | 16/16; no pops (measured again 2026-09-24: 88 ms per frame) |
+| R1, R2 | The renderer, its passes and a 10-second 4K move; both take their map out of the project before deleting its frames | 17/17; no pops (measured again 2026-09-24: 88 ms per frame) |
 | G2, D1, D1L | The globe, and the world flight demo at 1080p and 4K | PASS |
 | SH1 | The shot list: 601 frames match the core maths, Apply in ~30 ms | PASS |
 | TH1, SAT1 | Every look, with and without the imagery packs | PASS |
@@ -41,6 +41,7 @@ that go online run only when they are named.
 | FB1 | The feature browser: what is under the view, listed and searched, and turned into pins, names, highlights or shape layers | PASS |
 | ES1 | A Google Earth Studio camera read from its exported numbers: 256 orientations round-tripped, the comp built to the render's size, length and frame rate, track points placed as pins | PASS |
 | WB1 | Cities and roads fill zooms 7 to 9: 36.5 %, 52.9 % and 66.3 % of the frame against 10.0 % at zoom 5, and gone by 11 | PASS |
+| RD1 | Renders on disk: a map rendered before its project was saved keeps its folder and names the project; Remove takes only what nothing can reach (fails six ways on the old code) | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool | PASS |
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |

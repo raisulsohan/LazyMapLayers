@@ -110,6 +110,7 @@ export type RenderInfo = {
   projection: MapProjection;
   animations: string[];
   projectFolder: string | null;
+  projectFile: string | null;
 };
 
 const OSM_CREDIT = "© OpenStreetMap contributors";
@@ -224,6 +225,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // The camera animation alone: equal stamps mean a preview and a final show the same move.
   const stamp = keyOf({ fps: info.frameRate, cameras: cameras.map((c) => [c[0].center.lat, c[0].center.lng, c[0].zoom, c[0].bearing, c[0].pitch]) });
   const store = RenderStore.forMap(spec.mapId, info.mapCompName, info.projectFolder);
+  // Renders of a project that has been saved are never orphans, wherever they sit (renderDisk.ts).
+  store.claimFor(info.projectFile ?? null);
 
   // Plan: the pass images each frame still needs. Frames sharing a key share one render.
   report({ stage: "planning", done: 0, total: info.frames, rendered: 0, reused: 0 });

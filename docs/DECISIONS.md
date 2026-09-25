@@ -887,6 +887,33 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D75 — Renders made before a project was saved belong to it (2026-09-25)
+
+- **What happened.** After Effects opened a project with eight missing files, one per render pass,
+  all in the data folder. Those came from R1, which deletes its frames once the checks have read
+  them (they are hundreds of megabytes) and left its comp behind, still pointing at them. Tracing it
+  turned up a real hole of the same shape in the product.
+- **The hole.** D45 took a folder in the data folder to be unreachable once its map was not in the
+  open project, since an unsaved project cannot be reopened. But an unsaved project can be *saved*.
+  Its map's footage keeps pointing at the data folder, while the next render went next to the
+  project and drew everything again; and with any other project open, **Remove** under Renders on
+  disk deleted the first project's frames. Opening it again showed exactly that dialog, for real.
+- **Decision.** A map's renders stay in the folder they are already in, wherever that is
+  (RenderStore.forMap looks next to the project first, then in the data folder), so saving a project
+  never splits a map's frames or draws them twice. Every render of a saved project writes the
+  project's path into its folder (`belongs to.txt`). A folder may go only when nothing can reach it:
+  not a map of the open project, and not claimed by a project file that still exists
+  (`canRemoveRender` in src/core/render/renderDiskRules.ts). A deleted project releases its frames.
+  New maps of a saved project still render next to it, as before.
+- **The tests tidy up.** R1 and R2 take their own scene, map comp and footage items out of the
+  project before deleting the frames, in one undo group, and R1 checks that no footage of its map is
+  left.
+- **Tested.** A unit test holds the rule in its five cases. RD1 builds stand-in folders and a
+  stand-in project file (nothing in the open project is touched): the saved map's next render stays
+  in its folder and names the project, a new map goes next to the project, Remove takes only the
+  unreachable folder, and deleting the project file releases the other. Run against the old code,
+  RD1 fails six ways, among them "removing old renders deleted the frames of a saved project".
+
 ## D74 — Cities and the roads between them, so the band above the world map is not empty (2026-09-25)
 
 - **Why.** A flight from the globe to a city passes through zoom 7, 8 and 9. The bundled world data

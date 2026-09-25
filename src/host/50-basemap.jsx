@@ -62,7 +62,8 @@ LML.basemap.renderInfo = function (args) {
             for (var i = 0; i < controls.length; i++) keys.push(controls[i].key);
             return keys;
         })(),
-        projectFolder: app.project.file ? app.project.file.parent.fsName : null
+        projectFolder: app.project.file ? app.project.file.parent.fsName : null,
+        projectFile: app.project.file ? app.project.file.fsName : null
     };
 };
 

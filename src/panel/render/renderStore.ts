@@ -13,6 +13,9 @@ import type { RenderQuality } from "../../core/render/plan.ts";
 import { sequenceFileName } from "../../core/render/plan.ts";
 import { fs, path, userDataDir } from "../cep.ts";
 
+/** The file inside a render folder naming the saved project the frames belong to. */
+export const PROJECT_MARKER = "belongs to.txt";
+
 export class RenderStore {
   readonly root: string;
   private readonly known = new Set<string>();
@@ -23,20 +26,40 @@ export class RenderStore {
 
   /** The store for a map: next to the saved project, or in the user's data folder. */
   static forMap(mapId: string, compName: string, projectFolder: string | null): RenderStore {
-    const base = projectFolder
-      ? path().join(projectFolder, "LazyMapLayers Renders")
-      : path().join(userDataDir(), "renders");
-    // Reuse the folder of this map even if its comp was renamed since.
-    try {
-      const existing = fs()
-        .readdirSync(base)
-        .find((name) => name === mapId || name.endsWith(` ${mapId}`));
-      if (existing) return new RenderStore(path().join(base, existing));
-    } catch {
-      // No renders yet.
+    const loose = path().join(userDataDir(), "renders");
+    const base = projectFolder ? path().join(projectFolder, "LazyMapLayers Renders") : loose;
+    // Reuse the folder this map's renders are already in, even if its comp was renamed since, and
+    // even if that is the data folder from before the project was saved: the footage After Effects
+    // has imported points there, and moving the frames would break every one of those links.
+    for (const where of base === loose ? [loose] : [base, loose]) {
+      try {
+        const existing = fs()
+          .readdirSync(where)
+          .find((name) => name === mapId || name.endsWith(` ${mapId}`));
+        if (existing) return new RenderStore(path().join(where, existing));
+      } catch {
+        // No renders there yet.
+      }
     }
     const safe = compName.replace(/[^A-Za-z0-9 _-]+/g, "_").trim() || "Map";
     return new RenderStore(path().join(base, `${safe} ${mapId}`));
+  }
+
+  /**
+   * Writes down which saved project these frames belong to.
+   *
+   * Renders made before a project was saved stay in the data folder (forMap above), where the
+   * housekeeping that clears "renders of projects that are gone" would otherwise find them and
+   * delete footage a project on disk still uses.
+   */
+  claimFor(projectFile: string | null): void {
+    if (!projectFile) return;
+    try {
+      fs().mkdirSync(this.root, { recursive: true });
+      fs().writeFileSync(path().join(this.root, PROJECT_MARKER), projectFile, "utf8");
+    } catch {
+      // The marker is a courtesy; a render must not fail without it.
+    }
   }
 
   cacheFile(pass: PassId, key: string): string {

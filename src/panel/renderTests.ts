@@ -65,6 +65,48 @@ function removeRenders(root: string) {
   }
 }
 
+/**
+ * Takes this test's own scene, map comp and footage out of the project, then deletes its frames.
+ *
+ * A render of every pass at 1080p for four seconds is hundreds of megabytes and a 4K one is more, so
+ * the frames go as soon as the checks have read them. The comp that imported them would then hold a
+ * footage item per pass pointing at files that are no longer there, and After Effects lists every one
+ * of them the next time the project is opened - which looks like the panel losing a render, and is
+ * only this test tidying up after itself. Nothing else deletes frames the project still uses: the
+ * store keeps the two newest sequences of each pass and skips whatever After Effects holds, and
+ * Renders on disk removes only folders no project can reach.
+ */
+async function removeRenderedMap(mapId: string, root: string): Promise<number> {
+  let left = -1;
+  try {
+    left = await host<number>(`
+      app.beginUndoGroup("LazyMapLayers: remove the test map");
+      try {
+        var layer = LML.pins.findMapLayer(${JSON.stringify(mapId)});
+        var scene = layer.containingComp, mapComp = layer.source, footage = [], i;
+        for (i = 1; i <= app.project.numItems; i++) {
+          var item = app.project.item(i), tag = LML.tag.read(item);
+          if (tag && tag.kind === "basemapFootage" && tag.mapId === ${JSON.stringify(mapId)}) footage.push(item);
+        }
+        scene.remove();
+        mapComp.remove();
+        for (i = 0; i < footage.length; i++) footage[i].remove();
+      } finally {
+        app.endUndoGroup();
+      }
+      var over = 0;
+      for (i = 1; i <= app.project.numItems; i++) {
+        var rest = LML.tag.read(app.project.item(i));
+        if (rest && rest.kind === "basemapFootage" && rest.mapId === ${JSON.stringify(mapId)}) over++;
+      }
+      return LML.json.stringify(over);`);
+  } catch {
+    // The frames still go; a comp left behind is untidy, not a failed test.
+  }
+  removeRenders(root);
+  return left;
+}
+
 export async function runRenderTests(log: SpikeLog, which: { r1: boolean; r2: boolean }): Promise<Record<string, unknown>> {
   const out: Record<string, unknown> = {};
   const basemap: BasemapSource = fs().existsSync(regionArchivePath("paris")) ? { kind: "region", name: "paris" } : { kind: "world" };
@@ -243,7 +285,8 @@ async function r1Body(log: SpikeLog, basemap: BasemapSource, checks: Check[]): P
     cpu.destroy();
   }
 
-  removeRenders(first.storeRoot);
+  // Nothing of this test is left pointing at the frames it just deleted.
+  check("the test map leaves no footage behind", (await removeRenderedMap(map.id, first.storeRoot)) === 0);
 
   const passed = checks.every((c) => c.passed);
   log(`R1 renderer: ${checks.filter((c) => c.passed).length}/${checks.length} checks passed`, passed ? "ok" : "fail");
@@ -283,7 +326,7 @@ async function runR2(log: SpikeLog, basemap: BasemapSource): Promise<Record<stri
   const keep = path().join(spikeDir(), "R2-frames");
   fs().mkdirSync(keep, { recursive: true });
   for (const frame of [0, 125, 249]) fs().copyFileSync(path().join(first.sequences[0].folder, sequenceFileName(frame)), path().join(keep, `base-${frame}.png`));
-  removeRenders(first.storeRoot);
+  await removeRenderedMap(map.id, first.storeRoot);
   return {
     frames: first.frames,
     msPerRenderedFrame: Math.round(first.msPerRenderedFrame),

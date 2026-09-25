@@ -32,6 +32,7 @@ import { runFeatureTest } from "./featureTests.ts";
 import { runEarthStudioTest } from "./earthStudioTests.ts";
 import { runSentinelTest } from "./sentinelTests.ts";
 import { runWorldBandTest } from "./worldBandTests.ts";
+import { runRenderDiskTest } from "./renderDiskTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -396,6 +397,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.WB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`WB1 failed: ${results.WB1_error}`, "fail");
+    }
+  }
+
+  if (wants("RD1")) {
+    try {
+      results.RD1_renderDisk = await runRenderDiskTest(log);
+    } catch (error) {
+      results.RD1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`RD1 failed: ${results.RD1_error}`, "fail");
     }
   }
 

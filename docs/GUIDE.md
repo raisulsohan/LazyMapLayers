@@ -294,7 +294,8 @@ The **Render tab** holds the settings of the selected map:
   angle and phase come from the scene comp, so the basemap blurs like the layers above it.
 - **Renders on disk**: what the renders take. A saved project's renders live in a "LazyMapLayers
   Renders" folder next to it; an unsaved project's in the data folder, and those can be removed once
-  the project is closed.
+  the project is closed. A map you rendered before saving its project keeps its frames in the data
+  folder, where its footage points, and they are kept for as long as that project file exists.
 
 A job from another project waits in the list, with a plain sentence, until its project is open.
 

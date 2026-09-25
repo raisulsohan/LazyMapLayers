@@ -16,13 +16,13 @@ function DiskLine(): JSX.Element {
     <div class="disk-line small muted" data-id="render-disk">
       {report ? (
         <>
-          <span title={`Renders of this project: ${formatBytes(report.projectBytes)} next to the project file (kept). Renders of unsaved projects: ${formatBytes(looseTotal)} in the data folder, of which ${formatBytes(report.looseOldBytes)} belong to projects that are closed and cannot be opened again.`}>
+          <span title={`Renders of this project: ${formatBytes(report.projectBytes)} next to the project file (kept). Renders of unsaved projects: ${formatBytes(looseTotal)} in the data folder, of which ${formatBytes(report.looseOldBytes)} belong to unsaved projects that are closed and cannot be opened again. Renders of a project that was saved are kept wherever they are.`}>
             Renders on disk: this project {formatBytes(report.projectBytes)}
             {looseTotal ? ` · unsaved projects ${formatBytes(looseTotal)}` : ""}
             {report.looseOldBytes ? ` (${formatBytes(report.looseOldBytes)} from projects that are gone)` : ""}
           </span>
           {report.looseOldBytes > 0 && (
-            <button class="small-button" data-id="render-disk-clean" disabled={busy.value} title="Removes the renders of unsaved projects that are no longer open. A saved project's renders are never touched." onClick={() => void removeOldRenders()}>
+            <button class="small-button" data-id="render-disk-clean" disabled={busy.value} title="Removes the renders of unsaved projects that are no longer open, and only those. Renders of the project open now, and of any project still on disk, are never touched." onClick={() => void removeOldRenders()}>
               Remove {formatBytes(report.looseOldBytes)}
             </button>
           )}
