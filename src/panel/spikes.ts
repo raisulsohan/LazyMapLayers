@@ -31,6 +31,7 @@ import { runFurnitureTest } from "./furnitureTests.ts";
 import { runFeatureTest } from "./featureTests.ts";
 import { runEarthStudioTest } from "./earthStudioTests.ts";
 import { runSentinelTest } from "./sentinelTests.ts";
+import { runWorldBandTest } from "./worldBandTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -335,8 +336,9 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
 
   if (wants("LB2")) {
     try {
-      // A demo render before this one leaves After Effects' caches full, which slows every call.
-      results.LB2_labelTemplate = await runLabelTemplateTest(log, { afterHeavy: !!(results.D1_demo || results.D1L_demoLegacyEngine || results.TH1_themes) });
+      // A demo render, a contact sheet or the world band frames before this one leave After Effects'
+      // caches full, which slows every call after them (docs/PERFORMANCE.md).
+      results.LB2_labelTemplate = await runLabelTemplateTest(log, { afterHeavy: !!(results.D1_demo || results.D1L_demoLegacyEngine || results.TH1_themes || results.WB1_worldBand) });
     } catch (error) {
       results.LB2_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB2 failed: ${results.LB2_error}`, "fail");
@@ -385,6 +387,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LD1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LD1 failed: ${results.LD1_error}`, "fail");
+    }
+  }
+
+  if (wants("WB1")) {
+    try {
+      results.WB1_worldBand = await runWorldBandTest(log);
+    } catch (error) {
+      results.WB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`WB1 failed: ${results.WB1_error}`, "fail");
     }
   }
 

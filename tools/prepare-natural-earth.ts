@@ -135,6 +135,38 @@ const LAYERS: LayerSpec[] = [
     zoomFilter: byMinZoom(1)
   },
   {
+    // Cities as shapes, not just dots: what fills the gap between the world map running out of
+    // detail and a downloaded region beginning. Vector tiles overzoom, so the zoom 6 tile is what
+    // draws at 7, 8 and 9.
+    name: "urban",
+    files: { "10m": "ne_10m_urban_areas" },
+    keep: (p) => pick(p, ["scalerank", "area_sqkm", "min_zoom"]),
+    minZoom: 4,
+    zoomFilter: (props, z) => {
+      const minZoom = Number(props.min_zoom);
+      const area = Number(props.area_sqkm);
+      // The larger a place, the earlier it is worth drawing.
+      if (z <= 4) return area >= 400;
+      if (z === 5) return area >= 120;
+      return !Number.isFinite(minZoom) || minZoom <= 8.5;
+    }
+  },
+  {
+    // The roads that carry between cities. Minor ones are left to the downloaded regions.
+    name: "roads",
+    files: { "10m": "ne_10m_roads" },
+    keep: (p) => pick(p, ["type", "scalerank", "min_zoom", "expressway", "toll", "name"]),
+    minZoom: 5,
+    zoomFilter: (props, z) => {
+      const type = String(props.type ?? "");
+      const major = type === "Major Highway" || Number(props.expressway) === 1;
+      const secondary = type === "Secondary Highway";
+      const minZoom = Number(props.min_zoom);
+      if (z <= 5) return major && (!Number.isFinite(minZoom) || minZoom <= 6);
+      return (major || secondary) && (!Number.isFinite(minZoom) || minZoom <= 8.5);
+    }
+  },
+  {
     name: "places",
     files: { "10m": "ne_10m_populated_places" },
     keep: (p) => pick(p, ["name", "nameascii", "featurecla", "scalerank", "min_zoom", "pop_max", "adm0cap", "worldcity", "megacity", "iso_a2", "adm0name", "adm1name"]),

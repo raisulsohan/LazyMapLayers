@@ -1,5 +1,14 @@
 # Changelog
 
+## Unreleased
+
+- **Cities and the roads between them, on the world map.** The map inside the panel now carries
+  built-up areas and the motorways between cities, so the zooms between the countries and a
+  downloaded area are no longer bare land with an outline on it: a flight from the globe down to a
+  city has something under it the whole way. They fade in as you come down and fade out again where
+  a downloaded area takes over with the real streets, and a satellite look leaves them out because
+  the picture already has them. Nothing to download: the same world file, 2 MB larger.
+
 ## 0.7.0 — a satellite picture of any area, and a camera from Google Earth Studio (2026-09-25)
 
 - **A real satellite picture, built for your area, free.** **Build for this area…** under the look

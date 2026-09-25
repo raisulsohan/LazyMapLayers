@@ -19,8 +19,8 @@ failure is confirmed on a fresh instance before anything is changed.
 | Applying the shot list again | 800 ms | about 30 ms | SH1 |
 | Auto labels: the longest single call into After Effects | 3000 ms | 1.1–1.6 s | LB1 |
 | Auto labels: 60 names on a fresh instance | about 10 s in all | 9.8 s | LB1 (reported) |
-| Restyling the names already on the map: the longest call | 1500 ms on a fresh instance, 4000 ms after a demo render | 316 ms for 32 layers fresh; 1,859-2,955 ms in a run that follows D1's 4K demo, as LB1 also does | LB2 |
-| Placing the names already on the map again: the longest call | 1500 ms | measured by LB2 | LB2 |
+| Restyling the names already on the map: the longest call | 1500 ms on a fresh instance, 4000 ms after a heavy render | 316 ms for 32 layers fresh; 1,859-2,955 ms in a run that follows D1's 4K demo, as LB1 also does | LB2 |
+| Placing the names already on the map again: the longest call | the same two bars | 1,558 ms in a full run, 316 ms fresh | LB2 |
 | A shape layer's expressions at world zooms | 0 ms added per frame | 0 ms (coarse level only) | SL1 (reported) |
 | Shape layers from a data map | at most 40, largest first | 40 | core/style/dataShapes.ts |
 | Shape layers from the feature browser | at most 40 in one go, with progress and a stop | 40 | src/panel/store.ts |
@@ -31,6 +31,10 @@ failure is confirmed on a fresh instance before anything is changed.
 | A watched table re-read after the file changes | 2 s | the poll's own interval | src/panel/store.ts |
 | A satellite area of nine tiles at zoom 13 | 30 s and 8 MB | 18 s and 3.9 MB (2026-09-25, measured outside the panel) | SN1 |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
+
+A heavy render means D1's 4K demo, TH1's twelve-look contact sheet or WB1's fourteen band frames.
+Each one fills After Effects' caches and every call after it in the same run pays for that, so the
+second bar is for those runs and not a licence to be slow: on its own the same call takes 316 ms.
 
 ## Rules the budgets come from
 

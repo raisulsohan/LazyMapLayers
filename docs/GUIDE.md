@@ -324,7 +324,10 @@ has a flag that stays put while the camera flies.
 ## Data, downloads and credits
 
 The world map (Natural Earth, with the provinces of every country) is inside the panel and works
-offline. Everything else is downloaded only when you ask, and the size is shown first: OpenStreetMap
+offline. It carries coastlines, borders, rivers, lakes, place names, built-up areas and the
+motorways between cities, so a flight from the globe down to a city still has something on the
+ground at the zooms in between. The cities and motorways fade out as you come closer, where a
+downloaded area takes over with the real streets. Everything else is downloaded only when you ask, and the size is shown first: OpenStreetMap
 areas (the free Protomaps planet build), satellite pictures (NASA Blue Marble, 20 MB) and shaded
 relief (Natural Earth, 48 MB), district boundaries per country (geoBoundaries), elevation packs
 (Mapterhorn), and any OpenStreetMap search (Overpass). Downloads live in `%APPDATA%\LazyMapLayers`

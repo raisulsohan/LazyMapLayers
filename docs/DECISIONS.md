@@ -887,6 +887,30 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D74 — Cities and the roads between them, so the band above the world map is not empty (2026-09-25)
+
+- **Why.** A flight from the globe to a city passes through zoom 7, 8 and 9. The bundled world data
+  carried coastlines, borders, rivers, lakes and place names, and a downloaded region starts at
+  zoom 10 or so, so those three zooms showed the ground at its largest with the least on it: land,
+  an outline and a few names. It is the worst place to be empty, because the viewer is closest.
+- **Decision.** The world archive carries two more layers, from the same Natural Earth 10m data as
+  the rest of it: **urban** (built-up areas, 792 shapes) and **roads** (motorways and, from zoom 6,
+  the main secondary roads, 577 lines). Both are filtered by Natural Earth's own `min_zoom` and, for
+  cities, by area, so a world view gets the few big ones and the band gets the rest.
+- **No new tile zooms.** The tiles still stop at zoom 6 and the renderer overzooms them, which is
+  what vector tiles are for: the same 792 shapes and 577 lines serve zooms 4 to 11 without a byte
+  more. The archive grew from 13.4 MB to 15.7 MB, all of it geometry.
+- **They arrive and they leave.** Cities fade in from zoom 4.5, hold from 6 to 8.5, and are gone by
+  11; roads fade in from 5.5 and are gone by 11, and stop thickening at 10.5. Natural Earth's
+  outlines are generalised: past zoom 10 a city is one flat shape filling the frame and a motorway
+  is a line that sits beside the real one, so both hand over rather than stay. On a satellite look
+  neither is drawn at all, because the picture already has them.
+- **Tested.** WB1 renders the Rhine-Ruhr at zooms 5 to 11 twice, once with the two layers and once
+  with them removed from the style, and counts the pixels that differ and by how much. Counting
+  colours would not do: the city fill sits close to the land colour by design. The band reads 36.5 %
+  of the frame at zoom 7, 52.9 % at 8 and 66.3 % at 9, against 10.0 % at zoom 5, and the strength
+  falls from 4.70 at zoom 9 to 2.57 at 10 and 0 at 11.
+
 ## D73 — A satellite picture built from Sentinel-2, with nobody signing up (2026-09-25)
 
 - **Why.** The plan's middle layer of imagery was missing: Blue Marble is the whole planet at half

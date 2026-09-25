@@ -114,6 +114,41 @@ export function naturalEarthStyle(
     });
   }
 
+  // Cities and the roads between them, which is what the world map has to show while the camera is
+  // past the countries and not yet over a downloaded region. The satellite picture already has both.
+  if (!satelliteUrl) {
+    layers.push({
+      id: "urban",
+      type: "fill",
+      metadata: group("land"),
+      source,
+      "source-layer": "urban",
+      minzoom: 4.5,
+      paint: {
+        "fill-color": t.urban,
+        // They come in gently, so a flight from the world does not snap, and they are gone by the
+        // zoom where a city fills the frame: one flat shape that large reads as a blank block.
+        "fill-opacity": ["interpolate", ["linear"], ["zoom"], 4.5, 0, 6, 0.55, 8.5, 0.6, 10, 0.22, 11, 0]
+      }
+    });
+    layers.push({
+      id: "ne-roads",
+      type: "line",
+      metadata: group("roads"),
+      source,
+      "source-layer": "roads",
+      minzoom: 5.5,
+      layout: { "line-join": "round", "line-cap": "round" },
+      paint: {
+        "line-color": ["case", ["==", ["get", "type"], "Major Highway"], t.highway, t.roadMajor],
+        // These are the world's generalised motorways. Past zoom 10 they are too coarse to sit
+        // over real ground, so they hand over rather than thicken.
+        "line-opacity": ["interpolate", ["linear"], ["zoom"], 5.5, 0, 7, 0.9, 9.5, 0.85, 11, 0],
+        "line-width": ["interpolate", ["exponential", 1.5], ["zoom"], 5.5, 0.4, 8, 1.4, 10.5, 2.6]
+      }
+    });
+  }
+
   // The satellite picture shows its own lakes and rivers.
   if (!satelliteUrl) layers.push(
     { id: "lakes", type: "fill", metadata: group("water"), source, "source-layer": "lakes", paint: { "fill-color": t.ocean } },
