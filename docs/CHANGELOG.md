@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.7.1 — cities and roads on the world map, and renders kept safe when a project is saved (2026-09-25)
 
 - **Saving a project no longer puts its renders at risk.** A map rendered before its project was
   saved kept its frames in the data folder, and **Remove** under Renders on disk could delete them
