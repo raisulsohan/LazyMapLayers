@@ -16,7 +16,7 @@
 // by globeness and divide afterwards; this module does the same, so points match the rendered pixels at
 // every zoom.
 
-import { cameraToCenterDistance, type View, type Viewport } from "./camera.ts";
+import { cameraToCenterDistance, unproject, type View, type Viewport } from "./camera.ts";
 import { lngLatToWorld, unwrapLongitudeNear, type LngLat } from "../geo/mercator.ts";
 
 export type MapProjection = "mercator" | "globe";
@@ -164,4 +164,79 @@ export function projectPoint(view: View, viewport: Viewport, point: LngLat, opti
     };
   }
   return { x: viewport.width / 2 + clip.px / clip.w, y: viewport.height / 2 + clip.py / clip.w, w: clip.w, visible: clip.visible };
+}
+
+/** The surface point of a fully round globe under a screen pixel, or null off the planet. */
+function globeUnproject(view: View, viewport: Viewport, x: number, y: number): LngLat | null {
+  const d = cameraToCenterDistance(viewport);
+  const r = globeRadiusPixels(view);
+  const ct = Math.cos(view.pitch * DEG);
+  const st = Math.sin(view.pitch * DEG);
+  // The view ray from the camera at the origin, and where it first meets the sphere.
+  const dx = (x - viewport.width / 2) / d;
+  const dy = -(y - viewport.height / 2) / d;
+  const dz = -1;
+  const cy = -r * st;
+  const cz = -r * ct - d;
+  const a = dx * dx + dy * dy + dz * dz;
+  const b = -2 * (dy * cy + dz * cz);
+  const c = cy * cy + cz * cz - r * r;
+  const disc = b * b - 4 * a * c;
+  if (disc < 0) return null;
+  const t = (-b - Math.sqrt(disc)) / (2 * a);
+  if (!(t > 0)) return null;
+  let px = t * dx;
+  let py = t * dy;
+  let pz = t * dz;
+  // globeClip backwards: undo the camera distance, the pitch, the bearing, the planet's offset and
+  // the turn that brings the centre in front.
+  pz += d;
+  [py, pz] = [ct * py - st * pz, st * py + ct * pz];
+  const cb = Math.cos(view.bearing * DEG);
+  const sb = Math.sin(view.bearing * DEG);
+  [px, py] = [cb * px + sb * py, -sb * px + cb * py];
+  pz += r;
+  const cp = Math.cos(view.center.lat * DEG);
+  const sp = Math.sin(view.center.lat * DEG);
+  [py, pz] = [cp * py + sp * pz, -sp * py + cp * pz];
+  const cl = Math.cos(-view.center.lng * DEG);
+  const sl = Math.sin(-view.center.lng * DEG);
+  [px, pz] = [cl * px - sl * pz, sl * px + cl * pz];
+  const lat = Math.asin(Math.max(-1, Math.min(1, py / r))) / DEG;
+  const lng = Math.atan2(px, pz) / DEG;
+  return { lat, lng: unwrapLongitudeNear(lng, view.center.lng) };
+}
+
+/**
+ * The ground point under a screen pixel: the inverse of projectPoint at altitude 0, for either
+ * projection. Null above the horizon or off the globe. In the zooms where the globe turns into the
+ * flat map, the mixed projection is inverted by Newton steps from the nearer of the two answers.
+ */
+export function unprojectPoint(view: View, viewport: Viewport, screen: { x: number; y: number }, options: { projection?: MapProjection } = {}): LngLat | null {
+  const projection = options.projection ?? "mercator";
+  const t = globeness(view.zoom, projection);
+  if (t === 0) return unproject(view, viewport, screen);
+  if (t === 1) return globeUnproject(view, viewport, screen.x, screen.y);
+  let at = globeUnproject(view, viewport, screen.x, screen.y) ?? unproject(view, viewport, screen);
+  if (!at) return null;
+  const step = 1e-5;
+  for (let i = 0; i < 20; i++) {
+    const p = projectPoint(view, viewport, at, { projection });
+    const ex = p.x - screen.x;
+    const ey = p.y - screen.y;
+    if (Math.hypot(ex, ey) < 0.01) return p.visible ? at : null;
+    const pLng = projectPoint(view, viewport, { lat: at.lat, lng: at.lng + step }, { projection });
+    const pLat = projectPoint(view, viewport, { lat: at.lat + step, lng: at.lng }, { projection });
+    const a = (pLng.x - p.x) / step;
+    const b = (pLat.x - p.x) / step;
+    const c = (pLng.y - p.y) / step;
+    const e = (pLat.y - p.y) / step;
+    const det = a * e - b * c;
+    if (!Number.isFinite(det) || Math.abs(det) < 1e-12) return null;
+    const dLng = (e * ex - b * ey) / det;
+    const dLat = (-c * ex + a * ey) / det;
+    at = { lat: Math.max(-85, Math.min(85, at.lat - dLat)), lng: at.lng - dLng };
+  }
+  const last = projectPoint(view, viewport, at, { projection });
+  return last.visible && Math.hypot(last.x - screen.x, last.y - screen.y) < 0.5 ? at : null;
 }

@@ -887,6 +887,41 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D85 — A path drawn in After Effects becomes geography (2026-09-27)
+
+- **Why.** The most direct way to say where a route goes is to draw it: over a map, with the Pen
+  tool, the way a motion designer draws anything else. Until now a route had to come from two
+  clicks or a file.
+- **Read at the moment it was drawn.** The drawing is read where it lies at the current time, with
+  the camera of that moment (host 77-drawn.jsx readDrawnPaths): the paths of the selected shape
+  layers (with their rectangles and ellipses) and the masks of any selected layer, each with the
+  transforms of its groups, its layer and the layer's parents, and the map layer's own transform to
+  undo. Core carries the bezier's control points through those transforms (a 2D transform keeps a
+  bezier a bezier), cuts the curve into steps of about 6 pixels where it lies on screen, and
+  unprojects each step through the camera (core/geo/drawnPaths.ts). So a curve comes back as drawn,
+  and a drawing on a turned, scaled, parented layer lands where it shows.
+- **The inverse of the globe.** unprojectPoint (core/camera/globe.ts) inverts projectPoint for both
+  projections: the flat map in closed form as before, a fully round globe by meeting the view ray
+  with the sphere and turning back, and the zooms in between by Newton steps from the nearer of the
+  two. Unit tests take points through the projection and back at four views.
+- **It arrives as an import.** The paths become GeoJSON (a line for an open path, an area for a
+  closed one) and open in the Import sheet like a file, so everything a file's lines and areas can
+  do applies: draw as a route with or without an arrow, fly the camera along, highlight, save.
+  Nothing new to learn, and nothing to keep in step.
+- **The drawing is left alone.** It is the user's layer (hard rule 3): not hidden, moved or
+  deleted. The log says it can go once the route is made.
+- **Limits.** A 3D layer, or a layer under a 3D parent, is left out with a note: its pixels depend
+  on a camera the map does not know. A star or polygon shape is left out until it is converted to a
+  Bezier path. Parts drawn on the sky or off the globe have no ground and are dropped; a path with
+  nothing on the ground is named in the log. The ground is taken at height 0, so on a 3D terrain
+  map a drawing over a mountain lands a little off where the mountain shows.
+- **Tested.** Unit tests for the transforms, the sampling and the unprojection. DR1 draws a curved
+  path in a moved, scaled and turned group on a turned layer, and a mask on a solid, while the
+  camera moves: at 1 s they come back as Dhaka to Chittagong (within a millionth of a degree) and
+  an area around Dhaka; the route made from them lies on the drawing at 1 s and on the map at 0 s;
+  a line drawn on a globe comes back as Dhaka to Tokyo; with nothing selected the message says what
+  to select.
+
 ## D84 — Prism maps: the places raised by their numbers, in the renderer (2026-09-27)
 
 - **Why.** A choropleth reads a number by colour, which the eye ranks roughly; a prism map raises

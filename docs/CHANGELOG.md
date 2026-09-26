@@ -2,6 +2,11 @@
 
 ## Unreleased
 
+- **Draw a route with the Pen tool.** Draw over the map in After Effects - a shape layer, or masks
+  on any layer - select it and click **Your own drawing**: open paths become lines to draw as
+  routes, with an arrow or a camera along them, and closed ones areas to highlight, all following
+  the map from then on. It reads the drawing where the camera is at the current time, curves,
+  groups, parents and all, on the flat map and on the globe.
 - **Prism maps.** In the Numbers sheet, **3D: raise by the numbers** stands every place as high
   as its number, the largest as high as you set (900 km for countries by default), so a tilted camera
   reads the amounts at a glance. The renderer draws them, on the flat map and on the globe, and over

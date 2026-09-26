@@ -49,8 +49,7 @@ import {
   themeId,
   tool,
   updateAvailable,
-  view
-} from "../store.ts";
+  view, importDrawing } from "../store.ts";
 import { themeById } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
 import { Icon, IconButton } from "./icons.tsx";
@@ -118,6 +117,13 @@ function ToolRow(): JSX.Element {
           if (imported.value) importSheetOpen.value = !importSheetOpen.value;
           else filePicker.current?.click();
         }}
+      />
+      <IconButton
+        icon="pen"
+        id="tool-drawing"
+        title="Your own drawing: draw over the map with the Pen tool (a shape layer or masks), select it, then click. Open paths become routes and closed ones areas that follow the map."
+        disabled={off}
+        onClick={() => void importDrawing()}
       />
       <IconButton
         icon="chart"

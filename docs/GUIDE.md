@@ -118,6 +118,13 @@ it). Places become pins; areas can be
 highlighted. A CSV of places with a name column becomes pins; a CSV of names and numbers opens the
 Numbers sheet instead.
 
+**Your own drawing** (the pen button): draw over the map with After Effects' Pen tool - a new shape
+layer, or masks on any layer - where you want a route or an area, select the layer (or several) and
+click. The drawing is read where the camera is at the current time and opens like an imported file:
+open paths as lines (**Draw**, **Draw + arrow**, **Camera**), closed paths as areas (**Highlight**).
+The route follows the map from then on; your drawing stays as you left it, so hide or delete it
+once the route is made. Draw on 2D layers; stars and polygons need **Convert To Bezier Path** first.
+
 **Numbers**: see below.
 
 **OpenStreetMap**: type a name (or pick water, parks and forest, islands, airports, boundaries,

@@ -6,6 +6,7 @@ import { computed, effect, signal } from "@preact/signals";
 import type { View } from "../core/camera/camera.ts";
 import { fitBounds, fitPoints } from "../core/camera/fit.ts";
 import { importGeoJson } from "../core/data/importLines.ts";
+import { drawnPathsToGeoJson, type DrawnPaths } from "../core/geo/drawnPaths.ts";
 import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
 import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { keyOf } from "../core/render/frameKey.ts";
@@ -845,6 +846,39 @@ export const importPicked = (file: File) =>
     if (first) fitLine(first.points);
     else if (result.places.length) showCompView(fitPoints(result.places, compSize(), { padding: 0.15, maxZoom: 12 + Math.log2(compSize().height / 1080) }), true);
     log(`${file.name}: ${result.lines.length} ${result.lines.length === 1 ? "line" : "lines"}, ${result.areas.length} ${result.areas.length === 1 ? "area" : "areas"}, ${result.places.length} ${result.places.length === 1 ? "place" : "places"}${result.skipped ? `, ${result.skipped} skipped` : ""}`, "ok");
+  });
+
+/**
+ * Reads the paths the user drew over the map (pen-tool shape layers, masks) at the current time and
+ * opens them like an imported file: open paths as lines to draw as routes, closed ones as areas to
+ * highlight. The drawing itself is left as it is.
+ */
+export const importDrawing = () =>
+  run("drawing", async () => {
+    const list = await readMaps();
+    const entry = list.find((m) => m.mapId === selectedId.value);
+    if (!entry) {
+      log("create or select a map first", "muted");
+      return;
+    }
+    const found = await callHost<DrawnPaths>("readDrawnPaths", { mapId: entry.mapId });
+    const { collection, offGround } = drawnPathsToGeoJson(found, entry.projection);
+    for (const note of found.skipped) log(`left out ${note}`, "muted");
+    if (offGround.length) log(`${offGround.join(", ")}: drawn where there is no ground (the sky, or around the globe)`, "muted");
+    if (!collection.features.length) {
+      log("nothing of the drawing lies on the map", "fail");
+      return;
+    }
+    const names = [...new Set(collection.features.map((feature) => feature.properties.name))];
+    const fileName = `Drawn: ${names.length > 2 ? `${names.slice(0, 2).join(", ")} and ${names.length - 2} more` : names.join(", ")}`;
+    const data = importGeoJson(collection, fileName);
+    imported.value = { fileName, ...data };
+    setPreviewImport({ lines: data.lines, places: data.places });
+    importSheetOpen.value = true;
+    const lines = collection.features.filter((feature) => feature.geometry.type === "LineString").length;
+    const areas = collection.features.length - lines;
+    const parts = [lines ? `${lines} ${lines === 1 ? "line" : "lines"}` : "", areas ? `${areas} ${areas === 1 ? "area" : "areas"}` : ""].filter(Boolean).join(" and ");
+    log(`read ${parts} from your drawing where the map is at ${found.time.toFixed(2)} s: Draw makes a route that follows the map, Highlight an area. Your drawing is left as it is; hide or delete it when you are done`, "ok");
   });
 
 /** Frames a line in the preview, at the current bearing and pitch. */

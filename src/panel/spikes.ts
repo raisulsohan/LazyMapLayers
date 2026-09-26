@@ -38,6 +38,7 @@ import { runNatureLabelTest } from "./natureLabelTests.ts";
 import { runCityLabelTest } from "./cityLabelTests.ts";
 import { runDataTimeTest } from "./dataTimeTests.ts";
 import { runPrismTest } from "./prismTests.ts";
+import { runDrawnPathTest } from "./drawnTests.ts";
 import { runLabelImageTest } from "./labelImageTests.ts";
 import { runGeocodeTest } from "./geocodeTests.ts";
 import { runFlowTest } from "./flowTests.ts";
@@ -440,6 +441,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.DT3_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`DT3 failed: ${results.DT3_error}`, "fail");
+    }
+  }
+
+  if (wants("DR1")) {
+    try {
+      results.DR1_drawnPaths = await runDrawnPathTest(log);
+    } catch (error) {
+      results.DR1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`DR1 failed: ${results.DR1_error}`, "fail");
     }
   }
 
