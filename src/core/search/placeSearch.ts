@@ -11,7 +11,7 @@ export type PlaceRecord = {
   nature?: NatureClass;
   /** For a name inside a downloaded city: which kind, and two points of its street or river. */
   city?: CityClass;
-  along?: { from: { lat: number; lng: number }; to: { lat: number; lng: number } };
+  along?: { from: { lat: number; lng: number }; to: { lat: number; lng: number }; path?: { points: number[][]; mid: number } };
   minZoom?: number;
   elevation?: number;
   lat: number;

@@ -2,7 +2,7 @@
 // lakes, ranges, deserts, islands, peaks) from Natural Earth, in the local language with an English
 // subtitle, placed over the whole timeline of a map and built as After Effects text layers.
 
-import { anchoredPositionExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, curvedLabelPathExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
 import { labelText, type LabelLanguageMode, type LabelNames } from "../../core/labels/language.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import { resolveLabelTemplate, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
@@ -272,7 +272,9 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       place: record.kind === "city" ? { lat: record.lat, lng: record.lng, rank: record.rank, minZoom: record.minZoom, maxZoom: record.maxZoom ?? 22, along: record.along ?? null } : null,
       expressions: {
         main: record.along ? streetLabelExpressions(record.lat, record.lng, record.along.from, record.along.to, label.mainDy, elevation).position : anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
-        rotation: record.along ? streetLabelExpressions(record.lat, record.lng, record.along.from, record.along.to, label.mainDy, elevation).rotation : null,
+        // Bent along its stretch of the line where the name has one (text on a mask path), else turned with it.
+        path: record.along?.path && !designed ? curvedLabelPathExpression(record.along.path, record.along.from, record.along.to, label.mainDy, elevation, (label.length ?? 0) / 2 + 12) : null,
+        rotation: record.along && !(record.along.path && !designed) ? streetLabelExpressions(record.lat, record.lng, record.along.from, record.along.to, label.mainDy, elevation).rotation : null,
         sub: label.subtitle && !designed ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
         dot: anchoredPositionExpression(record.lat, record.lng, 0, 0, undefined, elevation)
       }

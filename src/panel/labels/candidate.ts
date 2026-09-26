@@ -21,6 +21,8 @@ export type MeasuredLabel = {
   dx: number;
   mainDy: number;
   subDy: number;
+  /** For a name along a line: how long it runs on screen, halo and all, so its line is never shorter. */
+  length?: number;
 };
 
 /** How strongly a name shows at full strength, out of 100: countries and the widest names sit back. */
@@ -110,7 +112,7 @@ export function measureLabel(args: {
       maxZoom: band.maxZoom
     };
     // The baseline a third of the letters below the line, so the name sits centred on it.
-    return { candidate, text, main, sub, dx: 0, mainDy: main.size * 0.33, subDy: 0 };
+    return { candidate, text, main, sub, dx: 0, mainDy: main.size * 0.33, subDy: 0, length: width };
   }
   const candidate: LabelCandidate = {
     id: labelId,

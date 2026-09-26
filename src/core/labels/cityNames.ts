@@ -28,8 +28,11 @@ export type CityRecord = {
   maxZoom: number;
   population: 0;
   names: Record<string, string>;
-  /** Two points of the street or river either side of the name, for names laid along it. */
-  along?: { from: { lat: number; lng: number }; to: { lat: number; lng: number } };
+  /**
+   * Two points of the street or river either side of the name, for names laid along it, and the
+   * stretch of it the name bends along ([lat, lng] points, the name's place at `mid`).
+   */
+  along?: { from: { lat: number; lng: number }; to: { lat: number; lng: number }; path?: { points: number[][]; mid: number } };
 };
 
 const PARKS = new Set(["park", "garden", "nature_reserve", "national_park", "protected_area", "forest", "cemetery", "recreation_ground", "common", "wood"]);
@@ -123,6 +126,65 @@ function lengthOf(line: number[][]): number {
   return total;
 }
 
+/** The two points either side of a name on its line, and the stretch it bends along when the line turns gently there. */
+function alongOf(line: number[][], middle: number, from: number[], to: number[]): NonNullable<CityRecord["along"]> {
+  const along: NonNullable<CityRecord["along"]> = { from: { lat: from[1], lng: from[0] }, to: { lat: to[1], lng: to[0] } };
+  const stretch = stretchAround(line, middle);
+  if (stretch.points.length >= 3 && bendNear(stretch) <= MOST_BEND_DEGREES) along.path = stretch;
+  return along;
+}
+
+/** How far either side of its place a name may bend along its line, and the step it is kept at. */
+const STRETCH_METRES = 700;
+const STRETCH_STEP_METRES = 25;
+
+/** The stretch of a line either side of the point `middle` metres along it, as [lat, lng] points. */
+export function stretchAround(line: number[][], middle: number, half = STRETCH_METRES, step = STRETCH_STEP_METRES): { points: number[][]; mid: number } {
+  const total = lengthOf(line);
+  const start = Math.max(0, middle - half);
+  const end = Math.min(total, middle + half);
+  const before = Math.ceil((middle - start) / step);
+  const after = Math.ceil((end - middle) / step);
+  const points: number[][] = [];
+  const add = (distance: number) => {
+    const [lng, lat] = pointAlong(line, distance);
+    points.push([Math.round(lat * 1e6) / 1e6, Math.round(lng * 1e6) / 1e6]);
+  };
+  for (let k = before; k >= 1; k--) add(middle - ((middle - start) * k) / before);
+  add(middle);
+  for (let k = 1; k <= after; k++) add(middle + ((end - middle) * k) / after);
+  return { points, mid: before };
+}
+
+/** Over this many metres either side of its place, a line may turn this much and still carry a bent name. */
+const BEND_METRES = 150;
+const MOST_BEND_DEGREES = 50;
+
+/**
+ * How far a stretch turns near its place: the largest difference in heading, in degrees, between
+ * the step at the place and any step within `metres` of it. A name bent round a sharper turn would
+ * stand on its head at one end, so such a line keeps a straight name.
+ */
+export function bendNear(stretch: { points: number[][]; mid: number }, metres = BEND_METRES): number {
+  const pts = stretch.points;
+  const k = Math.cos((pts[stretch.mid][0] * Math.PI) / 180);
+  const heading = (i: number) => Math.atan2(pts[i + 1][0] - pts[i][0], (pts[i + 1][1] - pts[i][1]) * k);
+  const at = Math.min(stretch.mid, pts.length - 2);
+  if (at < 0) return 0;
+  const here = heading(at);
+  let most = 0;
+  for (let i = 0; i < pts.length - 1; i++) {
+    const away = metres_([pts[i][1], pts[i][0]], [pts[at][1], pts[at][0]]);
+    if (away > metres) continue;
+    let d = Math.abs(heading(i) - here);
+    if (d > Math.PI) d = 2 * Math.PI - d;
+    most = Math.max(most, (d * 180) / Math.PI);
+  }
+  return most;
+}
+
+const metres_ = (a: number[], b: number[]) => metres(a, b);
+
 /** How close two names of the same kind and words may stand before they count as one. */
 const CLUSTER_METRES: Record<CityClass, number> = { district: 1000, park: 500, landmark: 400, station: 400, airport: 2000, campus: 500, cityWater: 2500, street: 1800 };
 /** A line shorter than this cannot carry its name. */
@@ -156,7 +218,7 @@ export function cityRecords(features: CityFeature[], options: { country: string;
         const half = Math.min(60, length / 4);
         const from = pointAlong(line, middle - half);
         const to = pointAlong(line, middle + half);
-        candidates.push({ ...cls, name, point: pointAlong(line, middle), weight: length, names, along: { from: { lat: from[1], lng: from[0] }, to: { lat: to[1], lng: to[0] } }, key: name });
+        candidates.push({ ...cls, name, point: pointAlong(line, middle), weight: length, names, along: alongOf(line, middle, from, to), key: name });
       }
     } else {
       // A river's banks as an area only when the river has no line of its own to be named along.

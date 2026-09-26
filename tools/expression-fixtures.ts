@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
-import { anchoredPositionExpression, leaderPathExpression, routePathExpression, streetLabelExpressions, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, curvedLabelPathExpression, leaderPathExpression, routePathExpression, streetLabelExpressions, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
@@ -134,6 +134,13 @@ for (const globe of [false, true]) {
     const street = streetLabelExpressions(label.lat, label.lng, { lat: label.lat - spread * 0.01 * (random() - 0.5), lng: label.lng - spread * 0.01 }, { lat: label.lat + spread * 0.01 * (random() - 0.5), lng: label.lng + spread * 0.01 * (i % 2 ? 1 : -1) }, 6 + random() * 4);
     add(`street position ${kind} ${i}`, street.position, { own: { Map: "MAP" }, map, comp, value: [0, 0] });
     add(`street rotation ${kind} ${i}`, street.rotation, { own: { Map: "MAP" }, map, comp, value: 0 }, 1e-5);
+    // A name bent along a stretch of its line: a bow through the place, either way round.
+    const bowPoints: number[][] = [];
+    const bend = (random() - 0.5) * 0.6;
+    const way = i % 2 ? 1 : -1;
+    for (let k = -8; k <= 8; k++) bowPoints.push([label.lat + spread * 0.004 * (bend * (1 - (k * k) / 64) + (random() - 0.5) * 0.05), label.lng + way * spread * 0.001 * k]);
+    const bow = { points: bowPoints, mid: 8 };
+    add(`curved name ${kind} ${i}`, curvedLabelPathExpression(bow, { lat: bowPoints[6][0], lng: bowPoints[6][1] }, { lat: bowPoints[10][0], lng: bowPoints[10][1] }, 4 + random() * 6, 0, 20 + random() * 200), { own: { Map: "MAP" }, map, comp, value: null }, 1e-4);
 
     const a = near(view, spread * 4);
     const b = near(view, spread * 4);

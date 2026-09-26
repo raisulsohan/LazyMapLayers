@@ -5,7 +5,7 @@
 // The words are not chosen again: every name keeps the text it was placed with (its tag holds it), so
 // the language, the density and which places were chosen stay exactly as the user had them.
 
-import { anchoredPositionExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, curvedLabelPathExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
 import type { View } from "../../core/camera/camera.ts";
 import { projectPoint, type MapProjection } from "../../core/camera/globe.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
@@ -146,7 +146,7 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     sampler?.close();
   }
 
-  type Item = { labelId: string; part: "text" | "subtitle" | "dot" | "design"; positionExpression: string; keys: number[][] };
+  type Item = { labelId: string; part: "text" | "subtitle" | "dot" | "design"; positionExpression: string; pathExpression?: string; keys: number[][] };
   const items: Item[] = [];
   for (const [index, entry] of prepared.entries()) {
     const elevation = elevations[index];
@@ -157,6 +157,7 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     const along = entry.record.along;
     const at = (dy: number) => (along ? streetLabelExpressions(entry.record.lat, entry.record.lng, along.from, along.to, dy, elevation).position : anchoredPositionExpression(entry.record.lat, entry.record.lng, entry.dx, dy, undefined, elevation));
     if (entry.part.design) items.push({ labelId: entry.candidate.id, part: "design", positionExpression: at(0), keys });
+    else if (along?.path) items.push({ labelId: entry.candidate.id, part: "text", positionExpression: at(entry.mainDy), pathExpression: curvedLabelPathExpression(along.path, along.from, along.to, entry.mainDy, elevation, (entry.length ?? 0) / 2 + 12), keys });
     else items.push({ labelId: entry.candidate.id, part: "text", positionExpression: at(entry.mainDy), keys });
     if (entry.part.subtitle) items.push({ labelId: entry.candidate.id, part: "subtitle", positionExpression: at(entry.subDy), keys });
     if (entry.part.dot) items.push({ labelId: entry.candidate.id, part: "dot", positionExpression: anchoredPositionExpression(entry.record.lat, entry.record.lng, 0, 0, undefined, elevation), keys });

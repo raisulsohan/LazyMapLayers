@@ -46,6 +46,85 @@ ${projectionPrelude()}${angle}deg;`
   };
 }
 
+/** The stretch of a street or a river a name is written along: [lat, lng] points, the name's place at `mid`. */
+export type LabelPath = { points: number[][]; mid: number };
+
+/**
+ * The mask path a street's or a river's name is set on (text on a path), so the name bends with
+ * its line. Every frame the stretch is projected, cut to the same length on screen either side of the
+ * name's place (so the centred name stays on its place under any tilt; a side that runs out goes on
+ * straight), turned round when it would read right to left (the same test as the straight name,
+ * over `from` and `to`), moved off the line by `dy` along its normal so the letters sit centred
+ * on it, and smoothed into a curve.
+ */
+export function curvedLabelPathExpression(path: LabelPath, from: { lat: number; lng: number }, to: { lat: number; lng: number }, dy: number, elevation = 0, minHalf = 40): string {
+  const data = JSON.stringify(path.points.map((p) => [Math.round(p[0] * 1e6) / 1e6, Math.round(p[1] * 1e6) / 1e6]));
+  return `${LABEL_MARKER} path (generated)
+var map = effect("Map")(1);
+${projectionPrelude()}var g = lmlGround(${num(elevation)});
+var pts = ${data};
+var mid = ${Math.max(0, Math.min(path.points.length - 1, Math.round(path.mid)))};
+var c = [], i = 0, p = null;
+for (i = 0; i < pts.length; i++) {
+  p = lmlProject(pts[i][0], pts[i][1], g);
+  c.push(map.toComp([p.x, p.y]));
+}
+var dist = function (a, b) { return Math.sqrt((b[0] - a[0]) * (b[0] - a[0]) + (b[1] - a[1]) * (b[1] - a[1])); };
+var back = 0, fwd = 0;
+for (i = mid; i > 0; i--) back += dist(c[i], c[i - 1]);
+for (i = mid; i < c.length - 1; i++) fwd += dist(c[i], c[i + 1]);
+var half = Math.max(Math.min(back, fwd), ${num(minHalf)});
+var walk = function (step) {
+  var out = [], left = half, at = mid, here = c[mid], next = null, d = 0, k = 0;
+  while (left > 0) {
+    if (at + step < 0 || at + step >= c.length) {
+      var prev = c[at - step];
+      if (!prev) prev = here;
+      d = dist(prev, c[at]);
+      if (d < 1e-6) break;
+      out.push([here[0] + (c[at][0] - prev[0]) / d * left, here[1] + (c[at][1] - prev[1]) / d * left]);
+      break;
+    }
+    next = c[at + step];
+    d = dist(here, next);
+    if (d >= left) {
+      k = left / d;
+      out.push([here[0] + (next[0] - here[0]) * k, here[1] + (next[1] - here[1]) * k]);
+      break;
+    }
+    out.push(next);
+    left -= d;
+    here = next;
+    at += step;
+  }
+  return out;
+};
+var before = walk(-1), after = walk(1), line = [];
+for (i = before.length - 1; i >= 0; i--) line.push(before[i]);
+line.push(c[mid]);
+for (i = 0; i < after.length; i++) line.push(after[i]);
+var a = lmlProject(${num(from.lat)}, ${num(from.lng)}, g);
+var b = lmlProject(${num(to.lat)}, ${num(to.lng)}, g);
+if (map.toComp([b.x, b.y])[0] < map.toComp([a.x, a.y])[0]) line.reverse();
+var n = line.length, pts2 = [], ins = [], outs = [];
+for (i = 0; i < n; i++) {
+  var u = line[Math.min(n - 1, i + 1)], w = line[Math.max(0, i - 1)];
+  var l = dist(w, u);
+  if (l < 1e-6) l = 1;
+  pts2.push(fromComp([line[i][0] - (u[1] - w[1]) / l * ${num(dy)}, line[i][1] + (u[0] - w[0]) / l * ${num(dy)}]));
+}
+for (i = 0; i < n; i++) {
+  if (i === 0 || i === n - 1) {
+    ins.push([0, 0]);
+    outs.push([0, 0]);
+  } else {
+    ins.push([(pts2[i - 1][0] - pts2[i + 1][0]) / 6, (pts2[i - 1][1] - pts2[i + 1][1]) / 6]);
+    outs.push([(pts2[i + 1][0] - pts2[i - 1][0]) / 6, (pts2[i + 1][1] - pts2[i - 1][1]) / 6]);
+  }
+}
+createPath(pts2, ins, outs, false);`;
+}
+
 export const ROUTE_MARKER = "// LazyMapLayers route";
 
 /**

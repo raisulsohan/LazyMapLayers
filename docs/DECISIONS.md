@@ -887,6 +887,37 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D86 — Street and river names bend along their line (2026-09-27)
+
+- **Why.** A straight name turned to its street (D78) sits well on a straight boulevard and badly on
+  a quay that curves with its river: one end floats off the line. Maps have always bent such names
+  along the line, and the Seine through Paris shows why.
+- **Text on a path.** A name inside a city whose record carries a stretch of its line is set on a
+  mask path (a mask "Line", mode None, so it cuts nothing away) with the text's Path Options pointed
+  at it, letters standing up from the line (host LML.labels.onPath). The mask's path expression
+  (curvedLabelPathExpression in core/ae/labelExpressions.ts) projects the stretch every frame, so
+  the name bends, turns and tilts with the map; no rotation is needed any more.
+- **Centred on its place.** The name is centred on its path, so the path is cut every frame to the
+  same length on screen either side of the name's place: under a tilt the far half of a stretch is
+  shorter on screen, and a path cut by metres would push the name off its place. A side that runs
+  out before the name's half length goes on straight, so the letters never run off the end.
+- **Upright.** The path is turned round when the street would read right to left at the name's
+  place (the same test over the same two points as the straight name), then moved off the line by
+  the same baseline offset along its normal at every point, so the letters sit centred on the line.
+  The points are smoothed into a curve (Catmull-Rom tangents), so letters follow a curve rather
+  than a chain of corners.
+- **The stretch.** cityRecords keeps up to 700 m of the line either side of the name, at 25 m steps
+  (core/labels/cityNames.ts stretchAround), in the record's `along`, so names placed again later
+  bend without the tiles. A line that turns more than 50 degrees within 150 m of the name (a corner,
+  a roundabout, a square) keeps a straight name turned along it: bent round a corner, a name stands
+  on its head at one end.
+- **Tested.** Unit tests for the stretch, the bend limit and the path (centred on the place on
+  screen, reading left to right at five bearings, bowed with the line, lowered by the baseline,
+  running on straight past short ends); 48 new fixtures run it in the ES3 engine; LB5 checks that
+  Paris's streets and the Seine are on their lines, read left to right at their middle at both ends
+  of a turning move, and turn with the map; its frames show the Seine's arms and the quays bent
+  along the water.
+
 ## D85 — A path drawn in After Effects becomes geography (2026-09-27)
 
 - **Why.** The most direct way to say where a route goes is to draw it: over a map, with the Pen
@@ -972,7 +1003,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   U1 adds "status: sold" to Luxembourg through the real panel and finds it with the filter
   status = sold.
 
-
+## D82 — Streets, addresses and landmarks searched on OpenStreetMap (2026-09-26)
 
 - **Why.** The search knew countries, provinces, cities, districts and (D77) the natural world, all
   offline. A street, an address, a building or a small landmark was out of its reach, and a city map
@@ -994,7 +1025,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   finds Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, and answers the same search
   again from the disk.
 
-
+## D81 — Pictures in a label design of the user's own (2026-09-26)
 
 - **Why.** A label design (D64) could fill text fields only. The most common designed label on a news
   map carries a picture per place: a flag beside each country, a logo per office, a photo per stop.
@@ -1014,7 +1045,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   and "Nepal flag.png", and each of India, Bangladesh and Nepal wearing its own at 30 % (300 x 200 in
   a 100 x 60 box), every other country with the layer off, three footage items for three flags.
 
-
+## D80 — Line and area charts that follow the map through the years (2026-09-26)
 
 - **Why.** The only chart was a bar per place for one set of numbers. Numbers over the years (D79)
   are shown as lines: a line chart beside the map is the usual companion of a map that moves
@@ -1041,7 +1072,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   no expression errors, three areas, the time following the slider, and every area holding the
   points of its year at the middle and at the end. The frame was looked at.
 
-
+## D79 — Colours by category, and numbers over the years (2026-09-26)
 
 - **Why.** A table could only colour the map by amounts. Two of the most asked-for data maps could
   not be made: an election or an alliance map (a party, a bloc, a yes or a no per place), and a map
@@ -1075,7 +1106,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   Bangladesh in the colour of 2000 on the first frame and of 2020 on the last, Nepal's missing 2010
   straight between its neighbours, all 25 frames drawn, and the year layer reading 2000, 2010, 2020.
 
-
+## D78 — Names inside a city, from its own downloaded data (2026-09-26)
 
 - **Why.** Over a downloaded city the map had its streets, water and buildings but no names: Auto
   labels knew the world's cities and nothing smaller, and the rendered basemap carries no labels
@@ -1116,7 +1147,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   river name, within 90 degrees, following the map as it turns, and nothing unknown when placed
   again. The frames were looked at.
 
-
+## D77 — The names of the natural world (2026-09-26)
 
 - **Why.** The bundled labels named countries and 7,101 cities and nothing else. A map of South Asia
   had no Bay of Bengal, no Himalaya, no Ganges; a globe had no oceans. These are the names a news or
@@ -1165,7 +1196,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   an English line, the Bay of Bengal in Bengali set upright in Nirmala UI, and nothing natural with
   both switches off. The frames were looked at.
 
-
+## D76 — A duplicated scene gets a map of its own (2026-09-26)
 
 - **What happened.** Duplicating a scene comp is daily work in After Effects: a second version of a
   shot, a cut-down, a vertical edit. Ctrl+D copies the map layer with its comment, so both scenes

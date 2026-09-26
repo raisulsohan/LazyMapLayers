@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Street and river names bend along their line.** Inside a downloaded city, the names of streets,
+  quays and the river through town now follow the curve of their line instead of standing straight
+  across it, and still turn and tilt with the camera and read left to right. A line that turns a
+  sharp corner at the name keeps a straight name.
 - **Draw a route with the Pen tool.** Draw over the map in After Effects - a shape layer, or masks
   on any layer - select it and click **Your own drawing**: open paths become lines to draw as
   routes, with an arrow or a camera along them, and closed ones areas to highlight, all following

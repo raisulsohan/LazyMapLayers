@@ -141,7 +141,7 @@ Seas and rivers, Mountains and deserts, and Streets and landmarks on and off. Wa
 italic in the colour of water, ranges and deserts in spaced capitals, a peak with a small triangle
 and its height. Over a downloaded area the names inside it come from its own data: districts,
 parks, landmarks, stations, the river through town and the main streets, with street and river names
-laid along their line and turning with the camera. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
+bent along their line and turning with the camera. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
 rule, and give its text layers fields like `{name}` or `Pop. {populationShort}`; a layer called
 **Anchor** marks where the place sits. A picture layer named like `{flag}` takes a picture per place
 from a folder you choose (**Pictures for {flag}…**), found by country code or name and fitted to the

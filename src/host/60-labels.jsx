@@ -214,6 +214,34 @@ LML.labels.restyle = function (args) {
  * args: { mapId, kind, first, last, items: [{ labelId, part, positionExpression, keys }] }
  * Batched like addLabels: the first takes the scene out of the viewer, the last brings it back.
  */
+/**
+ * Sets a name on a path that follows its line: a mask ("Line", mode None, so it cuts nothing away)
+ * whose path expression (core/ae/labelExpressions.ts curvedLabelPathExpression) projects the line
+ * every frame, and the text's Path Options pointed at it, letters standing up from the line. A name
+ * that was turned with its line before loses the turn: the path carries it now.
+ */
+LML.labels.onPath = function (layer, expression, errors, name, check) {
+    var masks = layer.property("ADBE Mask Parade");
+    var mask = null;
+    for (var i = 1; i <= masks.numProperties; i++) {
+        if (masks.property(i).name === "Line") mask = masks.property(i);
+    }
+    if (!mask) {
+        mask = masks.addProperty("ADBE Mask Atom");
+        mask.name = "Line";
+    }
+    mask.maskMode = MaskMode.NONE;
+    LML.pins.setExpression(mask.property("ADBE Mask Shape"), expression, errors, name + " line", check);
+    var options = layer.property("ADBE Text Properties").property("ADBE Text Path Options");
+    options.property("ADBE Text Path").setValue(mask.propertyIndex);
+    options.property("ADBE Text Perpendicular To Path").setValue(1);
+    options.property("ADBE Text Force Align Path").setValue(0);
+    options.property("ADBE Text Reverse Path").setValue(0);
+    var rotate = layer.property("ADBE Transform Group").property("ADBE Rotate Z");
+    if (rotate.expression) rotate.expression = "";
+    rotate.setValue(0);
+};
+
 LML.labels.move = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var scene = mapLayer.containingComp;
@@ -243,6 +271,7 @@ LML.labels.move = function (args) {
         var target = byKey[item.labelId + "|" + item.part];
         if (!target) continue;
         LML.pins.setExpression(target.property("ADBE Transform Group").property("ADBE Position"), item.positionExpression, errors, item.labelId, t === 0 && args.first !== false);
+        if (item.pathExpression) LML.labels.onPath(target, item.pathExpression, errors, item.labelId, false);
         // The old fades go before the new ones, so a name that now hides keeps no stray keys.
         var opacity = target.property("ADBE Transform Group").property("ADBE Opacity");
         while (opacity.numKeys > 0) opacity.removeKey(1);
@@ -509,8 +538,11 @@ LML.labels.addLabels = function (args) {
             lap("style");
         }
         LML.labels.link(main, mapLayer, spec.expressions.main, errors, spec.name, check);
-        // A street or a river in town: the name turns with its line (2D layers turn on Rotate Z).
-        if (spec.expressions.rotation) {
+        // A street or a river in town: the name bends along its line, or turns with it (2D layers
+        // turn on Rotate Z).
+        if (spec.expressions.path && !spec.design) {
+            LML.labels.onPath(main, spec.expressions.path, errors, spec.name, check);
+        } else if (spec.expressions.rotation) {
             LML.pins.setExpression(main.property("ADBE Transform Group").property("ADBE Rotate Z"), spec.expressions.rotation, errors, spec.name + " angle", check);
         }
         lap("link");
