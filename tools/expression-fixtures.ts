@@ -16,6 +16,7 @@ import { froundSource } from "../src/core/ae/projectionExpression.ts";
 import { minimapBoxExpression, northRotationExpression, scaleBarPathExpression, scaleBarTextExpression } from "../src/core/ae/mapFurniture.ts";
 import type { View } from "../src/core/camera/camera.ts";
 import { greatCircle } from "../src/core/geo/greatCircle.ts";
+import { chartTimeRemapExpression, growingLineExpression, lineHeadExpression, lineLabelExpression, lineValueExpression } from "../src/core/ae/chartExpressions.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const out = path.join(root, ".cache", "expression-fixtures.js");
@@ -26,6 +27,7 @@ type Env = {
   map: { width: number; height: number; scale: number; controls: Record<string, number>; toComp: number[] };
   comp: { width: number; height: number };
   value: unknown;
+  time?: number;
 };
 type Fixture = { name: string; code: string; env: Env; expected: (number | string)[]; tolerance: number };
 
@@ -233,6 +235,25 @@ for (let i = 0; i < 20; i++) {
       value: [0, 0, 0]
     });
   }
+}
+
+// Charts of numbers over the years: lines that stand at the precomp's year, and the time remap that
+// turns the map's Data Time into it.
+for (let i = 0; i < 24; i++) {
+  const times = i % 3 === 0 ? [2000, 2010, 2020] : [1990, 1995, 2003, 2011, 2019, 2024];
+  const points = times.map((_, k) => [40 + k * 60 + random() * 10, 300 - random() * 250] as [number, number]);
+  const values = times.map(() => (i % 4 === 0 ? random() * 5 : random() * 2e6));
+  const duration = 4 + (i % 5);
+  const time = random() * (duration + 1) - 0.5;
+  const own = { Map: "MAP" as const };
+  const chartMap = { width: 1920, height: 1080, scale: 1, controls: { "Data Time": times[0] - 3 + random() * (times[times.length - 1] - times[0] + 6) }, toComp: [1, 0, 0, 0, 1, 0] };
+  const comp = { width: 800, height: 400 };
+  add(`chart line ${i}`, growingLineExpression(points, times, duration, i % 2 ? { baseline: 320 } : null), { own, map: chartMap, comp, value: null, time });
+  add(`chart head ${i}`, lineHeadExpression(points, times, duration), { own, map: chartMap, comp, value: [0, 0], time });
+  add(`chart value ${i}`, lineValueExpression(values, times, duration), { own, map: chartMap, comp, value: "", time }, 0);
+  add(`chart time ${i}`, chartTimeRemapExpression(times, duration - 0.04), { own, map: chartMap, comp, value: 0, time });
+  const others = [points, points.map(([x, y]) => [x, y + (random() - 0.5) * 30] as [number, number]), points.map(([x, y]) => [x, y + 5] as [number, number])];
+  add(`chart label ${i}`, lineLabelExpression(others, i % 3, times, duration, 9, 5, 18), { own, map: chartMap, comp, value: [0, 0], time });
 }
 
 fs.mkdirSync(path.dirname(out), { recursive: true });

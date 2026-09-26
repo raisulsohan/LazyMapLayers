@@ -12,6 +12,7 @@
  *   map:       { width, height, scale, controls: { name: number }, toComp: [a, b, c, d, e, f] }
  *   comp:      { width, height }   (thisComp)
  *   value:     the property's own value
+ *   time:      the comp time the expression runs at (seconds), 0 when left out
  * }
  */
 function lmlEffects(own, env) {
@@ -43,6 +44,8 @@ function lmlRunExpression(code, env) {
     var parent = { effect: lmlEffects(env.parentOwn, env) };
     var thisComp = { width: env.comp.width, height: env.comp.height };
     var value = env.value;
+    // The layer's own time, for expressions that move with it (a chart's lines).
+    var time = env.time || 0;
     var fromComp = function (p) {
         return [p[0] - 7, p[1] + 3];
     };

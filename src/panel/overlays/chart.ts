@@ -3,6 +3,9 @@
 // layers and the growth keys.
 
 import { chartLayout, DEFAULT_CHART_BARS, type ChartRow } from "../../core/style/chart.ts";
+import { DEFAULT_CHART_LINES, lineChartLayout, type LineChartRow } from "../../core/style/lineChart.ts";
+import { chartTimeRemapExpression, growingLineExpression, lineHeadExpression, lineLabelExpression, lineValueExpression } from "../../core/ae/chartExpressions.ts";
+import { categoryPaletteById } from "../../core/style/categories.ts";
 import { dataFillColors, type DataFill } from "../../core/style/dataFill.ts";
 import { SCRIPT_FONTS, scriptOf } from "../../core/labels/language.ts";
 import { templateFonts, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
@@ -79,6 +82,69 @@ export async function addChart(mapId: string, fill: DataFill, places: ChartPlace
     fonts,
     rowSize: layout.rowSize,
     bars: layout.bars.map((bar) => ({ label: bar.label, valueText: bar.valueText, color: hexToRgb(bar.color), bar: bar.bar, labelAt: bar.labelAt, valueAt: bar.valueAt, from: bar.from, to: bar.to }))
+  });
+  return { ...made, dropped: layout.dropped };
+}
+
+export type LineChartResult = { name: string; comp: string; lines: number; removed: number; dropped: number; expressionErrors: string[] };
+
+/**
+ * Builds (or rebuilds) the chart of a map's numbers over the years: a line per place (or an area),
+ * each in its own colour, that stands at the year the map shows.
+ */
+export async function addLineChart(mapId: string, fill: DataFill, places: { code: string; name: string }[], options: ChartOptions & { area?: boolean } = {}): Promise<LineChartResult> {
+  if (!fill.series) throw new Error("a chart over the years needs a table with years");
+  const info = await callHost<Info & { frames: number }>("renderInfo", { mapId });
+  const theme = themeFrom(options.theme);
+  const look = options.style ?? resolveLayerStyle(theme);
+  const title = (options.title ?? fill.column).trim();
+  const script = scriptOf(title || "A");
+  const fonts = options.template ? templateFonts(options.template, SCRIPT_FONTS[script].regular, script) : SCRIPT_FONTS[script].regular;
+  const scale = info.height / 1080;
+  const textSize = 16 * scale;
+  const times = fill.series.times;
+  // Lines need telling apart, not ranking: each gets its own colour of the colour-blind safe set.
+  const palette = categoryPaletteById("safe").colours;
+  const rows: LineChartRow[] = places
+    .filter((place) => fill.series!.values[place.code])
+    .map((place, index) => ({ label: place.name, color: palette[index % palette.length], values: fill.series!.values[place.code], labelWidth: measure(`${place.name}  000,000`, scriptOf(place.name), textSize, 400, 0) }));
+  const layout = lineChartLayout(rows, { height: info.height, times, title, titleWidth: measure(title, script, 26 * scale, 600, 0), limit: options.limit ?? DEFAULT_CHART_LINES, area: options.area });
+  // Colours by final rank, so the largest place is always the first colour.
+  layout.lines.forEach((line, index) => (line.color = palette[index % palette.length]));
+  const position = legendPosition(layout, { width: info.width, height: info.height }, options.corner ?? "bottomRight");
+  const duration = info.frames / info.frameRate;
+  const span = Math.max(1 / info.frameRate, duration - 1 / info.frameRate);
+  const radius = Math.max(2, layout.textSize / 3.2);
+  const made = await callHost<Omit<LineChartResult, "dropped">>("addLineChart", {
+    mapId,
+    name: `Chart: ${title || fill.column}`,
+    width: Math.ceil(layout.width),
+    height: Math.ceil(layout.height),
+    position: [Math.round(position.x), Math.round(position.y)],
+    background: { color: hexToRgb(look.panel), opacity: 88, radius: layout.radius },
+    border: { color: hexToRgb(theme.border), width: Math.max(1, Math.round(layout.scale)) },
+    title: layout.title && title ? { text: title, ...layout.title } : null,
+    textColor: hexToRgb(theme.text),
+    mutedColor: hexToRgb(theme.border),
+    fonts,
+    textSize: layout.textSize,
+    padding: layout.padding,
+    plot: layout.plot,
+    baseline: layout.baseline,
+    xTicks: layout.xTicks,
+    yTicks: layout.yTicks,
+    area: layout.area,
+    lines: layout.lines.map((line, index) => ({
+      label: line.label,
+      color: hexToRgb(line.color),
+      expressions: {
+        path: growingLineExpression(line.points, times, span, layout.area ? { baseline: layout.baseline } : null),
+        head: lineHeadExpression(line.points, times, span),
+        value: lineValueExpression(line.values, times, span, `${line.label}  `),
+        label: lineLabelExpression(layout.lines.map((l) => l.points), index, times, span, radius * 2.2, layout.textSize * 0.35, layout.textSize * 1.15)
+      }
+    })),
+    remap: chartTimeRemapExpression(times, span)
   });
   return { ...made, dropped: layout.dropped };
 }

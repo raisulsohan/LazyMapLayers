@@ -62,7 +62,7 @@ import { importFile } from "./data/importFile.ts";
 import { addCallout, addRoute, addRouteLine } from "./overlays/routeCallout.ts";
 import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
-import { addChart, removeChart } from "./overlays/chart.ts";
+import { addChart, addLineChart, removeChart } from "./overlays/chart.ts";
 import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap, type FurnitureKind } from "./overlays/furniture.ts";
 import { featureKeys, filterFeatures, parseFilter, type FeatureRow } from "../core/data/featureList.ts";
 import { featureCentre, featurePolygons, featureRows, type FeatureScope, type FeatureSources } from "./features.ts";
@@ -2628,12 +2628,32 @@ export const chartBars = signal(8);
 export const chartCorner = signal<LegendCorner>("bottomRight");
 
 /** The numbers as a chart in the scene: a bar per place, longest first, each growing in turn. */
+/** Bars of one year, or lines or areas over the years (for a table with years). */
+export const chartKind = signal<"bars" | "lines" | "area">("bars");
+
 export const addDataChart = () =>
   run("chart", async () => {
     const fill = dataFill.value;
     const entry = (await readMaps()).find((map) => map.mapId === selectedId.value);
     if (!fill || !entry) {
       log("colour the map by a table first", "muted");
+      return;
+    }
+    if (chartKind.value !== "bars" && fill.series) {
+      const codes = Object.keys(fill.series.values);
+      const made = await addLineChart(entry.mapId, fill, codes.map((code) => ({ code, name: nameOfPlace(fill, code) })), {
+        theme: currentTheme.value,
+        style: currentLayerStyle.value,
+        template: currentLabelTemplate.value,
+        corner: chartCorner.value,
+        limit: Math.min(8, chartBars.value),
+        area: chartKind.value === "area"
+      });
+      const dropped = made.dropped ? `, ${made.dropped} smaller ones left out` : "";
+      log(
+        made.expressionErrors.length ? `the chart has expression errors: ${made.expressionErrors.join("; ")}` : `"${made.name}" added to the scene (${made.lines} ${chartKind.value === "area" ? "areas" : "lines"}${dropped}). It follows the map's Data Time slider, however you key it`,
+        made.expressionErrors.length ? "fail" : "ok"
+      );
       return;
     }
     const places = Object.entries(fill.values).map(([code, value]) => ({ code, name: nameOfPlace(fill, code), value }));

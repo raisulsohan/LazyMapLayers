@@ -19,11 +19,22 @@ import { callHost, evalScript, fs, path } from "./cep.ts";
 import { countryJoinTargets } from "./data/countries.ts";
 import { createMapComp } from "./mapApi.ts";
 import { runRenderJob, type RenderJobResult } from "./render/renderJob.ts";
+import { addLineChart } from "./overlays/chart.ts";
+import { spikeDir } from "./spikes.ts";
 import type { SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 960, height: 540 };
 const hex = (rgb: number[]) => `#${rgb.slice(0, 3).map((v) => v.toString(16).padStart(2, "0")).join("")}`;
 const near = (a: number[], b: number[], slack = 6) => a.slice(0, 3).every((v, i) => Math.abs(v - b[i]) <= slack);
+
+/** Saves a frame of the scene to look at. */
+async function saveSceneFrame(mapId: string, time: number, name: string): Promise<void> {
+  const file = path().join(spikeDir(), `${name}.png`).split(String.fromCharCode(92)).join("/");
+  fs().rmSync(file, { force: true });
+  await evalScript(`(function () { LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp.saveFrameToPng(${time}, new File(${JSON.stringify(file)})); return "1"; })()`);
+  for (let i = 0; i < 60 && !fs().existsSync(file); i++) await new Promise((resolve) => setTimeout(resolve, 250));
+  await new Promise((resolve) => setTimeout(resolve, 500));
+}
 
 function pixelReader(result: RenderJobResult, view: View) {
   const sequence = result.sequences.find((s) => s.pass === "highlight-DATA");
@@ -127,6 +138,43 @@ export async function runDataTimeTest(log: SpikeLog): Promise<Record<string, unk
   }
   check(years.join(",") === "2000,2010,2020", `the year layer counts ${years.join(",") || "nothing"}`);
 
+  // 4. A chart of the years: lines that stand at the map's year, and a time that follows its slider.
+  let chart: Record<string, unknown> = {};
+  try {
+    const places = Object.keys(fill.series!.values).map((code) => ({ code, name: code }));
+    const made = await addLineChart(timeMap.id, fill, places, { corner: "topRight", area: true });
+    check(made.expressionErrors.length === 0, `the chart has expression errors: ${made.expressionErrors.join("; ")}`);
+    check(made.lines === 3, `${made.lines} lines were drawn for three places`);
+    chart = JSON.parse(
+      await evalScript(`(function () {
+        var scene = LML.pins.findMapLayer(${JSON.stringify(timeMap.id)}).containingComp, out = null;
+        for (var i = 1; i <= scene.numLayers; i++) {
+          var tag = LML.tag.read(scene.layer(i));
+          if (!tag || tag.kind !== "chart" || !tag.lines) continue;
+          var layer = scene.layer(i), remap = layer.property("ADBE Time Remapping"), comp = layer.source;
+          var at = [remap.valueAtTime(0, false), remap.valueAtTime(0.48, false), remap.valueAtTime(0.96, false)];
+          var counts = [];
+          for (var l = 1; l <= comp.numLayers; l++) {
+            if (comp.layer(l).name.indexOf("Line: ") !== 0) continue;
+            var path = comp.layer(l).property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group").property(1).property("ADBE Vector Shape");
+            counts.push(path.valueAtTime(at[2], false).vertices.length, path.valueAtTime(at[1], false).vertices.length);
+          }
+          out = { remap: at, counts: counts, duration: comp.duration };
+        }
+        return LML.json.stringify(out);
+      })()`)
+    ) as Record<string, unknown>;
+    const remap = (chart.remap as number[]) ?? [];
+    check(remap.length === 3 && Math.abs(remap[0]) < 1e-6 && remap[1] > 0 && remap[2] > remap[1], `the chart's time is ${JSON.stringify(remap)} over the move`);
+    // An area at the last year: three years and two points down to the baseline. At 2010, two
+    // years (2000 and 2010) and the two baseline points.
+    const counts = (chart.counts as number[]) ?? [];
+    check(counts.length === 6 && counts[0] === 5 && counts[1] === 4, `the areas hold ${JSON.stringify(counts)} points at the end and in the middle`);
+    await saveSceneFrame(timeMap.id, 0.6, "DT2-chart");
+  } catch (error) {
+    problems.push(`the chart: ${error instanceof Error ? error.message : String(error)}`);
+  }
+
   for (const root of roots) {
     try {
       fs().rmSync(root, { recursive: true, force: true, maxRetries: 3 });
@@ -137,5 +185,5 @@ export async function runDataTimeTest(log: SpikeLog): Promise<Record<string, unk
   const passed = problems.length === 0;
   log(`DT2 categories and years: ${passed ? "blocs in their colours, Bangladesh through its years, the year counting" : `${problems.length} problems`}`, passed ? "ok" : "fail");
   for (const problem of problems) log(`  ${problem}`, "fail");
-  return { passed, problems, framesDrawn: timeRender.rendered, years };
+  return { passed, problems, framesDrawn: timeRender.rendered, years, chart };
 }

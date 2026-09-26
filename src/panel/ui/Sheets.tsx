@@ -39,6 +39,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
+import { chartKind } from "../store.ts";
 import { addDataYear, changeDataPalette, dataAnimate, dataIsCategory, dataPalette, dataSeriesShape } from "../store.ts";
 import { CATEGORY_PALETTES, type CategoryPaletteId } from "../../core/style/categories.ts";
 import { isCategoryColumn } from "../../core/data/dataTable.ts";
@@ -788,6 +789,13 @@ export function DataSheetView(): JSX.Element | null {
             <option value="bottomRight">Bottom right</option>
             <option value="topLeft">Top left</option>
             <option value="topRight">Top right</option>
+          </select>
+        </label>
+        <label class="num-field" title="Bars of the numbers, longest first; or, for a table with years, a line or an area per place that follows the map through the years">
+          <select data-id="chart-kind" value={fill?.series ? chartKind.value : "bars"} disabled={busy.value || !fill?.series} onChange={(e) => (chartKind.value = (e.target as HTMLSelectElement).value as "bars" | "lines" | "area")}>
+            <option value="bars">Bars</option>
+            <option value="lines">Lines over the years</option>
+            <option value="area">Areas over the years</option>
           </select>
         </label>
         <button class="small-button" data-id="data-chart-add" disabled={busy.value || !fill || !!fill.categories} title="A chart of the numbers in the scene: a bar per place, longest first, each growing in turn from the current time. An ordinary precomp: move it, restyle it, animate it." onClick={() => void addDataChart()}>

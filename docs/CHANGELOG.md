@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Line and area charts over the years.** For a table with years, **Add chart** can draw a line or
+  a filled area per place instead of bars: they grow with the map, year by year, with each place's
+  name and value riding the end of its line, and they follow the map's Data Time slider however you
+  key it.
 - **Colour by category.** A column of a few kinds - a party, a bloc, a region, yes or no - colours
   each place in its category's colour, from a palette that stays readable for colour-blind viewers
   (or a bold or a soft one), with the legend naming each category.

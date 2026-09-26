@@ -887,7 +887,34 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D79 — Colours by category, and numbers over the years (2026-09-26)
+## D80 — Line and area charts that follow the map through the years (2026-09-26)
+
+- **Why.** The only chart was a bar per place for one set of numbers. Numbers over the years (D79)
+  are shown as lines: a line chart beside the map is the usual companion of a map that moves
+  through time.
+- **Decision.** **Lines over the years** and **Areas over the years** under Add chart, for a table
+  with years. The chart is a precomp like the bar chart: a background, a grid on a round value axis
+  (1, 2, 2.5 or 5 times a power of ten), round years under it, and a line or a filled area per place,
+  the largest at the last year first, at most eight, each in its own colour of the colour-blind safe
+  set (lines need telling apart, not ranking). A dot and the place's name with its value ride the
+  head of every line (src/core/style/lineChart.ts).
+- **Following the map, not a copy of its keys.** Inside the precomp, time runs from the first year to
+  the last; every path, dot and number is an expression of that time (src/core/ae/chartExpressions.ts)
+  and stands exactly at the year, the head between two years where the year is. The chart's layer in
+  the scene is time-remapped by the map's Data Time slider through a Layer Control, so retiming the
+  slider retimes the chart with the map. Copying the slider's keys would have broken the moment the
+  user moved one.
+- **Labels keep apart.** Two lines that meet would write their names over each other; every label's
+  expression places the heads of the lines ranked above it and moves below any it would touch. Areas
+  are stacked with the largest at the bottom so the smaller ones stay in sight.
+- **Tested.** Unit tests for the round axis, the years, the order and the dropped lines, a gap filled
+  straight, the path at the first year, a quarter of the way and the end, the closed area, the head,
+  the value text, the time remap clamped to the years, and two labels kept apart. 120 new ES3
+  fixtures (1,305 in all), names written as ASCII escapes. DT2 adds an area chart in After Effects:
+  no expression errors, three areas, the time following the slider, and every area holding the
+  points of its year at the middle and at the end. The frame was looked at.
+
+
 
 - **Why.** A table could only colour the map by amounts. Two of the most asked-for data maps could
   not be made: an election or an alliance map (a party, a bloc, a yes or a no per place), and a map

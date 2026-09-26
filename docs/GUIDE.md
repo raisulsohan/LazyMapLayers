@@ -331,7 +331,9 @@ has a flag that stays put while the camera flies.
 (marked "categories"): each kind gets its own colour and a row in the legend. A table with years -
 a column per year, or a row per place per year - shows **Animate over the years**: the map then runs
 from the first year to the last over the comp on the map layer's "Data Time" slider (key it as you
-like), and **Add the year** puts the year on screen, counting with the slider.
+like), and **Add the year** puts the year on screen, counting with the slider. With years, **Add
+chart** can also draw **Lines over the years** or **Areas over the years**, which grow with the map
+and follow the same slider.
 
 ## Data, downloads and credits
 
