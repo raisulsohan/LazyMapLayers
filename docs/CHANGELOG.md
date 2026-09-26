@@ -2,6 +2,9 @@
 
 ## Unreleased
 
+- **Oceans are named on a turning globe.** Ocean and continent names now take their place ahead of
+  the small names that came on screen first, which make way for them, so a spinning globe no longer
+  loses an ocean's name to an island that got there before it.
 - **One map's camera follows another's.** In **Map settings**, **Follow the camera of** links a map
   to another map in the same comp - for split screens, or an overview in the corner some zoom steps
   out (**Zoom offset**), with or without the other map's turn and tilt. Animate one and both move.

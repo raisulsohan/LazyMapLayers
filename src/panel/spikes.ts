@@ -40,6 +40,7 @@ import { runDataTimeTest } from "./dataTimeTests.ts";
 import { runPrismTest } from "./prismTests.ts";
 import { runDrawnPathTest } from "./drawnTests.ts";
 import { runFollowTest } from "./followTests.ts";
+import { runOceanNameTest } from "./oceanTests.ts";
 import { runLabelImageTest } from "./labelImageTests.ts";
 import { runGeocodeTest } from "./geocodeTests.ts";
 import { runFlowTest } from "./flowTests.ts";
@@ -424,6 +425,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB5_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB5 failed: ${results.LB5_error}`, "fail");
+    }
+  }
+
+  if (wants("LB6")) {
+    try {
+      results.LB6_oceans = await runOceanNameTest(log);
+    } catch (error) {
+      results.LB6_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`LB6 failed: ${results.LB6_error}`, "fail");
     }
   }
 

@@ -97,6 +97,39 @@ test("a label on screen keeps its place against a higher-priority newcomer", () 
   assert.equal(tracks.find((t) => t.id === "b"), undefined);
 });
 
+test("on a turning globe an ocean's name takes its place from the small names that came first", () => {
+  // The globe turns from 20 E to 140 E: the Indian Ocean comes in from the eastern limb.
+  const views: View[] = Array.from({ length: 120 }, (_, i) => ({ center: { lng: 20 + i, lat: -10 }, zoom: 1.2, bearing: 0, pitch: 0 }));
+  const ocean: LabelCandidate = { id: "ocean", lat: -20, lng: 80, priority: 3, width: 260, height: 26, anchor: "center", minZoom: 0, maxZoom: 5 };
+  // Small names in the ocean's way, cheaper than it but on the planet sooner.
+  const small = [
+    { id: "isle-a", lat: -20, lng: 72 },
+    { id: "isle-b", lat: -20, lng: 88 },
+    { id: "isle-c", lat: -19, lng: 80 }
+  ].map((p): LabelCandidate => ({ ...p, priority: 40, width: 70, height: 16, anchor: "center", minZoom: 0, maxZoom: 5 }));
+  const run = (major: boolean) => placeLabels([{ ...ocean, major: major || undefined }, ...small], views, { viewport: hd, projection: "globe", margin: 20, padding: 4, minFrames: 12 });
+  // Without the rule the islands hold their places and the ocean never comes on.
+  assert.equal(run(false).find((t) => t.id === "ocean"), undefined);
+  const tracks = run(true);
+  const oceanTrack = tracks.find((t) => t.id === "ocean");
+  assert.ok(oceanTrack, "the ocean is never named");
+  // Nearly as long as it is named on an empty globe (it waits the minimum time of the names it displaces).
+  const frames = (t: { intervals: [number, number][] } | undefined) => (t ? t.intervals.reduce((sum, [a, b]) => sum + b - a, 0) : 0);
+  const alone = frames(placeLabels([{ ...ocean, major: true }], views, { viewport: hd, projection: "globe", margin: 20, padding: 4, minFrames: 12 })[0]);
+  assert.ok(alone >= 20 && frames(oceanTrack) >= alone * 0.8, `the ocean is named on ${frames(oceanTrack)} frames, ${alone} alone`);
+  // No frame shows the ocean and an island it overlaps.
+  for (const t of tracks.filter((x) => x.id !== "ocean")) {
+    for (const [a, b] of t.intervals) for (const [c, d] of oceanTrack.intervals) {
+      if (a >= d || c >= b) continue;
+      for (let f = Math.max(a, c); f < Math.min(b, d); f++) {
+        const p = projectPoint(views[f], hd, small.find((s) => s.id === t.id)!, { projection: "globe" });
+        const o = projectPoint(views[f], hd, ocean, { projection: "globe" });
+        assert.ok(Math.abs(p.x - o.x) > (70 + 260) / 2 + 8 || Math.abs(p.y - o.y) > (16 + 26) / 2 + 8, `${t.id} overlaps the ocean on frame ${f}`);
+      }
+    }
+  }
+});
+
 test("opacity keys fade inside each appearance", () => {
   assert.deepEqual(opacityKeys({ id: "x", intervals: [[10, 40]] }, 5), [
     [10, 0],

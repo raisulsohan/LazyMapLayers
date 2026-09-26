@@ -887,6 +887,27 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D88 — Oceans and continents go before the names already on screen (2026-09-27)
+
+- **Why.** The placer keeps a name that is on screen where it is before it adds new ones (D12), so
+  names do not jump. On a turning globe that can keep an ocean off for good: its wide name fits on
+  the planet only once it has come well round from the limb, and by then small names near its
+  place (islands, seas) are already on and hold their ground.
+- **Decision.** Oceans and continents are major names (LabelCandidate.major, set in
+  panel/labels/candidate.ts). Each frame they are placed first, those already on screen before new
+  ones, and then the usual order follows: names on screen, then the rest by priority. A name that
+  is only there because it came first gives way; it fades out as the ocean fades in, since fades
+  happen inside a name's time on screen, so the two never overlap. Among major names the stability
+  rule holds as before.
+- **Only these two.** They are the names a globe is read by and there are fourteen of them; any
+  wider rule would make ordinary names jump.
+- **Tested.** A unit test turns a globe with three small names in the way of the Indian Ocean:
+  without the rule the ocean is never named, with it the ocean shows for at least 80 % of the time
+  it would on an empty globe and never over an island. LB6 turns a globe from the South Atlantic to
+  the Pacific with the world's names and finds all three oceans named and no two names overlapping.
+  In that scene the oceans are named with or without the rule, as real ocean label points lie in
+  open water; the rule is for the scenes where they do not. LB2, LB3, LB4, WB1 and G2 still pass.
+
 ## D87 — One map's camera follows another's (2026-09-27)
 
 - **Why.** A split screen (the same flight over two looks, two years, satellite and streets), an

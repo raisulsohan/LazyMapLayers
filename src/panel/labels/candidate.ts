@@ -125,6 +125,8 @@ export function measureLabel(args: {
       : isCountry
         ? record.rank * 10 + 5
         : record.rank * 10 - (record.capital ? 4 : 0) - Math.min(3, Math.log10(record.population + 1) / 3),
+    // Oceans and continents are the names a globe is read by: the others make way for them.
+    major: nature === "ocean" || nature === "continent" ? true : undefined,
     width,
     height,
     // A design sits centred on its own anchor, wherever the designer put it.

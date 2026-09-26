@@ -2,7 +2,9 @@
 //
 // Labels are placed on every frame of the camera animation, not per still: on each frame the labels
 // that were already on screen keep their place first (hysteresis), then new ones are added by
-// priority wherever they do not overlap anything placed so far. Afterwards every appearance shorter
+// priority wherever they do not overlap anything placed so far. Major names (oceans, continents) go
+// before all of that: on a turning globe an ocean's wide name fits on the planet only after the
+// small names around it have come on, and holding those in place would keep the ocean off for good. Afterwards every appearance shorter
 // than the minimum time on screen is dropped (dropping never causes an overlap), and each remaining
 // appearance fades in after it starts and fades out before it ends. The result: no overlaps on any
 // frame, no flicker, and no label that blinks on for a few frames.
@@ -27,6 +29,11 @@ export type LabelCandidate = {
   /** Visible from minZoom (inclusive) to maxZoom (exclusive). */
   minZoom: number;
   maxZoom: number;
+  /**
+   * An ocean or a continent: placed ahead of the names already on screen, which give way to it
+   * (they fade out as it fades in). Among major names the usual rules hold.
+   */
+  major?: boolean;
 };
 
 export type PlacementOptions = {
@@ -90,10 +97,10 @@ export function placeLabels(candidates: LabelCandidate[], views: View[], options
       eligible.push({ candidate, box });
     }
     const shown = new Set<string>();
-    // Labels already on screen keep their place first, then the rest by priority.
-    for (const pass of [true, false]) {
+    // Major names first, then the labels already on screen keep their place, then the rest by priority.
+    for (const [major, pass] of [[true, true], [true, false], [false, true], [false, false]]) {
       for (const { candidate, box } of eligible) {
-        if (previous.has(candidate.id) !== pass) continue;
+        if (!!candidate.major !== major || previous.has(candidate.id) !== pass) continue;
         if (placed.some((other) => overlaps(box, other))) continue;
         placed.push(box);
         shown.add(candidate.id);
