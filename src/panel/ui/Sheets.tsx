@@ -13,7 +13,10 @@ import {
   confirmToolSheet,
   LABEL_DENSITIES,
   labelDensity,
+  labelKinds,
   labelLanguage,
+  LABEL_KINDS,
+  toggleLabelKind,
   mb,
   removeLabels,
   regionSheet,
@@ -1418,7 +1421,14 @@ export function LabelsSheetView(): JSX.Element | null {
   return (
     <div class="sheet" data-id="labels-sheet">
       <div class="sheet-title">Auto labels</div>
-      <div class="muted small">Country and city names as editable text layers, placed over the whole timeline without overlaps or flicker. Running it again replaces the labels it made before.</div>
+      <div class="muted small">Names of countries, cities, seas, rivers and mountains as editable text layers, placed over the whole timeline without overlaps or flicker. Running it again replaces the labels it made before.</div>
+      <div class="sheet-row chips" data-id="label-kinds">
+        {LABEL_KINDS.map((kind) => (
+          <button key={kind.id} class={`chip ${labelKinds.value[kind.id] ? "on" : ""}`} data-id={`label-kind-${kind.id}`} disabled={busy.value} title={kind.hint} onClick={() => toggleLabelKind(kind.id)}>
+            {kind.name}
+          </button>
+        ))}
+      </div>
       <div class="sheet-row">
         <label class="num-field grow">
           <span>Language</span>

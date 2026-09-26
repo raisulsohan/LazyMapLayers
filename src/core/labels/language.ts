@@ -106,3 +106,13 @@ export const SCRIPT_FONTS: Record<Script, { bold: string[]; regular: string[]; c
   japanese: { bold: ["YuGothic-Bold", "HiraginoSans-W6", "NotoSansCJKjp-Bold", "NotoSansJP-Bold"], regular: ["YuGothic-Regular", "HiraginoSans-W3", "NotoSansCJKjp-Regular", "NotoSansJP-Regular"], css: "Yu Gothic, Hiragino Sans, Noto Sans JP" },
   hangul: { bold: ["MalgunGothicBold", "AppleSDGothicNeo-Bold", "NotoSansCJKkr-Bold", "NotoSansKR-Bold"], regular: ["MalgunGothic", "AppleSDGothicNeo-Regular", "NotoSansCJKkr-Regular", "NotoSansKR-Regular"], css: "Malgun Gothic, Apple SD Gothic Neo, Noto Sans KR" }
 };
+
+/**
+ * Italic fonts for the names of water, as PostScript names, where a script has italics at all
+ * (Latin, Cyrillic, Greek). Other scripts are written upright: slanting them only damages them.
+ */
+export const ITALIC_FONTS: Partial<Record<Script, string[]>> = {
+  latin: ["SegoeUI-SemiboldItalic", "SegoeUI-Italic", "HelveticaNeue-MediumItalic", "HelveticaNeue-Italic", "NotoSans-SemiBoldItalic", "NotoSans-Italic", "Arial-ItalicMT"],
+  cyrillic: ["SegoeUI-SemiboldItalic", "SegoeUI-Italic", "HelveticaNeue-MediumItalic", "HelveticaNeue-Italic", "NotoSans-SemiBoldItalic", "NotoSans-Italic", "Arial-ItalicMT"],
+  greek: ["SegoeUI-SemiboldItalic", "SegoeUI-Italic", "HelveticaNeue-MediumItalic", "HelveticaNeue-Italic", "NotoSans-SemiBoldItalic", "NotoSans-Italic", "Arial-ItalicMT"]
+};

@@ -104,9 +104,39 @@ test("opacity keys fade inside each appearance", () => {
     [35, 100],
     [40, 0]
   ]);
-  assert.deepEqual(opacityKeys({ id: "y", intervals: [[0, 6]] }, 5), [
-    [0, 0],
-    [3, 100],
-    [6, 0]
+  // Short in the middle of the comp: it peaks halfway.
+  assert.deepEqual(opacityKeys({ id: "y", intervals: [[20, 26]] }, 5), [
+    [20, 0],
+    [23, 100],
+    [26, 0]
+  ]);
+});
+
+test("a name on screen when the comp begins or ends is there in full at that edge", () => {
+  // On from the first frame: no fade in, only the fade out.
+  assert.deepEqual(opacityKeys({ id: "a", intervals: [[0, 40]] }, 5, 100), [
+    [0, 100],
+    [35, 100],
+    [40, 0]
+  ]);
+  // On until the last frame: the fade in, then held to the end.
+  assert.deepEqual(opacityKeys({ id: "b", intervals: [[60, 100]] }, 5, 100), [
+    [60, 0],
+    [65, 100],
+    [100, 100]
+  ]);
+  // The whole comp: full all the way.
+  assert.deepEqual(opacityKeys({ id: "c", intervals: [[0, 100]] }, 5, 100), [
+    [0, 100],
+    [100, 100]
+  ]);
+  // A second appearance after a gap still fades in.
+  assert.deepEqual(opacityKeys({ id: "d", intervals: [[0, 20], [50, 100]] }, 5, 100), [
+    [0, 100],
+    [15, 100],
+    [20, 0],
+    [50, 0],
+    [55, 100],
+    [100, 100]
   ]);
 });

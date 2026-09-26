@@ -9,11 +9,15 @@ import { districtRecords } from "./districts.ts";
 
 export type WorldLabel = PlaceRecord & { minZoom: number; maxZoom?: number };
 
-let records: { countries: WorldLabel[]; places: WorldLabel[] } | null = null;
+let records: { countries: WorldLabel[]; places: WorldLabel[]; nature: WorldLabel[] } | null = null;
 let index: PlaceIndex | null = null;
 
-export function loadWorldLabels(): { countries: WorldLabel[]; places: WorldLabel[] } {
-  if (!records) records = JSON.parse(fs().readFileSync(worldOverlayPath("labels.json"), "utf8"));
+export function loadWorldLabels(): { countries: WorldLabel[]; places: WorldLabel[]; nature: WorldLabel[] } {
+  if (!records) {
+    const read = JSON.parse(fs().readFileSync(worldOverlayPath("labels.json"), "utf8"));
+    // Label data from before 0.8 has no natural features.
+    records = { countries: read.countries ?? [], places: read.places ?? [], nature: read.nature ?? [] };
+  }
   return records!;
 }
 

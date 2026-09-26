@@ -887,7 +887,52 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D76 — A duplicated scene gets a map of its own (2026-09-26)
+## D77 — The names of the natural world (2026-09-26)
+
+- **Why.** The bundled labels named countries and 7,101 cities and nothing else. A map of South Asia
+  had no Bay of Bengal, no Himalaya, no Ganges; a globe had no oceans. These are the names a news or
+  documentary map uses most, and Natural Earth has them, public domain, with names in the same 26
+  languages as the rest.
+- **Data.** tools/prepare-world-overlays.ts now reads the marine areas, the physical regions, the
+  peaks and the named points of Natural Earth 10m (3.3 MB downloaded to .cache/ne), with the rivers
+  and lakes already there: 2,899 names - 7 continents, 7 oceans, 288 seas, bays and straits, 865
+  rivers, 377 lakes, 225 ranges, 62 deserts, 379 islands, 294 other regions, 388 peaks with their
+  heights, 4 waterfalls and the poles. labels.json grows from 5.2 to 7.1 MB.
+- **Where a name goes.** An area is named at its pole of inaccessibility, the point deepest inside it
+  measured on the ground (src/core/geo/polylabel.ts), not its centroid, which for a bay or a crescent
+  sea lies on land or outside it. A river is named halfway along its longest piece, and its pieces
+  are one river when they share a Wikidata id (Natural Earth splits the Yangtze and the Mekong under
+  several river numbers). Every feature that lies in one country carries that country, so the local
+  language names the Ganges in Hindi, the Sundarbans in Bengali and the Yangtze in Chinese; seas,
+  oceans and continents follow the chosen language.
+- **How it looks.** The conventions of printed maps (src/core/labels/nature.ts): water in italic, in
+  the look's water colour made to read on its sea; oceans and continents in widely spaced capitals;
+  ranges, deserts and regions in spaced capitals in the country colour sunk into the land; a peak with
+  a small triangle and its height ("Mount Everest · 8,848 m"). Scripts without capitals or italics
+  (Bengali, Arabic, Chinese and the rest) stay upright and unspaced, because slanting or spacing them
+  only damages them. Both colours are unit-tested to read at 3:1 on every look.
+- **Where it waits its turn.** A continent or an ocean claims its room before the countries, a sea or
+  a range comes with the larger countries, and a river, lake or peak waits for the cities of its rank.
+  A large sea can still give way to a large city whose name crosses it; it is dropped rather than moved,
+  because a name that changed place during a move would jump.
+- **Switches.** **What to name** in the Labels sheet: Countries, Cities, Seas and rivers, Mountains and
+  deserts. The last two are on by default. A design of the user's own is for countries and cities; a
+  sea keeps a plain name. The search finds the same features ("Bay of Bengal", "Everest") and flies to a
+  zoom that frames each kind.
+- **The comp's first and last frames.** Looking at the frames showed every name fading in on frame 0
+  and out over the last 0.4 s, for cities as much as seas: the edges of a comp were treated as
+  appearances. They are cuts. A name on screen when the comp begins is there in full on its first
+  frame, and one still on screen at the end stays (opacityKeys in core/labels/placement.ts).
+- **One measure.** Placing names again after a template change (D62) had its own copy of the sizing
+  and would have dropped every natural name; both paths now use panel/labels/candidate.ts.
+- **Tested.** Unit tests for the pole of inaccessibility, the styles, the colours on every look, the
+  peak triangle surviving "no dots", the search and the edge fades. LB4 flies from the Bay of Bengal to
+  Everest in After Effects: water names in an italic font and the water colour, ranges in spaced
+  capitals, Everest with a three-sided polygon and "8,848 m", features in China named in Chinese with
+  an English line, the Bay of Bengal in Bengali set upright in Nirmala UI, and nothing natural with
+  both switches off. The frames were looked at.
+
+
 
 - **What happened.** Duplicating a scene comp is daily work in After Effects: a second version of a
   shot, a cut-down, a vertical edit. Ctrl+D copies the map layer with its comment, so both scenes

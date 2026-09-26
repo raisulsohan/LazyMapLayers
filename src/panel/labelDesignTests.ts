@@ -72,7 +72,7 @@ export async function runLabelDesignTest(log: SpikeLog): Promise<Record<string, 
   }
 
   const template = resolveLabelTemplate(themeById("midnight"));
-  const built = mine ? await autoLabels(map.id, { maxLabels: 12, theme: "midnight", countries: false, places: true, template, design: mine }) : null;
+  const built = mine ? await autoLabels(map.id, { maxLabels: 12, theme: "midnight", countries: false, places: true, water: false, land: false, template, design: mine }) : null;
   const placed = await designLabels(map.id);
   if (!built || !placed.length) {
     problems.push(`${placed.length} labels were built from the design`);

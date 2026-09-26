@@ -1,11 +1,16 @@
-// Offline place search over the bundled Natural Earth names (countries and populated places, in 26
-// languages), plus typed coordinates. Also the reverse: a name for a view, to name new maps and shots.
+// Offline place search over the bundled Natural Earth names (countries, populated places and natural
+// features, in 26 languages), plus typed coordinates. Also the reverse: a name for a view, to name new maps and shots.
 
+import { formatElevation, NATURE_NAMES, natureViewZoom, type NatureClass } from "../labels/nature.ts";
 import type { Bbox } from "../tiles/tileMath.ts";
 
 export type PlaceRecord = {
   id: string;
-  kind: "country" | "province" | "district" | "place";
+  kind: "country" | "province" | "district" | "place" | "nature";
+  /** For a natural feature: which kind (core/labels/nature.ts), and the zoom its name first shows at. */
+  nature?: NatureClass;
+  minZoom?: number;
+  elevation?: number;
   lat: number;
   lng: number;
   country: string;
@@ -20,7 +25,7 @@ export type PlaceRecord = {
 
 export type SearchResult = {
   id: string;
-  kind: "country" | "province" | "district" | "place" | "coordinates";
+  kind: "country" | "province" | "district" | "place" | "nature" | "coordinates";
   /** English (or first available) name. */
   name: string;
   /** The name that matched, when it differs from `name` (for example the local spelling). */
@@ -35,6 +40,8 @@ export type SearchResult = {
   lng: number;
   bbox?: Bbox;
   population: number;
+  /** Where a flight to it ends, when the population cannot say (a sea, a range, a peak). */
+  zoom?: number;
 };
 
 // Latin accents only (combining marks 0300 to 036F): vowel signs of Indic scripts, Arabic and Thai
@@ -62,8 +69,8 @@ export type PlaceIndex = {
   countryNames: Map<string, string>;
 };
 
-export function buildPlaceIndex(data: { countries: PlaceRecord[]; places: PlaceRecord[]; provinces?: PlaceRecord[]; districts?: PlaceRecord[] }): PlaceIndex {
-  const records = [...data.countries, ...(data.provinces ?? []), ...(data.districts ?? []), ...data.places];
+export function buildPlaceIndex(data: { countries: PlaceRecord[]; places: PlaceRecord[]; provinces?: PlaceRecord[]; districts?: PlaceRecord[]; nature?: PlaceRecord[] }): PlaceIndex {
+  const records = [...data.countries, ...(data.provinces ?? []), ...(data.districts ?? []), ...data.places, ...(data.nature ?? [])];
   const countryNames = new Map<string, string>();
   for (const c of data.countries) if (!countryNames.has(c.country)) countryNames.set(c.country, c.names.en ?? Object.values(c.names)[0] ?? c.country);
   return { records, folded: records.map((r) => Object.values(r.names).map(fold)), countryNames };
@@ -80,13 +87,19 @@ function toResult(index: PlaceIndex, record: PlaceRecord, matched?: string): Sea
     kind: record.kind,
     name,
     matched: matched && fold(matched) !== fold(name) ? matched : undefined,
-    detail: record.kind === "country" ? "Country" : [record.region, country].filter((part) => part && part !== name).join(", "),
+    detail:
+      record.kind === "country"
+        ? "Country"
+        : record.kind === "nature" && record.nature
+          ? [record.nature === "peak" && record.elevation ? `Peak, ${formatElevation(record.elevation)}` : NATURE_NAMES[record.nature], record.country ? country : ""].filter(Boolean).join(" \u00b7 ")
+          : [record.region, country].filter((part) => part && part !== name).join(", "),
     adm1: record.kind === "province" || record.kind === "district" ? record.id.replace(/^(province|district):/, "") : undefined,
     code: record.country || undefined,
     lat: record.lat,
     lng: record.lng,
     bbox: b ? { west: b[0], south: b[1], east: b[2], north: b[3] } : undefined,
-    population: record.population
+    population: record.population,
+    zoom: record.kind === "nature" && record.nature ? natureViewZoom(record.nature, record.minZoom ?? 5) : undefined
   };
 }
 
@@ -115,7 +128,7 @@ export function searchPlaces(index: PlaceIndex, query: string, limit = 8): Searc
     }
     if (!best) continue;
     const record = index.records[i];
-    const kindWeight = record.kind === "country" ? 30 : record.kind === "province" ? 14 : record.kind === "district" ? 9 : 0;
+    const kindWeight = record.kind === "country" ? 30 : record.kind === "province" ? 14 : record.kind === "nature" ? 12 - Math.min(10, record.rank) : record.kind === "district" ? 9 : 0;
     const weight = best * 100 + kindWeight + (record.capital ? 8 : 0) + Math.min(20, Math.log10(record.population + 1) * 2.5) - record.rank;
     scored.push({ score: weight, record, matched: Object.values(record.names)[bestName] });
   }

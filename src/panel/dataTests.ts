@@ -328,7 +328,7 @@ export async function runDataTest(log: SpikeLog): Promise<Record<string, unknown
     if (india.y - want.y < 20) problems.push(`India's number sits ${(india.y - want.y).toFixed(1)} px under its place, not clear of the circle`);
   }
   // Auto labels and the numbers do not touch each other's layers.
-  await autoLabels(map.id, { maxLabels: 6, theme: "midnight", countries: true, places: false });
+  await autoLabels(map.id, { maxLabels: 6, theme: "midnight", countries: true, places: false, water: false, land: false });
   const afterLabels = Number(
     await evalScript(`(function () {
       var scene = LML.pins.findMapLayer(${JSON.stringify(map.id)}).containingComp, found = 0;

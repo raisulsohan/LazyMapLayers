@@ -1,13 +1,17 @@
 // Builds data for animated overlays from the Natural Earth shapefiles in .cache/ne (public domain):
 //
 //   data/generated/borders.geojson   country borders on land (1:50m) with line metrics, for draw-on
-//   data/generated/labels.json       countries and populated places with names in 26 languages
+//   data/generated/labels.json       countries, populated places and natural features (oceans and seas,
+//                                    rivers and lakes, ranges, deserts, islands, peaks) with names in 26
+//                                    languages
 //
 //   node tools/prepare-world-overlays.ts
 
 import fs from "node:fs";
 import path from "node:path";
 import shp from "shpjs";
+import { labelPoint } from "../src/core/geo/polylabel.ts";
+import { natureLabelId, type NatureClass } from "../src/core/labels/nature.ts";
 
 type Feature = GeoJSON.Feature<GeoJSON.Geometry | null, Record<string, unknown>>;
 type Collection = { type: "FeatureCollection"; features: Feature[] };
@@ -85,6 +89,185 @@ function mainBbox(geometry: GeoJSON.Geometry | null): [number, number, number, n
   return [round(wrap(b.west), 3), round(b.south, 3), round(wrap(b.east), 3), round(b.north, 3)];
 }
 
+type Polygonal = GeoJSON.Polygon | GeoJSON.MultiPolygon;
+
+/** The countries as boxes and rings, to find which country a natural feature lies in. */
+function countryFinder(countries: Collection) {
+  const shapes = countries.features.flatMap((f) => {
+    const g = f.geometry;
+    if (!g || (g.type !== "Polygon" && g.type !== "MultiPolygon")) return [];
+    const p = lower(f.properties ?? {});
+    const code = valid(p.adm0_a3) ? String(p.adm0_a3) : String(p.iso_a3 ?? "");
+    const polygons = g.type === "Polygon" ? [g.coordinates] : g.coordinates;
+    return polygons.map((rings) => {
+      let west = Infinity;
+      let south = Infinity;
+      let east = -Infinity;
+      let north = -Infinity;
+      for (const [x, y] of rings[0]) {
+        west = Math.min(west, x);
+        east = Math.max(east, x);
+        south = Math.min(south, y);
+        north = Math.max(north, y);
+      }
+      return { code, rings, west, south, east, north };
+    });
+  });
+  const inRing = (x: number, y: number, ring: number[][]) => {
+    let inside = false;
+    for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) {
+      const [ax, ay] = ring[i];
+      const [bx, by] = ring[j];
+      if (ay > y !== by > y && x < ((bx - ax) * (y - ay)) / (by - ay) + ax) inside = !inside;
+    }
+    return inside;
+  };
+  return (lng: number, lat: number): string => {
+    for (const shape of shapes) {
+      if (lng < shape.west || lng > shape.east || lat < shape.south || lat > shape.north) continue;
+      if (!inRing(lng, lat, shape.rings[0])) continue;
+      if (shape.rings.slice(1).some((hole) => inRing(lng, lat, hole))) continue;
+      return shape.code;
+    }
+    return "";
+  };
+}
+
+/** Length of a line in rough kilometres, and the point halfway along it. */
+function midpoint(coords: number[][]): { length: number; point: [number, number] } {
+  const km = (a: number[], b: number[]) => {
+    const k = Math.cos((((a[1] + b[1]) / 2) * Math.PI) / 180);
+    return Math.hypot((b[0] - a[0]) * k, b[1] - a[1]) * 111.32;
+  };
+  let length = 0;
+  for (let i = 1; i < coords.length; i++) length += km(coords[i - 1], coords[i]);
+  let walked = 0;
+  for (let i = 1; i < coords.length; i++) {
+    const step = km(coords[i - 1], coords[i]);
+    if (walked + step >= length / 2 && step > 0) {
+      const t = (length / 2 - walked) / step;
+      return { length, point: [coords[i - 1][0] + (coords[i][0] - coords[i - 1][0]) * t, coords[i - 1][1] + (coords[i][1] - coords[i - 1][1]) * t] };
+    }
+    walked += step;
+  }
+  return { length, point: [coords[0][0], coords[0][1]] };
+}
+
+const MARINE: Record<string, NatureClass> = { ocean: "ocean", sea: "sea", bay: "sea", gulf: "sea", strait: "sea", channel: "sea", sound: "sea", fjord: "sea", lagoon: "sea", inlet: "sea", generic: "sea", reef: "sea", river: "sea" };
+const REGIONS: Record<string, NatureClass> = {
+  continent: "continent",
+  "range/mtn": "range",
+  foothills: "range",
+  desert: "desert",
+  tundra: "desert",
+  island: "island",
+  "island group": "island",
+  plateau: "region",
+  plain: "region",
+  basin: "region",
+  lowland: "region",
+  valley: "region",
+  depression: "region",
+  delta: "region",
+  wetlands: "region",
+  gorge: "region",
+  geoarea: "region",
+  "pen/cape": "region",
+  peninsula: "region",
+  isthmus: "region",
+  coast: "region",
+  lake: "lake"
+};
+
+type NatureRecord = { id: string; kind: "nature"; nature: NatureClass; lat: number; lng: number; country: string; rank: number; minZoom: number; maxZoom: number; population: 0; elevation?: number; names: Record<string, string> };
+
+async function natureLabels(countryOf: (lng: number, lat: number) => string): Promise<NatureRecord[]> {
+  const out: NatureRecord[] = [];
+  const push = (nature: NatureClass, key: string, lng: number, lat: number, p: Record<string, unknown>, minZoom: number, maxZoom: number, extra: Partial<NatureRecord> = {}) => {
+    const n = names(p);
+    if (!n.en) return;
+    // Water and whole continents belong to no single country: their names follow the chosen language.
+    const country = nature === "ocean" || nature === "sea" || nature === "continent" ? "" : countryOf(lng, lat);
+    out.push({ id: natureLabelId(nature, key), kind: "nature", nature, lat: round(lat, 4), lng: round(lng, 4), country, rank: valid(p.scalerank) ? Number(p.scalerank) : 9, minZoom: round(minZoom, 1), maxZoom: round(maxZoom, 1), population: 0, names: n, ...extra });
+  };
+
+  for (const f of (await load("ne_10m_geography_marine_polys")).features) {
+    const p = lower(f.properties ?? {});
+    const nature = MARINE[String(p.featurecla ?? "").toLowerCase()];
+    if (!nature || !f.geometry || !p.name) continue;
+    const [lng, lat] = labelPoint(f.geometry as Polygonal);
+    push(nature, String(p.ne_id), lng, lat, p, valid(p.min_label) ? Number(p.min_label) : 4, valid(p.max_label) ? Number(p.max_label) : 9);
+  }
+
+  for (const f of (await load("ne_10m_geography_regions_polys")).features) {
+    const p = lower(f.properties ?? {});
+    const nature = REGIONS[String(p.featurecla ?? "").toLowerCase()];
+    const rank = Number(p.scalerank);
+    if (!nature || !f.geometry || !p.name || !(rank <= (nature === "island" ? 5 : 6))) continue;
+    const [lng, lat] = labelPoint(f.geometry as Polygonal);
+    push(nature, String(p.ne_id), lng, lat, p, valid(p.min_label) ? Number(p.min_label) : rank + 1, valid(p.max_label) ? Number(p.max_label) : 11);
+  }
+
+  for (const f of (await load("ne_10m_geography_regions_elevation_points")).features) {
+    const p = lower(f.properties ?? {});
+    const g = f.geometry as GeoJSON.Point | null;
+    const rank = Number(p.scalerank);
+    const elevation = Number(p.elevation);
+    const cls = String(p.featurecla ?? "").toLowerCase();
+    if (!g || !p.name || !(rank <= 7) || !(elevation > 0) || (cls !== "mountain" && cls !== "spot elevation")) continue;
+    push("peak", String(p.ne_id), g.coordinates[0], g.coordinates[1], p, valid(p.min_zoom) ? Number(p.min_zoom) : rank, 13, { elevation: Math.round(elevation) });
+  }
+
+  for (const f of (await load("ne_10m_geography_regions_points")).features) {
+    const p = lower(f.properties ?? {});
+    const g = f.geometry as GeoJSON.Point | null;
+    const cls = String(p.featurecla ?? "").toLowerCase();
+    const nature: NatureClass | null = cls === "waterfall" ? "waterfall" : cls === "pole" ? "pole" : cls === "island" && Number(p.scalerank) <= 5 ? "island" : null;
+    if (!g || !p.name || !nature) continue;
+    push(nature, String(p.ne_id), g.coordinates[0], g.coordinates[1], p, valid(p.min_zoom) ? Number(p.min_zoom) : 5, nature === "pole" ? 8 : 13);
+  }
+
+  // A river comes in many pieces; its name goes halfway along its longest piece.
+  const rivers = new Map<string, { p: Record<string, unknown>; best: { length: number; point: [number, number] }; rank: number; minLabel: number }>();
+  for (const f of (await load("ne_10m_rivers_lake_centerlines")).features) {
+    const p = lower(f.properties ?? {});
+    const cls = String(p.featurecla ?? "");
+    const rank = Number(p.scalerank);
+    if (!p.name || !f.geometry || !(rank <= 8) || (cls !== "River" && cls !== "River (Intermittent)" && cls !== "Canal")) continue;
+    const lines = f.geometry.type === "LineString" ? [f.geometry.coordinates] : f.geometry.type === "MultiLineString" ? f.geometry.coordinates : [];
+    // One river can come under several river numbers; its Wikidata id says it is one river.
+    const key = valid(p.wikidataid) ? String(p.wikidataid) : `${String(p.name)}:${String(p.rivernum ?? "")}`;
+    for (const line of lines) {
+      const mid = midpoint(line as number[][]);
+      const known = rivers.get(key);
+      const minLabel = valid(p.min_label) ? Number(p.min_label) : rank + 1;
+      if (!known) rivers.set(key, { p, best: mid, rank, minLabel });
+      else {
+        if (mid.length > known.best.length) {
+          known.best = mid;
+          known.p = p;
+        }
+        known.rank = Math.min(known.rank, rank);
+        known.minLabel = Math.min(known.minLabel, minLabel);
+      }
+    }
+  }
+  for (const river of rivers.values()) {
+    if (river.best.length < 40) continue;
+    push("river", String(river.p.ne_id), river.best.point[0], river.best.point[1], { ...river.p, scalerank: river.rank }, river.minLabel, 12);
+  }
+
+  for (const f of (await load("ne_10m_lakes")).features) {
+    const p = lower(f.properties ?? {});
+    const rank = Number(p.scalerank);
+    const cls = String(p.featurecla ?? "");
+    if (!p.name || !f.geometry || !(rank <= (cls === "Reservoir" ? 5 : 7))) continue;
+    const [lng, lat] = labelPoint(f.geometry as Polygonal);
+    push("lake", String(p.ne_id), lng, lat, p, valid(p.min_label) ? Number(p.min_label) : rank + 1, 12);
+  }
+  return out;
+}
+
 async function main() {
   const started = Date.now();
   fs.mkdirSync(outDir, { recursive: true });
@@ -151,11 +334,16 @@ async function main() {
     ];
   });
 
+  const nature = await natureLabels(countryFinder(countries));
+
   const labelsFile = path.join(outDir, "labels.json");
-  fs.writeFileSync(labelsFile, JSON.stringify({ source: "Natural Earth (public domain)", countries: countryLabels, places: placeLabels }));
+  fs.writeFileSync(labelsFile, JSON.stringify({ source: "Natural Earth (public domain)", countries: countryLabels, places: placeLabels, nature }));
   const mb = (file: string) => `${(fs.statSync(file).size / 1048576).toFixed(2)} MB`;
   console.log(`borders: ${bordersOut.features.length} lines, ${mb(bordersFile)}`);
-  console.log(`labels: ${countryLabels.length} countries, ${placeLabels.length} places, ${mb(labelsFile)}`);
+  const byClass: Record<string, number> = {};
+  for (const record of nature) byClass[record.nature] = (byClass[record.nature] ?? 0) + 1;
+  const classes = Object.entries(byClass).map(([k, v]) => k + " " + v).join(", ");
+  console.log(`labels: ${countryLabels.length} countries, ${placeLabels.length} places, ${nature.length} natural features (${classes}), ${mb(labelsFile)}`);
   console.log(`done in ${((Date.now() - started) / 1000).toFixed(1)} s`);
 }
 

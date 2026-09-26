@@ -232,6 +232,20 @@ export const labelLanguage = signal("local+en");
 export const LABEL_DENSITIES = { few: { label: "Few (up to 20)", max: 20 }, normal: { label: "Normal (up to 45)", max: 45 }, many: { label: "Many (up to 120)", max: 120 } } as const;
 export type LabelDensity = keyof typeof LABEL_DENSITIES;
 export const labelDensity = signal<LabelDensity>("normal");
+/** What Auto labels names: countries, cities, the water (seas, rivers, lakes) and the land (ranges, deserts, islands, peaks). */
+export const LABEL_KINDS = [
+  { id: "countries", name: "Countries", hint: "Country names" },
+  { id: "places", name: "Cities", hint: "Capitals, cities and towns" },
+  { id: "water", name: "Seas and rivers", hint: "Oceans, seas, bays, rivers, lakes and waterfalls, in italic in the colour of water" },
+  { id: "land", name: "Mountains and deserts", hint: "Continents, mountain ranges, deserts, islands and regions in spaced capitals, and peaks with their height" }
+] as const;
+export type LabelKind = (typeof LABEL_KINDS)[number]["id"];
+export const labelKinds = signal<Record<LabelKind, boolean>>({ countries: true, places: true, water: true, land: true });
+export const toggleLabelKind = (kind: LabelKind) => {
+  const next = { ...labelKinds.value, [kind]: !labelKinds.value[kind] };
+  // At least one kind stays on: placing nothing is never what was meant.
+  if (Object.values(next).some(Boolean)) labelKinds.value = next;
+};
 /** A comp of the user's own put on every place instead of a plain name, and the comps to choose from. */
 export const labelDesignId = signal<number | null>(null);
 export const labelDesignList = signal<LabelDesign[]>([]);
@@ -1362,6 +1376,10 @@ export const runAutoLabels = () =>
     const result = await autoLabels(mapId, {
       language: fixed ? { kind: "fixed", language: choice as NameLanguage } : { kind: "local" },
       english: choice === "local+en",
+      countries: labelKinds.value.countries,
+      places: labelKinds.value.places,
+      water: labelKinds.value.water,
+      land: labelKinds.value.land,
       theme: currentTheme.value,
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,
@@ -3095,7 +3113,7 @@ export function goToResult(result: SearchResult): void {
   let target: View;
   if (result.bbox) target = fitBounds(result.bbox, size, { bearing, pitch: 0, padding: 0.08, maxZoom: 12 });
   else {
-    const zoom = result.kind === "coordinates" ? Math.max(current?.zoom ?? 0, 11 + Math.log2(size.height / 1080)) : zoomForPlace(result.population) + Math.log2(size.height / 1080);
+    const zoom = result.kind === "coordinates" ? Math.max(current?.zoom ?? 0, 11 + Math.log2(size.height / 1080)) : (result.zoom ?? zoomForPlace(result.population)) + Math.log2(size.height / 1080);
     target = { center: { lat: result.lat, lng: result.lng }, zoom, bearing, pitch: current?.pitch ?? 0 };
   }
   lastPlaceName.value = result.kind === "coordinates" ? null : result.name;

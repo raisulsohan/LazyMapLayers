@@ -72,7 +72,7 @@ export async function runLabelTemplateTest(log: SpikeLog, options: { afterHeavy?
 
   // The look decides by itself: a light look gives dark country names in capitals, with a halo.
   const fromLook = resolveLabelTemplate(paper);
-  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: false, template: fromLook });
+  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: false, water: false, land: false, template: fromLook });
   const plain = await labelLayers(map.id);
   const plainNames = mainNames(plain.texts);
   if (plainNames.length < 3) problems.push(`the look gave ${plainNames.length} country names`);
@@ -86,7 +86,7 @@ export async function runLabelTemplateTest(log: SpikeLog, options: { afterHeavy?
 
   // A template of the user's own: bigger, pink, no halo, no capitals, no dots.
   const custom = resolveLabelTemplate(paper, { color: "#ff3399", countryColor: "#ff3399", haloColor: null, halo: 0, size: 40, caps: false, dots: false, font: null });
-  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: true, template: custom });
+  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: true, water: false, land: false, template: custom });
   const styled = await labelLayers(map.id);
   const styledNames = mainNames(styled.texts);
   if (!styledNames.length) problems.push("the template gave no names at all");
@@ -121,7 +121,7 @@ export async function runLabelTemplateTest(log: SpikeLog, options: { afterHeavy?
   if (after.dots) problems.push(`restyling made ${after.dots} dots out of nothing`);
   if (!restyled.dotsMissing) problems.push("restyling did not count the place names that lack a dot");
   // Capitals go on and come off again on names already placed: countries placed without them.
-  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: false, template: custom });
+  await autoLabels(map.id, { maxLabels: 20, theme: "paper", countries: true, places: false, water: false, land: false, template: custom });
   const lower = mainNames((await labelLayers(map.id)).texts);
   if (lower.some((t) => isCaps(t.text))) problems.push("country names placed without capitals came in capitals");
   const capsOn = await restyleLabels(map.id, { template: changed });
@@ -252,7 +252,7 @@ export async function runKeepOutTest(log: SpikeLog): Promise<Record<string, unkn
   const early = 0.2;
 
   // Without zones the names use the whole frame.
-  await autoLabels(map.id, { maxLabels: 40, theme: "paper", countries: true, places: true });
+  await autoLabels(map.id, { maxLabels: 40, theme: "paper", countries: true, places: true, water: false, land: false });
   const free = await visibleLabels(map.id, middle);
   const freeLower = inBox(free, lowerBox).length;
   const freeTop = inBox(free, topBox).length;
@@ -260,7 +260,7 @@ export async function runKeepOutTest(log: SpikeLog): Promise<Record<string, unkn
   if (!freeLower) problems.push("nothing was in the lower third to begin with, so the zone proves nothing");
 
   // With zones they keep away, and only while the zone holds.
-  await autoLabels(map.id, { maxLabels: 40, theme: "paper", countries: true, places: true, zones });
+  await autoLabels(map.id, { maxLabels: 40, theme: "paper", countries: true, places: true, water: false, land: false, zones });
   const kept = await visibleLabels(map.id, middle);
   const keptLower = inBox(kept, lowerBox);
   const keptTop = inBox(kept, topBox);

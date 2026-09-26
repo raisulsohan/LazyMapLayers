@@ -93,7 +93,8 @@ Good ideas from the category that users expect, which we implement in our own wa
 
 **P7 — Data that is free forever.**
 - **Offline.** Natural Earth is bundled (countries, admin-1, cities, rivers, lakes, coastlines,
-  built-up areas and the motorways between cities).
+  built-up areas and the motorways between cities, and the names of oceans, seas, rivers, lakes,
+  ranges, deserts, islands and peaks).
 - **Detailed basemaps.** OpenStreetMap detail from the Protomaps planet builds. Download a region
   once, then work offline.
 - **Terrain.** Open elevation tiles.

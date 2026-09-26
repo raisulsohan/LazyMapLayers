@@ -35,7 +35,7 @@ test("a name's style follows the template and its script, at the comp's scale", 
   const sub = textStyle(template, 1, { country: true, script: "latin", part: "subtitle" });
   assert.equal(sub.size, Math.round(template.countrySize * 0.62));
   assert.equal(sub.tracking, 20);
-  assert.deepEqual(dotStyle(template, 2), { radius: 9, color: [1, 0.2, 0.6], strokeColor: dotStyle(template, 2).strokeColor, strokeWidth: 4 });
+  assert.deepEqual(dotStyle(template, 2), { radius: 9, color: [1, 0.2, 0.6], strokeColor: dotStyle(template, 2).strokeColor, strokeWidth: 4, shape: "circle" });
   assert.ok(isCountryLabel("country:FRA:France") && !isCountryLabel("place:1") && !isCountryLabel("value:BGD"));
   assert.ok(capsFor(template, true, "cyrillic") && !capsFor(template, false, "latin") && !capsFor(template, true, "han"));
 });

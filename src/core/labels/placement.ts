@@ -123,20 +123,29 @@ export function placeLabels(candidates: LabelCandidate[], views: View[], options
 /**
  * Opacity keyframes (time in frames, value 0 to 100) for a track: fade in over `fadeFrames` after
  * each appearance starts and out over `fadeFrames` before it ends (shorter appearances peak lower).
+ *
+ * The first and last frames of the comp are cuts, not appearances: a name already on screen when
+ * the comp begins is there in full on its first frame, and one still on screen when it ends stays
+ * until the last. Otherwise frame 0 of every map would show no names, and every comp would end in a
+ * fade nobody asked for. `totalFrames` is the comp's length in frames.
  */
-export function opacityKeys(track: LabelTrack, fadeFrames: number): [number, number][] {
+export function opacityKeys(track: LabelTrack, fadeFrames: number, totalFrames = Infinity): [number, number][] {
   const keys: [number, number][] = [];
+  const add = (frame: number, value: number) => {
+    const last = keys[keys.length - 1];
+    if (last && last[0] === frame) return;
+    keys.push([frame, value]);
+  };
   for (const [start, end] of track.intervals) {
+    const fromStart = start <= 0;
+    const toEnd = end >= totalFrames;
     const length = end - start;
-    const fade = Math.min(fadeFrames, length / 2);
-    keys.push([start, 0]);
-    if (fade < length / 2) {
-      keys.push([start + fade, 100]);
-      keys.push([end - fade, 100]);
-    } else {
-      keys.push([start + length / 2, 100]);
-    }
-    keys.push([end, 0]);
+    const sides = (fromStart ? 0 : 1) + (toEnd ? 0 : 1);
+    const fade = sides ? Math.min(fadeFrames, length / sides) : 0;
+    add(start, fromStart ? 100 : 0);
+    if (!fromStart) add(start + fade, 100);
+    if (!toEnd) add(end - fade, 100);
+    add(end, toEnd ? 100 : 0);
   }
   return keys;
 }

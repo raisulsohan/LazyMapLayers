@@ -75,7 +75,7 @@ export function SearchBar() {
           {results.length === 0 && <div class="search-empty">No place with that name in the offline list. Try the English or the local spelling.</div>}
           {results.map((r, i) => (
             <div key={r.id} class={`search-result ${i === active ? "active" : ""}`} onMouseDown={() => choose(r)} onMouseEnter={() => setActive(i)}>
-              <Icon name={r.kind === "country" ? "globe" : r.kind === "province" || r.kind === "district" ? "borders" : r.kind === "coordinates" ? "target" : "pin"} size={13} />
+              <Icon name={r.kind === "country" ? "globe" : r.kind === "province" || r.kind === "district" ? "borders" : r.kind === "coordinates" ? "target" : r.kind === "nature" ? (/^(Ocean|Sea|Lake|River|Waterfall)/.test(r.detail) ? "wave" : "mountain") : "pin"} size={13} />
               <span class="search-name">
                 {r.name}
                 {r.matched && <span class="muted"> · {r.matched}</span>}

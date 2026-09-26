@@ -111,9 +111,11 @@ data adds a small credit layer, which the licence asks for.
 
 **Save as GeoJSON**: pins, routes, outlines, callouts and highlighted areas back out as a file.
 
-**Auto labels**: country and city names over the whole timeline, in each place's own language (or
-one language, with or without an English line under it), as editable text layers that never overlap
-or flicker. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
+**Auto labels**: the names of countries, cities, seas, rivers and mountains over the whole timeline,
+in each place's own language (or one language, with or without an English line under it), as
+editable text layers that never overlap or flicker. **What to name** switches Countries, Cities,
+Seas and rivers, and Mountains and deserts on and off. Water is written in italic in the colour of
+water, ranges and deserts in spaced capitals, a peak with a small triangle and its height. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
 rule, and give its text layers fields like `{name}` or `Pop. {populationShort}`; a layer called
 **Anchor** marks where the place sits. The panel fills the fields per place and places the copies
 with the same collision rules. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,

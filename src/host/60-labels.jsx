@@ -20,6 +20,27 @@ LML.labels.pickFont = function (names) {
     return null;
 };
 
+/**
+ * The mark beside a name: a circle for a city, a waterfall or a pole, a triangle for a peak (a
+ * three-sided polystar: Type 2 is a polygon, and a three-sided one points up). Sets the size on
+ * whichever of the two the group holds.
+ */
+LML.labels.markShape = function (contents, style) {
+    var circle = contents.property("ADBE Vector Shape - Ellipse");
+    var star = contents.property("ADBE Vector Shape - Star");
+    if (!circle && !star) {
+        if (style.shape === "triangle") {
+            star = contents.addProperty("ADBE Vector Shape - Star");
+            star.property("ADBE Vector Star Type").setValue(2);
+            star.property("ADBE Vector Star Points").setValue(3);
+        } else {
+            circle = contents.addProperty("ADBE Vector Shape - Ellipse");
+        }
+    }
+    if (star) star.property("ADBE Vector Star Outer Radius").setValue(style.radius);
+    if (circle) circle.property("ADBE Vector Ellipse Size").setValue([style.radius * 2, style.radius * 2]);
+};
+
 LML.labels.removeTagged = function (scene, mapId, kind) {
     var removed = 0;
     for (var i = scene.numLayers; i >= 1; i--) {
@@ -169,7 +190,7 @@ LML.labels.restyle = function (args) {
         if (!dot) continue;
         var style = dotItems[d].style;
         var contents = dot.property("ADBE Root Vectors Group").property(1).property("ADBE Vectors Group");
-        contents.property("ADBE Vector Shape - Ellipse").property("ADBE Vector Ellipse Size").setValue([style.radius * 2, style.radius * 2]);
+        LML.labels.markShape(contents, style);
         var stroke = contents.property("ADBE Vector Graphic - Stroke");
         stroke.property("ADBE Vector Stroke Color").setValue(style.strokeColor);
         stroke.property("ADBE Vector Stroke Width").setValue(style.strokeWidth);
@@ -395,12 +416,12 @@ LML.labels.addLabels = function (args) {
             var dot = scene.layers.addShape();
             var group = dot.property("ADBE Root Vectors Group").addProperty("ADBE Vector Group");
             var contents = group.property("ADBE Vectors Group");
-            contents.addProperty("ADBE Vector Shape - Ellipse").property("ADBE Vector Ellipse Size").setValue([spec.dotStyle.radius * 2, spec.dotStyle.radius * 2]);
+            LML.labels.markShape(contents, spec.dotStyle);
             var stroke = contents.addProperty("ADBE Vector Graphic - Stroke");
             stroke.property("ADBE Vector Stroke Color").setValue(spec.dotStyle.strokeColor);
             stroke.property("ADBE Vector Stroke Width").setValue(spec.dotStyle.strokeWidth);
             contents.addProperty("ADBE Vector Graphic - Fill").property("ADBE Vector Fill Color").setValue(spec.dotStyle.color);
-            dot.name = "Dot: " + spec.name;
+            dot.name = (spec.dotStyle.shape === "triangle" ? "Peak: " : "Dot: ") + spec.name;
             lap("create");
             LML.labels.link(dot, mapLayer, spec.expressions.dot, errors, spec.name + " dot", check);
             lap("link");

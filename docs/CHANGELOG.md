@@ -2,6 +2,14 @@
 
 ## Unreleased
 
+- **Seas, rivers and mountains are named.** Auto labels now names the natural world as well as
+  countries and cities: oceans, seas, bays and straits, rivers and lakes, mountain ranges, deserts,
+  islands, and peaks with their height, 2,900 of them in 26 languages. They are written the way maps
+  have always written them - water in italic in the colour of water, ranges in spaced capitals, a
+  peak with a small triangle - and in the local language where a feature lies in one country. Choose
+  what to name under **What to name**. The search finds them too: type "Bay of Bengal" or "Everest".
+- **Names are there on the first frame.** Names on screen when a comp begins no longer fade in on its
+  first frame, and names still on screen at the end no longer fade out over its last frames.
 - **Duplicate a scene and it gets a map of its own.** Ctrl+D on a scene with a map used to leave both
   scenes sharing one map: the panel moved and rendered only the first, and a render of either
   changed both. The panel now notices the copy and gives it its own map, looking exactly as before

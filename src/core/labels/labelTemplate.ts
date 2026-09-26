@@ -4,6 +4,7 @@
 
 import type { Theme } from "../style/themes.ts";
 import { mixHex } from "../style/themes.ts";
+import { fromHex, readableOn, toHex } from "../style/palette.ts";
 
 export type LabelTemplateOverride = {
   /** City names. Null follows the map's look. */
@@ -30,6 +31,10 @@ export type LabelTemplateOverride = {
 export type LabelTemplate = {
   color: string;
   countryColor: string;
+  /** Names of seas, rivers and lakes: the look's water colour, made to read on its sea. */
+  waterColor: string;
+  /** Names of ranges, deserts and islands: the country colour sunk into the land. */
+  natureColor: string;
   subtitleColor: string;
   haloColor: string;
   halo: number;
@@ -73,6 +78,8 @@ export function resolveLabelTemplate(theme: Theme, override: LabelTemplateOverri
   return {
     color: override.color ?? theme.text,
     countryColor,
+    waterColor: toHex(readableOn(fromHex(theme.river), fromHex(theme.ocean), 3.2)),
+    natureColor: toHex(readableOn(fromHex(mixHex(countryColor, theme.land, 0.4)), fromHex(theme.land), 3.2)),
     // The English line under a name sits back a little from the name itself.
     subtitleColor: mixHex(countryColor, haloColor, 0.25),
     haloColor,

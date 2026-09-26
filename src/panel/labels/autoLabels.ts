@@ -1,13 +1,16 @@
-// Auto labels: country and city names from Natural Earth in the local language (with an English
-// subtitle), placed over the whole timeline of a map and built as After Effects text layers.
+// Auto labels: the names of countries, cities and the natural world (oceans and seas, rivers and
+// lakes, ranges, deserts, islands, peaks) from Natural Earth, in the local language with an English
+// subtitle, placed over the whole timeline of a map and built as After Effects text layers.
 
 import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
-import { labelText, scriptOf, SCRIPT_FONTS, type LabelLanguageMode, type LabelNames, type Script } from "../../core/labels/language.ts";
+import { labelText, type LabelLanguageMode, type LabelNames } from "../../core/labels/language.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import { resolveLabelTemplate, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
-import { capsFor, dotStyle, textStyle, type PlacedTextStyle } from "../../core/labels/restyle.ts";
+import { dotStyle } from "../../core/labels/restyle.ts";
+import { formatElevation, NATURE_STYLES, natureGroup } from "../../core/labels/nature.ts";
+import { labelStrength, measureLabel, zoomBand, type MeasuredLabel } from "./candidate.ts";
 import { designValues, type LabelDesign } from "./labelDesigns.ts";
-import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
+import { opacityKeys, placeLabels, type Box } from "../../core/labels/placement.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
 import { themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
@@ -23,6 +26,10 @@ export type AutoLabelOptions = {
   english?: boolean;
   countries?: boolean;
   places?: boolean;
+  /** Oceans, seas, rivers, lakes and waterfalls. */
+  water?: boolean;
+  /** Continents, mountain ranges, deserts, islands, regions and peaks. */
+  land?: boolean;
   /** Most label layers to create (lowest priority dropped first). */
   maxLabels?: number;
   /** The map's look: labels take their colours from it (light text on dark maps, dark on light ones). */
@@ -67,23 +74,11 @@ export type AutoLabelResult = {
 /** Labels per call into After Effects: small enough that it never blocks for more than a second or two. */
 export const LABEL_BATCH = 8;
 
-type TextStyle = PlacedTextStyle;
 
+const loadRecords = () => loadWorldLabels() as { countries: LabelRecord[]; places: LabelRecord[]; nature: LabelRecord[] };
 
-const loadRecords = () => loadWorldLabels() as { countries: LabelRecord[]; places: LabelRecord[] };
-
-let measureContext: CanvasRenderingContext2D | null = null;
-
-export function measure(text: string, script: Script, size: number, weight: number, tracking: number): number {
-  if (!measureContext) measureContext = document.createElement("canvas").getContext("2d");
-  const family = SCRIPT_FONTS[script].css
-    .split(",")
-    .map((name) => `"${name.trim()}"`)
-    .join(", ");
-  measureContext!.font = `${weight} ${size}px ${family}`;
-  // After Effects tracking is in thousandths of an em per character.
-  return measureContext!.measureText(text).width + (tracking / 1000) * size * [...text].length;
-}
+// Kept here as well, where the label tests have always found it.
+export { measure } from "./measure.ts";
 
 export async function autoLabels(mapId: string, options: AutoLabelOptions = {}): Promise<AutoLabelResult> {
   const started = performance.now();
@@ -108,54 +103,29 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const highestZoom = Math.max(...cameras.map((c) => c.zoom));
 
   const design = options.design ?? null;
-  type Prepared = { candidate: LabelCandidate; record: LabelRecord; text: string; raw: string; subtitle: string | null; main: TextStyle; sub: TextStyle; mainDy: number; subDy: number; dx: number };
+  type Prepared = MeasuredLabel & { record: LabelRecord; raw: string; subtitle: string | null };
   const prepared: Prepared[] = [];
   const add = (record: LabelRecord) => {
-    const isCountry = record.kind === "country";
-    // Natural Earth zooms count 256-pixel tiles; MapLibre zooms count 512-pixel tiles.
-    const minZoom = Math.max(0, record.minZoom - 1);
-    const maxZoom = isCountry ? Math.max(minZoom + 2, (record.maxZoom ?? 8) - 1) : placeMaxZoom;
-    if (minZoom > highestZoom || maxZoom < lowestZoom) return;
-    const { text: raw, subtitle } = labelText(record.names, record.country, record.region, language, english);
+    const band = zoomBand(record, record.id, placeMaxZoom);
+    if (band.minZoom > highestZoom || band.maxZoom < lowestZoom) return;
+    const named = labelText(record.names, record.country, record.region, language, english);
+    const raw = named.text;
     if (!raw) return;
-    const script = scriptOf(raw);
-    const caps = capsFor(template, isCountry, script);
-    const text = caps ? raw.toLocaleUpperCase() : raw;
-    // The same style a restyle gives later, so a name placed today and restyled tomorrow look the same.
-    const main: TextStyle = textStyle(template, scale, { country: isCountry, script, part: "text" });
-    const size = main.size;
-    const tracking = main.tracking;
-    const subScript = subtitle ? scriptOf(subtitle) : "latin";
-    const sub: TextStyle = textStyle(template, scale, { country: isCountry, script: subScript, part: "subtitle" });
-    const mainWidth = measure(text, script, size, 600, tracking);
-    const subWidth = subtitle ? measure(subtitle, subScript, sub.size, 400, sub.tracking) : 0;
-    // A design keeps the room its comp takes at this comp's size; a plain name is measured.
-    const width = design ? design.width * scale : Math.max(mainWidth, subWidth) + main.haloWidth * 2;
-    const gap = size * 0.18;
-    const height = design ? design.height * scale : size * 1.1 + (subtitle ? gap + sub.size * 1.1 : 0);
-    // Baselines inside a block centred on the anchor.
-    const top = -height / 2;
-    const mainDy = top + size * 0.85;
-    const subDy = top + size * 1.1 + gap + sub.size * 0.85;
-    const offset = Math.round(10 * scale);
-    const candidate: LabelCandidate = {
-      id: record.id,
-      lat: record.lat,
-      lng: record.lng,
-      priority: isCountry ? record.rank * 10 + 5 : record.rank * 10 - (record.capital ? 4 : 0) - Math.min(3, Math.log10(record.population + 1) / 3),
-      width,
-      height,
-      // A design sits centred on its own anchor, wherever the designer put it.
-      anchor: design || isCountry ? "center" : "right",
-      offset,
-      markerRadius: design || isCountry || !template.dots ? 0 : 5 * scale,
-      minZoom,
-      maxZoom
-    };
-    prepared.push({ candidate, record, text, raw, subtitle, main, sub, mainDy, subDy, dx: design || isCountry ? 0 : offset + width / 2 });
+    const nature = record.kind === "nature" && record.nature ? record.nature : null;
+    // A peak says how high it is under its name, after its English name when that line is asked for.
+    const subtitle = nature === "peak" && record.elevation ? [named.subtitle, formatElevation(record.elevation)].filter(Boolean).join(" · ") : named.subtitle;
+    const measured = measureLabel({ record, labelId: record.id, raw, subtitle, template, scale, design: design ? { width: design.width, height: design.height } : null, dot: template.dots, placeMaxZoom });
+    prepared.push({ ...measured, record, raw, subtitle });
   };
   if (options.countries ?? true) data.countries.forEach(add);
   if (options.places ?? true) data.places.forEach(add);
+  const water = options.water ?? true;
+  const land = options.land ?? true;
+  for (const record of data.nature ?? []) {
+    if (!record.nature) continue;
+    const group = natureGroup(record.nature);
+    if ((group === "water" && water) || (group === "land" && land)) add(record);
+  }
 
   lap("prepare");
   const frameZones = zoneBoxes(options.zones ?? [], { width: info.width, height: info.height }, info.frameRate, cameras.length);
@@ -194,24 +164,26 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const labels = kept.map(({ track, label }, index) => {
     const { record } = label;
     const elevation = elevations[index];
-    const peak = record.kind === "country" ? 85 : 100;
-    const keys = opacityKeys(track, fade).map(([frame, value]) => [frame, (value * peak) / 100]);
+    const nature = record.kind === "nature" && record.nature ? record.nature : null;
+    const designed = nature ? null : design;
+    const strength = labelStrength(record.id);
+    const keys = opacityKeys(track, fade, cameras.length).map(([frame, value]) => [frame, (value * strength) / 100]);
     return {
       id: record.id,
       name: record.names.en ?? label.text,
       text: label.text,
       raw: label.raw,
-      subtitle: design ? null : label.subtitle,
+      subtitle: designed ? null : label.subtitle,
       keys,
-      dot: !design && record.kind === "place" && template.dots,
+      dot: nature ? NATURE_STYLES[nature].marker !== "none" : !designed && record.kind === "place" && template.dots,
       main: label.main,
       sub: label.sub,
       // A design of the user's own: a copy of their comp per place, with its fields filled in.
-      design: design ? { compId: design.compId, anchorX: design.anchorX, anchorY: design.anchorY, width: design.width, height: design.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle) } : null,
-      dotStyle: dotStyle(template, scale),
+      design: designed ? { compId: designed.compId, anchorX: designed.anchorX, anchorY: designed.anchorY, width: designed.width, height: designed.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle) } : null,
+      dotStyle: dotStyle(template, scale, nature),
       expressions: {
         main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
-        sub: label.subtitle && !design ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
+        sub: label.subtitle && !designed ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
         dot: anchoredPositionExpression(record.lat, record.lng, 0, 0, undefined, elevation)
       }
     };
