@@ -337,6 +337,11 @@ like), and **Add the year** puts the year on screen, counting with the slider. W
 chart** can also draw **Lines over the years** or **Areas over the years**, which grow with the map
 and follow the same slider.
 
+**Searching a street or an address.** The search box finds countries, provinces, cities, districts,
+seas and mountains offline. For anything smaller - a street, an address, a building - use **Search
+OpenStreetMap for "…"** at the end of the list, or press Enter when nothing offline matched. It sends
+what you typed to OpenStreetMap's search (Nominatim) and nothing else, and keeps the answer.
+
 ## Data, downloads and credits
 
 The world map (Natural Earth, with the provinces of every country) is inside the panel and works

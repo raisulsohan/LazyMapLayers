@@ -38,6 +38,7 @@ import { runNatureLabelTest } from "./natureLabelTests.ts";
 import { runCityLabelTest } from "./cityLabelTests.ts";
 import { runDataTimeTest } from "./dataTimeTests.ts";
 import { runLabelImageTest } from "./labelImageTests.ts";
+import { runGeocodeTest } from "./geocodeTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -511,6 +512,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.SN1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`SN1 failed: ${results.SN1_error}`, "fail");
+    }
+  }
+
+  if (only && only.includes("GC1")) {
+    try {
+      results.GC1_geocode = await runGeocodeTest(log);
+    } catch (error) {
+      results.GC1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`GC1 failed: ${results.GC1_error}`, "fail");
     }
   }
 

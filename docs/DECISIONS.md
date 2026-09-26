@@ -887,7 +887,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D81 — Pictures in a label design of the user's own (2026-09-26)
+## D82 — Streets, addresses and landmarks searched on OpenStreetMap (2026-09-26)
+
+- **Why.** The search knew countries, provinces, cities, districts and (D77) the natural world, all
+  offline. A street, an address, a building or a small landmark was out of its reach, and a city map
+  often starts from one.
+- **Decision.** The search list ends with **Search OpenStreetMap for "…"**; clicking it, or pressing
+  Enter when nothing offline matches, asks Nominatim, the OpenStreetMap Foundation's search (free, no
+  key, open data under the ODbL). The results come under the offline ones with the credit Nominatim
+  asks for; a click flies there (as close as a building, zoom 17, where the offline search stops at
+  12), and the pin button pins it.
+- **Keeping Nominatim's rules.** Never while typing (its policy forbids search-as-you-type on the
+  public service): only on the user's word. One request at a time, at least 1.1 seconds apart. A
+  User-Agent that names the panel and its home page. Every answer kept on disk
+  (`%APPDATA%\LazyMapLayers\geocode`), so the same search never goes online twice. The map's view is
+  sent as a preference so nearby places come first, never as a fence. Nothing else is sent, and the
+  row's tooltip says what is. Pieces of one street within two kilometres come back as one result.
+- **Tested.** Unit tests for the address of a search (words, language, the view as a preference), the
+  results (name, kind, the rest of the address, a box only when it frames something, the zoom from
+  Nominatim's rank), the pieces of one street merged, and bad answers. GC1 (online, only when named)
+  finds Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, and answers the same search
+  again from the disk.
+
+
 
 - **Why.** A label design (D64) could fill text fields only. The most common designed label on a news
   map carries a picture per place: a flag beside each country, a logo per office, a photo per stop.

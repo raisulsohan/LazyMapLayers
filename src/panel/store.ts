@@ -3235,7 +3235,8 @@ export function goToResult(result: SearchResult): void {
   const current = compView();
   const bearing = current?.bearing ?? 0;
   let target: View;
-  if (result.bbox) target = fitBounds(result.bbox, size, { bearing, pitch: 0, padding: 0.08, maxZoom: 12 });
+  // An address from the online search can be a single building: it may come much closer.
+  if (result.bbox) target = fitBounds(result.bbox, size, { bearing, pitch: 0, padding: 0.08, maxZoom: result.kind === "address" ? 17 : 12 });
   else {
     const zoom = result.kind === "coordinates" ? Math.max(current?.zoom ?? 0, 11 + Math.log2(size.height / 1080)) : (result.zoom ?? zoomForPlace(result.population)) + Math.log2(size.height / 1080);
     target = { center: { lat: result.lat, lng: result.lng }, zoom, bearing, pitch: current?.pitch ?? 0 };

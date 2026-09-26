@@ -28,7 +28,7 @@ export type PlaceRecord = {
 
 export type SearchResult = {
   id: string;
-  kind: "country" | "province" | "district" | "place" | "nature" | "city" | "coordinates";
+  kind: "country" | "province" | "district" | "place" | "nature" | "city" | "address" | "coordinates";
   /** English (or first available) name. */
   name: string;
   /** The name that matched, when it differs from `name` (for example the local spelling). */

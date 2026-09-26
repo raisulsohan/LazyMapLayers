@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Search streets, addresses and landmarks.** When the offline list does not know a place, the search
+  can ask OpenStreetMap: **Search OpenStreetMap for "…"** at the end of the list (or Enter when nothing
+  matched). Only what you typed is sent, only when you ask, and answers are kept, so the same search
+  never goes online twice. A result flies as close as the building.
 - **Pictures in your own label design.** Name a layer of your design comp like `{flag}` and choose a
   folder of pictures: every country gets its own flag (found by code or by name, so BGD.png, BD.png
   and Bangladesh.png all work), fitted into the placeholder's box, and a city can wear its

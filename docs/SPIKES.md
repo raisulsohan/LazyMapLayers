@@ -49,6 +49,7 @@ that go online run only when they are named.
 | RD1 | Renders on disk: a map rendered before its project was saved keeps its folder and names the project; Remove takes only what nothing can reach (fails six ways on the old code) | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool | PASS |
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
+| GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
 
 ## X1 — Both expression engines in After Effects: PASS (2026-09-17)
