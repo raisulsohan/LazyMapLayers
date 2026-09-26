@@ -1,23 +1,19 @@
 # Changelog
 
-## Unreleased
+## 0.8.0 — the names of the world and of a city, categories and years, charts that follow the map (2026-09-26)
 
-- **Cut out takes away any overlap.** A shape that crosses the edge of the one it is cut from is now
-  clipped off, not left alone, and the area can fall into pieces.
-- **Edit a feature's name and properties.** In the feature browser, **Edit** on a row changes its name
-  or any property, adds your own and takes others away. The file it came from is never changed.
-- **Search streets, addresses and landmarks.** When the offline list does not know a place, the search
-  can ask OpenStreetMap: **Search OpenStreetMap for "…"** at the end of the list (or Enter when nothing
-  matched). Only what you typed is sent, only when you ask, and answers are kept, so the same search
-  never goes online twice. A result flies as close as the building.
-- **Pictures in your own label design.** Name a layer of your design comp like `{flag}` and choose a
-  folder of pictures: every country gets its own flag (found by code or by name, so BGD.png, BD.png
-  and Bangladesh.png all work), fitted into the placeholder's box, and a city can wear its
-  country's. The same works for logos, photos, anything.
-- **Line and area charts over the years.** For a table with years, **Add chart** can draw a line or
-  a filled area per place instead of bars: they grow with the map, year by year, with each place's
-  name and value riding the end of its line, and they follow the map's Data Time slider however you
-  key it.
+- **Seas, rivers and mountains are named.** Auto labels now names the natural world as well as
+  countries and cities: oceans, seas, bays and straits, rivers and lakes, mountain ranges, deserts,
+  islands, and peaks with their height, 2,900 of them in 26 languages. They are written the way maps
+  have always written them - water in italic in the colour of water, ranges in spaced capitals, a
+  peak with a small triangle - and in the local language where a feature lies in one country. Choose
+  what to name under **What to name**. The search finds them too: type "Bay of Bengal" or "Everest".
+- **Names inside a city.** Over a downloaded area, Auto labels now names what is inside it:
+  districts, parks, landmarks, stations, airports, the river through town and the main streets, in
+  the local language, from the area's own OpenStreetMap data. Street and river names lie along their
+  line and turn as the camera turns and tilts, always upright. Each kind gets its share of the room,
+  so a city map is never only its sights or only its streets. Switch it under **What to name** with
+  **Streets and landmarks**.
 - **Colour by category.** A column of a few kinds - a party, a bloc, a region, yes or no - colours
   each place in its category's colour, from a palette that stays readable for colour-blind viewers
   (or a bold or a soft one), with the legend naming each category.
@@ -25,25 +21,29 @@
   the map through the years with a "Data Time" slider on the map layer that runs over the comp and
   can be retimed. One scale covers every year, so a colour always means the same amount. **Add the
   year** puts the counting year on screen.
-- **Names inside a city.** Over a downloaded area, Auto labels now names what is inside it:
-  districts, parks, landmarks, stations, airports, the river through town and the main streets, in
-  the local language, from the area's own OpenStreetMap data. Street and river names lie along their
-  line and turn as the camera turns and tilts, always upright. Each kind gets its share of the room,
-  so a city map is never only its sights or only its streets. Switch it under **What to name** with
-  **Streets and landmarks**.
-- **Seas, rivers and mountains are named.** Auto labels now names the natural world as well as
-  countries and cities: oceans, seas, bays and straits, rivers and lakes, mountain ranges, deserts,
-  islands, and peaks with their height, 2,900 of them in 26 languages. They are written the way maps
-  have always written them - water in italic in the colour of water, ranges in spaced capitals, a
-  peak with a small triangle - and in the local language where a feature lies in one country. Choose
-  what to name under **What to name**. The search finds them too: type "Bay of Bengal" or "Everest".
-- **Names are there on the first frame.** Names on screen when a comp begins no longer fade in on its
-  first frame, and names still on screen at the end no longer fade out over its last frames.
+- **Line and area charts over the years.** For a table with years, **Add chart** can draw a line or
+  a filled area per place instead of bars: they grow with the map, year by year, with each place's
+  name and value riding the end of its line, and they follow the map's Data Time slider however you
+  key it.
+- **Pictures in your own label design.** Name a layer of your design comp like `{flag}` and choose a
+  folder of pictures: every country gets its own flag (found by code or by name, so BGD.png, BD.png
+  and Bangladesh.png all work), fitted into the placeholder's box, and a city can wear its
+  country's. The same works for logos, photos, anything.
+- **Search streets, addresses and landmarks.** When the offline list does not know a place, the search
+  can ask OpenStreetMap: **Search OpenStreetMap for "…"** at the end of the list (or Enter when nothing
+  matched). Only what you typed is sent, only when you ask, and answers are kept, so the same search
+  never goes online twice. A result flies as close as the building.
+- **Cut out takes away any overlap.** A shape that crosses the edge of the one it is cut from is now
+  clipped off, not left alone, and the area can fall into pieces.
+- **Edit a feature's name and properties.** In the feature browser, **Edit** on a row changes its name
+  or any property, adds your own and takes others away. The file it came from is never changed.
 - **Duplicate a scene and it gets a map of its own.** Ctrl+D on a scene with a map used to leave both
   scenes sharing one map: the panel moved and rendered only the first, and a render of either
   changed both. The panel now notices the copy and gives it its own map, looking exactly as before
   until you render it, with its pins, names and lines moved over to it. One Ctrl+Z undoes that, and
   the panel then leaves it alone. Frames a copy still shows are never cleaned away.
+- **Names are there on the first frame.** Names on screen when a comp begins no longer fade in on its
+  first frame, and names still on screen at the end no longer fade out over its last frames.
 
 ## 0.7.1 — cities and roads on the world map, and renders kept safe when a project is saved (2026-09-25)
 

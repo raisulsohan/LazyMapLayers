@@ -133,6 +133,32 @@ function countryFinder(countries: Collection) {
   };
 }
 
+/**
+ * The zoom (Natural Earth counts 256-pixel tiles) at which a length of `km` on the ground spans
+ * `pixels` on screen at the equator: 40,075 km of the world over 256 * 2^z pixels.
+ */
+function zoomForSize(km: number, pixels: number): number {
+  if (!(km > 0)) return 12;
+  return Math.max(0, Math.log2((pixels * 40075) / (256 * km)));
+}
+
+/** The longer side of a polygon's box, in rough kilometres. */
+function longestSideKm(geometry: Polygonal): number {
+  const polygons = geometry.type === "Polygon" ? [geometry.coordinates] : geometry.coordinates;
+  let west = Infinity;
+  let east = -Infinity;
+  let south = Infinity;
+  let north = -Infinity;
+  for (const polygon of polygons) for (const [x, y] of polygon[0]) {
+    west = Math.min(west, x);
+    east = Math.max(east, x);
+    south = Math.min(south, y);
+    north = Math.max(north, y);
+  }
+  const k = Math.cos((((south + north) / 2) * Math.PI) / 180);
+  return Math.max((east - west) * k, north - south) * 111.32;
+}
+
 /** Length of a line in rough kilometres, and the point halfway along it. */
 function midpoint(coords: number[][]): { length: number; point: [number, number] } {
   const km = (a: number[], b: number[]) => {
@@ -228,7 +254,7 @@ async function natureLabels(countryOf: (lng: number, lat: number) => string): Pr
   }
 
   // A river comes in many pieces; its name goes halfway along its longest piece.
-  const rivers = new Map<string, { p: Record<string, unknown>; best: { length: number; point: [number, number] }; rank: number; minLabel: number }>();
+  const rivers = new Map<string, { p: Record<string, unknown>; best: { length: number; point: [number, number] }; rank: number; minLabel: number; total: number }>();
   for (const f of (await load("ne_10m_rivers_lake_centerlines")).features) {
     const p = lower(f.properties ?? {});
     const cls = String(p.featurecla ?? "");
@@ -241,8 +267,9 @@ async function natureLabels(countryOf: (lng: number, lat: number) => string): Pr
       const mid = midpoint(line as number[][]);
       const known = rivers.get(key);
       const minLabel = valid(p.min_label) ? Number(p.min_label) : rank + 1;
-      if (!known) rivers.set(key, { p, best: mid, rank, minLabel });
+      if (!known) rivers.set(key, { p, best: mid, rank, minLabel, total: mid.length });
       else {
+        known.total += mid.length;
         if (mid.length > known.best.length) {
           known.best = mid;
           known.p = p;
@@ -254,7 +281,10 @@ async function natureLabels(countryOf: (lng: number, lat: number) => string): Pr
   }
   for (const river of rivers.values()) {
     if (river.best.length < 40) continue;
-    push("river", String(river.p.ne_id), river.best.point[0], river.best.point[1], { ...river.p, scalerank: river.rank }, river.minLabel, 12);
+    // Natural Earth gives an arm of a great river the rank of the river (the Sulina branch of the
+    // Danube, 70 km, would be named on a globe). A name waits for the zoom at which its river is long
+    // enough on screen to carry it: about 200 pixels.
+    push("river", String(river.p.ne_id), river.best.point[0], river.best.point[1], { ...river.p, scalerank: river.rank }, Math.max(river.minLabel, zoomForSize(river.total, 200)), 12);
   }
 
   for (const f of (await load("ne_10m_lakes")).features) {
@@ -263,7 +293,9 @@ async function natureLabels(countryOf: (lng: number, lat: number) => string): Pr
     const cls = String(p.featurecla ?? "");
     if (!p.name || !f.geometry || !(rank <= (cls === "Reservoir" ? 5 : 7))) continue;
     const [lng, lat] = labelPoint(f.geometry as Polygonal);
-    push("lake", String(p.ne_id), lng, lat, p, valid(p.min_label) ? Number(p.min_label) : rank + 1, 12);
+    // And a lake for the zoom at which its longest side is about 60 pixels: a long, thin lake such
+    // as Baikal is named as early as a round one of the same length.
+    push("lake", String(p.ne_id), lng, lat, p, Math.max(valid(p.min_label) ? Number(p.min_label) : rank + 1, zoomForSize(longestSideKm(f.geometry as Polygonal), 60)), 12);
   }
   return out;
 }

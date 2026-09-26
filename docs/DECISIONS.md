@@ -1070,7 +1070,11 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   measured on the ground (src/core/geo/polylabel.ts), not its centroid, which for a bay or a crescent
   sea lies on land or outside it. A river is named halfway along its longest piece, and its pieces
   are one river when they share a Wikidata id (Natural Earth splits the Yangtze and the Mekong under
-  several river numbers). Every feature that lies in one country carries that country, so the local
+  several river numbers). Natural Earth gives an arm of a great river the rank of the river, so the
+  Sulina branch of the Danube (70 km) was named on a globe: a river now waits for the zoom at which
+  it is about 200 pixels long on screen, a lake for the zoom at which its longest side is about 60
+  (the Nile from zoom 2.7, Baikal from 3.3, Lake Albert from 4.9). Every feature that lies in one
+  country carries that country, so the local
   language names the Ganges in Hindi, the Sundarbans in Bengali and the Yangtze in Chinese; seas,
   oceans and continents follow the chosen language.
 - **How it looks.** The conventions of printed maps (src/core/labels/nature.ts): water in italic, in
