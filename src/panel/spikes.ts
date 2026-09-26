@@ -41,6 +41,7 @@ import { runPrismTest } from "./prismTests.ts";
 import { runDrawnPathTest } from "./drawnTests.ts";
 import { runFollowTest } from "./followTests.ts";
 import { runOceanNameTest } from "./oceanTests.ts";
+import { runLengthTest } from "./lengthTests.ts";
 import { runLabelImageTest } from "./labelImageTests.ts";
 import { runGeocodeTest } from "./geocodeTests.ts";
 import { runFlowTest } from "./flowTests.ts";
@@ -470,6 +471,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.FO1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`FO1 failed: ${results.FO1_error}`, "fail");
+    }
+  }
+
+  if (wants("LN1")) {
+    try {
+      results.LN1_length = await runLengthTest(log);
+    } catch (error) {
+      results.LN1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`LN1 failed: ${results.LN1_error}`, "fail");
     }
   }
 

@@ -86,6 +86,8 @@ export type RenderJobResult = {
   storeRoot: string;
   /** Frames in which the camera was inside the mountains and MapLibre lifted it: linked layers drift there. */
   cameraLifted: number;
+  /** The map's old length in seconds, when the scene had been made longer and the map grew to reach its end. */
+  grewFrom?: number;
 };
 
 /** The map of a render is gone: the project was closed, or the map layer was deleted. */
@@ -161,6 +163,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
 
   const missing = archivesOf(spec.basemap).filter((file) => !fs().existsSync(file));
   if (missing.length) throw new Error(`basemap data is missing: ${missing.join(", ")}`);
+  // A scene made longer after its map: the map grows to its end first, so those seconds render too.
+  const fitted = await callHost<{ grown: boolean; from?: number }>("fitMapToScene", { mapId: spec.mapId });
   const info = await callHost<RenderInfo>("renderInfo", { mapId: spec.mapId });
   const offsets = sampleOffsets(settings, { angle: info.shutterAngle, phase: info.shutterPhase });
   report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
@@ -360,6 +364,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     imported,
     stamp,
     storeRoot: store.root,
-    cameraLifted
+    cameraLifted,
+    ...(fitted.grown ? { grewFrom: fitted.from } : {})
   };
 }

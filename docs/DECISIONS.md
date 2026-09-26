@@ -887,6 +887,19 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D89 — A map grows to the end of a scene made longer (2026-09-27)
+
+- **Why.** A map comp is as long as its scene when it is made. A designer who makes the scene
+  longer in After Effects afterwards got a map that stopped at the old length and empty seconds
+  after it.
+- **Decision.** Every render first grows the map comp to reach the scene's end (host
+  fitMapToScene), in one undo step, and the render's summary says so. The map's own layers that ran
+  to the old end run to the new one. The map layer in the scene follows only when it ran to the
+  map's old end: a layer the designer trimmed keeps the trim. Nothing is ever shortened.
+- **Tested.** LN1: a 2-second map in a scene stretched to 4 seconds renders 100 frames and ends at
+  4 seconds; rendered again, nothing grows; a trimmed map layer keeps its 1-second trim while its
+  comp grows.
+
 ## D88 — Oceans and continents go before the names already on screen (2026-09-27)
 
 - **Why.** The placer keeps a name that is on screen where it is before it adds new ones (D12), so

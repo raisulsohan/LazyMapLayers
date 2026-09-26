@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **A map reaches the end of a scene made longer.** Make a scene longer in After Effects and the
+  next render grows its map to the new end instead of leaving the last seconds empty. A map layer
+  you trimmed keeps its trim.
+
 ## 0.9.0 — prism maps, routes drawn with the Pen tool, names bent along their line, maps that follow each other (2026-09-27)
 
 - **Oceans are named on a turning globe.** Ocean and continent names now take their place ahead of

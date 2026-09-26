@@ -318,6 +318,45 @@ LML.api.listMaps = function () {
 };
 
 /**
+ * A scene made longer after its map was made: the map comp grows to reach the scene's end, so the
+ * last seconds are not empty. The map layer follows only when it ran to the map's old end; a layer
+ * the user trimmed keeps its trim. Nothing is shortened. args: { mapId }
+ */
+LML.api.fitMapToScene = function (args) {
+    var layer = LML.pins.findMapLayer(args.mapId);
+    var scene = layer.containingComp;
+    var mapComp = layer.source;
+    var before = mapComp.duration;
+    var needed = scene.duration - layer.startTime;
+    if (!(needed > before + 0.5 / mapComp.frameRate)) return { grown: false, mapDuration: before };
+    return LML.withUndo("Map as long as its scene", function () {
+        var ranToEnd = Math.abs(layer.outPoint - (layer.startTime + before)) < 0.5 / mapComp.frameRate;
+        mapComp.duration = needed;
+        // The map's own layers that ran to its old end run to the new one.
+        for (var i = 1; i <= mapComp.numLayers; i++) {
+            var inner = mapComp.layer(i);
+            if (Math.abs(inner.outPoint - before) < 0.5 / mapComp.frameRate) {
+                var innerLocked = inner.locked;
+                inner.locked = false;
+                try {
+                    inner.outPoint = needed;
+                } catch (eInner) {
+                    // A still or a sequence that cannot be longer keeps its end; the next render replaces it.
+                }
+                inner.locked = innerLocked;
+            }
+        }
+        if (ranToEnd) {
+            var wasLocked = layer.locked;
+            layer.locked = false;
+            layer.outPoint = scene.duration;
+            layer.locked = wasLocked;
+        }
+        return { grown: true, from: before, mapDuration: needed, layerFollowed: ranToEnd };
+    });
+};
+
+/**
  * Makes the map long enough for its camera: the map comp, its layer and the scene comp grow to
  * args.duration seconds (nothing is ever shortened). Rendered frames cover the new time after the
  * next render.
