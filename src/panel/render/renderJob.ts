@@ -337,10 +337,10 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     highlightPasses: highlightPasses.map((p) => p.pass)
   });
 
-  // Old sequence folders: keep the newest two per pass (Undo), and anything After Effects still uses.
+  // Old sequence folders: keep the newest two per pass (Undo), and anything After Effects still uses -
+  // by any map, since a copied map shows its original's frames until it is rendered itself.
   try {
-    const listed = await callHost<{ path: string | null; proxyPath: string | null }[]>("listPasses", { mapId: spec.mapId });
-    const inUse = listed.flatMap((p) => [p.path, p.proxyPath]).filter((p): p is string => !!p);
+    const inUse = await callHost<string[]>("footageInUse");
     for (const pass of passes) store.pruneSequences(pass, spec.quality, 2, inUse);
     store.pruneStaleHighlights(passes, inUse);
   } catch {

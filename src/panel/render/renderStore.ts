@@ -124,7 +124,9 @@ export class RenderStore {
     names.sort((a, b) => Number(b.slice(prefix.length)) - Number(a.slice(prefix.length)));
     for (const name of names.slice(keep)) {
       const folder = path().join(this.root, name);
-      if ([...used].some((u) => u.startsWith(path().resolve(folder).toLowerCase()))) continue;
+      // With the separator, so "base final 1" is not taken for "base final 10".
+      const inside = path().resolve(folder).toLowerCase() + path().sep;
+      if ([...used].some((u) => u.startsWith(inside))) continue;
       nodeFs.rmSync(folder, { recursive: true, force: true });
       removed++;
     }
@@ -138,7 +140,7 @@ export class RenderStore {
     let removed = 0;
     const stale = (pass: string) => (pass === "highlight" || pass.startsWith("highlight-")) && !current.includes(pass);
     const remove = (folder: string) => {
-      const resolved = path().resolve(folder).toLowerCase();
+      const resolved = path().resolve(folder).toLowerCase() + path().sep;
       if (used.some((u) => u.startsWith(resolved))) return;
       nodeFs.rmSync(folder, { recursive: true, force: true });
       removed++;

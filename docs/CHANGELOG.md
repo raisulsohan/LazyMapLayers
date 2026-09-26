@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **Duplicate a scene and it gets a map of its own.** Ctrl+D on a scene with a map used to leave both
+  scenes sharing one map: the panel moved and rendered only the first, and a render of either
+  changed both. The panel now notices the copy and gives it its own map, looking exactly as before
+  until you render it, with its pins, names and lines moved over to it. One Ctrl+Z undoes that, and
+  the panel then leaves it alone. Frames a copy still shows are never cleaned away.
+
 ## 0.7.1 — cities and roads on the world map, and renders kept safe when a project is saved (2026-09-25)
 
 - **Saving a project no longer puts its renders at risk.** A map rendered before its project was

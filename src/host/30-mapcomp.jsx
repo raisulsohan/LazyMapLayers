@@ -106,7 +106,8 @@ LML.map.addMapTo = function (scene, args) {
     LML.tag.write(comp, { kind: "mapComp", v: 1, id: id });
 
     var layer = scene.layers.add(comp);
-    LML.tag.write(layer, { kind: "mapLayer", v: 1, mapId: id });
+    // The layer's own id tells this layer apart from a copy After Effects makes of it (31-duplicates).
+    LML.tag.write(layer, { kind: "mapLayer", v: 1, mapId: id, layerId: typeof layer.id === "number" ? layer.id : null });
     var effects = layer.property("ADBE Effect Parade");
     for (var i = 0; i < LML.map.CONTROLS.length; i++) {
         var control = LML.map.CONTROLS[i];

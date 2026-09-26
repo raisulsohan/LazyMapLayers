@@ -95,6 +95,8 @@ export type LogLine = { text: string; kind?: LogKind };
 
 export type MapEntry = {
   mapId: string;
+  /** Which layer this is, across calls (31-duplicates.jsx keyOf). */
+  layerKey?: string;
   mapCompName: string;
   sceneCompName: string;
   basemap: BasemapSource | null;
@@ -380,8 +382,45 @@ function showMap(entry: MapEntry): void {
   showCompView(entry.view);
 }
 
+/** Copies separated in this session; one Undo brings a copy back, and it is then left alone. */
+const separatedCopies = new Set<string>();
+const sharedNoted = new Set<string>();
+
+type Separated = { from: string; to: string; sceneCompName: string; originalSceneName: string; mapCompName: string; madeComp: boolean; footage: number; layers: number; sameScene: boolean; key: string };
+
+/**
+ * A scene duplicated in After Effects carries a copy of its map layer with the same id. Each copy is
+ * given a map of its own (31-duplicates.jsx), so the two scenes can move and render apart.
+ */
+async function separateCopiedMaps(list: MapEntry[]): Promise<MapEntry[]> {
+  const seen = new Map<string, number>();
+  for (const entry of list) seen.set(entry.mapId, (seen.get(entry.mapId) ?? 0) + 1);
+  if (![...seen.values()].some((count) => count > 1)) return list;
+  const result = await callHost<{ separated: Separated[]; kept: { key: string; sceneCompName: string }[] }>("separateDuplicateMaps", { skip: [...separatedCopies] });
+  for (const done of result.separated) {
+    separatedCopies.add(done.key);
+    log(
+      done.sameScene
+        ? `the copied map layer in "${done.sceneCompName}" now has a map of its own, "${done.mapCompName}"`
+        : `"${done.sceneCompName}" is a copy of "${done.originalSceneName}"; it now has a map of its own, "${done.mapCompName}", showing the same frames until you render it`,
+      "ok"
+    );
+  }
+  for (const kept of result.kept) {
+    if (sharedNoted.has(kept.key)) continue;
+    sharedNoted.add(kept.key);
+    log(`"${kept.sceneCompName}" shares its map with another scene again (Undo brought the copy back); the panel leaves it that way, and the first of the two is the one it moves and renders`, "muted");
+  }
+  return result.separated.length ? await callHost<MapEntry[]>("listMaps") : list;
+}
+
 export async function readMaps(): Promise<MapEntry[]> {
-  const list = await callHost<MapEntry[]>("listMaps");
+  let list = await callHost<MapEntry[]>("listMaps");
+  try {
+    list = await separateCopiedMaps(list);
+  } catch (error) {
+    fail("separating copied maps", error);
+  }
   maps.value = list;
   // A render belongs to one map of one project; the queue is told which maps are here, so a job
   // from another project waits quietly instead of failing.
@@ -2674,7 +2713,13 @@ export async function checkRenderDisk(): Promise<void> {
         projectFolder = null;
       }
     }
-    renderDisk.value = renderDiskReport(list.map((entry) => entry.mapId), projectFolder);
+    let inUse: string[] = [];
+    try {
+      inUse = await callHost<string[]>("footageInUse");
+    } catch {
+      inUse = [];
+    }
+    renderDisk.value = renderDiskReport(list.map((entry) => entry.mapId), projectFolder, inUse);
   } catch (error) {
     fail("checking the renders on disk", error);
   } finally {

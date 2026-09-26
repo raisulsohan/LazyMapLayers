@@ -358,4 +358,7 @@ your end titles.
 - Expression errors in a new project: the project uses the Legacy ExtendScript expression engine;
   the panel's expressions run on it, but File > Project Settings > Expressions > JavaScript plays
   back faster.
+- You duplicated a scene: the copy gets a map of its own the next time the panel looks (the log says
+  so). It shows the same frames until you render it. Ctrl+Z puts it back as a shared copy, and the
+  panel leaves it that way.
 - Anything else: Maps > About > **Report a problem**, and paste the report into the issue it opens.

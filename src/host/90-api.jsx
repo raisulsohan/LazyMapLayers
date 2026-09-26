@@ -267,6 +267,7 @@ LML.api.listMaps = function () {
         var tag = LML.tag.read(layer);
         out.push({
             mapId: tag.mapId,
+            layerKey: LML.dupes.keyOf(layer),
             mapCompName: layer.source ? layer.source.name : layer.name,
             sceneCompId: comp.id,
             sceneCompName: comp.name,
@@ -293,7 +294,6 @@ LML.api.listMaps = function () {
             keepOut: tag.keepOut || null,
             osmData: tag.osmData === true,
             dataFill: tag.dataFill || null,
-            look: tag.look || null,
             look: tag.look || null,
             projection: LML.map.projectionOf(layer),
             hasCamera: !!LML.camera.findRig(layer).camera,

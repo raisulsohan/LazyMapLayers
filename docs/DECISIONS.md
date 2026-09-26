@@ -887,6 +887,38 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D76 — A duplicated scene gets a map of its own (2026-09-26)
+
+- **What happened.** Duplicating a scene comp is daily work in After Effects: a second version of a
+  shot, a cut-down, a vertical edit. Ctrl+D copies the map layer with its comment, so both scenes
+  carried one map id and showed one map comp. The panel found only the first; a render of either
+  drew the first scene's camera into the comp both show; and every lookup by id could land on the
+  wrong scene.
+- **Decision.** When the panel reads the map list and two map layers share an id, it separates them
+  in one undo group (src/host/31-duplicates.jsx). The copy gets a new id, a duplicate of the map
+  comp, and a footage item per pass imported from the same frames, so it looks exactly as before
+  until it is rendered and its render never touches the original's footage. The panel's own layers
+  in the copied scene (pins, names, lines, legend, credit, inset links) move to the new id with it.
+  A map layer copied inside its own scene is separated the same way, but the scene's other layers
+  stay with the original, because they were made for it.
+- **Which one is the original.** A new map layer writes its own After Effects layer id into its tag;
+  a copy carries that tag on a layer with another id. Maps made before this fall back to the lowest
+  layer id, the oldest layer, and are then stamped the same way.
+- **Undo is the user's.** The separation is one undo step. When Ctrl+Z brings a copy back, the panel
+  notes it once and leaves it, instead of separating it again against the user's choice.
+- **Frames a copy still shows are kept.** Until the copy is rendered it shows its original's frames,
+  so the clean-up after a render now keeps every file any basemap footage in the project shows, not
+  only this map's (`footageInUse`), and Renders on disk counts a folder the project's footage shows as
+  in use. The folder checks also compare with a trailing separator now, so "base final 1" is not taken
+  for "base final 10".
+- **Tested.** DU1 renders every pass of a map with a pin, duplicates the scene, and checks the new id,
+  the new map comp, separate footage items on the same frames and the pin moving with it; renders
+  the copy with its own camera and checks the original's footage untouched; renders the original
+  twice more and checks the unrendered second copy keeps all its frames; undoes a separation and
+  checks the panel leaves it; and copies a map layer inside its scene and checks the pin stays with
+  the original. Run with the old clean-up rule, DU1 fails with "the original's clean-up deleted 8
+  sequences the second copy still shows".
+
 ## D75 — Renders made before a project was saved belong to it (2026-09-25)
 
 - **What happened.** After Effects opened a project with eight missing files, one per render pass,

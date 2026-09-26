@@ -73,7 +73,13 @@ function claimOf(folder: string): { project: string | null; exists: boolean } {
   }
 }
 
-function listFolders(base: string, knownMapIds: Set<string>): RenderFolder[] {
+/** Whether any file the project's footage shows lies inside this folder. */
+const holdsAny = (folder: string, inUse: string[]) => {
+  const root = path().resolve(folder).toLowerCase() + path().sep;
+  return inUse.some((file) => path().resolve(file).toLowerCase().startsWith(root));
+};
+
+function listFolders(base: string, knownMapIds: Set<string>, inUse: string[]): RenderFolder[] {
   let names: string[] = [];
   try {
     names = fs()
@@ -86,7 +92,8 @@ function listFolders(base: string, knownMapIds: Set<string>): RenderFolder[] {
   return names.map((name) => {
     const folder = path().join(base, name);
     const mapId = mapIdOf(name);
-    const ofThisProject = knownMapIds.has(mapId);
+    // A map of the open project, or frames its footage shows (a copied map shows its original's).
+    const ofThisProject = knownMapIds.has(mapId) || holdsAny(folder, inUse);
     const claim = claimOf(folder);
     const orphan = canRemoveRender({ ofThisProject, claimedProject: claim.project, claimedProjectExists: claim.exists });
     return { name, mapId, folder, bytes: folderBytes(folder), ofThisProject, project: claim.exists ? claim.project : null, orphan };
@@ -94,10 +101,10 @@ function listFolders(base: string, knownMapIds: Set<string>): RenderFolder[] {
 }
 
 /** What is on disk, sorted largest first. Walks every file, so it takes a moment on a big cache. */
-export function renderDiskReport(knownMapIds: string[], projectFolder: string | null): RenderDiskReport {
+export function renderDiskReport(knownMapIds: string[], projectFolder: string | null, inUse: string[] = []): RenderDiskReport {
   const known = new Set(knownMapIds);
-  const loose = listFolders(looseRendersFolder(), known).sort((a, b) => b.bytes - a.bytes);
-  const project = projectFolder ? listFolders(path().join(projectFolder, "LazyMapLayers Renders"), known).sort((a, b) => b.bytes - a.bytes) : [];
+  const loose = listFolders(looseRendersFolder(), known, inUse).sort((a, b) => b.bytes - a.bytes);
+  const project = projectFolder ? listFolders(path().join(projectFolder, "LazyMapLayers Renders"), known, inUse).sort((a, b) => b.bytes - a.bytes) : [];
   return {
     loose,
     project,
