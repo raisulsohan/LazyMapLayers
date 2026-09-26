@@ -472,6 +472,19 @@ async function runUiScenario() {
   );
   console.log(`U1 data join: ${joinText}`);
   console.log(`U1 data fill: ${dataState}`);
+  // A prism map from the same numbers: raised, then flat again, through the Data sheet's switch.
+  await click("data-extrude");
+  await idle();
+  const raised = await panel.evaluate("JSON.stringify(window.lmlDebug.store.dataFill.value && window.lmlDebug.store.dataFill.value.extrude)");
+  await click("data-extrude");
+  await idle();
+  const flatAgain = await panel.evaluate("JSON.stringify(window.lmlDebug.store.dataFill.value && window.lmlDebug.store.dataFill.value.extrude)");
+  console.log(`U1 prism map: raised ${raised}, then ${flatAgain}`);
+  // The pen button with nothing drawn selected: it says what to select.
+  await panel.evaluate(`new Promise((resolve) => window.__adobe_cep__.evalScript("(function(){ var c = app.project.activeItem; if (c && c.selectedLayers) { for (var i = 1; i <= c.numLayers; i++) c.layer(i).selected = false; } return 1; })()", resolve))`);
+  await click("tool-drawing");
+  await idle();
+  console.log(`U1 pen with nothing selected: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   // The scripting API: a request left in the folder by something outside the panel, and answered.
   await panel.evaluate("(window.lmlDebug.store.setScriptingOn(true), true)");
   const apiFolder = path.join(process.env.APPDATA || path.join(os.homedir(), "Library", "Application Support"), "LazyMapLayers", "api");
@@ -623,6 +636,17 @@ async function runUiScenario() {
   await idle();
   console.log(`U1 share look: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
   await click("look");
+  // The other map is in another comp: following it copies its camera; then its own camera again.
+  await click("settings");
+  await sleep(300);
+  const followTo = await panel.evaluate(`(() => { const s = ${control("follow-map")}; const o = [...s.options].find((x) => x.value); if (!o) return null; s.value = o.value; s.dispatchEvent(new Event("change", { bubbles: true })); return o.textContent; })()`);
+  await idle();
+  const followLog = await panel.evaluate("window.lmlDebug.log().slice(-1)[0]");
+  await panel.evaluate(`(() => { const s = ${control("follow-map")}; s.value = ""; s.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  console.log(`U1 follow: ${JSON.stringify({ picked: followTo, log: followLog, after: await panel.evaluate("window.lmlDebug.log().slice(-1)[0]") })}`);
+  await click("maps");
+  await sleep(300);
   console.log(["UI log:", (await panel.evaluate("window.lmlDebug.log()")).join(String.fromCharCode(10))].join(String.fromCharCode(10)));
   panel.close();
 }

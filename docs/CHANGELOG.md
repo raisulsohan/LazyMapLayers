@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 0.9.0 — prism maps, routes drawn with the Pen tool, names bent along their line, maps that follow each other (2026-09-27)
 
 - **Oceans are named on a turning globe.** Ocean and continent names now take their place ahead of
   the small names that came on screen first, which make way for them, so a spinning globe no longer

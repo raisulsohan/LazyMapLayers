@@ -398,6 +398,9 @@ function showMap(entry: MapEntry): void {
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
   dataFill.value = normaliseDataFill(entry.dataFill);
+  // A prism map stays raised when its colours are changed later.
+  dataExtrude.value = !!dataFill.value?.extrude;
+  dataExtrudeKm.value = dataFill.value?.extrude?.maxKm ?? null;
   heat.value = null;
   // The points of a heat map are read separately: they can be many, and most maps have none.
   if (entry.heat) {

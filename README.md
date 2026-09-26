@@ -3,7 +3,7 @@
 <p align="center">
   <img src="https://img.shields.io/badge/Adobe%20After%20Effects-2024+-9999FF?style=for-the-badge&logo=adobeaftereffects&logoColor=white" alt="AE Support" />
   <img src="https://img.shields.io/badge/CEP-12-FF5722?style=for-the-badge" alt="CEP Version" />
-  <img src="https://img.shields.io/badge/Version-0.8-orange?style=for-the-badge" alt="Version" />
+  <img src="https://img.shields.io/badge/Version-0.9-orange?style=for-the-badge" alt="Version" />
   <img src="https://img.shields.io/badge/License-MIT%20%C2%B7%20Free-yellow?style=for-the-badge" alt="MIT License" />
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
@@ -14,7 +14,7 @@
 
 Developed by **[Raisul Sohan](https://raisulsohan.com)** · Part of the Lazy suite · Free & open source ([MIT](LICENSE))
 
-> **Version 0.8** — the map names the natural world (seas, rivers, mountains, peaks) and, over a downloaded area, what is inside a city (districts, landmarks, the river and the main streets laid along them); colours by category; moves through the years with a line or area chart that follows it; puts a flag per country into your own label design; searches streets and addresses on OpenStreetMap; and a duplicated scene gets a map of its own. In 0.7.1: cities and roads on the world map. In 0.7: a real satellite picture of any area, built free from Sentinel-2, and a camera imported from Google Earth Studio. Before that, in 0.6: a feature browser with a written filter, live numbers watched on disk, a bar chart, a scale bar, a north arrow, an inset locator map, labels you design yourself, and a scripting API. Also: imagery of your own and ten open aerial services; numbers on the map as colours, bubbles, spikes, heat, flows and copies of your own layer; twelve looks and their details; what is under the pointer; looks of your own (or taken from a still of your film), any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects and [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the budgets it must keep. [docs/GUIDE.md](docs/GUIDE.md) walks through every sheet and tool.
+> **Version 0.9** — prism maps that raise every place by its number in 3D; a route or an area drawn straight over the map with After Effects' Pen tool; street and river names bent along their line; one map's camera following another's for split screens and overviews; and oceans kept named on a turning globe. In 0.8: the map names the natural world (seas, rivers, mountains, peaks) and, over a downloaded area, what is inside a city (districts, landmarks, the river and the main streets laid along them); colours by category; moves through the years with a line or area chart that follows it; puts a flag per country into your own label design; searches streets and addresses on OpenStreetMap; and a duplicated scene gets a map of its own. In 0.7.1: cities and roads on the world map. In 0.7: a real satellite picture of any area, built free from Sentinel-2, and a camera imported from Google Earth Studio. Before that, in 0.6: a feature browser with a written filter, live numbers watched on disk, a bar chart, a scale bar, a north arrow, an inset locator map, labels you design yourself, and a scripting API. Also: imagery of your own and ten open aerial services; numbers on the map as colours, bubbles, spikes, heat, flows and copies of your own layer; twelve looks and their details; what is under the pointer; looks of your own (or taken from a still of your film), any OpenStreetMap feature, editable shape layers and label templates. Features on the roadmap are still to come; see [docs/PLAN.md](docs/PLAN.md) for the plan and [docs/SPIKES.md](docs/SPIKES.md) for what has been measured inside After Effects and [docs/PERFORMANCE.md](docs/PERFORMANCE.md) for the budgets it must keep. [docs/GUIDE.md](docs/GUIDE.md) walks through every sheet and tool.
 
 **Privacy.** The panel never sends anything about you or your project. It goes online only when you
 ask for a download or an OpenStreetMap search, and once a day to look at the release list on GitHub
@@ -26,7 +26,7 @@ your own switched on, tiles are fetched from the address you gave while you prev
 Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
 Effects 2026; the macOS installer has not been tried on a Mac yet.
 
-1. Download `LazyMapLayers-v0.8.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
+1. Download `LazyMapLayers-v0.9.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.
 3. Windows: double-click **Install LazyMapLayers.bat**. macOS: double-click
    **Install LazyMapLayers (macOS).command** (if macOS refuses, right-click it and choose Open).
@@ -71,8 +71,17 @@ Dhaka to Chittagong with an arrow, say:
    Traveller layer if you want one).
 6. **Auto labels** > **Place labels**. **Preview** to check, **Render** for the final frames.
 
-## What works today (0.7)
+## What works today (0.9)
 
+- **Prism maps.** Colour the map by a column of numbers and raise it: every place stands as high as
+  its number, so a tilted camera reads the amounts at a glance. The renderer draws the prisms, on
+  the flat map and on the globe, and over the years they grow with the map.
+- **Draw a route with the Pen tool.** Draw over the map in After Effects - a shape layer or masks -
+  and turn it into routes and areas that follow the map, curves and all.
+- **Names that bend.** Street, quay and river names inside a city follow the curve of their line
+  and still turn and tilt with the camera.
+- **Maps that follow each other.** A second map in the same comp can take the first one's camera,
+  for split screens or an overview in the corner some zoom steps out.
 - **A look of your own.** Set the sea, the land, the lines and the names, and the rest of the map -
   roads, borders, buildings, parks, coasts, sky - is worked out from them, with the names kept
   readable on whatever land you chose. **From a picture** takes the palette of a still from your
