@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Names inside a city.** Over a downloaded area, Auto labels now names what is inside it:
+  districts, parks, landmarks, stations, airports, the river through town and the main streets, in
+  the local language, from the area's own OpenStreetMap data. Street and river names lie along their
+  line and turn as the camera turns and tilts, always upright. Each kind gets its share of the room,
+  so a city map is never only its sights or only its streets. Switch it under **What to name** with
+  **Streets and landmarks**.
 - **Seas, rivers and mountains are named.** Auto labels now names the natural world as well as
   countries and cities: oceans, seas, bays and straits, rivers and lakes, mountain ranges, deserts,
   islands, and peaks with their height, 2,900 of them in 26 languages. They are written the way maps

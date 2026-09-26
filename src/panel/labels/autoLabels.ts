@@ -2,15 +2,18 @@
 // lakes, ranges, deserts, islands, peaks) from Natural Earth, in the local language with an English
 // subtitle, placed over the whole timeline of a map and built as After Effects text layers.
 
-import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
 import { labelText, type LabelLanguageMode, type LabelNames } from "../../core/labels/language.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import { resolveLabelTemplate, type LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { dotStyle } from "../../core/labels/restyle.ts";
-import { formatElevation, NATURE_STYLES, natureGroup } from "../../core/labels/nature.ts";
+import { FEATURE_STYLES, featureClassOf, featureGroup, formatElevation, natureGroup } from "../../core/labels/nature.ts";
+
+import { cityLabelRecords, CITY_DETAIL_ZOOM } from "./cityLabels.ts";
 import { labelStrength, measureLabel, zoomBand, type MeasuredLabel } from "./candidate.ts";
 import { designValues, type LabelDesign } from "./labelDesigns.ts";
-import { opacityKeys, placeLabels, type Box } from "../../core/labels/placement.ts";
+import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
+import { chooseWithShares } from "../../core/labels/budget.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
 import { themeFrom, type ThemeLike } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
@@ -30,6 +33,10 @@ export type AutoLabelOptions = {
   water?: boolean;
   /** Continents, mountain ranges, deserts, islands, regions and peaks. */
   land?: boolean;
+  /** Districts, parks, landmarks, stations, the water through town and the main streets of downloaded regions. */
+  city?: boolean;
+  /** The region archives the map shows, where the city names come from. */
+  regions?: string[];
   /** Most label layers to create (lowest priority dropped first). */
   maxLabels?: number;
   /** The map's look: labels take their colours from it (light text on dark maps, dark on light ones). */
@@ -105,6 +112,28 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const design = options.design ?? null;
   type Prepared = MeasuredLabel & { record: LabelRecord; raw: string; subtitle: string | null };
   const prepared: Prepared[] = [];
+  // The screen angle of a street or a river over the city frames it can show in: the median, so a
+  // name placed for a turning camera takes the room it needs most of the time.
+  const cityFrames = cameras.filter((c) => c.zoom >= CITY_DETAIL_ZOOM);
+  const angleOf = (record: LabelRecord): number | null => {
+    if (!record.along) return null;
+    const angles: number[] = [];
+    const step = Math.max(1, Math.floor(cityFrames.length / 24));
+    for (let i = 0; i < cityFrames.length; i += step) {
+      const view = cityFrames[i];
+      if (view.zoom < record.minZoom) continue;
+      const viewport = { width: info.width, height: info.height };
+      const a = projectPoint(view, viewport, record.along.from, { projection: info.projection });
+      const b = projectPoint(view, viewport, record.along.to, { projection: info.projection });
+      let deg = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+      if (deg > 90) deg -= 180;
+      if (deg < -90) deg += 180;
+      angles.push(deg);
+    }
+    if (!angles.length) return 0;
+    angles.sort((x, y) => x - y);
+    return angles[Math.floor(angles.length / 2)];
+  };
   const add = (record: LabelRecord) => {
     const band = zoomBand(record, record.id, placeMaxZoom);
     if (band.minZoom > highestZoom || band.maxZoom < lowestZoom) return;
@@ -114,8 +143,8 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const nature = record.kind === "nature" && record.nature ? record.nature : null;
     // A peak says how high it is under its name, after its English name when that line is asked for.
     const subtitle = nature === "peak" && record.elevation ? [named.subtitle, formatElevation(record.elevation)].filter(Boolean).join(" · ") : named.subtitle;
-    const measured = measureLabel({ record, labelId: record.id, raw, subtitle, template, scale, design: design ? { width: design.width, height: design.height } : null, dot: template.dots, placeMaxZoom });
-    prepared.push({ ...measured, record, raw, subtitle });
+    const measured = measureLabel({ record, labelId: record.id, raw, subtitle, template, scale, design: design ? { width: design.width, height: design.height } : null, dot: template.dots, placeMaxZoom, angle: angleOf(record) });
+    prepared.push({ ...measured, record, raw, subtitle: record.along ? null : subtitle });
   };
   if (options.countries ?? true) data.countries.forEach(add);
   if (options.places ?? true) data.places.forEach(add);
@@ -126,13 +155,35 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     const group = natureGroup(record.nature);
     if ((group === "water" && water) || (group === "land" && land)) add(record);
   }
+  let cityRead: Awaited<ReturnType<typeof cityLabelRecords>> | null = null;
+  if ((options.city ?? true) && options.regions?.length && cityFrames.length) {
+    // The country the move is closest to at its closest: its language is the one OpenStreetMap's
+    // plain names are written in.
+    const deepest = cityFrames.reduce((best, view) => (view.zoom > best.zoom ? view : best), cityFrames[0]);
+    let country = "";
+    let nearest = Infinity;
+    for (const place of data.places) {
+      const d = Math.hypot((place.lng - deepest.center.lng) * Math.cos((deepest.center.lat * Math.PI) / 180), place.lat - deepest.center.lat);
+      if (d < nearest) {
+        nearest = d;
+        country = place.country;
+      }
+    }
+    cityRead = await cityLabelRecords(options.regions, cameras, { width: info.width, height: info.height }, country);
+    // A district the world data already names (a large suburb, a town) is named once, by the world.
+    const worldNames = data.places.filter((p) => Math.abs(p.lat - deepest.center.lat) < 1 && Math.abs(p.lng - deepest.center.lng) < 1.5);
+    for (const record of cityRead.records) {
+      const english = record.names.en;
+      if (record.city === "district" && worldNames.some((p) => p.names.en === english && Math.hypot(p.lat - record.lat, p.lng - record.lng) < 0.04)) continue;
+      add(record as unknown as LabelRecord);
+    }
+    lap("city");
+  }
 
   lap("prepare");
   const frameZones = zoneBoxes(options.zones ?? [], { width: info.width, height: info.height }, info.frameRate, cameras.length);
-  const tracks = placeLabels(
-    prepared.map((p) => p.candidate),
-    cameras,
-    {
+  const place = (candidates: LabelCandidate[]) =>
+    placeLabels(candidates, cameras, {
       viewport: { width: info.width, height: info.height },
       projection: info.projection,
       margin: 24 * scale,
@@ -147,14 +198,28 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
         }
         return boxes;
       }
-    }
-  );
-  lap("place");
+    });
   const byId = new Map(prepared.map((p) => [p.record.id, p]));
+  const max = options.maxLabels ?? 150;
+  let tracks = place(prepared.map((p) => p.candidate));
+  // Every kind of city name within its share of the budget (core/labels/budget.ts); the chosen names
+  // are then placed again on their own, so the names left out leave no holes where they would have been.
+  const chosen = chooseWithShares(
+    tracks.map((track) => {
+      const kind = featureClassOf(track.id);
+      return { id: track.id, priority: byId.get(track.id)!.candidate.priority, share: kind && featureGroup(kind) === "city" ? kind : null };
+    }),
+    max
+  );
+  if (chosen.length < tracks.length) {
+    const wanted = new Set(chosen);
+    tracks = place(prepared.filter((p) => wanted.has(p.record.id)).map((p) => p.candidate));
+  }
+  lap("place");
   const kept = tracks
     .map((track) => ({ track, label: byId.get(track.id)! }))
     .sort((a, b) => a.label.candidate.priority - b.label.candidate.priority)
-    .slice(0, options.maxLabels ?? 150);
+    .slice(0, max);
   const fade = Math.round(info.frameRate * 0.4);
 
   const sampler = samplerFor(options.terrain);
@@ -164,7 +229,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
   const labels = kept.map(({ track, label }, index) => {
     const { record } = label;
     const elevation = elevations[index];
-    const nature = record.kind === "nature" && record.nature ? record.nature : null;
+    const nature = featureClassOf(record.id);
     const designed = nature ? null : design;
     const strength = labelStrength(record.id);
     const keys = opacityKeys(track, fade, cameras.length).map(([frame, value]) => [frame, (value * strength) / 100]);
@@ -175,14 +240,17 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       raw: label.raw,
       subtitle: designed ? null : label.subtitle,
       keys,
-      dot: nature ? NATURE_STYLES[nature].marker !== "none" : !designed && record.kind === "place" && template.dots,
+      dot: nature ? FEATURE_STYLES[nature].marker !== "none" : !designed && record.kind === "place" && template.dots,
       main: label.main,
       sub: label.sub,
       // A design of the user's own: a copy of their comp per place, with its fields filled in.
       design: designed ? { compId: designed.compId, anchorX: designed.anchorX, anchorY: designed.anchorY, width: designed.width, height: designed.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle) } : null,
       dotStyle: dotStyle(template, scale, nature),
+      // A city name keeps where it stands in its tag, so a name placed again later finds it without the tiles.
+      place: record.kind === "city" ? { lat: record.lat, lng: record.lng, rank: record.rank, minZoom: record.minZoom, maxZoom: record.maxZoom ?? 22, along: record.along ?? null } : null,
       expressions: {
-        main: anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
+        main: record.along ? streetLabelExpressions(record.lat, record.lng, record.along.from, record.along.to, label.mainDy, elevation).position : anchoredPositionExpression(record.lat, record.lng, label.dx, label.mainDy, undefined, elevation),
+        rotation: record.along ? streetLabelExpressions(record.lat, record.lng, record.along.from, record.along.to, label.mainDy, elevation).rotation : null,
         sub: label.subtitle && !designed ? anchoredPositionExpression(record.lat, record.lng, label.dx, label.subDy, undefined, elevation) : null,
         dot: anchoredPositionExpression(record.lat, record.lng, 0, 0, undefined, elevation)
       }

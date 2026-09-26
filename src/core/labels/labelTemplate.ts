@@ -35,6 +35,10 @@ export type LabelTemplate = {
   waterColor: string;
   /** Names of ranges, deserts and islands: the country colour sunk into the land. */
   natureColor: string;
+  /** Names of parks in a city: the park green drawn towards the names, made to read on the land. */
+  parkColor: string;
+  /** Street names: the city names' colour, a step back into the land. */
+  streetColor: string;
   subtitleColor: string;
   haloColor: string;
   halo: number;
@@ -80,6 +84,8 @@ export function resolveLabelTemplate(theme: Theme, override: LabelTemplateOverri
     countryColor,
     waterColor: toHex(readableOn(fromHex(theme.river), fromHex(theme.ocean), 3.2)),
     natureColor: toHex(readableOn(fromHex(mixHex(countryColor, theme.land, 0.4)), fromHex(theme.land), 3.2)),
+    parkColor: toHex(readableOn(fromHex(mixHex(theme.park, countryColor, 0.45)), fromHex(theme.land), 3.2)),
+    streetColor: toHex(readableOn(fromHex(mixHex(override.color ?? theme.text, theme.land, 0.3)), fromHex(theme.land), 3.5)),
     // The English line under a name sits back a little from the name itself.
     subtitleColor: mixHex(countryColor, haloColor, 0.25),
     haloColor,

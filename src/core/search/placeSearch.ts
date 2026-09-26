@@ -1,14 +1,17 @@
 // Offline place search over the bundled Natural Earth names (countries, populated places and natural
 // features, in 26 languages), plus typed coordinates. Also the reverse: a name for a view, to name new maps and shots.
 
-import { formatElevation, NATURE_NAMES, natureViewZoom, type NatureClass } from "../labels/nature.ts";
+import { formatElevation, NATURE_NAMES, natureViewZoom, type CityClass, type NatureClass } from "../labels/nature.ts";
 import type { Bbox } from "../tiles/tileMath.ts";
 
 export type PlaceRecord = {
   id: string;
-  kind: "country" | "province" | "district" | "place" | "nature";
+  kind: "country" | "province" | "district" | "place" | "nature" | "city";
   /** For a natural feature: which kind (core/labels/nature.ts), and the zoom its name first shows at. */
   nature?: NatureClass;
+  /** For a name inside a downloaded city: which kind, and two points of its street or river. */
+  city?: CityClass;
+  along?: { from: { lat: number; lng: number }; to: { lat: number; lng: number } };
   minZoom?: number;
   elevation?: number;
   lat: number;
@@ -25,7 +28,7 @@ export type PlaceRecord = {
 
 export type SearchResult = {
   id: string;
-  kind: "country" | "province" | "district" | "place" | "nature" | "coordinates";
+  kind: "country" | "province" | "district" | "place" | "nature" | "city" | "coordinates";
   /** English (or first available) name. */
   name: string;
   /** The name that matched, when it differs from `name` (for example the local spelling). */

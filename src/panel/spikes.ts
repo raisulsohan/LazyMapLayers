@@ -35,6 +35,7 @@ import { runWorldBandTest } from "./worldBandTests.ts";
 import { runRenderDiskTest } from "./renderDiskTests.ts";
 import { runDuplicateTest } from "./duplicateTests.ts";
 import { runNatureLabelTest } from "./natureLabelTests.ts";
+import { runCityLabelTest } from "./cityLabelTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -408,6 +409,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB4_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB4 failed: ${results.LB4_error}`, "fail");
+    }
+  }
+
+  if (wants("LB5")) {
+    try {
+      results.LB5_cityLabels = await runCityLabelTest(log);
+    } catch (error) {
+      results.LB5_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`LB5 failed: ${results.LB5_error}`, "fail");
     }
   }
 

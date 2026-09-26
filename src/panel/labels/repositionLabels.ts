@@ -5,7 +5,9 @@
 // The words are not chosen again: every name keeps the text it was placed with (its tag holds it), so
 // the language, the density and which places were chosen stay exactly as the user had them.
 
-import { anchoredPositionExpression } from "../../core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, streetLabelExpressions } from "../../core/ae/labelExpressions.ts";
+import type { View } from "../../core/camera/camera.ts";
+import { projectPoint, type MapProjection } from "../../core/camera/globe.ts";
 import { zoneBoxes, zonesOnFrame, type KeepOutZone } from "../../core/labels/keepOut.ts";
 import type { LabelTemplate } from "../../core/labels/labelTemplate.ts";
 import { opacityKeys, placeLabels, type Box } from "../../core/labels/placement.ts";
@@ -43,6 +45,23 @@ export type RepositionResult = {
 };
 
 type Part = { main?: PlacedLabel; subtitle?: PlacedLabel; dot?: PlacedLabel; design?: PlacedLabel };
+
+/** A line's screen angle over the frames close enough to show it, the median. */
+function medianAngle(along: { from: { lat: number; lng: number }; to: { lat: number; lng: number } }, cameras: View[], viewport: { width: number; height: number }, projection: MapProjection, minZoom: number): number {
+  const angles: number[] = [];
+  const step = Math.max(1, Math.floor(cameras.length / 24));
+  for (let i = 0; i < cameras.length; i += step) {
+    if (cameras[i].zoom < minZoom) continue;
+    const a = projectPoint(cameras[i], viewport, along.from, { projection });
+    const b = projectPoint(cameras[i], viewport, along.to, { projection });
+    let deg = (Math.atan2(b.y - a.y, b.x - a.x) * 180) / Math.PI;
+    if (deg > 90) deg -= 180;
+    if (deg < -90) deg += 180;
+    angles.push(deg);
+  }
+  angles.sort((x, y) => x - y);
+  return angles.length ? angles[Math.floor(angles.length / 2)] : 0;
+}
 
 /** The label records by their id, so a placed name finds the place it stands for. */
 function recordsById(): Map<string, WorldLabel> {
@@ -83,7 +102,9 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
   type Prepared = MeasuredLabel & { record: WorldLabel; part: Part };
   const prepared: Prepared[] = [];
   for (const [labelId, part] of parts) {
-    const record = records.get(labelId);
+    const kept = part.main?.place;
+    // A name inside a city has no record in the world data; its tag says where it stands.
+    const record: WorldLabel | undefined = records.get(labelId) ?? (kept ? ({ id: labelId, kind: "city", lat: kept.lat, lng: kept.lng, country: "", rank: kept.rank, minZoom: kept.minZoom, maxZoom: kept.maxZoom, population: 0, names: {}, along: kept.along ?? undefined } as WorldLabel) : undefined);
     if (!record || !(part.main || part.design)) {
       result.unknown++;
       continue;
@@ -95,7 +116,8 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     // A design keeps the room its comp took when it was placed (its tag holds it).
     const design = part.design ? { width: part.design.w ?? 0, height: part.design.h ?? 0 } : null;
     // A name whose dot is gone keeps nothing free around its place.
-    const measured = measureLabel({ record, labelId, raw: placed.raw ?? placed.text, subtitle: part.subtitle?.text ?? null, template: options.template, scale, design, dot: !!part.dot, placeMaxZoom });
+    const angle = record.along ? medianAngle(record.along, cameras, { width: info.width, height: info.height }, info.projection, record.minZoom) : null;
+    const measured = measureLabel({ record, labelId, raw: placed.raw ?? placed.text, subtitle: part.subtitle?.text ?? null, template: options.template, scale, design, dot: !!part.dot, placeMaxZoom, angle });
     prepared.push({ ...measured, record, part });
   }
   result.labels = prepared.length;
@@ -132,7 +154,8 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     const strength = labelStrength(entry.candidate.id);
     const keys = track ? opacityKeys(track, fade, cameras.length).map(([frame, value]) => [frame, (value * strength) / 100]) : [];
     if (!keys.length) result.hidden++;
-    const at = (dy: number) => anchoredPositionExpression(entry.record.lat, entry.record.lng, entry.dx, dy, undefined, elevation);
+    const along = entry.record.along;
+    const at = (dy: number) => (along ? streetLabelExpressions(entry.record.lat, entry.record.lng, along.from, along.to, dy, elevation).position : anchoredPositionExpression(entry.record.lat, entry.record.lng, entry.dx, dy, undefined, elevation));
     if (entry.part.design) items.push({ labelId: entry.candidate.id, part: "design", positionExpression: at(0), keys });
     else items.push({ labelId: entry.candidate.id, part: "text", positionExpression: at(entry.mainDy), keys });
     if (entry.part.subtitle) items.push({ labelId: entry.candidate.id, part: "subtitle", positionExpression: at(entry.subDy), keys });

@@ -9,7 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
-import { anchoredPositionExpression, leaderPathExpression, routePathExpression, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
+import { anchoredPositionExpression, leaderPathExpression, routePathExpression, streetLabelExpressions, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
 import { froundSource } from "../src/core/ae/projectionExpression.ts";
@@ -128,6 +128,10 @@ for (const globe of [false, true]) {
     const label = near(view, spread);
     add(`label ${kind} ${i}`, anchoredPositionExpression(label.lat, label.lng, (random() - 0.5) * 80, -30 * random()), { own: { Map: "MAP" }, map, comp, value: [0, 0] });
     add(`leader ${kind} ${i}`, leaderPathExpression(label.lat, label.lng, 40, -60, i % 2 ? 120 : -120), { own: { Map: "MAP" }, map, comp, value: null });
+    // A street name along its street: two points either side of it, in any direction.
+    const street = streetLabelExpressions(label.lat, label.lng, { lat: label.lat - spread * 0.01 * (random() - 0.5), lng: label.lng - spread * 0.01 }, { lat: label.lat + spread * 0.01 * (random() - 0.5), lng: label.lng + spread * 0.01 * (i % 2 ? 1 : -1) }, 6 + random() * 4);
+    add(`street position ${kind} ${i}`, street.position, { own: { Map: "MAP" }, map, comp, value: [0, 0] });
+    add(`street rotation ${kind} ${i}`, street.rotation, { own: { Map: "MAP" }, map, comp, value: 0 }, 1e-5);
 
     const a = near(view, spread * 4);
     const b = near(view, spread * 4);

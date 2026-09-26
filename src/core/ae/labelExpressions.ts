@@ -18,6 +18,34 @@ var c = map.toComp([p.x + ${num(dx)}, p.y + ${num(dy)}]);
 [c[0], c[1]];`;
 }
 
+/**
+ * A street's name, laid along the street: `from` and `to` are two points of the street either side of
+ * the name's place. The name turns with the street as the map turns and tilts, stays upright (it
+ * flips rather than read upside down), and its baseline offset `dy` turns with it, so the text stays
+ * centred on the street at any angle.
+ */
+export function streetLabelExpressions(lat: number, lng: number, from: { lat: number; lng: number }, to: { lat: number; lng: number }, dy: number, elevation = 0): { position: string; rotation: string } {
+  const angle = `var a = lmlProject(${num(from.lat)}, ${num(from.lng)}, lmlGround(${num(elevation)}));
+var b = lmlProject(${num(to.lat)}, ${num(to.lng)}, lmlGround(${num(elevation)}));
+var ca = map.toComp([a.x, a.y]);
+var cb = map.toComp([b.x, b.y]);
+var deg = Math.atan2(cb[1] - ca[1], cb[0] - ca[0]) * 180 / Math.PI;
+if (deg > 90) deg -= 180;
+if (deg < -90) deg += 180;
+`;
+  return {
+    position: `${LABEL_MARKER} street (generated)
+var map = effect("Map")(1);
+${projectionPrelude()}${angle}var p = lmlProject(${num(lat)}, ${num(lng)}, lmlGround(${num(elevation)}));
+var c = map.toComp([p.x, p.y]);
+var r = deg * Math.PI / 180;
+[c[0] - Math.sin(r) * ${num(dy)}, c[1] + Math.cos(r) * ${num(dy)}];`,
+    rotation: `${LABEL_MARKER} street angle (generated)
+var map = effect("Map")(1);
+${projectionPrelude()}${angle}deg;`
+  };
+}
+
 export const ROUTE_MARKER = "// LazyMapLayers route";
 
 /**

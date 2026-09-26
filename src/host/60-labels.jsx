@@ -134,7 +134,7 @@ LML.labels.list = function (args) {
         var text = "";
         var properties = layer.property("ADBE Text Properties");
         if (properties) text = properties.property("ADBE Text Document").value.text;
-        out.push({ labelId: tag.labelId, part: tag.part || "text", text: text, raw: tag.raw || null });
+        out.push({ labelId: tag.labelId, part: tag.part || "text", text: text, raw: tag.raw || null, place: tag.place || null });
     }
     return out;
 };
@@ -446,6 +446,10 @@ LML.labels.addLabels = function (args) {
             lap("style");
         }
         LML.labels.link(main, mapLayer, spec.expressions.main, errors, spec.name, check);
+        // A street or a river in town: the name turns with its line (2D layers turn on Rotate Z).
+        if (spec.expressions.rotation) {
+            LML.pins.setExpression(main.property("ADBE Transform Group").property("ADBE Rotate Z"), spec.expressions.rotation, errors, spec.name + " angle", check);
+        }
         lap("link");
         parts.push([main, spec.design ? "design" : "text"]);
         if (spec.subtitle) {
@@ -468,6 +472,8 @@ LML.labels.addLabels = function (args) {
             var written = { kind: kind, v: 1, mapId: args.mapId, labelId: spec.id, part: parts[p][1] };
             // The words the name was placed with, so capitals can come off again when the template changes.
             if (parts[p][1] === "text" && spec.raw) written.raw = spec.raw;
+            // A name inside a city keeps where it stands: placing it again later needs no tiles.
+            if (parts[p][1] === "text" && spec.place) written.place = spec.place;
             if (parts[p][1] === "design") {
                 written.raw = spec.raw;
                 written.w = spec.design.width;

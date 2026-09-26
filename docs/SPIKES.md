@@ -42,6 +42,7 @@ that go online run only when they are named.
 | ES1 | A Google Earth Studio camera read from its exported numbers: 256 orientations round-tripped, the comp built to the render's size, length and frame rate, track points placed as pins | PASS |
 | WB1 | Cities and roads fill zooms 7 to 9: 36.5 %, 52.9 % and 66.3 % of the frame against 10.0 % at zoom 5, and gone by 11 | PASS |
 | LB4 | Names of the natural world from the Bay of Bengal to Everest: italic water names in the water colour, ranges in spaced capitals, Everest with a triangle and 8,848 m, local-language names with an English line, Bengali upright and shaped | PASS |
+| LB5 | Names inside Paris from the region's own tiles: districts, landmarks, stations, parks, the Seine and 18 streets, street and river names turning with their line and the map, upright, kept when placed again | PASS |
 | DU1 | A duplicated scene gets its own map: new id, map comp and footage on the same frames, pins moved with it, the two render apart, the unrendered copy keeps its frames through the original's clean-up, Undo is left alone (fails on the old clean-up rule) | PASS |
 | RD1 | Renders on disk: a map rendered before its project was saved keeps its folder and names the project; Remove takes only what nothing can reach (fails six ways on the old code) | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool | PASS |

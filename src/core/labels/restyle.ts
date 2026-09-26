@@ -5,7 +5,7 @@
 import { hexToRgb, type Rgb } from "../style/themes.ts";
 import { templateFonts, type LabelTemplate } from "./labelTemplate.ts";
 import { ITALIC_FONTS, scriptOf, SCRIPT_FONTS, type Script } from "./language.ts";
-import { NATURE_STYLES, natureClassOf, natureGroup, type NatureClass } from "./nature.ts";
+import { FEATURE_STYLES, featureClassOf, type FeatureClass } from "./nature.ts";
 
 export const RTL_SCRIPTS: Script[] = ["arabic", "hebrew"];
 /** Scripts that have capitals: only these are set in capitals when the template asks. */
@@ -15,7 +15,16 @@ export type PlacedPart = "text" | "subtitle" | "dot" | "design";
 
 /** A label layer as the host lists it: its label, which part it is, what it says, and (for a design of
  * the user's own) the room its comp takes. */
-export type PlacedLabel = { labelId: string; part: PlacedPart; text: string; raw?: string | null; w?: number | null; h?: number | null };
+export type PlacedLabel = {
+  labelId: string;
+  part: PlacedPart;
+  text: string;
+  raw?: string | null;
+  w?: number | null;
+  h?: number | null;
+  /** Where a name inside a city stands, kept in its tag (it has no record in the world data). */
+  place?: { lat: number; lng: number; rank: number; minZoom: number; maxZoom: number; along: { from: { lat: number; lng: number }; to: { lat: number; lng: number } } | null } | null;
+};
 
 export type PlacedTextStyle = { size: number; color: Rgb; haloColor: Rgb; haloWidth: number; fonts: string[]; tracking: number; rtl: boolean };
 export type PlacedDotStyle = { radius: number; color: Rgb; strokeColor: Rgb; strokeWidth: number; shape?: "circle" | "triangle" };
@@ -36,19 +45,35 @@ export const isCountryLabel = (labelId: string): boolean => labelId.startsWith("
  * Whether a name is set in capitals: country names, and the great landforms and oceans, when the
  * template asks and the script has capitals.
  */
-export const capsFor = (template: LabelTemplate, country: boolean, script: Script, nature: NatureClass | null = null): boolean =>
-  template.caps && (nature ? NATURE_STYLES[nature].caps : country) && UPPERCASE_SCRIPTS.includes(script);
+export const capsFor = (template: LabelTemplate, country: boolean, script: Script, nature: FeatureClass | null = null): boolean =>
+  template.caps && (nature ? FEATURE_STYLES[nature].caps : country) && UPPERCASE_SCRIPTS.includes(script);
+
+/** The template colour a feature's name takes. */
+function featureColour(template: LabelTemplate, nature: FeatureClass): string {
+  switch (FEATURE_STYLES[nature].colour) {
+    case "water":
+      return template.waterColor;
+    case "park":
+      return template.parkColor;
+    case "street":
+      return template.streetColor;
+    case "text":
+      return template.color;
+    default:
+      return template.natureColor;
+  }
+}
 
 /** A natural feature's name: the look's water or land colour, its own size, spacing and slant. */
-function natureStyle(template: LabelTemplate, scale: number, nature: NatureClass, script: Script, part: "text" | "subtitle"): PlacedTextStyle {
-  const style = NATURE_STYLES[nature];
+function natureStyle(template: LabelTemplate, scale: number, nature: FeatureClass, script: Script, part: "text" | "subtitle"): PlacedTextStyle {
+  const style = FEATURE_STYLES[nature];
   const size = Math.round((style.base === "country" ? template.countrySize : template.size) * style.scale * scale);
   const halo = { haloColor: hexToRgb(template.haloColor), haloWidth: template.halo > 0 ? Math.max(1, Math.round(template.halo * scale)) : 0 };
   const rtl = RTL_SCRIPTS.includes(script);
   if (part === "subtitle") {
     return { size: Math.max(1, Math.round(size * 0.66)), color: hexToRgb(template.subtitleColor), ...halo, fonts: templateFonts(template, SCRIPT_FONTS[script].regular, script), tracking: 20, rtl };
   }
-  const colour = natureGroup(nature) === "water" ? template.waterColor : template.natureColor;
+  const colour = featureColour(template, nature);
   const italic = style.italic ? ITALIC_FONTS[script] : undefined;
   // Letter spacing only where letters stand apart; joined and shaped scripts are left as they are.
   const spaced = UPPERCASE_SCRIPTS.includes(script) ? (capsFor(template, false, script, nature) || !style.caps ? style.tracking : Math.round(style.tracking / 3)) : 0;
@@ -56,7 +81,7 @@ function natureStyle(template: LabelTemplate, scale: number, nature: NatureClass
 }
 
 /** The style of a name (or of the English line under it) at the comp's scale. */
-export function textStyle(template: LabelTemplate, scale: number, options: { country: boolean; script: Script; part: "text" | "subtitle"; nature?: NatureClass | null }): PlacedTextStyle {
+export function textStyle(template: LabelTemplate, scale: number, options: { country: boolean; script: Script; part: "text" | "subtitle"; nature?: FeatureClass | null }): PlacedTextStyle {
   if (options.nature) return natureStyle(template, scale, options.nature, options.script, options.part);
   const size = Math.round((options.country ? template.countrySize : template.size) * scale);
   const halo = { haloColor: hexToRgb(template.haloColor), haloWidth: template.halo > 0 ? Math.max(1, Math.round(template.halo * scale)) : 0 };
@@ -74,12 +99,12 @@ export function textStyle(template: LabelTemplate, scale: number, options: { cou
 }
 
 /** The dot beside a city name, the triangle of a peak, the dot of a waterfall or a pole. */
-export function dotStyle(template: LabelTemplate, scale: number, nature: NatureClass | null = null): PlacedDotStyle {
-  if (nature && NATURE_STYLES[nature].marker === "triangle") {
+export function dotStyle(template: LabelTemplate, scale: number, nature: FeatureClass | null = null): PlacedDotStyle {
+  if (nature && FEATURE_STYLES[nature].marker === "triangle") {
     return { radius: 6 * scale, color: hexToRgb(template.natureColor), strokeColor: hexToRgb(template.haloColor), strokeWidth: 1.5 * scale, shape: "triangle" };
   }
   if (nature) {
-    return { radius: 4 * scale, color: hexToRgb(natureGroup(nature) === "water" ? template.waterColor : template.natureColor), strokeColor: hexToRgb(template.haloColor), strokeWidth: 1.5 * scale, shape: "circle" };
+    return { radius: 4 * scale, color: hexToRgb(featureColour(template, nature)), strokeColor: hexToRgb(template.haloColor), strokeWidth: 1.5 * scale, shape: "circle" };
   }
   return { radius: 4.5 * scale, color: hexToRgb(template.color), strokeColor: hexToRgb(template.haloColor), strokeWidth: 2 * scale, shape: "circle" };
 }
@@ -95,7 +120,7 @@ export function restylePlan(labels: PlacedLabel[], template: LabelTemplate, scal
   const dotted = new Set(labels.filter((label) => label.part === "dot").map((label) => label.labelId));
   for (const label of labels) {
     const country = isCountryLabel(label.labelId);
-    const nature = natureClassOf(label.labelId);
+    const nature = featureClassOf(label.labelId);
     // A label built from the user's own comp wears what they drew; only its place is ours to set.
     if (label.part === "design") continue;
     if (label.part === "dot") {

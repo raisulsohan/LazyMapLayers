@@ -46,6 +46,7 @@ import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, ty
 import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
+import { regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { callHost, fs as nodeFs, isInCep } from "./cep.ts";
 import { provinceAt, provincesOf, type Province } from "./data/admin1.ts";
 import { districtAt, districtJoinTargets, districtPoint, districtSetOf, districtsOf, findDistricts, installDistricts, installedDistricts, removeDistricts, type DistrictOffer } from "./data/districts.ts";
@@ -237,10 +238,11 @@ export const LABEL_KINDS = [
   { id: "countries", name: "Countries", hint: "Country names" },
   { id: "places", name: "Cities", hint: "Capitals, cities and towns" },
   { id: "water", name: "Seas and rivers", hint: "Oceans, seas, bays, rivers, lakes and waterfalls, in italic in the colour of water" },
-  { id: "land", name: "Mountains and deserts", hint: "Continents, mountain ranges, deserts, islands and regions in spaced capitals, and peaks with their height" }
+  { id: "land", name: "Mountains and deserts", hint: "Continents, mountain ranges, deserts, islands and regions in spaced capitals, and peaks with their height" },
+  { id: "city", name: "Streets and landmarks", hint: "Inside a downloaded area: districts, parks, landmarks, stations, airports, the rivers through town and the main streets laid along them, from its own OpenStreetMap data" }
 ] as const;
 export type LabelKind = (typeof LABEL_KINDS)[number]["id"];
-export const labelKinds = signal<Record<LabelKind, boolean>>({ countries: true, places: true, water: true, land: true });
+export const labelKinds = signal<Record<LabelKind, boolean>>({ countries: true, places: true, water: true, land: true, city: true });
 export const toggleLabelKind = (kind: LabelKind) => {
   const next = { ...labelKinds.value, [kind]: !labelKinds.value[kind] };
   // At least one kind stays on: placing nothing is never what was meant.
@@ -1380,6 +1382,8 @@ export const runAutoLabels = () =>
       places: labelKinds.value.places,
       water: labelKinds.value.water,
       land: labelKinds.value.land,
+      city: labelKinds.value.city,
+      regions: regionNames(basemap.value).map((name) => regionArchivePath(name)),
       theme: currentTheme.value,
       maxLabels: LABEL_DENSITIES[labelDensity.value].max,
       terrain: terrain.value,

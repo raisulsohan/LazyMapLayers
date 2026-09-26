@@ -4,10 +4,10 @@
 
 import { scriptOf } from "../../core/labels/language.ts";
 import type { LabelTemplate } from "../../core/labels/labelTemplate.ts";
-import { NATURE_STYLES, naturePriority, type NatureClass } from "../../core/labels/nature.ts";
+import { CITY_CLASSES, cityPriority, FEATURE_STYLES, naturePriority, type CityClass, type FeatureClass, type NatureClass } from "../../core/labels/nature.ts";
 import type { LabelCandidate } from "../../core/labels/placement.ts";
 import { capsFor, isCountryLabel, textStyle, type PlacedTextStyle } from "../../core/labels/restyle.ts";
-import { natureClassOf } from "../../core/labels/nature.ts";
+import { featureClassOf } from "../../core/labels/nature.ts";
 import type { WorldLabel } from "../data/worldLabels.ts";
 import { measure } from "./measure.ts";
 
@@ -25,8 +25,8 @@ export type MeasuredLabel = {
 
 /** How strongly a name shows at full strength, out of 100: countries and the widest names sit back. */
 export function labelStrength(labelId: string): number {
-  const nature = natureClassOf(labelId);
-  if (nature) return NATURE_STYLES[nature].opacity;
+  const nature = featureClassOf(labelId);
+  if (nature) return FEATURE_STYLES[nature].opacity;
   return isCountryLabel(labelId) ? 85 : 100;
 }
 
@@ -37,7 +37,10 @@ export function labelStrength(labelId: string): number {
 export function zoomBand(record: WorldLabel, labelId: string, placeMaxZoom: number): { minZoom: number; maxZoom: number } {
   const minZoom = Math.max(0, record.minZoom - 1);
   if (isCountryLabel(labelId)) return { minZoom, maxZoom: Math.max(minZoom + 2, (record.maxZoom ?? 8) - 1) };
-  if (natureClassOf(labelId)) return { minZoom, maxZoom: Math.max(minZoom + 1.5, (record.maxZoom ?? 11) - 1) };
+  const kind = featureClassOf(labelId);
+  // City detail comes from the region's own tiles, whose zooms are already the renderer's.
+  if (kind && (CITY_CLASSES as string[]).includes(kind)) return { minZoom: record.minZoom, maxZoom: record.maxZoom ?? 22 };
+  if (kind) return { minZoom, maxZoom: Math.max(minZoom + 1.5, (record.maxZoom ?? 11) - 1) };
   return { minZoom, maxZoom: placeMaxZoom };
 }
 
@@ -56,11 +59,19 @@ export function measureLabel(args: {
   design: { width: number; height: number } | null;
   dot: boolean;
   placeMaxZoom: number;
+  /**
+   * For a name laid along a street or a river: the line's angle on screen, in degrees, over the
+   * frames it shows in. The name takes the room its turned box takes, centred on the line.
+   */
+  angle?: number | null;
 }): MeasuredLabel {
-  const { record, labelId, raw, subtitle, template, scale } = args;
+  const { record, labelId, raw, template, scale } = args;
+  const along = typeof args.angle === "number" && Number.isFinite(args.angle);
+  // A name along a line has no second line under it: it would have to turn with it.
+  const subtitle = along ? null : args.subtitle;
   const isCountry = isCountryLabel(labelId);
-  const nature: NatureClass | null = natureClassOf(labelId);
-  const natural = nature ? NATURE_STYLES[nature] : null;
+  const nature: FeatureClass | null = featureClassOf(labelId);
+  const natural = nature ? FEATURE_STYLES[nature] : null;
   const design = nature ? null : args.design;
   const script = scriptOf(raw);
   const text = capsFor(template, isCountry, script, nature) ? raw.toLocaleUpperCase() : raw;
@@ -81,12 +92,34 @@ export function measureLabel(args: {
   const marked = natural ? natural.marker !== "none" : !design && !isCountry && args.dot;
   const centred = natural ? natural.marker === "none" : !!design || isCountry;
   const band = zoomBand(record, labelId, args.placeMaxZoom);
+  if (along) {
+    const r = ((args.angle as number) * Math.PI) / 180;
+    const w = Math.abs(width * Math.cos(r)) + Math.abs(height * Math.sin(r));
+    const h = Math.abs(width * Math.sin(r)) + Math.abs(height * Math.cos(r));
+    const candidate: LabelCandidate = {
+      id: labelId,
+      lat: record.lat,
+      lng: record.lng,
+      priority: cityPriority((nature ?? "street") as CityClass, record.rank),
+      width: w,
+      height: h,
+      anchor: "center",
+      offset: 0,
+      markerRadius: 0,
+      minZoom: band.minZoom,
+      maxZoom: band.maxZoom
+    };
+    // The baseline a third of the letters below the line, so the name sits centred on it.
+    return { candidate, text, main, sub, dx: 0, mainDy: main.size * 0.33, subDy: 0 };
+  }
   const candidate: LabelCandidate = {
     id: labelId,
     lat: record.lat,
     lng: record.lng,
     priority: nature
-      ? naturePriority(nature, record.rank, record.elevation)
+      ? (CITY_CLASSES as string[]).includes(nature)
+        ? cityPriority(nature as CityClass, record.rank)
+        : naturePriority(nature as NatureClass, record.rank, record.elevation)
       : isCountry
         ? record.rank * 10 + 5
         : record.rank * 10 - (record.capital ? 4 : 0) - Math.min(3, Math.log10(record.population + 1) / 3),

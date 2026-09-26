@@ -887,7 +887,48 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D77 — The names of the natural world (2026-09-26)
+## D78 — Names inside a city, from its own downloaded data (2026-09-26)
+
+- **Why.** Over a downloaded city the map had its streets, water and buildings but no names: Auto
+  labels knew the world's cities and nothing smaller, and the rendered basemap carries no labels
+  because renderer labels are not stable from frame to frame (S6, D8). A city map without its
+  districts, its river, its landmarks and its main streets is a street plan, not a map.
+- **Where the names come from.** The region archive on disk already holds them: the Protomaps layers
+  places, pois, water and roads carry OpenStreetMap's names in the local language and many others.
+  The panel reads the tiles under every frame of the move that is at zoom 11 or closer, at zoom 13
+  (one zoom out for a move over a whole metropolis, at most 900 tiles), with a vector-tile decoder of
+  its own in core (src/core/tiles/mvt.ts), checked against the reference decoder on 5,639 features of
+  real Paris tiles. No new package, nothing online. Over central Paris this takes about 170 ms.
+- **What is named.** src/core/labels/cityNames.ts: districts and neighbourhoods (spaced capitals),
+  parks (a park green made to read on the land), landmarks, stations and airports (with a dot),
+  campuses, the rivers and canals through town (italic, in the water colour) and the main streets
+  (motorways to tertiary roads). Tiles repeat features at their edges and cut streets and rivers into
+  pieces, so names are gathered per kind and words: a point once within a few hundred metres, a
+  street or a river once per stretch of about two kilometres, on its longest piece. OpenStreetMap's
+  plain name stands for the local language.
+- **Along the line.** A street or a river is named along itself: two points either side of the name
+  give its angle, and the text layer's rotation and position expressions project them on every
+  frame (streetLabelExpressions), so the name turns as the map turns and tilts, stays upright, and
+  stays centred on its line. Collisions use the box of the turned name at the median angle over the
+  frames it shows in. Such a name has no English line under it.
+- **A share each.** A city has more streets and sights than any frame has room for, and one queue
+  filled every place with whichever kind ranked first (all landmarks, then after a change all
+  streets). Each kind of city name now takes at most its share of the names (core/labels/budget.ts),
+  the room left goes to the best of the rest, and the chosen names are placed a second time on their
+  own so the names left out leave no holes.
+- **Placing again.** A city name has no record in the world data, so its tag keeps where it stands
+  and its two line points; placing names again after a template change moves city names too.
+- **Switch.** **Streets and landmarks** under What to name, on by default; it only does anything
+  over a downloaded area.
+- **Tested.** Unit tests for the decoder (points, lines, polygons with holes, every value type,
+  skipped layers), the classes, the names, the clustering of points and of cut streets, a river along
+  its line and not again as an area, and the shares. 96 new ES3 fixtures for the street expressions
+  (1,185 in all). LB5 labels a turning, tilting move over central Paris and checks districts,
+  landmarks, stations, streets in French and the Seine, a rotation expression on every street and
+  river name, within 90 degrees, following the map as it turns, and nothing unknown when placed
+  again. The frames were looked at.
+
+
 
 - **Why.** The bundled labels named countries and 7,101 cities and nothing else. A map of South Asia
   had no Bay of Bengal, no Himalaya, no Ganges; a globe had no oceans. These are the names a news or

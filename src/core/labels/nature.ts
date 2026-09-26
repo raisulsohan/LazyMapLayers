@@ -114,3 +114,90 @@ export function formatElevation(metres: number): string {
   const digits = String(Math.abs(rounded)).replace(/\B(?=(\d{3})+(?!\d))/g, ",");
   return `${rounded < 0 ? "-" : ""}${digits} m`;
 }
+
+// ---------------------------------------------------------------------------------------------
+// Names inside a city, from a downloaded region: districts, parks, landmarks, stations, airports,
+// campuses, the water that runs through it and its main streets. They share the natural names' way
+// of being styled and placed, with two more colours (parks, streets) and names laid along a line.
+
+export type CityClass = "district" | "park" | "landmark" | "station" | "airport" | "campus" | "cityWater" | "street";
+
+export const CITY_CLASSES: CityClass[] = ["district", "park", "landmark", "station", "airport", "campus", "cityWater", "street"];
+
+/** Any name that is not a country or a city of the world data. */
+export type FeatureClass = NatureClass | CityClass;
+
+/** Which switch in the Labels sheet a name answers to. */
+export type FeatureGroup = NatureGroup | "city";
+
+export const featureGroup = (kind: FeatureClass): FeatureGroup => ((CITY_CLASSES as string[]).includes(kind) ? "city" : natureGroup(kind as NatureClass));
+
+export type FeatureStyle = NatureStyle & {
+  /** Which of the template's colours it takes. */
+  colour: "water" | "land" | "park" | "text" | "street";
+  /** Laid along its line (a street, a river in town) rather than written level. */
+  along: boolean;
+};
+
+const natural = (style: NatureStyle, colour: FeatureStyle["colour"]): FeatureStyle => ({ ...style, colour, along: false });
+
+export const FEATURE_STYLES: Record<FeatureClass, FeatureStyle> = {
+  continent: natural(NATURE_STYLES.continent, "land"),
+  ocean: natural(NATURE_STYLES.ocean, "water"),
+  sea: natural(NATURE_STYLES.sea, "water"),
+  lake: natural(NATURE_STYLES.lake, "water"),
+  river: natural(NATURE_STYLES.river, "water"),
+  range: natural(NATURE_STYLES.range, "land"),
+  desert: natural(NATURE_STYLES.desert, "land"),
+  region: natural(NATURE_STYLES.region, "land"),
+  island: natural(NATURE_STYLES.island, "land"),
+  peak: natural(NATURE_STYLES.peak, "land"),
+  waterfall: natural(NATURE_STYLES.waterfall, "water"),
+  pole: natural(NATURE_STYLES.pole, "land"),
+  district: { scale: 0.74, base: "place", tracking: 200, caps: true, italic: false, marker: "none", opacity: 90, colour: "land", along: false },
+  park: { scale: 0.7, base: "place", tracking: 20, caps: false, italic: false, marker: "none", opacity: 95, colour: "park", along: false },
+  landmark: { scale: 0.66, base: "place", tracking: 0, caps: false, italic: false, marker: "dot", opacity: 100, colour: "text", along: false },
+  station: { scale: 0.64, base: "place", tracking: 0, caps: false, italic: false, marker: "dot", opacity: 100, colour: "text", along: false },
+  airport: { scale: 0.7, base: "place", tracking: 0, caps: false, italic: false, marker: "dot", opacity: 100, colour: "text", along: false },
+  campus: { scale: 0.64, base: "place", tracking: 0, caps: false, italic: false, marker: "none", opacity: 95, colour: "text", along: false },
+  cityWater: { scale: 0.74, base: "place", tracking: 60, caps: false, italic: true, marker: "none", opacity: 95, colour: "water", along: true },
+  street: { scale: 0.6, base: "place", tracking: 30, caps: false, italic: false, marker: "none", opacity: 95, colour: "street", along: true }
+};
+
+export const CITY_PREFIX = "city:";
+export const cityLabelId = (kind: CityClass, key: string): string => `${CITY_PREFIX}${kind}:${key}`;
+
+/** The kind of a name that is neither a country nor a world city, from its label id. */
+export function featureClassOf(labelId: string): FeatureClass | null {
+  const nature = natureClassOf(labelId);
+  if (nature) return nature;
+  if (!labelId.startsWith(CITY_PREFIX)) return null;
+  const kind = labelId.slice(CITY_PREFIX.length).split(":")[0] as CityClass;
+  return CITY_CLASSES.includes(kind) ? kind : null;
+}
+
+/**
+ * The queue for room on the frame at city zooms, after the world's cities of the first ranks: an
+ * airport and the districts first, the water that runs through town, the main streets (a boulevard
+ * before a side street), then the landmarks and stations, and the parks and campuses, each in the
+ * order of the zoom they appear at. Streets come before the smaller landmarks so a map of a city is
+ * never only a list of its sights.
+ */
+export function cityPriority(kind: CityClass, rank: number): number {
+  const r = Math.max(0, Math.min(10, rank));
+  switch (kind) {
+    case "airport":
+      return 50 + r * 4;
+    case "district":
+      return 55 + r * 4;
+    case "cityWater":
+      return 58 + r * 4;
+    case "street":
+      return 62 + r * 6;
+    case "landmark":
+    case "station":
+      return 66 + r * 5;
+    default:
+      return 72 + r * 5;
+  }
+}
