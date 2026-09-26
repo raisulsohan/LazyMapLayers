@@ -345,7 +345,6 @@ your end titles.
   clipper is not part of the panel yet.
 - Feature properties can be searched, filtered and sorted, but not edited. Rename the layers in
   After Effects instead.
-- A Google Earth Studio camera export cannot be imported yet.
 - Everything here is tested on Windows. macOS should work the same way; it has not been run
   through yet.
 
