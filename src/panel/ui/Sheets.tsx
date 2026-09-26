@@ -35,10 +35,11 @@ import { hasImagery, IMAGERY_INFO } from "../imagery/packs.ts";
 import { addHighlightShape, attachRotate, attachScale, changeHighlightLayers, detachSelected, districtPrompt, downloadDistricts, highlightLayers, highlightLevel, listDistrictSets, refreshSelection, removeDistrictSet, selection, shapeDrawOn } from "../store.ts";
 import { hasZone, KEEP_OUT_PRESETS } from "../../core/labels/keepOut.ts";
 import { OSM_KINDS, type OsmKind } from "../../core/data/overpass.ts";
-import { dataFillColors } from "../../core/style/dataFill.ts";
+import { dataFillColors, DEFAULT_EXTRUDE_KM } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
+import { changeDataExtrude, dataExtrude, dataExtrudeKm } from "../store.ts";
 import { chartKind, chooseLabelImageFolder, featureEditing, featureEdits, labelImageFolders, renameFeature, resetFeature, setFeatureProperty } from "../store.ts";
 import { addDataYear, changeDataPalette, dataAnimate, dataIsCategory, dataPalette, dataSeriesShape } from "../store.ts";
 import { CATEGORY_PALETTES, type CategoryPaletteId } from "../../core/style/categories.ts";
@@ -684,6 +685,18 @@ export function DataSheetView(): JSX.Element | null {
           <span class="muted">{Math.round(dataOpacity.value * 100)} %</span>
         </label>
       </div>
+      {!dataIsCategory() && (
+        <div class="sheet-row">
+          <label class="check" title="A prism map: every place stands as high as its number, the largest as high as you set, so a height reads straight as an amount. Tilt the camera to see it; the renderer draws it, so pins and names still sit on the ground.">
+            <input type="checkbox" data-id="data-extrude" checked={!!fill?.extrude || (!fill && dataExtrude.value)} disabled={busy.value} onChange={(e) => void changeDataExtrude((e.target as HTMLInputElement).checked)} />
+            <span>3D: raise by the numbers</span>
+          </label>
+          <label class="num-field" title="How high the largest number stands">
+            <input type="number" min={1} max={5000} step={10} data-id="data-extrude-km" value={fill?.extrude?.maxKm ?? dataExtrudeKm.value ?? DEFAULT_EXTRUDE_KM[fill?.level ?? "country"]} disabled={busy.value} onChange={(e) => void changeDataExtrude(true, Math.max(1, Math.min(5000, Number((e.target as HTMLInputElement).value) || 900)))} />
+            <span class="muted">km</span>
+          </label>
+        </div>
+      )}
       {colours && (
         <div class="legend" data-id="data-legend" title={`${colours.codes.length} countries coloured by ${fill!.column}`}>
           {colours.legend.map((step) => (

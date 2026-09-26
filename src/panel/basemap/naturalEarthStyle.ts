@@ -4,7 +4,7 @@
 
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
-import { dataFillColors, DATA_CODE, SERIES_METADATA_KEY, type DataFill, type SeriesPaint } from "../../core/style/dataFill.ts";
+import { dataFillColors, dataHeightsAt, DATA_CODE, extrudeTop, SERIES_METADATA_KEY, type DataFill, type SeriesPaint } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, heatColorStops, heatFeatures, type HeatSetting } from "../../core/style/heat.ts";
 import { provincesOf } from "../data/admin1.ts";
 import { districtsOf } from "../data/districts.ts";
@@ -227,18 +227,35 @@ export function naturalEarthStyle(
     }
     if (colours.codes.length && (!(province || district) || sources[DATA_SOURCE])) {
       // A series carries everything the renderer needs to colour any moment (applyAnimation, dataTime).
-      const series: SeriesPaint | null = options.data.series ? { times: options.data.series.times, values: options.data.series.values, scale: colours.scale, noData: options.data.noData, key } : null;
+      const extrude = options.data.extrude ? { maxKm: options.data.extrude.maxKm, top: extrudeTop(options.data) } : null;
+      const series: SeriesPaint | null = options.data.series ? { times: options.data.series.times, values: options.data.series.values, scale: colours.scale, noData: options.data.noData, key, extrude } : null;
       const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE, ...(series ? { [SERIES_METADATA_KEY]: series } : {}) };
       const match: unknown[] = ["match", key];
       for (const code of colours.codes) match.push(code, colours.colors[code]);
       match.push(options.data.noData ?? "rgba(0, 0, 0, 0)");
-      layers.push({
-        id: "data-fill",
-        type: "fill",
-        metadata: own,
-        ...from,
-        paint: { "fill-color": match, "fill-opacity": options.data.opacity, "fill-antialias": true }
-      } as unknown as LayerSpecification);
+      if (extrude) {
+        // A prism map: every place stands as high as its number, in its step's colour.
+        const heights = dataHeightsAt(options.data);
+        const height: unknown[] = ["match", key];
+        for (const code of colours.codes) height.push(code, heights[code] ?? 0);
+        height.push(0);
+        layers.push({
+          id: "data-fill",
+          type: "fill-extrusion",
+          metadata: own,
+          ...from,
+          filter: ["in", key, ["literal", colours.codes]],
+          paint: { "fill-extrusion-color": match, "fill-extrusion-height": height, "fill-extrusion-base": 0, "fill-extrusion-opacity": options.data.opacity, "fill-extrusion-vertical-gradient": true }
+        } as unknown as LayerSpecification);
+      } else {
+        layers.push({
+          id: "data-fill",
+          type: "fill",
+          metadata: own,
+          ...from,
+          paint: { "fill-color": match, "fill-opacity": options.data.opacity, "fill-antialias": true }
+        } as unknown as LayerSpecification);
+      }
       if (options.data.outline > 0) {
         layers.push({
           id: "data-line",

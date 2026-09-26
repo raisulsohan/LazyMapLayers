@@ -116,3 +116,22 @@ test("a series fill uses one scale for every year, and colours any moment", () =
   assert.equal(match[0], "match");
   assert.equal(match[match.indexOf("BGD") + 1], last.colors.BGD);
 });
+
+test("a prism map stands every place as high as its number, the largest at the height asked for", async () => {
+  const { dataHeightsAt, prismHeight, seriesHeightAt, extrudeTop, dataFillScale } = await import("../../src/core/style/dataFill.ts");
+  const fill = normaliseDataFill({ column: "People", level: "country", values: { IND: 1400, BGD: 170, BTN: 0.8 }, extrude: { maxKm: 900 } })!;
+  const heights = dataHeightsAt(fill);
+  assert.equal(heights.IND, 900000);
+  assert.equal(heights.BGD, Math.round((170 / 1400) * 900000));
+  // Bhutan's 0.8 would be 0.05 % of India: it keeps a sliver so it still shows.
+  assert.equal(heights.BTN, Math.round(0.02 * 900000));
+  assert.equal(prismHeight(-5, 100, 10), 0);
+  // Categories have no amounts to stand on.
+  assert.equal(normaliseDataFill({ column: "Bloc", level: "country", values: {}, categories: { IND: "A" }, extrude: { maxKm: 900 } })!.extrude, null);
+  // Over the years: one top for all of them, and the heights of any moment.
+  const years = normaliseDataFill({ column: "People", level: "country", values: {}, series: { times: [2000, 2020], values: { BGD: [100, 200] } }, extrude: { maxKm: 100 } })!;
+  assert.equal(extrudeTop(years), 200);
+  const paint = { times: [2000, 2020], values: years.series!.values, scale: dataFillScale(years), noData: null, key: ["get", "adm0_a3"], extrude: { maxKm: 100, top: 200 } };
+  const at2010 = seriesHeightAt(paint, 2010) as unknown[];
+  assert.equal(at2010[at2010.indexOf("BGD") + 1], 75000);
+});

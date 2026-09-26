@@ -23,7 +23,7 @@ import type { CategoryPaletteId } from "../core/style/categories.ts";
 import { flowRows, guessFlowColumns } from "../core/data/flows.ts";
 import { addFlows } from "./overlays/flows.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
-import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill } from "../core/style/dataFill.ts";
+import { dataFillColors, describeDataFill, normaliseDataFill, DEFAULT_DATA_FILL, type DataFill, DEFAULT_EXTRUDE_KM } from "../core/style/dataFill.ts";
 import { applyLook, followsTheLook as lookFollows, lookFromPalette, lookFromPicture, normaliseLook, NO_LOOK, type LookOverride } from "../core/style/customLook.ts";
 import { lookFileName, readLookFile, writeLookFile } from "../core/style/lookFile.ts";
 import { readSwatchFile } from "../core/style/swatchFile.ts";
@@ -1541,6 +1541,29 @@ export const dataSeriesShape = signal<SeriesShape | null>(null);
 export const dataAnimate = signal(true);
 /** The palette a table of categories is coloured with. */
 export const dataPalette = signal<CategoryPaletteId>("safe");
+/** A prism map: the places raised in 3D by their numbers, the tallest this many kilometres high. */
+export const dataExtrude = signal(false);
+export const dataExtrudeKm = signal<number | null>(null);
+
+/** Raises the places by their numbers, or lays them flat again, at once. */
+export const changeDataExtrude = (on: boolean, km: number | null = dataExtrudeKm.value) =>
+  run("data in 3D", async () => {
+    dataExtrude.value = on;
+    dataExtrudeKm.value = km;
+    const fill = dataFill.value;
+    if (!fill) return;
+    if (on && fill.categories) {
+      log("a table of categories has no amounts to raise the places by", "muted");
+      return;
+    }
+    const height = km ?? DEFAULT_EXTRUDE_KM[fill.level];
+    dataFill.value = normaliseDataFill({ ...fill, extrude: on ? { maxKm: height } : null });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+      await readMaps();
+    }
+    log(on ? `the places stand as high as their numbers, the largest ${height} km: tilt the camera to see them, and render` : "the places lie flat again", "ok");
+  });
 /** Whether the chosen "Colour by" column holds categories rather than amounts. */
 export const dataIsCategory = (table: DataTable | null = dataTable.value, column = dataValueColumn.value): boolean => {
   const c = table?.columns[column];
@@ -2458,6 +2481,7 @@ async function applyDataFillNow(): Promise<void> {
     categories: category ? (byCode(undefined) as Record<string, string>) : null,
     palette: dataPalette.value,
     series: series ? { times: series.times, values: byCode(undefined) as Record<string, (number | null)[]> } : null,
+    extrude: dataExtrude.value && !category ? { maxKm: dataExtrudeKm.value ?? DEFAULT_EXTRUDE_KM[found.level] } : null,
     ramp: dataRamp.value,
     steps: dataSteps.value,
     method: dataMethod.value,

@@ -46,7 +46,17 @@ export type DataFill = {
    * holds the values at the first time, and the map follows the "Data Time" slider on its layer.
    */
   series?: { times: number[]; values: Record<string, (number | null)[]> } | null;
+  /**
+   * The places raised in 3D by their numbers (a prism map): the largest value `maxKm` kilometres
+   * high, every other in proportion, so a height reads straight as an amount. Null keeps it flat.
+   */
+  extrude?: { maxKm: number } | null;
 };
+
+/** How high the largest value stands, by what the numbers are about: a country, a province, a district. */
+export const DEFAULT_EXTRUDE_KM = { country: 900, province: 250, district: 40 } as const;
+/** The smallest prism, as a share of the tallest: a small number still shows. */
+const LEAST_HEIGHT_SHARE = 0.02;
 
 export const DEFAULT_DATA_FILL = {
   level: "country" as const,
@@ -129,7 +139,9 @@ export function normaliseDataFill(raw: unknown): DataFill | null {
     categories: categories && !series ? categories : null,
     palette: categoryPaletteById(source.palette).id,
     categoryColors,
-    series
+    series,
+    // Only amounts can stand for a height.
+    extrude: !categories && source.extrude && Number.isFinite((source.extrude as { maxKm?: number }).maxKm) ? { maxKm: Math.max(1, Math.min(5000, Number((source.extrude as { maxKm: number }).maxKm))) } : null
   };
 }
 
@@ -186,8 +198,45 @@ export const describeDataFill = (fill: DataFill, colours: DataColours): string =
   return `${colours.codes.length} ${units} coloured by ${fill.column}${over}, ${colours.scale.colors.length} steps ${fill.method === "quantile" ? "with about as many each" : "of even size"}`;
 };
 
+/** The largest amount a prism stands for: over every year of a series, so heights compare across years. */
+export function extrudeTop(fill: DataFill): number {
+  const all = fill.series ? Object.values(fill.series.values).flatMap((list) => list.filter((v): v is number => v !== null)) : Object.values(fill.values);
+  return Math.max(0, ...all);
+}
+
+/** The height in metres of an amount on a prism map whose largest amount `top` stands `maxKm` high. */
+export function prismHeight(value: number, top: number, maxKm: number): number {
+  if (!(top > 0) || !(value > 0)) return 0;
+  return Math.max(LEAST_HEIGHT_SHARE, Math.min(1, value / top)) * maxKm * 1000;
+}
+
+/** Every place's prism height in metres at a moment (the fill's values when it has no series). */
+export function dataHeightsAt(fill: DataFill, time: number | null = null): Record<string, number> {
+  if (!fill.extrude) return {};
+  const top = extrudeTop(fill);
+  const out: Record<string, number> = {};
+  for (const [code, value] of Object.entries(dataValuesAt(fill, time))) out[code] = Math.round(prismHeight(value, top, fill.extrude.maxKm));
+  return out;
+}
+
 /** What the renderer keeps on the data layer to colour a series at any moment. */
-export type SeriesPaint = { times: number[]; values: Record<string, (number | null)[]>; scale: Scale; noData: string | null; key: unknown };
+export type SeriesPaint = { times: number[]; values: Record<string, (number | null)[]>; scale: Scale; noData: string | null; key: unknown; extrude?: { maxKm: number; top: number } | null };
+
+/** The height expression of a prism map at a moment of its series. */
+export function seriesHeightAt(paint: SeriesPaint, time: number): unknown[] {
+  if (!paint.extrude) return ["literal", 0];
+  const match: unknown[] = ["match", paint.key];
+  let any = false;
+  for (const code of Object.keys(paint.values).sort()) {
+    const value = valueAt(paint.times, paint.values[code], time);
+    if (value === null) continue;
+    match.push(code, Math.round(prismHeight(value, paint.extrude.top, paint.extrude.maxKm)));
+    any = true;
+  }
+  if (!any) return ["literal", 0];
+  match.push(0);
+  return match;
+}
 
 export const SERIES_METADATA_KEY = "lml:series";
 

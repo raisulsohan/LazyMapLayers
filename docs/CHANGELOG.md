@@ -1,5 +1,12 @@
 # Changelog
 
+## Unreleased
+
+- **Prism maps.** In the Numbers sheet, **3D: raise by the numbers** stands every place as high
+  as its number, the largest as high as you set (900 km for countries by default), so a tilted camera
+  reads the amounts at a glance. The renderer draws them, on the flat map and on the globe, and over
+  the years the heights follow the "Data Time" slider with the colours.
+
 ## 0.8.0 — the names of the world and of a city, categories and years, charts that follow the map (2026-09-26)
 
 - **Seas, rivers and mountains are named.** Auto labels now names the natural world as well as

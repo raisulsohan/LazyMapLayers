@@ -15,7 +15,7 @@ import { ensureMaplibreWorker } from "../basemap/maplibreSetup.ts";
 import { BORDERS_DRAW_LAYER, LAYER_COLOR_KEY, bordersGradient } from "../basemap/basemapStyle.ts";
 import type { AnimatedView } from "../../core/render/plan.ts";
 import { GpuReader } from "./gpuReader.ts";
-import { SERIES_METADATA_KEY, seriesMatchAt, type SeriesPaint } from "../../core/style/dataFill.ts";
+import { SERIES_METADATA_KEY, seriesHeightAt, seriesMatchAt, type SeriesPaint } from "../../core/style/dataFill.ts";
 
 export type FrameRendererOptions = {
   /** Container size in CSS pixels: the comp size, which fixes the geographic extent. */
@@ -235,7 +235,11 @@ export class FrameRenderer {
     if (dataTime !== undefined && dataTime !== this.animation.dataTime) {
       const layer = this.maplibre.getLayer("data-fill");
       const series = (layer?.metadata as Record<string, unknown> | undefined)?.[SERIES_METADATA_KEY] as SeriesPaint | undefined;
-      if (layer && series) this.maplibre.setPaintProperty("data-fill", "fill-color", seriesMatchAt(series, dataTime) as never);
+      if (layer && series && layer.type === "fill-extrusion") {
+        // A prism map over the years: the colours and the heights of the moment.
+        this.maplibre.setPaintProperty("data-fill", "fill-extrusion-color", seriesMatchAt(series, dataTime) as never);
+        this.maplibre.setPaintProperty("data-fill", "fill-extrusion-height", seriesHeightAt(series, dataTime) as never);
+      } else if (layer && series) this.maplibre.setPaintProperty("data-fill", "fill-color", seriesMatchAt(series, dataTime) as never);
       this.animation.dataTime = dataTime;
     }
   }

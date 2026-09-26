@@ -355,6 +355,13 @@ like), and **Add the year** puts the year on screen, counting with the slider. W
 chart** can also draw **Lines over the years** or **Areas over the years**, which grow with the map
 and follow the same slider.
 
+**A prism map.** Colour the map by a column of numbers and tick **3D: raise by the numbers**: every
+place then stands as high as its number, the largest as high as the kilometres next to it. Tilt the
+camera (Tilt 40 to 60 works well) and render; the prisms throw their sides into the frame, and a
+flight around them reads the amounts better than any legend. Over the years the prisms grow and
+shrink with the "Data Time" slider. If the tallest runs out of the top of the frame, lower the
+kilometres.
+
 **Searching a street or an address.** The search box finds countries, provinces, cities, districts,
 seas and mountains offline. For anything smaller - a street, an address, a building - use **Search
 OpenStreetMap for "…"** at the end of the list, or press Enter when nothing offline matched. It sends

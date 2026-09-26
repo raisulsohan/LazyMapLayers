@@ -887,6 +887,32 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D84 — Prism maps: the places raised by their numbers, in the renderer (2026-09-27)
+
+- **Why.** A choropleth reads a number by colour, which the eye ranks roughly; a prism map raises
+  every place as high as its number, so a tilted camera shows at once which is largest and by how
+  much. It is one of the looks motion designers ask for most in a data map, and a flight over
+  standing countries is something a flat map cannot give.
+- **In the renderer, not as layers.** The data layer becomes a fill-extrusion in the same style
+  (panel/basemap/naturalEarthStyle.ts), so the prisms stand in the data pass with correct depth,
+  occlusion and shading on the flat map and on the globe, and follow the camera like the rest of the
+  map. Shape layers could not hide one prism behind another. Pins, names and routes stay AE layers
+  on the ground, as everywhere else.
+- **Height.** Linear, as spikes are (D50): the largest amount stands `maxKm` high, every other in
+  proportion, with a floor of 2 % so a tiny number still shows (core/style/dataFill.ts,
+  prismHeight). The default height follows what the numbers are about: 900 km for countries, 250 km
+  for provinces, 40 km for districts, so a first render looks right at the zoom such a map is seen
+  at; the Data row takes any height from 1 to 5,000 km.
+- **Over the years.** With a series, the largest amount of every year is the top, so a height means
+  the same amount in every year, as the colour scale does (D82); the "Data Time" slider sets the
+  heights and the colours of each frame (frameRenderer applyAnimation).
+- **Only amounts.** A table of categories has no amount to stand for, so the option is hidden for
+  it and the style keeps it flat.
+- **Tested.** A unit test for the heights (the largest at the top, in proportion, the floor, a
+  series between its years, none for categories); DT3 renders the same numbers flat and raised over
+  a tilted South Asia and expects the raised data pass to cover more of the frame and a prism to
+  stand above India where the flat map has nothing, then renders them on the globe.
+
 ## D83 — A polygon clipper for Cut out, and feature properties that can be edited (2026-09-26)
 
 - **Why.** Two known limits of the feature browser (D69): Cut out only worked when the shape taken
