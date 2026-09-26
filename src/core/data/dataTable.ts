@@ -51,8 +51,8 @@ export function toNumber(cell: string): number {
 const isNumberCell = (cell: string) => Number.isFinite(toNumber(cell));
 
 /**
- * The table a CSV holds, or null when it is not one: a heading row is needed, and at least one
- * column of text next to one column of numbers.
+ * The table a CSV holds, or null when it is not one: a heading row is needed, and a column of text
+ * next to a column of numbers, or next to a second column of text to colour by (a party, a region).
  */
 export function readDataTable(rows: string[][], name = "Table"): DataTable | null {
   const filled = (rows ?? []).filter((row) => Array.isArray(row) && row.some((cell) => (cell ?? "").trim() !== ""));
@@ -82,11 +82,28 @@ export function readDataTable(rows: string[][], name = "Table"): DataTable | nul
 
   const texts = columns.filter((column) => column.kind === "text" && column.filled);
   const numbers = columns.filter((column) => column.kind === "number" && column.filled);
-  if (!texts.length || !numbers.length) return null;
+  if (!texts.length || (!numbers.length && texts.length < 2)) return null;
   // The column that names the place: the text column with the most different values, and the
   // shortest cells when two are as varied (a code column beats a column of sentences).
   const key = [...texts].sort((a, b) => b.distinct - a.distinct || a.index - b.index)[0];
-  return { name, headings, rows: body, columns, keyColumn: key.index, valueColumn: numbers[0].index };
+  const category = texts.filter((column) => column.index !== key.index && isCategoryColumn(column))[0];
+  const value = numbers[0] ?? category;
+  if (!value) return null;
+  return { name, headings, rows: body, columns, keyColumn: key.index, valueColumn: value.index };
+}
+
+/** A column of text that sorts places into a few kinds: few different values, each shared by several places. */
+export const isCategoryColumn = (column: DataColumn): boolean => column.kind === "text" && column.filled > 1 && column.distinct >= 1 && column.distinct <= 40 && column.distinct < column.filled;
+
+/** The category of each place, by the key in another column. */
+export function columnCategories(table: DataTable, keyColumn: number, column: number): { key: string; value: string }[] {
+  const out: { key: string; value: string }[] = [];
+  for (const row of table.rows) {
+    const key = (row[keyColumn] ?? "").trim();
+    const value = (row[column] ?? "").trim();
+    if (key && value) out.push({ key, value });
+  }
+  return out;
 }
 
 /** The values of one column, by the key in another: what the join works from. */

@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **Colour by category.** A column of a few kinds - a party, a bloc, a region, yes or no - colours
+  each place in its category's colour, from a palette that stays readable for colour-blind viewers
+  (or a bold or a soft one), with the legend naming each category.
+- **Numbers over the years.** A table with a column per year, or a row per place per year, animates
+  the map through the years with a "Data Time" slider on the map layer that runs over the comp and
+  can be retimed. One scale covers every year, so a colour always means the same amount. **Add the
+  year** puts the counting year on screen.
 - **Names inside a city.** Over a downloaded area, Auto labels now names what is inside it:
   districts, parks, landmarks, stations, airports, the river through town and the main streets, in
   the local language, from the area's own OpenStreetMap data. Street and river names lie along their

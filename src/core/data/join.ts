@@ -16,10 +16,10 @@ export type JoinTarget = {
   names?: (string | null)[];
 };
 
-export type JoinRow = { key: string; value: number };
+export type JoinRow<T = number> = { key: string; value: T };
 
-export type JoinResult = {
-  matched: { code: string; key: string; value: number }[];
+export type JoinResult<T = number> = {
+  matched: { code: string; key: string; value: T }[];
   /** Keys that found nothing, and keys that would fit two countries as well as each other. */
   unmatched: { key: string; reason: "unknown" | "ambiguous" }[];
   /** Countries a second row also named: the first row wins, and this says how often that happened. */
@@ -80,9 +80,9 @@ export function buildLookup(targets: JoinTarget[]): Lookup {
 }
 
 /** The rows that found a country, and the keys that did not. */
-export function joinValues(rows: JoinRow[], found: Lookup): JoinResult {
-  const matched: JoinResult["matched"] = [];
-  const unmatched: JoinResult["unmatched"] = [];
+export function joinValues<T = number>(rows: JoinRow<T>[], found: Lookup): JoinResult<T> {
+  const matched: JoinResult<T>["matched"] = [];
+  const unmatched: JoinResult<T>["unmatched"] = [];
   const taken = new Set<string>();
   let repeated = 0;
   for (const row of rows) {
@@ -104,7 +104,7 @@ export function joinValues(rows: JoinRow[], found: Lookup): JoinResult {
 }
 
 /** What a join is worth saying out loud. */
-export function describeJoin(result: JoinResult, total: number): string {
+export function describeJoin<T>(result: JoinResult<T>, total: number): string {
   const missed = result.unmatched.length;
   const names = result.unmatched.slice(0, 4).map((row) => row.key);
   return [

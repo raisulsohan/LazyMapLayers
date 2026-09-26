@@ -15,6 +15,7 @@ import { ensureMaplibreWorker } from "../basemap/maplibreSetup.ts";
 import { BORDERS_DRAW_LAYER, LAYER_COLOR_KEY, bordersGradient } from "../basemap/basemapStyle.ts";
 import type { AnimatedView } from "../../core/render/plan.ts";
 import { GpuReader } from "./gpuReader.ts";
+import { SERIES_METADATA_KEY, seriesMatchAt, type SeriesPaint } from "../../core/style/dataFill.ts";
 
 export type FrameRendererOptions = {
   /** Container size in CSS pixels: the comp size, which fixes the geographic extent. */
@@ -228,6 +229,14 @@ export class FrameRenderer {
       const color = typeof metadata?.[LAYER_COLOR_KEY] === "string" ? (metadata[LAYER_COLOR_KEY] as string) : "#9fb3c6";
       this.maplibre.setPaintProperty(BORDERS_DRAW_LAYER, "line-gradient", bordersGradient(bordersDraw, color) as never);
       this.animation.bordersDraw = bordersDraw;
+    }
+    // Numbers over time: the colours of the moment the Data Time slider stands at.
+    const dataTime = animation?.dataTime;
+    if (dataTime !== undefined && dataTime !== this.animation.dataTime) {
+      const layer = this.maplibre.getLayer("data-fill");
+      const series = (layer?.metadata as Record<string, unknown> | undefined)?.[SERIES_METADATA_KEY] as SeriesPaint | undefined;
+      if (layer && series) this.maplibre.setPaintProperty("data-fill", "fill-color", seriesMatchAt(series, dataTime) as never);
+      this.animation.dataTime = dataTime;
     }
   }
 

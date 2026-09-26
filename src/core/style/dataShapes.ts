@@ -51,6 +51,14 @@ const between = (share: number, least: number, most: number) => least + (most - 
 export function dataShapes(fill: DataFill, options: DataShapeOptions = {}): DataShapeSet {
   const colours = dataFillColors(fill);
   const limit = Math.max(1, Math.round(options.limit ?? MAX_DATA_SHAPES));
+  // Categories have no amounts: every place is a shape in its category's colour, at the strongest fill.
+  if (fill.categories) {
+    const codes = Object.keys(colours.colors).sort((x, y) => colours.legend.findIndex((row) => row.color === colours.colors[x]) - colours.legend.findIndex((row) => row.color === colours.colors[y]) || x.localeCompare(y));
+    const kept = codes.slice(0, limit);
+    const fillMost = options.fillMost ?? DEFAULT_DATA_SHAPES.fillMost;
+    const strokeLeast = options.strokeLeast ?? DEFAULT_DATA_SHAPES.strokeLeast;
+    return { shapes: kept.map((code) => ({ code, value: 0, color: colours.colors[code], fill: fillMost, outline: strokeLeast })), dropped: codes.length - kept.length, most: 0, least: 0 };
+  }
   const fillMost = options.fillMost ?? DEFAULT_DATA_SHAPES.fillMost;
   const fillLeast = options.fillLeast ?? DEFAULT_DATA_SHAPES.fillLeast;
   const strokeMost = options.strokeMost ?? DEFAULT_DATA_SHAPES.strokeMost;

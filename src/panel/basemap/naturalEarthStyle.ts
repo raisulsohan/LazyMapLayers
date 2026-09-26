@@ -4,7 +4,7 @@
 
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
-import { dataFillColors, DATA_CODE, type DataFill } from "../../core/style/dataFill.ts";
+import { dataFillColors, DATA_CODE, SERIES_METADATA_KEY, type DataFill, type SeriesPaint } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, heatColorStops, heatFeatures, type HeatSetting } from "../../core/style/heat.ts";
 import { provincesOf } from "../data/admin1.ts";
 import { districtsOf } from "../data/districts.ts";
@@ -226,7 +226,9 @@ export function naturalEarthStyle(
       }
     }
     if (colours.codes.length && (!(province || district) || sources[DATA_SOURCE])) {
-      const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE };
+      // A series carries everything the renderer needs to colour any moment (applyAnimation, dataTime).
+      const series: SeriesPaint | null = options.data.series ? { times: options.data.series.times, values: options.data.series.values, scale: colours.scale, noData: options.data.noData, key } : null;
+      const own = { ...group("highlight"), [HIGHLIGHT_METADATA_KEY]: DATA_CODE, ...(series ? { [SERIES_METADATA_KEY]: series } : {}) };
       const match: unknown[] = ["match", key];
       for (const code of colours.codes) match.push(code, colours.colors[code]);
       match.push(options.data.noData ?? "rgba(0, 0, 0, 0)");

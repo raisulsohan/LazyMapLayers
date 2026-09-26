@@ -39,6 +39,10 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
+import { addDataYear, changeDataPalette, dataAnimate, dataIsCategory, dataPalette, dataSeriesShape } from "../store.ts";
+import { CATEGORY_PALETTES, type CategoryPaletteId } from "../../core/style/categories.ts";
+import { isCategoryColumn } from "../../core/data/dataTable.ts";
+import { describeSeries, readSeries } from "../../core/data/series.ts";
 import { addDataBubbles, addDataChart, addDataCopies, addDataHeat, addDataLegend, addDataShapes, addDataSpikes, addDataValues, chartBars, chartCorner, removeDataChart, shapeFillMost, shapeStrokeMost, shapesByValue, applyDataFill, bubbleColoured, bubbleSize, changeHeatRadius, copiesByValue, heat, heatRadius, removeDataBubbles, removeDataHeat, removeDataSpikes, removeDataValues, spikeColoured, spikeHeight, valuesWithNames, changeDataFill, changeDataLevel, clearDataFill, countryChoices, type DataLevelChoice, dataCountry, dataFill, dataKeyColumn, dataLevel, dataMessage, dataMethod, dataOpacity, dataRamp, dataSheetOpen, dataSteps, dataTable, dataValueColumn, legendCorner, removeDataLegend } from "../store.ts";
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { featureCountry, featureFilterText, featurePicks, featureScope, featureSheetOpen, featureSort, featureText, featureView, goToFeature, highlightPickedFeatures, mergePickedFeatures, pickEveryFeature, shapePickedFeatures, toggleFeaturePick } from "../store.ts";
@@ -530,19 +534,31 @@ export function DataSheetView(): JSX.Element | null {
             ))}
           </select>
         </label>
-        <label class="num-field grow" title="The column of numbers to colour by">
+        <label class="num-field grow" title="The column to colour by: numbers for amounts, or a column of a few kinds (a party, a region, yes or no) for categories">
           <span>Colour by</span>
           <select data-id="data-value" value={String(dataValueColumn.value)} disabled={busy.value} onChange={(e) => (dataValueColumn.value = Number((e.target as HTMLSelectElement).value))}>
             {table.columns
-              .filter((column) => column.kind === "number")
+              .filter((column) => (column.kind === "number" && (dataSeriesShape.value?.kind !== "long" || column.index !== dataSeriesShape.value.timeColumn)) || (isCategoryColumn(column) && column.index !== dataKeyColumn.value))
               .map((column) => (
                 <option key={column.index} value={String(column.index)}>
                   {column.name}
+                  {column.kind === "text" ? " (categories)" : ""}
                 </option>
               ))}
           </select>
         </label>
       </div>
+      {dataSeriesShape.value && !dataIsCategory() && (
+        <div class="sheet-row">
+          <label class="check" title="The map moves through the years: the Data Time slider on the map layer runs from the first year at the start of the comp to the last at the end. Retime it like any keyframes.">
+            <input type="checkbox" data-id="data-animate" checked={dataAnimate.value} disabled={busy.value} onChange={(e) => (dataAnimate.value = (e.target as HTMLInputElement).checked)} />
+            <span>Animate over the years ({describeSeries(readSeries(table, dataSeriesShape.value, dataKeyColumn.value, dataValueColumn.value))})</span>
+          </label>
+          <button class="small-button" data-id="data-year-add" disabled={busy.value || !fill?.series} title="The year the map shows, as a text layer that counts with the Data Time slider" onClick={() => void addDataYear()}>
+            Add the year
+          </button>
+        </div>
+      )}
       <div class="sheet-row import-row">
         <label class="num-field" title="What the rows are about. Left alone, the panel works it out from the table itself.">
           <span>Match</span>
@@ -624,7 +640,21 @@ export function DataSheetView(): JSX.Element | null {
           <div class="section-title">Colours</div>
         </>
       )}
-      <div class="sheet-row">
+      {dataIsCategory() && (
+        <div class="sheet-row">
+          <label class="num-field grow" title="A colour for each category, the most common first">
+            <span>Colours</span>
+            <select data-id="data-palette" value={dataPalette.value} disabled={busy.value} onChange={(e) => void changeDataPalette((e.target as HTMLSelectElement).value as CategoryPaletteId)}>
+              {CATEGORY_PALETTES.map((palette) => (
+                <option key={palette.id} value={palette.id}>
+                  {palette.name}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      <div class="sheet-row" style={dataIsCategory() ? { display: "none" } : undefined}>
         <label class="num-field" title="The colours the steps run through">
           <select data-id="data-ramp" value={dataRamp.value} disabled={busy.value} onChange={(e) => void changeDataFill({ ramp: (e.target as HTMLSelectElement).value as RampId })}>
             {RAMPS.map((ramp) => (
@@ -665,7 +695,7 @@ export function DataSheetView(): JSX.Element | null {
       )}
       {dataMessage.value && <div class="muted small">{dataMessage.value}</div>}
       <div class="sheet-row">
-        <button class="small-button" data-id="data-bubbles-add" disabled={busy.value || !fill} title="Numbers as circles on the map, as one layer: the area of a circle stands for its value. Every circle has its own transform to animate." onClick={() => void addDataBubbles()}>
+        <button class="small-button" data-id="data-bubbles-add" disabled={busy.value || !fill || !!fill.categories} title="Numbers as circles on the map, as one layer: the area of a circle stands for its value. Every circle has its own transform to animate." onClick={() => void addDataBubbles()}>
           Add bubbles
         </button>
         <label class="num-field" title="The largest circle, in pixels at 1080 lines">
@@ -681,7 +711,7 @@ export function DataSheetView(): JSX.Element | null {
         </button>
       </div>
       <div class="sheet-row">
-        <button class="small-button" data-id="data-spikes-add" disabled={busy.value || !fill} title="Numbers as spikes on the map, as one layer: the height of a spike stands for its value, read straight. Every spike has its own transform to animate." onClick={() => void addDataSpikes()}>
+        <button class="small-button" data-id="data-spikes-add" disabled={busy.value || !fill || !!fill.categories} title="Numbers as spikes on the map, as one layer: the height of a spike stands for its value, read straight. Every spike has its own transform to animate." onClick={() => void addDataSpikes()}>
           Add spikes
         </button>
         <label class="num-field" title="The tallest spike, in pixels at 1080 lines">
@@ -737,7 +767,7 @@ export function DataSheetView(): JSX.Element | null {
         </label>
       </div>
       <div class="sheet-row">
-        <button class="small-button" data-id="data-values-add" disabled={busy.value || !fill} title="Writes every number onto the map as a text layer, under its circle when there is one" onClick={() => void addDataValues()}>
+        <button class="small-button" data-id="data-values-add" disabled={busy.value || !fill || !!fill.categories} title="Writes every number onto the map as a text layer, under its circle when there is one" onClick={() => void addDataValues()}>
           Add numbers
         </button>
         <label class="check" title="Put the name of the place above its number">
@@ -760,7 +790,7 @@ export function DataSheetView(): JSX.Element | null {
             <option value="topRight">Top right</option>
           </select>
         </label>
-        <button class="small-button" data-id="data-chart-add" disabled={busy.value || !fill} title="A chart of the numbers in the scene: a bar per place, longest first, each growing in turn from the current time. An ordinary precomp: move it, restyle it, animate it." onClick={() => void addDataChart()}>
+        <button class="small-button" data-id="data-chart-add" disabled={busy.value || !fill || !!fill.categories} title="A chart of the numbers in the scene: a bar per place, longest first, each growing in turn from the current time. An ordinary precomp: move it, restyle it, animate it." onClick={() => void addDataChart()}>
           Add chart
         </button>
         <label class="num-field" title="How many bars the chart shows, longest first">

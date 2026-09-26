@@ -327,6 +327,12 @@ Tilt the preview; buildings rise. Look > Terrain > Download for the mountains.
 select it in After Effects, **Copy selected layer onto places**, Sized by number off. Every capital
 has a flag that stays put while the camera flies.
 
+**Categories and years.** In the Numbers sheet, **Colour by** also lists columns of categories
+(marked "categories"): each kind gets its own colour and a row in the legend. A table with years -
+a column per year, or a row per place per year - shows **Animate over the years**: the map then runs
+from the first year to the last over the comp on the map layer's "Data Time" slider (key it as you
+like), and **Add the year** puts the year on screen, counting with the slider.
+
 ## Data, downloads and credits
 
 The world map (Natural Earth, with the provinces of every country) is inside the panel and works

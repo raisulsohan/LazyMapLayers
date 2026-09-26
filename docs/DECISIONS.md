@@ -887,7 +887,41 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D78 — Names inside a city, from its own downloaded data (2026-09-26)
+## D79 — Colours by category, and numbers over the years (2026-09-26)
+
+- **Why.** A table could only colour the map by amounts. Two of the most asked-for data maps could
+  not be made: an election or an alliance map (a party, a bloc, a yes or a no per place), and a map
+  that changes as the years go by (population 1990 to 2020, emissions per year).
+- **Categories.** A text column with a few kinds (at most 40, each shared by several places) can be
+  chosen under **Colour by**; a table of only names and categories is accepted as a table. Each
+  category gets a colour of its own, the most common first (src/core/style/categories.ts), from
+  one of three palettes: Okabe and Ito's set for colour-blind readers (its black swapped for a grey)
+  as the default, a bold one and a soft one. Past the palette's length the rest share one quiet grey
+  and one legend row, "Other (n)". The legend names each category; shapes from the table take their
+  category's colour. Bubbles, spikes, numbers and the bar chart need amounts, so they are switched
+  off for a table of categories.
+- **Years.** src/core/data/series.ts reads both shapes tables come in: wide, a column per year (the
+  World Bank and the UN), and long, a row per place per year with a year column (Our World in Data).
+  A place's value at any moment is straight between the years around it and held before its first
+  and after its last, so a gap in a table never flickers a country to empty.
+- **How the years move.** A "Data Time" slider on the map layer, beside Borders Draw-on and the
+  terrain sliders, is keyed from the first year at the comp's start to the last at its end, and can
+  be retimed like any keyframes. The renderer reads it per frame like the other animated controls and
+  sets the data layer's colours for that moment (seriesMatchAt); the frame cache keys on it, so a
+  still camera over changing numbers renders every frame and nothing more. One scale spans every
+  value of every year, so a colour means the same amount in 1990 and in 2020, and the legend holds
+  for the whole move. **Add the year** puts a text layer on the scene that counts with the slider
+  through a Layer Control.
+- **Flows stay between places.** The search now knows seas and mountains (D77), and "Atlantis" in a
+  flow table found the Atlantic by its Dutch name. A flow's ends are looked up among places only.
+- **Tested.** Unit tests for the palettes, the order, "Other", colours of the user's own, tables of
+  only text, years in headings and cells, wide and long tables, the value between years and beyond
+  them, one scale over all years and the colour of any moment. DT2 renders a table of blocs and finds
+  each country in its bloc's colour to the pixel, renders a wide table of three years and finds
+  Bangladesh in the colour of 2000 on the first frame and of 2020 on the last, Nepal's missing 2010
+  straight between its neighbours, all 25 frames drawn, and the year layer reading 2000, 2010, 2020.
+
+
 
 - **Why.** Over a downloaded city the map had its streets, water and buildings but no names: Auto
   labels knew the world's cities and nothing smaller, and the rendered basemap carries no labels

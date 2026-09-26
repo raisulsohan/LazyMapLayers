@@ -36,6 +36,7 @@ import { runRenderDiskTest } from "./renderDiskTests.ts";
 import { runDuplicateTest } from "./duplicateTests.ts";
 import { runNatureLabelTest } from "./natureLabelTests.ts";
 import { runCityLabelTest } from "./cityLabelTests.ts";
+import { runDataTimeTest } from "./dataTimeTests.ts";
 import { runFlowTest } from "./flowTests.ts";
 import { runHeatTest } from "./heatTests.ts";
 import { runLabelDesignTest } from "./labelDesignTests.ts";
@@ -418,6 +419,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.LB5_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`LB5 failed: ${results.LB5_error}`, "fail");
+    }
+  }
+
+  if (wants("DT2")) {
+    try {
+      results.DT2_dataTime = await runDataTimeTest(log);
+    } catch (error) {
+      results.DT2_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`DT2 failed: ${results.DT2_error}`, "fail");
     }
   }
 

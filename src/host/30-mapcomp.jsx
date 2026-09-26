@@ -15,14 +15,17 @@ LML.map.CONTROLS = [
 LML.map.GLOBE_CONTROL = "Globe";
 
 /**
- * Sliders on the map layer that the renderer reads per frame: the border draw-on (0 to 100) and the
- * 3D terrain's height (an exaggeration; 0 keeps the map flat) and ground level (metres). Linked layers
+ * Sliders on the map layer that the renderer reads per frame: the border draw-on (0 to 100), the
+ * 3D terrain's height (an exaggeration; 0 keeps the map flat) and ground level (metres), and the
+ * data time of a map of numbers over time. Linked layers
  * read the same two terrain sliders, so keyed mountains rise in the render and in After Effects alike.
  */
 LML.map.ANIMATION_CONTROLS = [
     { name: "Borders Draw-on", key: "bordersDraw" },
     { name: "Terrain Height", key: "terrainHeight" },
-    { name: "Ground Level", key: "groundLevel" }
+    { name: "Ground Level", key: "groundLevel" },
+    // The moment a map of numbers over time shows (a year), read per frame for its colours.
+    { name: "Data Time", key: "dataTime" }
 ];
 
 /** Sets a slider on the map layer to a plain value (created when missing); keys on it are kept. */

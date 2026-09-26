@@ -58,9 +58,13 @@ export type FlowResult = {
   legend: { value: number; width: number; label: string }[];
 };
 
-/** Where a name is: the best search hit, or the coordinates it spells out. */
+/**
+ * Where a name is: the best search hit that is a place (a flow runs between places, so a sea or a
+ * range that happens to start with the same letters in some language is no answer), or the
+ * coordinates it spells out.
+ */
 export function placeOf(index: PlaceIndex, name: string): LngLat | null {
-  const hit = searchPlaces(index, name, 1)[0];
+  const hit = searchPlaces(index, name, 8).find((result) => result.kind !== "nature");
   return hit ? { lat: hit.lat, lng: hit.lng } : null;
 }
 

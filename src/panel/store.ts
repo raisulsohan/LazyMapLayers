@@ -10,14 +10,16 @@ import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/imp
 import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { keyOf } from "../core/render/frameKey.ts";
 import type { MapProjection } from "../core/camera/globe.ts";
-import { NAME_LANGUAGES, type NameLanguage } from "../core/labels/language.ts";
+import { NAME_LANGUAGES, SCRIPT_FONTS, type NameLanguage } from "../core/labels/language.ts";
 import type { ExtractPlan } from "../core/pmtiles/extract.ts";
 import { PASS_IDS, type PassId } from "../core/render/passes.ts";
 import { DEFAULT_FINAL_SETTINGS, PREVIEW_SETTINGS, normaliseSettings, type RenderQuality, type RenderSettings } from "../core/render/plan.ts";
 import { nameForView, nearestPlaceName, zoomForPlace, type SearchResult } from "../core/search/placeSearch.ts";
 import { AREA_MAX_POINTS, AREA_PREFIX, DEFAULT_HIGHLIGHT, MAX_AREAS, areaIdOf, isAreaCode, normaliseAreas, normaliseHighlights, toggleHighlight, type AreaGeometry, type Areas, type Highlight } from "../core/style/highlights.ts";
 import { DEFAULT_SHADE, normaliseTerrain, type TerrainSetting } from "../core/style/terrain.ts";
-import { columnValues, readDataTable, type DataTable } from "../core/data/dataTable.ts";
+import { columnCategories, columnValues, isCategoryColumn, readDataTable, type DataTable } from "../core/data/dataTable.ts";
+import { describeSeries, detectSeries, readSeries, type SeriesShape } from "../core/data/series.ts";
+import type { CategoryPaletteId } from "../core/style/categories.ts";
 import { flowRows, guessFlowColumns } from "../core/data/flows.ts";
 import { addFlows } from "./overlays/flows.ts";
 import { buildLookup, describeJoin, joinValues } from "../core/data/join.ts";
@@ -41,9 +43,9 @@ import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } f
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
 import { addZones, normaliseKeepOut, togglePreset, type KeepOutPreset, type KeepOutZone } from "../core/labels/keepOut.ts";
-import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
+import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, templateFonts, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
 import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
-import { DEFAULT_THEME_ID, themeById } from "../core/style/themes.ts";
+import { DEFAULT_THEME_ID, hexToRgb, themeById } from "../core/style/themes.ts";
 import { tileCount, tileRangeForBbox, type Bbox } from "../core/tiles/tileMath.ts";
 import { regionNames, type BasemapSource } from "./basemap/basemapStyle.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
@@ -1508,6 +1510,16 @@ export const dataLevel = signal<DataLevelChoice>("auto");
 /** For provinces: the country they belong to (null lets the table decide). */
 export const dataCountry = signal<string | null>(null);
 export const dataMessage = signal<string | null>(null);
+/** How the table holds years, when it does, and whether the map moves through them. */
+export const dataSeriesShape = signal<SeriesShape | null>(null);
+export const dataAnimate = signal(true);
+/** The palette a table of categories is coloured with. */
+export const dataPalette = signal<CategoryPaletteId>("safe");
+/** Whether the chosen "Colour by" column holds categories rather than amounts. */
+export const dataIsCategory = (table: DataTable | null = dataTable.value, column = dataValueColumn.value): boolean => {
+  const c = table?.columns[column];
+  return !!c && isCategoryColumn(c);
+};
 /** A table of flows: which columns say where from, where to, and how much. */
 export const flowFrom = signal(-1);
 export const flowTo = signal(-1);
@@ -2273,7 +2285,7 @@ const levelPrefix = (found: { level: JoinLevel; country: string | null }) => (fo
  * world was in play. Districts are tried for that country, or for every country whose districts are
  * downloaded when the rows name no province; left to itself, the level with the most rows wins.
  */
-function joinTable(rows: { key: string; value: number }[]): { level: JoinLevel; country: string | null; result: ReturnType<typeof joinValues> } {
+function joinTable<T = number>(rows: { key: string; value: T }[]): { level: JoinLevel; country: string | null; result: ReturnType<typeof joinValues<T>> } {
   const wanted = dataLevel.value;
   const byCountry = joinValues(rows, countryLookup());
   if (wanted === "country") return { level: "country", country: null, result: byCountry };
@@ -2288,7 +2300,7 @@ function joinTable(rows: { key: string; value: number }[]): { level: JoinLevel; 
     country = [...votes.entries()].sort((a, b) => b[1] - a[1])[0]?.[0] ?? null;
   }
   const byProvince = country ? joinValues(rows, provinceLookup(country)) : null;
-  let byDistrict: { country: string; result: ReturnType<typeof joinValues> } | null = null;
+  let byDistrict: { country: string; result: ReturnType<typeof joinValues<T>> } | null = null;
   if (wanted !== "province") {
     for (const code of country ? [country] : installedDistricts().map((set) => set.country)) {
       if (!districtSetOf(code)) continue;
@@ -2305,6 +2317,14 @@ function joinTable(rows: { key: string; value: number }[]): { level: JoinLevel; 
   return { level: "country", country: null, result: byCountry };
 }
 
+/** The rows the sheet would join: amounts of one column, categories, or a series of years. */
+function sheetRows(table: DataTable): { key: string; value: unknown }[] {
+  const shape = dataSeriesShape.value;
+  if (dataIsCategory(table)) return columnCategories(table, dataKeyColumn.value, dataValueColumn.value);
+  if (shape && dataAnimate.value) return readSeries(table, shape, dataKeyColumn.value, dataValueColumn.value).rows.map((row) => ({ key: row.key, value: row.values }));
+  return columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+}
+
 /** Opens the Data sheet for a table of numbers (a CSV with names and values, not coordinates). */
 export function openDataTable(table: DataTable): void {
   dataTable.value = table;
@@ -2315,13 +2335,21 @@ export function openDataTable(table: DataTable): void {
   flowTo.value = flows?.to ?? -1;
   flowValue.value = flows?.value ?? -1;
   dataMessage.value = null;
+  dataSeriesShape.value = detectSeries(table);
+  // A long table's value is the number column that is not the year.
+  const shape = dataSeriesShape.value;
+  if (shape?.kind === "long" && dataValueColumn.value === shape.timeColumn) {
+    const other = table.columns.find((column) => column.kind === "number" && column.index !== shape.timeColumn);
+    if (other) dataValueColumn.value = other.index;
+  }
   dataSheetOpen.value = true;
   importSheetOpen.value = false;
   // What the table would join to, before anything is coloured.
-  const rows = columnValues(table, table.keyColumn, table.valueColumn);
+  const rows = sheetRows(table);
   const found = joinTable(rows);
   dataCountry.value = found.country;
-  dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}`;
+  const years = shape ? `. Years ${describeSeries(readSeries(table, shape, dataKeyColumn.value, dataValueColumn.value))}` : "";
+  dataMessage.value = `${levelPrefix(found)}${describeJoin(found.result, rows.length)}${years}`;
 }
 
 /** The countries a table of provinces may be about, by name; for districts, the countries whose districts are downloaded. */
@@ -2341,7 +2369,10 @@ export const applyDataFill = () => run("data on the map", applyDataFillNow);
 async function applyDataFillNow(): Promise<void> {
   const table = dataTable.value;
   if (!table) return;
-  const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+  const category = dataIsCategory(table);
+  const shape = category ? null : dataSeriesShape.value;
+  const series = shape && dataAnimate.value ? readSeries(table, shape, dataKeyColumn.value, dataValueColumn.value) : null;
+  const rows = sheetRows(table);
   const found = joinTable(rows);
   const result = found.result;
   dataCountry.value = found.country;
@@ -2350,11 +2381,16 @@ async function applyDataFillNow(): Promise<void> {
     log(`nothing in "${table.headings[dataKeyColumn.value]}" matched a country or a province`, "fail");
     return;
   }
+  const byCode = (value: unknown) => Object.fromEntries(result.matched.map((row) => [row.code, value === undefined ? row.value : value]));
   const fill: DataFill = {
-    column: table.headings[dataValueColumn.value] || "Value",
+    // A wide table's value is every year column: the legend is titled by the table instead.
+    column: series && shape?.kind === "wide" ? table.name.replace(/\.[a-z0-9]+$/i, "") : table.headings[dataValueColumn.value] || "Value",
     level: found.level,
     country: found.country,
-    values: Object.fromEntries(result.matched.map((row) => [row.code, row.value])),
+    values: category || series ? {} : (byCode(undefined) as Record<string, number>),
+    categories: category ? (byCode(undefined) as Record<string, string>) : null,
+    palette: dataPalette.value,
+    series: series ? { times: series.times, values: byCode(undefined) as Record<string, (number | null)[]> } : null,
     ramp: dataRamp.value,
     steps: dataSteps.value,
     method: dataMethod.value,
@@ -2371,8 +2407,36 @@ async function applyDataFillNow(): Promise<void> {
     await readMaps();
   }
   const colours = dataFillColors(dataFill.value!);
-  log(`${describeDataFill(dataFill.value!, colours)}. Render to get it as its own layer above the basemap${result.unmatched.length ? `; ${result.unmatched.length} rows found no country` : ""}`, "ok");
+  // The years move with the comp: the "Data Time" slider on the map layer runs from the first year at
+  // the start to the last at the end, and can be retimed like any other keyframes.
+  if (dataFill.value?.series && selectedId.value) {
+    const times = dataFill.value.series.times;
+    const info = await callHost<{ frames: number; frameRate: number }>("renderInfo", { mapId: selectedId.value });
+    const end = Math.max(0, (info.frames - 1) / info.frameRate);
+    await callHost("setControlKeys", { mapId: selectedId.value, name: "Data Time", times: [0, end], values: [times[0], times[times.length - 1]] });
+  }
+  const moving = dataFill.value?.series ? `. The years run over the comp on the map layer's "Data Time" slider; Add the year puts the year on screen` : "";
+  log(`${describeDataFill(dataFill.value!, colours)}${moving}. Render to get it as its own layer above the basemap${result.unmatched.length ? `; ${result.unmatched.length} rows found no country` : ""}`, "ok");
 }
+
+/** The year the map shows, as a text layer that counts with the "Data Time" slider. */
+export const addDataYear = () =>
+  run("year", async () => {
+    if (!selectedId.value || !dataFill.value?.series) {
+      log("colour the map by a table with years first", "muted");
+      return;
+    }
+    const template = currentLabelTemplate.value;
+    const made = await callHost<{ name: string; expressionErrors: string[] }>("addDataYear", {
+      mapId: selectedId.value,
+      corner: legendCorner.value === "bottomLeft" ? "bottomRight" : "bottomLeft",
+      fonts: templateFonts(template, SCRIPT_FONTS.latin.bold, "latin"),
+      color: hexToRgb(template.countryColor),
+      haloColor: hexToRgb(template.haloColor),
+      halo: template.halo
+    });
+    log(made.expressionErrors.length ? `the year layer has expression errors: ${made.expressionErrors.join("; ")}` : `"${made.name}" added: it counts the years with the Data Time slider`, made.expressionErrors.length ? "fail" : "ok");
+  });
 
 /** Changes how the numbers are coloured, and redraws them at once. */
 /** Changes what the rows are taken to be about, and joins again. */
@@ -2380,7 +2444,7 @@ async function applyDataFillNow(): Promise<void> {
 function rejoinTable(): void {
   const table = dataTable.value;
   if (!table) return;
-  const rows = columnValues(table, dataKeyColumn.value, dataValueColumn.value);
+  const rows = sheetRows(table);
   const found = joinTable(rows);
   // A country chosen for its districts stays chosen while they are still to be downloaded.
   const waiting = dataLevel.value === "district" && !!dataCountry.value && found.level !== "district";
@@ -2417,6 +2481,18 @@ export const changeDataFill = (next: Partial<Pick<DataFill, "ramp" | "steps" | "
     if (dataFill.value) dataFill.value = normaliseDataFill({ ...dataFill.value, ...next });
     if (selectedId.value && (dataFill.value || heat.value)) {
       if (dataFill.value) await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
+      await readMaps();
+    }
+  });
+
+/** Colours the categories with another palette, at once. */
+export const changeDataPalette = (palette: CategoryPaletteId) =>
+  run("data colours", async () => {
+    dataPalette.value = palette;
+    if (!dataFill.value?.categories) return;
+    dataFill.value = normaliseDataFill({ ...dataFill.value, palette });
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, dataFill: dataFill.value });
       await readMaps();
     }
   });
