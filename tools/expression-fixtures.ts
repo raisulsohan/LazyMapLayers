@@ -9,6 +9,7 @@ import fs from "node:fs";
 import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
+import { followExpressions } from "../src/core/ae/followExpressions.ts";
 import { anchoredPositionExpression, curvedLabelPathExpression, leaderPathExpression, routePathExpression, streetLabelExpressions, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
@@ -116,6 +117,10 @@ for (const globe of [false, true]) {
     add(`pin scale ${kind} ${i}`, e.scale, { own, map, comp, value: i % 3 === 0 ? [100, 100, 100] : [100, 100] });
     add(`pin rotation ${kind} ${i}`, e.rotation, { own, map, comp, value: 5 });
     add(`pin opacity ${kind} ${i}`, e.opacity, { own, map, comp, value: 80 });
+    // A map whose camera follows this one, a few zoom steps out.
+    const offset = Math.round((random() - 0.5) * 8 * 2) / 2;
+    const follow = followExpressions({ zoomOffset: offset, bearing: true, pitch: true });
+    for (const [control, code] of Object.entries(follow)) add(`follow ${control} ${kind} ${i}`, code!, { own: { Follows: "MAP", "Follow Zoom Offset": offset }, map, comp, value: 0 }, 1e-6);
 
     // The map's furniture reads the same view: a bar that measures itself, and an arrow that finds north.
     const units = i % 2 ? "imperial" : "metric";

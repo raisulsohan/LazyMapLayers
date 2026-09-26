@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **One map's camera follows another's.** In **Map settings**, **Follow the camera of** links a map
+  to another map in the same comp - for split screens, or an overview in the corner some zoom steps
+  out (**Zoom offset**), with or without the other map's turn and tilt. Animate one and both move.
+  A map in another comp gets the camera copied, keys and easing and all.
 - **Street and river names bend along their line.** Inside a downloaded city, the names of streets,
   quays and the river through town now follow the curve of their line instead of standing straight
   across it, and still turn and tilt with the camera and read left to right. A line that turns a

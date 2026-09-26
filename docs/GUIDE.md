@@ -134,6 +134,13 @@ data adds a small credit layer, which the licence asks for.
 
 **Save as GeoJSON**: pins, routes, outlines, callouts and highlighted areas back out as a file.
 
+**A split screen, or an overview in the corner**: with a map's scene open, make a **New map** with
+**Put it into the open comp** ticked. Place and scale the two layers as you like. Select the second map and, in **Map
+settings**, set **Follow the camera of** to the first. Now animate only the first: the second moves
+with it. **Zoom offset** -3 makes it an overview three steps further out; switch off **Tilt** to keep
+it flat under a tilted flight. Give each its own look or basemap and render both. Choosing a map in
+another comp copies its camera instead (choose it again after you change that camera).
+
 **Auto labels**: the names of countries, cities, seas, rivers and mountains over the whole timeline,
 in each place's own language (or one language, with or without an English line under it), as
 editable text layers that never overlap or flicker. **What to name** switches Countries, Cities,

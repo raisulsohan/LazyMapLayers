@@ -5,6 +5,8 @@ import type { JSX } from "preact";
 import { useEffect, useState } from "preact/hooks";
 import { callHost, isInCep } from "../cep.ts";
 import { compSize } from "../preview.ts";
+import { DEFAULT_FOLLOW, type FollowOptions } from "../../core/ae/followExpressions.ts";
+import { followMap } from "../store.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
 import { buildNumbersSample, hostInfo, reportProblem, scriptingOn, setScriptingOn, setUpdatesOn, updatesOn } from "../store.ts";
 import { earthStudioPins, importEarthStudioFile } from "../store.ts";
@@ -226,6 +228,49 @@ export function NewMapScreen(): JSX.Element {
   );
 }
 
+/** Whose camera this map follows: its own, another map's in the same comp (linked), or one in another comp (copied). */
+function FollowSettings(): JSX.Element | null {
+  const entry = selected.value;
+  if (!entry) return null;
+  const others = maps.value.filter((m) => m.mapId !== entry.mapId);
+  const follows = entry.follows ?? null;
+  const options: FollowOptions = follows ? { zoomOffset: follows.zoomOffset, bearing: follows.bearing, pitch: follows.pitch } : DEFAULT_FOLLOW;
+  const change = (next: Partial<FollowOptions>) => follows && void followMap(follows.mapId, { ...options, ...next });
+  return (
+    <>
+      <div class="section-title">Camera</div>
+      <label class="form-field" title="Split screens and an overview beside a close-up: a map in the same comp is linked, so animating it moves both; a map in another comp has its camera copied">
+        <span>Follow the camera of</span>
+        <select data-id="follow-map" disabled={busy.value || !others.length} value={follows?.mapId ?? ""} onChange={(e) => void followMap((e.target as HTMLSelectElement).value || null, options)}>
+          <option value="">its own camera</option>
+          {others.map((m) => (
+            <option key={m.mapId} value={m.mapId}>
+              {m.sceneCompName === entry.sceneCompName ? m.mapCompName : `${m.mapCompName} (copy, in ${m.sceneCompName})`}
+            </option>
+          ))}
+        </select>
+      </label>
+      {!others.length && <div class="muted small">Add a second map to this comp (New map, Put it into the open comp) to follow it.</div>}
+      {follows && (
+        <div class="field-row">
+          <label class="num-field" title="Steps of zoom further out (below 0) or closer in (above 0) than the map it follows">
+            <span>Zoom offset</span>
+            <input type="number" data-id="follow-zoom" step={0.5} min={-12} max={12} value={follows.zoomOffset} disabled={busy.value} onChange={(e) => change({ zoomOffset: Number((e.target as HTMLInputElement).value) || 0 })} />
+          </label>
+          <label class="check">
+            <input type="checkbox" data-id="follow-bearing" checked={follows.bearing} disabled={busy.value} onChange={(e) => change({ bearing: (e.target as HTMLInputElement).checked })} />
+            Turn
+          </label>
+          <label class="check">
+            <input type="checkbox" data-id="follow-pitch" checked={follows.pitch} disabled={busy.value} onChange={(e) => change({ pitch: (e.target as HTMLInputElement).checked })} />
+            Tilt
+          </label>
+        </div>
+      )}
+    </>
+  );
+}
+
 export function SettingsScreen(): JSX.Element {
   const entry = selected.value;
   const [name, setName] = useState(entry?.mapCompName ?? "");
@@ -274,6 +319,7 @@ export function SettingsScreen(): JSX.Element {
           <input type="checkbox" checked={projection.value === "globe"} disabled={busy.value} onChange={(e) => void changeProjection((e.target as HTMLInputElement).checked ? "globe" : "mercator")} />
           Globe
         </label>
+        <FollowSettings />
       </div>
     </div>
   );

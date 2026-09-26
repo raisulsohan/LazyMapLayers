@@ -887,6 +887,30 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D87 — One map's camera follows another's (2026-09-27)
+
+- **Why.** A split screen (the same flight over two looks, two years, satellite and streets), an
+  overview beside a close-up, or several scenes flown by one camera: all need one map to move with
+  another. Keying both by hand drifts apart at the first change.
+- **Linked in one comp.** The follower's five camera controls get expressions that read the
+  leader's through a Layer Control, "Follows" (hard rule 4), with a "Follow Zoom Offset" slider for
+  an overview some steps out (core/ae/followExpressions.ts, host 33-follow.jsx). Turn and tilt
+  follow by choice, so a flat overview can sit beside a tilted flight. Key the leader and both move;
+  the renderer already reads a camera that is an expression as animated, so the follower renders
+  every frame.
+- **Copied across comps.** A Layer Control cannot reach into another comp, and an expression
+  naming a comp breaks when it is renamed, so a leader in another comp has its camera copied: its
+  keys with their easing (interpolation, temporal ease, continuity), or a key per frame where its
+  camera is itself an expression. The log says it is a copy, to make again after a change.
+- **Safe to undo and to stop.** One undo step each way. Stopping takes the expressions and the two
+  effects away, and the follower's own keys, kept under the expressions, come back. A chain of
+  followers that would lead back to the map itself is refused.
+- **Tested.** Unit tests for the expressions and the stored setting; 240 new fixtures run them in
+  the ES3 engine; FO1 links an overview in the corner of a comp to a flight from Dhaka to Delhi two
+  steps out with its own tilt (the same camera at five moments to 1e-4, rendered as animated,
+  refused the other way round, gone cleanly when stopped), copies the flight to a map in another
+  comp with its easing, and copies the follower frame by frame.
+
 ## D86 — Street and river names bend along their line (2026-09-27)
 
 - **Why.** A straight name turned to its street (D78) sits well on a straight boulevard and badly on

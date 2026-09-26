@@ -297,6 +297,7 @@ LML.api.listMaps = function () {
             featureEdits: tag.featureEdits || null,
             keepOut: tag.keepOut || null,
             osmData: tag.osmData === true,
+            follows: tag.follows || null,
             dataFill: tag.dataFill || null,
             look: tag.look || null,
             projection: LML.map.projectionOf(layer),

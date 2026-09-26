@@ -7,6 +7,7 @@ import type { View } from "../core/camera/camera.ts";
 import { fitBounds, fitPoints } from "../core/camera/fit.ts";
 import { importGeoJson } from "../core/data/importLines.ts";
 import { drawnPathsToGeoJson, type DrawnPaths } from "../core/geo/drawnPaths.ts";
+import { DEFAULT_FOLLOW, followExpressions, type FollowOptions } from "../core/ae/followExpressions.ts";
 import type { ImportedArea, ImportedLine, ImportedPlace } from "../core/data/importLines.ts";
 import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { keyOf } from "../core/render/frameKey.ts";
@@ -128,6 +129,8 @@ export type MapEntry = {
   featureEdits?: FeatureEdits | null;
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
+  /** The map whose camera this one follows (host 33-follow.jsx), with how. */
+  follows?: { mapId: string; zoomOffset: number; bearing: boolean; pitch: boolean } | null;
   dataFill?: DataFill | null;
   heat?: { column: string; points: number } | null;
   look?: LookOverride | null;
@@ -879,6 +882,44 @@ export const importDrawing = () =>
     const areas = collection.features.length - lines;
     const parts = [lines ? `${lines} ${lines === 1 ? "line" : "lines"}` : "", areas ? `${areas} ${areas === 1 ? "area" : "areas"}` : ""].filter(Boolean).join(" and ");
     log(`read ${parts} from your drawing where the map is at ${found.time.toFixed(2)} s: Draw makes a route that follows the map, Highlight an area. Your drawing is left as it is; hide or delete it when you are done`, "ok");
+  });
+
+/**
+ * Makes the selected map's camera follow another map's: live when both are in one comp (split
+ * screens, an overview beside a close-up), or a copy of its camera when the other map is in another
+ * comp. Null stops following.
+ */
+export const followMap = (leaderId: string | null, options: FollowOptions = DEFAULT_FOLLOW) =>
+  run("follow", async () => {
+    const list = await readMaps();
+    const entry = list.find((m) => m.mapId === selectedId.value);
+    if (!entry) return;
+    const leader = leaderId ? list.find((m) => m.mapId === leaderId) : null;
+    if (leaderId && !leader) {
+      log("that map is not in the project any more", "fail");
+      return;
+    }
+    if (leader && leader.sceneCompName !== entry.sceneCompName) {
+      const copied = await callHost<{ keys: number; fromName: string }>("copyCamera", { mapId: entry.mapId, fromId: leader.mapId });
+      log(`copied the camera of "${copied.fromName}" (${copied.keys} keys): the two maps are in different comps, so this is a copy - copy again after changing it, or put both maps in one comp to link them`, "ok");
+      await readMaps();
+      return;
+    }
+    const made = await callHost<{ following: string | null; leaderName?: string; expressionErrors?: string[] }>("followMap", {
+      mapId: entry.mapId,
+      leaderId: leader?.mapId ?? null,
+      ...options,
+      expressions: followExpressions(options)
+    });
+    await readMaps();
+    if (!made.following) {
+      log("the map has its own camera again", "ok");
+      return;
+    }
+    const zoom = options.zoomOffset ? `, ${Math.abs(options.zoomOffset)} zoom steps ${options.zoomOffset < 0 ? "further out" : "closer in"}` : "";
+    const keeps = [!options.bearing ? "its own turn" : "", !options.pitch ? "its own tilt" : ""].filter(Boolean).join(" and ");
+    const shots = entry.hasShots ? ". Its own shots no longer move it" : "";
+    log(`the camera follows "${made.leaderName}"${zoom}${keeps ? `, keeping ${keeps}` : ""}: animate that map and both move${shots}`, made.expressionErrors?.length ? "fail" : "ok");
   });
 
 /** Frames a line in the preview, at the current bearing and pitch. */
