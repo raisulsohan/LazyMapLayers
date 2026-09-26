@@ -11,7 +11,9 @@ import { FEATURE_STYLES, featureClassOf, featureGroup, formatElevation, natureGr
 
 import { cityLabelRecords, CITY_DETAIL_ZOOM } from "./cityLabels.ts";
 import { labelStrength, measureLabel, zoomBand, type MeasuredLabel } from "./candidate.ts";
-import { designValues, type LabelDesign } from "./labelDesigns.ts";
+import { designImages, designValues, type LabelDesign } from "./labelDesigns.ts";
+import { imageIndex } from "../../core/labels/designImages.ts";
+import { fs, path } from "../cep.ts";
 import { opacityKeys, placeLabels, type Box, type LabelCandidate } from "../../core/labels/placement.ts";
 import { chooseWithShares } from "../../core/labels/budget.ts";
 import { projectPoint } from "../../core/camera/globe.ts";
@@ -53,6 +55,8 @@ export type AutoLabelOptions = {
   template?: LabelTemplate;
   /** A comp of the user's own, put on every place instead of a plain name. */
   design?: LabelDesign | null;
+  /** The folder each of the design's picture fields takes its pictures from. */
+  designImages?: Record<string, string> | null;
   /**
    * Areas labels must avoid, such as pins and callouts: a box relative to a place (map comp pixels),
    * between two frames.
@@ -221,6 +225,24 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     .sort((a, b) => a.label.candidate.priority - b.label.candidate.priority)
     .slice(0, max);
   const fade = Math.round(info.frameRate * 0.4);
+  // The pictures of a design's picture fields, read once per folder.
+  const pictureFolders: Record<string, string> = {};
+  for (const field of design?.images ?? []) if (options.designImages?.[field]) pictureFolders[field] = options.designImages[field];
+  const indexes = new Map<string, Map<string, string>>();
+  const pictureIndex = (folder: string) => {
+    let index = indexes.get(folder);
+    if (!index) {
+      let files: string[] = [];
+      try {
+        files = fs().readdirSync(folder).map((name: string) => path().join(folder, name));
+      } catch {
+        files = [];
+      }
+      index = imageIndex(files);
+      indexes.set(folder, index);
+    }
+    return index;
+  };
 
   const sampler = samplerFor(options.terrain);
   const elevations = sampler ? await sampler.elevations(kept.map(({ label }) => label.record)) : kept.map(() => 0);
@@ -244,7 +266,7 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
       main: label.main,
       sub: label.sub,
       // A design of the user's own: a copy of their comp per place, with its fields filled in.
-      design: designed ? { compId: designed.compId, anchorX: designed.anchorX, anchorY: designed.anchorY, width: designed.width, height: designed.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle) } : null,
+      design: designed ? { compId: designed.compId, anchorX: designed.anchorX, anchorY: designed.anchorY, width: designed.width, height: designed.height, scale: Math.round(scale * 100), values: designValues(label.record, label.text, label.subtitle), images: designImages(label.record, pictureFolders, pictureIndex) } : null,
       dotStyle: dotStyle(template, scale, nature),
       // A city name keeps where it stands in its tag, so a name placed again later finds it without the tiles.
       place: record.kind === "city" ? { lat: record.lat, lng: record.lng, rank: record.rank, minZoom: record.minZoom, maxZoom: record.maxZoom ?? 22, along: record.along ?? null } : null,

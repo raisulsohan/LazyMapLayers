@@ -39,7 +39,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { chartKind } from "../store.ts";
+import { chartKind, chooseLabelImageFolder, labelImageFolders } from "../store.ts";
 import { addDataYear, changeDataPalette, dataAnimate, dataIsCategory, dataPalette, dataSeriesShape } from "../store.ts";
 import { CATEGORY_PALETTES, type CategoryPaletteId } from "../../core/style/categories.ts";
 import { isCategoryColumn } from "../../core/data/dataTable.ts";
@@ -1508,7 +1508,17 @@ export function LabelsSheetView(): JSX.Element | null {
         </button>
       </div>
       {currentLabelDesign.value ? (
-        <div class="muted small">It fills {currentLabelDesign.value.fields.map((field) => `{${field}}`).join(", ")}. Other fields you can use: {"{name} {english} {country} {countryName} {region} {population} {populationShort} {capital} {lat} {lng}"}. A layer called "Anchor" marks where the place sits.</div>
+        <>
+          <div class="muted small">It fills {currentLabelDesign.value.fields.map((field) => `{${field}}`).join(", ") || "no text fields"}. Other fields you can use: {"{name} {english} {country} {countryName} {region} {population} {populationShort} {capital} {lat} {lng}"}. A layer called "Anchor" marks where the place sits. A picture layer named like {"{flag}"} takes a picture per place from a folder.</div>
+          {(currentLabelDesign.value.images ?? []).map((field) => (
+            <div class="sheet-row" key={field}>
+              <button class="small-button" data-id={`label-images-${field}`} disabled={busy.value} title={`A folder of pictures named by country code (BGD.png, BD.png) or by name (Bangladesh.png): each place gets its own; a city with none takes its country's`} onClick={() => void chooseLabelImageFolder(field)}>
+                Pictures for {`{${field}}`}…
+              </button>
+              <span class="grow small muted">{labelImageFolders.value[field] ?? "no folder yet"}</span>
+            </div>
+          ))}
+        </>
       ) : (
         <div class="muted small">Design a comp with text layers like {"{name}"} or {"Pop. {populationShort}"}, then pick it here and place the names again.</div>
       )}

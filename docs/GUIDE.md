@@ -120,8 +120,10 @@ and its height. Over a downloaded area the names inside it come from its own dat
 parks, landmarks, stations, the river through town and the main streets, with street and river names
 laid along their line and turning with the camera. **Your own design** puts a comp you made on every place instead: draw a box, an icon, a
 rule, and give its text layers fields like `{name}` or `Pop. {populationShort}`; a layer called
-**Anchor** marks where the place sits. The panel fills the fields per place and places the copies
-with the same collision rules. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
+**Anchor** marks where the place sits. A picture layer named like `{flag}` takes a picture per place
+from a folder you choose (**Pictures for {flag}…**), found by country code or name and fitted to the
+placeholder. The panel fills the fields per place and places the copies with the same collision
+rules. **Few / Normal / Many** sets how many. **How the names look** sets colour, size, halo,
 capitals for countries, and dots for cities, or takes them **From the selected text layer** you
 styled yourself; a change restyles the names already on the map and places them again, so bigger
 names step apart instead of overlapping (one that no longer fits anywhere fades out, and the log

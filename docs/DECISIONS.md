@@ -887,7 +887,27 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D80 — Line and area charts that follow the map through the years (2026-09-26)
+## D81 — Pictures in a label design of the user's own (2026-09-26)
+
+- **Why.** A label design (D64) could fill text fields only. The most common designed label on a news
+  map carries a picture per place: a flag beside each country, a logo per office, a photo per stop.
+- **Decision.** In the design comp, any layer that is not text and whose whole name is a field, like
+  `{flag}` or `{photo}`, is a picture field. The Labels sheet shows **Pictures for {flag}…** for each
+  one; the folder chosen is kept with the map. Place by place, Auto labels finds the picture by the
+  place's codes first (BGD, BD) and its names after (Bangladesh, "Bangladesh flag", accents, case and
+  punctuation ignored; src/core/labels/designImages.ts), and a city with no picture of its own takes
+  its country's, so a city's label can wear its country's flag. Nothing is bundled or downloaded:
+  flags, logos and photos come from the user.
+- **In the copy.** The picture replaces the placeholder's source, fitted into the box the placeholder
+  takes and keeping its own shape; a place with no picture has the layer switched off. A picture is
+  imported once however many labels show it. After Effects renames a layer to its new source when it
+  took its name from the old one, so the field's name is put back on the layer.
+- **Tested.** Unit tests for the file keys, codes before names, a picture that is not an image, and
+  the fit. LD2 in After Effects: a design with {name} and a {flag} solid, flags named BGD.png, in.png
+  and "Nepal flag.png", and each of India, Bangladesh and Nepal wearing its own at 30 % (300 x 200 in
+  a 100 x 60 box), every other country with the layer off, three footage items for three flags.
+
+
 
 - **Why.** The only chart was a bar per place for one set of numbers. Numbers over the years (D79)
   are shown as lines: a line chart beside the map is the usual companion of a map that moves

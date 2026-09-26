@@ -260,6 +260,15 @@ LML.labels.move = function (args) {
  */
 LML.labels.FIELD = /\{[a-zA-Z_]+\}/g;
 
+/** A picture field: a layer of any kind but text whose whole name is {field}. */
+LML.labels.IMAGE_FIELD = /^\{([a-zA-Z_]+)\}$/;
+
+LML.labels.imageFieldOf = function (layer) {
+    if (layer.property("ADBE Text Properties")) return null;
+    var match = layer.name.match(LML.labels.IMAGE_FIELD);
+    return match ? match[1] : null;
+};
+
 /** The anchor inside a design: the position of a layer called "Anchor", else the comp's centre. */
 LML.labels.designAnchor = function (comp) {
     for (var i = 1; i <= comp.numLayers; i++) {
@@ -293,9 +302,17 @@ LML.api.listLabelDesigns = function () {
                 fields.push(name);
             }
         }
-        if (!fields.length) continue;
+        var images = [];
+        for (var m = 1; m <= item.numLayers; m++) {
+            var field = LML.labels.imageFieldOf(item.layer(m));
+            if (field && !seen["image:" + field]) {
+                seen["image:" + field] = true;
+                images.push(field);
+            }
+        }
+        if (!fields.length && !images.length) continue;
         var anchor = LML.labels.designAnchor(item);
-        out.push({ compId: item.id, name: item.name, width: item.width, height: item.height, anchorX: anchor[0], anchorY: anchor[1], fields: fields });
+        out.push({ compId: item.id, name: item.name, width: item.width, height: item.height, anchorX: anchor[0], anchorY: anchor[1], fields: fields, images: images });
     }
     return out;
 };
@@ -314,7 +331,52 @@ LML.labels.designFolder = function () {
  * A copy of the design with its fields filled in. values: { name: "Dhaka", population: "8.9 M", ... }
  * A text layer's whole source text is kept, so "Pop. {population}" reads "Pop. 8.9 M".
  */
-LML.labels.fillDesign = function (design, values, label) {
+/** A picture as footage, imported once however many labels show it. */
+LML.labels.imageFootage = function (path) {
+    var wanted = new File(path);
+    if (!wanted.exists) return null;
+    var name = wanted.fsName.toLowerCase();
+    for (var i = 1; i <= app.project.numItems; i++) {
+        var item = app.project.item(i);
+        if (item instanceof FootageItem && item.mainSource && item.mainSource.file && item.mainSource.file.fsName.toLowerCase() === name) return item;
+    }
+    var footage = app.project.importFile(new ImportOptions(wanted));
+    footage.parentFolder = LML.labels.designFolder();
+    return footage;
+};
+
+/**
+ * Puts each place's picture into the design's {field} layers, fitted into the box the placeholder
+ * takes and keeping its shape; a field with no picture for this place is switched off.
+ */
+LML.labels.fillImages = function (comp, images) {
+    for (var i = 1; i <= comp.numLayers; i++) {
+        var layer = comp.layer(i);
+        var field = LML.labels.imageFieldOf(layer);
+        if (!field) continue;
+        var path = images && images.hasOwnProperty(field) ? images[field] : null;
+        var footage = path ? LML.labels.imageFootage(path) : null;
+        if (!footage || !layer.source) {
+            layer.enabled = false;
+            continue;
+        }
+        var scale = layer.property("ADBE Transform Group").property("ADBE Scale");
+        var old = scale.value;
+        var boxW = layer.source.width * Math.abs(old[0]) / 100;
+        var boxH = layer.source.height * Math.abs(old[1]) / 100;
+        // Replacing a source renames a layer that took its name from it; the field keeps its name.
+        var fieldName = layer.name;
+        layer.replaceSource(footage, false);
+        layer.name = fieldName;
+        var fit = Math.min(boxW / footage.width, boxH / footage.height) * 100;
+        var next = [fit * (old[0] < 0 ? -1 : 1), fit * (old[1] < 0 ? -1 : 1)];
+        if (old.length > 2) next.push(old[2]);
+        if (scale.numKeys === 0) scale.setValue(next);
+        layer.enabled = true;
+    }
+};
+
+LML.labels.fillDesign = function (design, values, label, images) {
     var copy = design.duplicate();
     copy.name = "Label: " + label;
     copy.parentFolder = LML.labels.designFolder();
@@ -340,6 +402,7 @@ LML.labels.fillDesign = function (design, values, label) {
         doc.text = filled + rest;
         prop.property("ADBE Text Document").setValue(doc);
     }
+    LML.labels.fillImages(copy, images || {});
     return copy;
 };
 
@@ -432,7 +495,7 @@ LML.labels.addLabels = function (args) {
             // A design of the user's own: a copy of their comp, its fields filled, on the place.
             var design = LML.tag.findItemById(spec.design.compId);
             if (!design) throw LML.util.error("DESIGN_GONE", "The label design comp is not in this project any more");
-            main = scene.layers.add(LML.labels.fillDesign(design, spec.design.values, spec.name));
+            main = scene.layers.add(LML.labels.fillDesign(design, spec.design.values, spec.name, spec.design.images || {}));
             main.anchorPoint.setValue([spec.design.anchorX, spec.design.anchorY, 0]);
             if (spec.design.scale && spec.design.scale !== 100) main.property("ADBE Transform Group").property("ADBE Scale").setValue([spec.design.scale, spec.design.scale, 100]);
         } else {

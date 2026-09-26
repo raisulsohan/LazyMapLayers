@@ -6,6 +6,7 @@ import { formatShort } from "../../core/style/valueScale.ts";
 import type { PlaceRecord } from "../../core/search/placeSearch.ts";
 import { callHost } from "../cep.ts";
 import { countryCodeRows } from "../data/countries.ts";
+import { imageFor } from "../../core/labels/designImages.ts";
 
 export type LabelDesign = {
   compId: number;
@@ -17,7 +18,29 @@ export type LabelDesign = {
   anchorY: number;
   /** The fields its text layers ask for, as written between braces. */
   fields: string[];
+  /** Its picture fields: layers named {flag}, {logo} and the like. */
+  images?: string[];
 };
+
+/**
+ * The picture of each of a design's picture fields for one place, from the folder chosen for that
+ * field. A place is looked up by its own codes and names; a city with no picture of its own takes
+ * its country's (a city's label can wear its country's flag).
+ */
+export function designImages(record: PlaceRecord, folders: Record<string, string>, indexOf: (folder: string) => Map<string, string>): Record<string, string> {
+  const out: Record<string, string> = {};
+  const country = countryCodeRows().find((row) => row.code === record.country);
+  const countryCodes = [record.country, country?.iso3, country?.iso2];
+  const countryNames = country?.names ?? [];
+  const ownNames = [record.names.en, ...Object.values(record.names)];
+  for (const [field, folder] of Object.entries(folders)) {
+    if (!folder) continue;
+    const index = indexOf(folder);
+    const hit = record.kind === "country" ? imageFor(index, countryCodes, [...ownNames, ...countryNames]) : imageFor(index, [], ownNames) ?? imageFor(index, countryCodes, countryNames);
+    if (hit) out[field] = hit;
+  }
+  return out;
+}
 
 /** Every comp of the user's own that a label can be made from. */
 export const labelDesigns = () => callHost<LabelDesign[]>("listLabelDesigns");

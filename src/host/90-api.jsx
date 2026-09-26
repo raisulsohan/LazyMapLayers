@@ -201,6 +201,7 @@ LML.api.setMapSettings = function (args) {
     if (args.layerStyle !== undefined) tag.layerStyle = args.layerStyle;
     if (args.labelTemplate !== undefined) tag.labelTemplate = args.labelTemplate;
     if (args.labelDesign !== undefined) tag.labelDesign = args.labelDesign;
+    if (args.labelImages !== undefined) tag.labelImages = args.labelImages;
     if (args.keepOut !== undefined) tag.keepOut = args.keepOut;
     if (args.osmData !== undefined) tag.osmData = args.osmData;
     if (args.dataFill !== undefined) tag.dataFill = args.dataFill;
@@ -291,6 +292,7 @@ LML.api.listMaps = function () {
             highlightLayers: tag.highlightLayers === "one" ? "one" : "each",
             layerStyle: tag.layerStyle || null,
             labelTemplate: tag.labelTemplate || null,
+            labelImages: tag.labelImages || null,
             keepOut: tag.keepOut || null,
             osmData: tag.osmData === true,
             dataFill: tag.dataFill || null,
@@ -409,3 +411,9 @@ LML.devQuitNow = function () {
 };
 
 LML.loaded = true;
+
+/** A folder the user chooses, or null. args: { prompt } */
+LML.api.pickFolder = function (args) {
+    var folder = Folder.selectDialog((args && args.prompt) || "Choose a folder");
+    return folder ? folder.fsName : null;
+};

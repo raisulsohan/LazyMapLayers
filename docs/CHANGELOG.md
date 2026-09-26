@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Pictures in your own label design.** Name a layer of your design comp like `{flag}` and choose a
+  folder of pictures: every country gets its own flag (found by code or by name, so BGD.png, BD.png
+  and Bangladesh.png all work), fitted into the placeholder's box, and a city can wear its
+  country's. The same works for logos, photos, anything.
 - **Line and area charts over the years.** For a table with years, **Add chart** can draw a line or
   a filled area per place instead of bars: they grow with the map, year by year, with each place's
   name and value riding the end of its line, and they follow the map's Data Time slider however you

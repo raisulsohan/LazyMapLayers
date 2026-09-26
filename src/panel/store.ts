@@ -123,6 +123,7 @@ export type MapEntry = {
   layerStyle?: LayerStyleOverride | null;
   labelTemplate?: LabelTemplateOverride | null;
   labelDesign?: number | null;
+  labelImages?: Record<string, string> | null;
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
   dataFill?: DataFill | null;
@@ -253,6 +254,27 @@ export const toggleLabelKind = (kind: LabelKind) => {
 /** A comp of the user's own put on every place instead of a plain name, and the comps to choose from. */
 export const labelDesignId = signal<number | null>(null);
 export const labelDesignList = signal<LabelDesign[]>([]);
+/** The folder each picture field of the design takes its pictures from, kept with the map. */
+export const labelImageFolders = signal<Record<string, string>>({});
+
+/** Chooses the folder a picture field ({flag}, {logo}) takes its pictures from. */
+export const chooseLabelImageFolder = (field: string) =>
+  run("label pictures", async () => {
+    const folder = await callHost<string | null>("pickFolder", { prompt: `Pictures for {${field}}: a folder of images named by country code or name` });
+    if (!folder) return;
+    labelImageFolders.value = { ...labelImageFolders.value, [field]: folder };
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, labelImages: labelImageFolders.value });
+      await readMaps();
+    }
+    let count = 0;
+    try {
+      count = nodeFs().readdirSync(folder).filter((name: string) => /\.(png|jpe?g|tiff?|psd|ai|gif|bmp|tga|exr)$/i.test(name)).length;
+    } catch {
+      count = 0;
+    }
+    log(`{${field}} takes its pictures from ${folder} (${count} pictures). Place the names again to use them`, count ? "ok" : "fail");
+  });
 export const currentLabelDesign = computed(() => labelDesignList.value.find((design) => design.compId === labelDesignId.value) ?? null);
 
 /** Reads the project's comps again: any comp with a {field} in a text layer can be a label. */
@@ -366,6 +388,7 @@ function showMap(entry: MapEntry): void {
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
   labelDesignId.value = typeof entry.labelDesign === "number" ? entry.labelDesign : null;
+  labelImageFolders.value = entry.labelImages && typeof entry.labelImages === "object" ? (entry.labelImages as Record<string, string>) : {};
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
   dataFill.value = normaliseDataFill(entry.dataFill);
@@ -1391,6 +1414,7 @@ export const runAutoLabels = () =>
       terrain: terrain.value,
       template: currentLabelTemplate.value,
       design: currentLabelDesign.value,
+      designImages: labelImageFolders.value,
       zones: keepOut.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
