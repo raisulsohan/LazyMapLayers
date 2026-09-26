@@ -887,7 +887,31 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D82 — Streets, addresses and landmarks searched on OpenStreetMap (2026-09-26)
+## D83 — A polygon clipper for Cut out, and feature properties that can be edited (2026-09-26)
+
+- **Why.** Two known limits of the feature browser (D69): Cut out only worked when the shape taken
+  away lay wholly inside, and properties could be read, filtered and sorted but not changed.
+- **The clipper.** polyclip-ts (MIT), a TypeScript port of the Martinez-Rueda polygon clipping
+  algorithm, is now a direct dependency. It was already in the bundle: @turf/union, approved for
+  Merge, is built on it. Cut out keeps the exact path for a part wholly inside (a hole of the polygon
+  it sits in, point for point) and clips a part that crosses the edge, taking away only the overlap;
+  the area can fall into pieces, and the log says how many holes, how many clips, how many shapes
+  did not touch, and into how many pieces it fell. A part that covers everything is refused, not made
+  into an empty area.
+- **Edits.** Every row of the browser has **Edit**: its name and every property as a field, a field to
+  add one ("status: sold"), and **As it came**. A value that reads as a number becomes one; an empty
+  value takes the property away. The edits are kept with the map as a layer over the data
+  (applyFeatureEdits in src/core/data/featureList.ts), so the data a feature came from is never
+  changed, and the filter, the sort and the names of highlights, shapes and labels made from it see
+  the edits.
+- **Tested.** Unit tests: a half overlap takes away exactly the overlap, a band across a square leaves
+  two pieces, a hole and a clip in one cut; typed values, an edit touching one property of one row,
+  a rename, a property taken away, the rows themselves unchanged, and a filter that sees the edit.
+  FB1 clips the western half off a real country's outline and finds nothing left west of the cut.
+  U1 adds "status: sold" to Luxembourg through the real panel and finds it with the filter
+  status = sold.
+
+
 
 - **Why.** The search knew countries, provinces, cities, districts and (D77) the natural world, all
   offline. A street, an address, a building or a small landmark was out of its reach, and a city map

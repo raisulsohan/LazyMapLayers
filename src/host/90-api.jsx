@@ -202,6 +202,7 @@ LML.api.setMapSettings = function (args) {
     if (args.labelTemplate !== undefined) tag.labelTemplate = args.labelTemplate;
     if (args.labelDesign !== undefined) tag.labelDesign = args.labelDesign;
     if (args.labelImages !== undefined) tag.labelImages = args.labelImages;
+    if (args.featureEdits !== undefined) tag.featureEdits = args.featureEdits;
     if (args.keepOut !== undefined) tag.keepOut = args.keepOut;
     if (args.osmData !== undefined) tag.osmData = args.osmData;
     if (args.dataFill !== undefined) tag.dataFill = args.dataFill;
@@ -293,6 +294,7 @@ LML.api.listMaps = function () {
             layerStyle: tag.layerStyle || null,
             labelTemplate: tag.labelTemplate || null,
             labelImages: tag.labelImages || null,
+            featureEdits: tag.featureEdits || null,
             keepOut: tag.keepOut || null,
             osmData: tag.osmData === true,
             dataFill: tag.dataFill || null,

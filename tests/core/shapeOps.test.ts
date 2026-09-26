@@ -40,10 +40,25 @@ test("one area is cut out of another as a hole, and a shape that sits outside is
   assert.equal(missed.cut, 0);
   assert.equal(missed.outside, 1);
   assert.deepEqual(missed.polygons, big);
-  // A shape that only half overlaps is left alone too.
+  // A shape that only half overlaps is clipped: only the overlap goes.
   const half = cutHole(big, [[square(8, 8, 4)]]);
-  assert.equal(half.cut, 0);
-  assert.equal(half.outside, 1);
+  assert.equal(half.cut, 1);
+  assert.equal(half.clipped, 1);
+  assert.equal(half.outside, 0);
+  const overlap = areaKm2([[square(8, 8, 2)]]);
+  assert.ok(Math.abs(areaKm2(half.polygons) - (areaKm2(big) - overlap)) < areaKm2(big) * 0.002, "the overlap, and no more, is taken away");
+});
+
+test("a band across an area cuts it in two, and a hole and a clip can come in one cut", () => {
+  // A 10 x 10 square with a band 2 wide right across it: two pieces are left.
+  const band = [[[[4, -1], [6, -1], [6, 11], [4, 11], [4, -1]]]];
+  const split = cutHole(big, band);
+  assert.equal(split.clipped, 1);
+  assert.equal(split.polygons.length, 2, "the square falls into two pieces");
+  const both = cutHole(big, [small[0], [square(8, 8, 4)]]);
+  assert.equal(both.cut, 2);
+  assert.equal(both.clipped, 1);
+  assert.ok(areaKm2(both.polygons) < areaKm2(big) - areaKm2(small));
 });
 
 test("the points inside an area are the ones a polygon really holds", () => {

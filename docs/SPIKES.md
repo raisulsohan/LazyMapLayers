@@ -38,7 +38,7 @@ that go online run only when they are named.
 | HT1 | Heat: weighted points rendered as their own pass, warm at the points, nothing away from them, the heaviest the warmest, the layer named after the column, and a three-step legend | PASS |
 | LK1 | A look of your own in the rendered pixels (sea 58,13,82 for #3a0d52), and a look from a picture | PASS |
 | MF1 | The map's furniture: a scale bar that measures itself every frame, a north arrow that turns with the map, a graticule | PASS |
-| FB1 | The feature browser: what is under the view, listed and searched, and turned into pins, names, highlights or shape layers | PASS |
+| FB1 | The feature browser: what is under the view, listed and searched, and turned into pins, names, highlights or shape layers; half a real country clipped off with nothing left west of the cut | PASS |
 | ES1 | A Google Earth Studio camera read from its exported numbers: 256 orientations round-tripped, the comp built to the render's size, length and frame rate, track points placed as pins | PASS |
 | WB1 | Cities and roads fill zooms 7 to 9: 36.5 %, 52.9 % and 66.3 % of the frame against 10.0 % at zoom 5, and gone by 11 | PASS |
 | LB4 | Names of the natural world from the Bay of Bengal to Everest: italic water names in the water colour, ranges in spaced capitals, Everest with a triangle and 8,848 m, local-language names with an English line, Bengali upright and shaped | PASS |

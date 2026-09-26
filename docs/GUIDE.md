@@ -3,6 +3,22 @@
 Everything the panel does, sheet by sheet, with a few things to make step by step. The README has the
 install and a first flight; this is the rest.
 
+## Start here: a map in five minutes
+
+1. **Maps** (the list icon) > **Build the world flight sample**. A scene appears in After Effects with
+   a globe, borders drawing on, a flight to Paris and a route to Tokyo.
+2. In the panel, **Preview**. The basemap renders at half size in a few seconds; scrub the timeline.
+3. The **names**: open the Labels sheet (the text icon), keep **Countries, Cities, Seas and rivers,
+   Mountains and deserts** on, **Place labels**. Every name is an ordinary text layer.
+4. Your **own place**: type a city or a street in the search box (for a street, **Search
+   OpenStreetMap**), then the pin button beside the result.
+5. **Render** for full quality. The comp holds one footage item per pass; the pins, the route and the
+   names stay editable.
+
+Next: download the area you are working in (**Download this area…**) for its streets, buildings and
+the names inside it; colour the map with a table of numbers (the Numbers sheet); or plan the camera
+move shot by shot (the Shots tab).
+
 ## How the panel thinks
 
 A **map** is a comp that draws the basemap, with five camera controls on its layer: latitude,
@@ -189,8 +205,10 @@ Tick what you want, then:
 
 - **Highlight** them all, **Shape layers** for editable outlines, **Merge** into one area.
 - **Break apart** splits one outline into its parts, largest first.
-- **Cut out** takes the other ticked shapes out of the first as holes (each has to lie wholly
-  inside it).
+- **Cut out** takes the other ticked shapes out of the first: a shape inside becomes a hole, a shape
+  across its edge is clipped off, and the first one may fall into pieces.
+- **Edit** on a row changes its name or any property, adds your own (`status: sold`) and takes others
+  away; filters, sorting and what you make from it see the change. **As it came** undoes it.
 - **Count points** counts the imported points inside each one, as a property called `inside` you
   can sort or filter on.
 - **Connect** draws a line between them all, or only between the **nearest** neighbours you ask
@@ -360,11 +378,6 @@ your end titles.
 
 ## What it does not do yet
 
-- **Cut out** only works when the shape being taken away lies wholly inside the one it comes out
-  of. A shape that half overlaps is counted and left alone rather than cut wrongly; a full polygon
-  clipper is not part of the panel yet.
-- Feature properties can be searched, filtered and sorted, but not edited. Rename the layers in
-  After Effects instead.
 - Everything here is tested on Windows. macOS should work the same way; it has not been run
   through yet.
 

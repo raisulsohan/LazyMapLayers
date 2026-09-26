@@ -118,3 +118,45 @@ export function filterFeatures(rows: FeatureRow[], query: FeatureQuery = {}): { 
   const limit = Math.max(1, Math.min(MAX_FEATURE_ROWS, query.limit ?? MAX_FEATURE_ROWS));
   return { rows: kept.slice(0, limit), total: kept.length, hidden: Math.max(0, kept.length - limit) };
 }
+
+/**
+ * What the user changed about features, kept apart from the data they came from: per feature, the
+ * properties set or changed (a value) and the ones taken away (null). "name" renames the feature.
+ */
+export type FeatureEdits = Record<string, Record<string, string | number | null>>;
+
+/** A value as it is typed: a number when it reads as one, text otherwise. */
+export function typedValue(text: string): string | number {
+  const trimmed = text.trim();
+  if (/^[+-]?(\d+(\.\d*)?|\.\d+)(e[+-]?\d+)?$/i.test(trimmed)) return Number(trimmed);
+  return trimmed;
+}
+
+/** One property of one feature changed (or taken away with null); nothing else is touched. */
+export function editFeature(edits: FeatureEdits, rowId: string, key: string, value: string | number | null): FeatureEdits {
+  const k = key.trim();
+  if (!k) return edits;
+  const own = { ...(edits[rowId] ?? {}) };
+  own[k] = typeof value === "string" ? value.trim() : value;
+  return { ...edits, [rowId]: own };
+}
+
+/** The rows with the user's changes on top: renamed, properties set, properties taken away. */
+export function applyFeatureEdits(rows: FeatureRow[], edits: FeatureEdits | null | undefined): FeatureRow[] {
+  if (!edits || !Object.keys(edits).length) return rows;
+  return rows.map((row) => {
+    const own = edits[row.id];
+    if (!own) return row;
+    const props = { ...row.props };
+    let name = row.name;
+    for (const [key, value] of Object.entries(own)) {
+      if (key === "name") {
+        if (typeof value === "string" && value) name = value;
+        continue;
+      }
+      if (value === null || value === "") delete props[key];
+      else props[key] = value;
+    }
+    return { ...row, name, props };
+  });
+}

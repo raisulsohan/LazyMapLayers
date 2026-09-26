@@ -209,6 +209,7 @@ These need a one-time install, with Sohan's permission:
 - `@tmcw/togeojson` (BSD-2)
 - `shpjs` (MIT)
 - `fflate` (MIT)
+- `polyclip-ts` (MIT), the polygon clipper @turf/union is built on, used directly by Cut out (D83)
 
 Dev only: `typescript`, `esbuild`.
 

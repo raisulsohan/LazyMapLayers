@@ -6,6 +6,7 @@
 import { areaKm2, cleanPolygons, centreOf, type Polygons } from "./combine.ts";
 import { distanceMeters, greatCircle, type RoutePoint } from "./greatCircle.ts";
 import { pointInPolygons } from "./pointInPolygon.ts";
+import { difference, intersection } from "polyclip-ts";
 
 export type LngLat = { lat: number; lng: number };
 
@@ -29,32 +30,52 @@ function ringInside(ring: number[][], polygons: Polygons): boolean {
   return ring.every((point) => pointInPolygons({ lng: point[0], lat: point[1] }, polygons));
 }
 
-export type Cut = { polygons: Polygons; cut: number; outside: number };
+export type Cut = {
+  polygons: Polygons;
+  /** Parts taken away: as a hole when they lay wholly inside, clipped when they overlapped an edge. */
+  cut: number;
+  /** Of those, the ones that crossed an edge and were clipped. */
+  clipped: number;
+  /** Parts that did not touch the area at all: nothing to take away. */
+  outside: number;
+};
 
 /**
- * One area cut out of another, as a hole.
+ * One area taken out of another: a lake out of a country, an enclave out of a state, the sea out of
+ * a coastal district, one country out of a region it shares a border with.
  *
- * This is the case a map needs: a lake out of a country, an enclave out of a state, a park out of a
- * district - where the shape being taken away lies wholly inside the one it comes out of. A shape
- * that only partly overlaps is counted in `outside` and left alone, because cutting it would need a
- * clipper the panel does not carry (docs/PLAN.md, known limitations).
+ * A part wholly inside the area becomes a hole of the polygon it sits in, exactly as it is. A part
+ * that crosses the area's edge is clipped with a polygon clipper (polyclip-ts, DECISIONS D83), which
+ * takes away only the overlap and can split the area into pieces. A part that does not touch the area
+ * at all is counted and left alone.
  */
 export function cutHole(outer: Polygons, inner: Polygons): Cut {
-  const base = cleanPolygons(outer).map((polygon) => polygon.map((ring) => ring.map((point) => [point[0], point[1]])));
+  let base = cleanPolygons(outer).map((polygon) => polygon.map((ring) => ring.map((point) => [point[0], point[1]])));
   const parts = cleanPolygons(inner);
   let cut = 0;
+  let clipped = 0;
   let outside = 0;
+  const crossing: Polygons = [];
   for (const part of parts) {
     const ring = part[0];
     const host = base.findIndex((polygon) => ringInside(ring, [polygon]));
-    if (host < 0) {
+    // Inside, and clear of the holes already there: a hole of its own, point for point.
+    if (host >= 0 && !base[host].slice(1).some((hole) => ring.some((point) => pointInPolygons({ lng: point[0], lat: point[1] }, [[hole]])))) {
+      base[host].push(ring.map((point) => [point[0], point[1]]));
+      cut++;
+      continue;
+    }
+    const overlap = base.length ? intersection(base as never, [part] as never) : [];
+    if (!overlap.length) {
       outside++;
       continue;
     }
-    base[host].push(ring.map((point) => [point[0], point[1]]));
+    crossing.push(part);
     cut++;
+    clipped++;
   }
-  return { polygons: base, cut, outside };
+  if (crossing.length) base = cleanPolygons(difference(base as never, crossing as never) as unknown as Polygons);
+  return { polygons: base, cut, clipped, outside };
 }
 
 /** The points that fall inside an area, by their place in the list. */

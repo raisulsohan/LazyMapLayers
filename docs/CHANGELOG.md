@@ -2,6 +2,10 @@
 
 ## Unreleased
 
+- **Cut out takes away any overlap.** A shape that crosses the edge of the one it is cut from is now
+  clipped off, not left alone, and the area can fall into pieces.
+- **Edit a feature's name and properties.** In the feature browser, **Edit** on a row changes its name
+  or any property, adds your own and takes others away. The file it came from is never changed.
 - **Search streets, addresses and landmarks.** When the offline list does not know a place, the search
   can ask OpenStreetMap: **Search OpenStreetMap for "…"** at the end of the list (or Enter when nothing
   matched). Only what you typed is sent, only when you ask, and answers are kept, so the same search

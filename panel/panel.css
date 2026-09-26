@@ -1012,3 +1012,18 @@ select.compact {
   overflow: hidden;
   text-overflow: ellipsis;
 }
+
+/* A feature's name and properties, open for editing under its row. */
+.feature-editor {
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  margin: 4px 0 6px;
+  padding: 6px 8px;
+  border-left: 2px solid var(--accent);
+  background: var(--surface-2, rgba(127, 127, 127, 0.08));
+}
+
+.feature-editor .num-field span:first-child {
+  min-width: 64px;
+}

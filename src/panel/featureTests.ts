@@ -78,6 +78,28 @@ export async function runFeatureTest(log: SpikeLog): Promise<Record<string, unkn
   const inside = pointsInside(cut.polygons, dots);
   if (inside.join() !== "0") problems.push(`the points inside came back as ${JSON.stringify(inside)}`);
 
+  // A real outline with a box over its western half: only the overlap goes (a polygon clipper).
+  if (outline && outline.length) {
+    let west = Infinity;
+    let east = -Infinity;
+    let south = Infinity;
+    let north = -Infinity;
+    for (const polygon of outline) for (const [lng, lat] of polygon[0]) {
+      west = Math.min(west, lng);
+      east = Math.max(east, lng);
+      south = Math.min(south, lat);
+      north = Math.max(north, lat);
+    }
+    const middle = (west + east) / 2;
+    const box = [[[[west - 1, south - 1], [middle, south - 1], [middle, north + 1], [west - 1, north + 1], [west - 1, south - 1]]]];
+    const clipped = cutHole(outline, box);
+    const before = areaKm2(outline);
+    const after = areaKm2(clipped.polygons);
+    if (clipped.clipped !== 1 || !(after > before * 0.05 && after < before * 0.95)) problems.push(`half of ${islands?.name ?? "the outline"} clipped away left ${Math.round(after)} of ${Math.round(before)} km2 (clipped ${clipped.clipped})`);
+    const leftWest = clipped.polygons.every((polygon) => polygon[0].every(([lng]) => lng >= middle - 1e-6));
+    if (!leftWest) problems.push("the clip left land west of the cut");
+  }
+
   // The mesh: a line between every pair of four capitals, as route layers that follow the map.
   const places = ["France", "Spain", "Italy", "Germany"]
     .map((name) => rows.find((row) => row.name === name))

@@ -64,7 +64,7 @@ import { addBubbles, removeBubbles } from "./overlays/bubbles.ts";
 import { addSpikes, removeSpikes } from "./overlays/spikes.ts";
 import { addChart, addLineChart, removeChart } from "./overlays/chart.ts";
 import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap, type FurnitureKind } from "./overlays/furniture.ts";
-import { featureKeys, filterFeatures, parseFilter, type FeatureRow } from "../core/data/featureList.ts";
+import { featureKeys, filterFeatures, parseFilter, type FeatureRow, applyFeatureEdits, editFeature, typedValue, type FeatureEdits } from "../core/data/featureList.ts";
 import { featureCentre, featurePolygons, featureRows, type FeatureScope, type FeatureSources } from "./features.ts";
 import { cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
 import { addMesh } from "./overlays/mesh.ts";
@@ -124,6 +124,7 @@ export type MapEntry = {
   labelTemplate?: LabelTemplateOverride | null;
   labelDesign?: number | null;
   labelImages?: Record<string, string> | null;
+  featureEdits?: FeatureEdits | null;
   keepOut?: KeepOutZone[] | null;
   osmData?: boolean;
   dataFill?: DataFill | null;
@@ -389,6 +390,7 @@ function showMap(entry: MapEntry): void {
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
   labelDesignId.value = typeof entry.labelDesign === "number" ? entry.labelDesign : null;
   labelImageFolders.value = entry.labelImages && typeof entry.labelImages === "object" ? (entry.labelImages as Record<string, string>) : {};
+  featureEdits.value = entry.featureEdits && typeof entry.featureEdits === "object" ? (entry.featureEdits as FeatureEdits) : {};
   keepOut.value = normaliseKeepOut(entry.keepOut);
   osmData.value = entry.osmData === true;
   dataFill.value = normaliseDataFill(entry.dataFill);
@@ -1682,6 +1684,39 @@ export const featureText = signal("");
 export const featureFilterText = signal("");
 export const featureSort = signal<{ key: string; descending: boolean } | null>(null);
 export const featurePicks = signal<string[]>([]);
+/** What the user changed about features, kept with the map (core/data/featureList.ts). */
+export const featureEdits = signal<FeatureEdits>({});
+/** The row whose properties are open for editing. */
+export const featureEditing = signal<string | null>(null);
+
+async function saveFeatureEdits(next: FeatureEdits): Promise<void> {
+  featureEdits.value = next;
+  if (selectedId.value) {
+    await callHost("setMapSettings", { mapId: selectedId.value, featureEdits: next });
+    await readMaps();
+  }
+}
+
+/** Sets a property of a feature (a number when it reads as one); an empty value takes it away. */
+export const setFeatureProperty = (rowId: string, key: string, text: string) =>
+  run("features", async () => {
+    await saveFeatureEdits(editFeature(featureEdits.value, rowId, key, text.trim() === "" ? null : typedValue(text)));
+  });
+
+/** Renames a feature: the name its highlights, shapes and labels will carry. */
+export const renameFeature = (rowId: string, name: string) =>
+  run("features", async () => {
+    if (!name.trim()) return;
+    await saveFeatureEdits(editFeature(featureEdits.value, rowId, "name", name.trim()));
+  });
+
+/** Puts a feature back as its data has it. */
+export const resetFeature = (rowId: string) =>
+  run("features", async () => {
+    const next = { ...featureEdits.value };
+    delete next[rowId];
+    await saveFeatureEdits(next);
+  });
 
 /** How many features one click may turn into shape layers, for the reason the data map has a cap. */
 export const MAX_FEATURE_SHAPES = 40;
@@ -1696,7 +1731,7 @@ const featureSources = (): FeatureSources => ({
 
 /** The rows of the browser as it stands: the scope, the words typed and the filter written. */
 export const featureView = computed(() => {
-  const rows = featureRows(featureScope.value, featureSources());
+  const rows = applyFeatureEdits(featureRows(featureScope.value, featureSources()), featureEdits.value);
   const filter = parseFilter(featureFilterText.value);
   const found = filterFeatures(rows, { text: featureText.value, filter, sort: featureSort.value });
   return { ...found, keys: featureKeys(rows), filter, filterFailed: featureFilterText.value.trim().length > 0 && !filter };
@@ -1902,6 +1937,7 @@ export const cutPickedFeatures = () =>
     }
     let result = host;
     let cut = 0;
+    let clipped = 0;
     let outside = 0;
     for (const row of picks.slice(1)) {
       const polygons = featurePolygons(row, sources);
@@ -1909,15 +1945,22 @@ export const cutPickedFeatures = () =>
       const step = cutHole(result, polygons);
       result = step.polygons;
       cut += step.cut;
+      clipped += step.clipped;
       outside += step.outside;
     }
     if (!cut) {
-      log(`nothing was cut: a shape has to lie wholly inside "${picks[0].name}" to become a hole in it`, "fail");
+      log(`nothing was cut: none of the shapes touches "${picks[0].name}"`, "fail");
       return;
     }
     const name = `${picks[0].name} without ${picks.length - 1} ${picks.length === 2 ? "shape" : "shapes"}`;
     const kept = await addMadeArea(name, result, highlights.value, undefined);
-    if (kept) log(`"${name}" made: ${cut} ${cut === 1 ? "hole" : "holes"} cut${outside ? `, ${outside} left alone (they are not wholly inside)` : ""}`, "ok");
+    if (!result.length) {
+      log(`nothing is left of "${picks[0].name}": the shapes cover all of it`, "fail");
+      return;
+    }
+    const holes = cut - clipped;
+    const said = [holes ? `${holes} ${holes === 1 ? "hole" : "holes"} cut` : "", clipped ? `${clipped} overlapping ${clipped === 1 ? "shape" : "shapes"} clipped off` : "", outside ? `${outside} left alone (${outside === 1 ? "it does" : "they do"} not touch it)` : ""].filter(Boolean).join(", ");
+    if (kept) log(`"${name}" made: ${said}${result.length > 1 ? `, in ${result.length} pieces` : ""}`, "ok");
   });
 
 /** How many of the imported points fall inside each ticked feature, as a property to sort and filter on. */

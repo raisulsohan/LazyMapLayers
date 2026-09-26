@@ -39,7 +39,7 @@ import { dataFillColors } from "../../core/style/dataFill.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../../core/style/valueScale.ts";
 import type { LegendCorner } from "../../core/style/legend.ts";
 import { drawFlows, flowArrows, flowColoured, flowFrom, flowSeconds, flowTo, flowValue, flowWidth } from "../store.ts";
-import { chartKind, chooseLabelImageFolder, labelImageFolders } from "../store.ts";
+import { chartKind, chooseLabelImageFolder, featureEditing, featureEdits, labelImageFolders, renameFeature, resetFeature, setFeatureProperty } from "../store.ts";
 import { addDataYear, changeDataPalette, dataAnimate, dataIsCategory, dataPalette, dataSeriesShape } from "../store.ts";
 import { CATEGORY_PALETTES, type CategoryPaletteId } from "../../core/style/categories.ts";
 import { isCategoryColumn } from "../../core/data/dataTable.ts";
@@ -1120,14 +1120,58 @@ export function FeatureSheetView(): JSX.Element | null {
             <button class="small-button" title="Frames this feature in the preview" onClick={() => goToFeature(row)}>
               Go to
             </button>
+            <button class={`small-button ${featureEditing.value === row.id ? "on" : ""}`} data-id="feature-edit" title="Its name and properties, to change, add or take away. The data it came from is left as it is." onClick={() => (featureEditing.value = featureEditing.value === row.id ? null : row.id)}>
+              Edit
+            </button>
           </div>
         ))}
+        {(() => {
+          const row = view.rows.find((r) => r.id === featureEditing.value);
+          if (!row) return null;
+          return (
+            <div class="feature-editor" data-id="feature-editor">
+              <label class="num-field grow" title="The name its highlight, its shape layer and its label will carry">
+                <span>Name</span>
+                <input type="text" data-id="feature-name" value={row.name} disabled={busy.value} onChange={(e) => void renameFeature(row.id, (e.target as HTMLInputElement).value)} />
+              </label>
+              {Object.entries(row.props).map(([key, value]) => (
+                <label key={key} class="num-field grow" title="Empty takes the property away">
+                  <span>{key}</span>
+                  <input type="text" data-id={`feature-prop-${key}`} value={String(value)} disabled={busy.value} onChange={(e) => void setFeatureProperty(row.id, key, (e.target as HTMLInputElement).value)} />
+                </label>
+              ))}
+              <label class="num-field grow" title="A property of your own: type its name and its value, like status: sold">
+                <span>Add</span>
+                <input
+                  type="text"
+                  data-id="feature-prop-new"
+                  placeholder="name: value"
+                  disabled={busy.value}
+                  onChange={(e) => {
+                    const text = (e.target as HTMLInputElement).value;
+                    const at = text.indexOf(":");
+                    if (at > 0) void setFeatureProperty(row.id, text.slice(0, at), text.slice(at + 1));
+                    (e.target as HTMLInputElement).value = "";
+                  }}
+                />
+              </label>
+              <div class="sheet-row">
+                <button class="small-button" data-id="feature-reset" disabled={busy.value || !featureEdits.value[row.id]} title="Back to what its data says" onClick={() => void resetFeature(row.id)}>
+                  As it came
+                </button>
+                <button class="small-button" onClick={() => (featureEditing.value = null)}>
+                  Done
+                </button>
+              </div>
+            </div>
+          );
+        })()}
       </div>
       <div class="sheet-row">
         <button class="small-button" data-id="feature-explode" disabled={busy.value || picks.length !== 1} title="Breaks one ticked outline into its separate parts, largest first: a mainland away from its islands." onClick={() => void explodePickedFeatures()}>
           Break apart
         </button>
-        <button class="small-button" data-id="feature-cut" disabled={busy.value || picks.length < 2} title="Cuts the other ticked shapes out of the first one as holes. A shape has to lie wholly inside it." onClick={() => void cutPickedFeatures()}>
+        <button class="small-button" data-id="feature-cut" disabled={busy.value || picks.length < 2} title="Takes the other ticked shapes out of the first one: a shape inside becomes a hole, a shape across its edge is clipped off, and the first one may fall into pieces." onClick={() => void cutPickedFeatures()}>
           Cut out
         </button>
         <button class="small-button" data-id="feature-count" disabled={busy.value || !picks.length} title="Counts the imported points that fall inside each ticked feature, as a property called inside, which you can then sort or filter on." onClick={() => void countPointsInPicked()}>

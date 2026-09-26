@@ -383,6 +383,18 @@ async function runUiScenario() {
   await click("feature-shapes");
   await idle();
   console.log(`U1 feature shapes: ${JSON.stringify(await panel.evaluate("window.lmlDebug.log().slice(-1)[0]"))}`);
+  // A property of the user's own on Luxembourg, kept with the map, and a filter that finds it.
+  await panel.evaluate(`(() => { document.querySelector('[data-id="feature-edit"]').click(); return true; })()`);
+  await sleep(300);
+  await panel.evaluate(`(() => { const i = document.querySelector('[data-id="feature-prop-new"]'); i.value = "status: sold"; i.dispatchEvent(new Event("change", { bubbles: true })); return true; })()`);
+  await idle();
+  await type('[data-id="feature-text"]', "", true);
+  await type('[data-id="feature-filter"]', "status = sold");
+  await sleep(400);
+  const edited = JSON.parse(await panel.evaluate("JSON.stringify({ rows: window.lmlDebug.store.featureView.value.rows.map((r) => r.name + ':' + r.props.status), kept: Object.keys(window.lmlDebug.store.featureEdits.value) })"));
+  console.log(`U1 feature edit: ${JSON.stringify(edited)}`);
+  if (edited.rows.join() !== "Luxembourg:sold" || !edited.kept.length) throw new Error(`the edited property was not found by its filter: ${JSON.stringify(edited)}`);
+  await type('[data-id="feature-filter"]', "", true);
   await type('[data-id="feature-text"]', "", true);
   await click("feature-close");
   await sleep(200);
