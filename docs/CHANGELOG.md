@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.1 — Alt+Shift+click drops a 3D pin again (2026-10-09)
 
 - **Alt+Shift+click drops a 3D pin again.** With Shift held, the preview took the click as the
   start of a zoom box and dropped nothing; Alt+click (a flat pin) was not affected.
