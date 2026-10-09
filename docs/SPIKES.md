@@ -8,9 +8,12 @@ only runs with `-- --only R2`.
 Last full offline run: 2026-10-09, after 0.9.0 and LN1, on the dev build and on a machine with no downloaded
 regions or imagery packs: S3, S5, H1, P1, G1, G2, X1, R1, AT1, LB2, LB3, FL1, OI1, HT1, LD1, WB1, LB4, LB6, DT2, DT3,
 DR1, FO1, LN1, LD2, DU1, RD1, ES1, FB1, MF1, LK1, DT1, ST1, SL1, RT1, HL1, SH1, C1, then D1, D1L, TH1 and LB1, and
-U1 all pass (S1: 88 ms a 1080p frame, 285 ms at 4K). Not run for want of that data: E1, LB5 and S4 (the Paris
-region), SAT1 (the satellite pack). S6b found the coast-glow difference described under S6. D1 without regions
-now flies to Paris from above, as the panel's sample button does, instead of into empty streets.
+U1 all pass (S1: 88 ms a 1080p frame, 285 ms at 4K). With the Paris region downloaded again from the newest
+Protomaps build (37.8 MB, 57 requests) and the satellite pack from the imagery-1 release, E1 (40/40 and 20/20 in
+3D), LB5 and SAT1 pass too, and S4 renders its orbit with the Seine, Champ de Mars and the tower standing in 3D
+(285 ms a frame on average against 140 ms on 2026-09-17, not budgeted). S6b found the coast-glow difference
+described under S6. D1 without regions now flies to Paris from above, as the panel's sample button does,
+instead of into empty streets.
 
 The run before, 2026-09-23, after D49-D61 (spikes, heat, district joins, layer copies, the readout, look details,
 the update check, label restyling, the heat legend, imagery of the user's own): H1, P1, C1, E1, X1, R1, G2, D1,
