@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.2 — a route across the Pacific stays one arc (2026-10-09)
 
 - **A table of numbers by year opens as numbers again.** A CSV with a column per year (country,
   2000, 2005, 2010...) whose values were small, such as percentages or rates, was read as places
