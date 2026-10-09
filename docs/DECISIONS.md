@@ -887,6 +887,32 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D96 — The past in Auto labels and the feature browser (2026-10-10)
+
+- **Auto labels.** With a year under Historical borders, that year's states and empires are the
+  country names: one name per state, on its largest shape (an empire's scattered islands are not
+  named one by one), ranked and shown from a zoom by that shape's size as Natural Earth ranks today's
+  countries. They are country labels (`country:hb…`), so the template styles them as countries
+  (capitals, halo, size) and restyles them later. Today's country names are left out; cities, water
+  and land names stay. The names are English: the source has no other languages.
+- **Over time.** With a keyed History Year slider, each frame belongs to the pack's year nearest the
+  slider there, and a year's names may show only on its frames (a label candidate's `frames`). The
+  British Raj fades out where the slider passes the middle between 1945 and 1947, and India and
+  Pakistan fade in. A state with the same name in about the same place (within a degree) in two
+  years is one name across both, so Nepal, Bhutan and Burma stay on screen instead of fading out and
+  in again where nothing changed.
+- **A template change** places the past's names again like any others (they are found again from the
+  map's year), instead of leaving them as unknown names.
+- **Feature browser.** A "Past" scope lists every named shape of the year on the map with its ruling
+  power, year, border precision, area and the larger area it belongs to, so it can be filtered
+  (`ruler = France`), highlighted (with its year in the name), made into shape layers, merged or cut
+  like any other feature.
+- **Tested.** Unit tests for the name records, the year per frame, the frames per year and a label
+  kept to its frames. HB1: a map of 1947 named India, Pakistan, Burma, Nepal and Bhutan, none of
+  today's; a map keyed from 1945 to 1947 shows the British Raj early and India late, Nepal, Bhutan and
+  Burma throughout; the Past lists all 144 named shapes of 1914, the British Raj under the United
+  Kingdom with its outline.
+
 ## D95 — The past in the Highlight tool and the search; one name per ruling power (2026-10-10)
 
 - **Highlight.** With a year on the map and the Highlight tool on Countries, a click picks the shape of

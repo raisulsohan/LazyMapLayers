@@ -1437,6 +1437,7 @@ async function restylePlacedLabels(): Promise<void> {
       template: currentLabelTemplate.value,
       terrain: terrain.value,
       zones: keepOut.value,
+      history: history.value,
       onProgress: (done, total) => (progress.value = { label: "Moving names", done, total })
     });
     moved = again.moved;
@@ -1660,6 +1661,7 @@ export const runAutoLabels = () =>
       design: currentLabelDesign.value,
       designImages: labelImageFolders.value,
       zones: keepOut.value,
+      history: history.value,
       signal: stopper.signal,
       // Names arrive in After Effects a few at a time, so it stays responsive and can be cancelled.
       onProgress: (done, total) => (progress.value = { label: "Adding names", done, total, cancel })
@@ -1993,7 +1995,8 @@ const featureSources = (): FeatureSources => ({
   fill: dataFill.value,
   areas: areas.value,
   imported: imported.value?.areas ?? [],
-  counts: featureCounts.value
+  counts: featureCounts.value,
+  history: shownHistoryYear()?.year ?? null
 });
 
 /** The rows of the browser as it stands: the scope, the words typed and the filter written. */
@@ -2072,7 +2075,8 @@ export const highlightPickedFeatures = () =>
       }
       geometry[id] = thinned;
       if (!next.some((highlight) => highlight.code === code)) {
-        next = toggleHighlight(next, code, row.name);
+        // A shape of the past carries its year, as one picked on the map does.
+        next = toggleHighlight(next, code, row.source === "history" ? `${row.name} (${row.props.year})` : row.name);
         added++;
       }
     }
@@ -3270,7 +3274,7 @@ export const shareWithAllMaps = (what: "look" | "names") =>
         const template = resolveLabelTemplate(applyLook(themeById(map.theme), normaliseLook(map.look)), labelTemplate.value);
         for (const kind of ["label", "value"]) restyled += (await restyleLabels(map.mapId, { template, kind })).labels;
         // Sizes differ, so that map's names are placed again over its own move.
-        await repositionLabels(map.mapId, { template, terrain: normaliseTerrain(map.terrain), zones: normaliseKeepOut(map.keepOut) });
+        await repositionLabels(map.mapId, { template, terrain: normaliseTerrain(map.terrain), zones: normaliseKeepOut(map.keepOut), history: normaliseHistory(map.history) });
       }
     }
     await readMaps();

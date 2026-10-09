@@ -19,6 +19,11 @@
   there then: a click takes the British Raj, Shift+click every land of the British Empire. They render
   as their own layers and become shape layers like any highlight, on a map of that year or of today.
   The search finds that year's states and empires first, and the readout under the pointer names them.
+- **Names and features of the past.** Auto labels names a map of another year by that year's states
+  and empires; with the History Year slider keyed, the names change with the years (the British Raj
+  gives way to India and Pakistan) while names that did not change stay on screen. The feature
+  browser's new Past list has every state of the year with its ruling power, to filter, highlight or
+  turn into shape layers.
 
 ## 1.0.2 — a route across the Pacific stays one arc (2026-10-09)
 

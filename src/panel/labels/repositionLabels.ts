@@ -18,6 +18,8 @@ import { samplerFor } from "../elevation.ts";
 import { readCameras, type RenderInfo } from "../render/renderJob.ts";
 import { loadWorldLabels, type WorldLabel } from "../data/worldLabels.ts";
 import { labelStrength, measureLabel, zoomBand, type MeasuredLabel } from "./candidate.ts";
+import type { HistorySetting } from "../../core/history/historyStyle.ts";
+import { historyLabelSet } from "./historyNames.ts";
 
 /** Names per call into After Effects, as a restyle sends them. */
 export const REPOSITION_BATCH = 40;
@@ -30,6 +32,8 @@ export type RepositionOptions = {
   /** Place names fade away above this zoom, as when they were placed. */
   placeMaxZoom?: number;
   onProgress?: (done: number, total: number) => void;
+  /** The map's year under Historical borders, so names of the past find their places again. */
+  history?: HistorySetting | null;
 };
 
 export type RepositionResult = {
@@ -94,6 +98,8 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
   const info = await callHost<RenderInfo>("renderInfo", { mapId });
   const cameras = (await readCameras(mapId, info, [0], undefined, () => undefined)).map((samples) => samples[0]);
   const records = recordsById();
+  const past = historyLabelSet(cameras, options.history ?? null);
+  for (const record of past?.records ?? []) records.set(record.id, record);
   const scale = info.height / 1080;
   const placeMaxZoom = options.placeMaxZoom ?? 10;
   const lowestZoom = Math.min(...cameras.map((c) => c.zoom));
@@ -118,6 +124,8 @@ export async function repositionLabels(mapId: string, options: RepositionOptions
     // A name whose dot is gone keeps nothing free around its place.
     const angle = record.along ? medianAngle(record.along, cameras, { width: info.width, height: info.height }, info.projection, record.minZoom) : null;
     const measured = measureLabel({ record, labelId, raw: placed.raw ?? placed.text, subtitle: part.subtitle?.text ?? null, template: options.template, scale, design, dot: !!part.dot, placeMaxZoom, angle });
+    const frames = past?.frames.get(labelId);
+    if (frames) measured.candidate.frames = frames;
     prepared.push({ ...measured, record, part });
   }
   result.labels = prepared.length;

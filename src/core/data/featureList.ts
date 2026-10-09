@@ -2,7 +2,7 @@
 // districts, imported areas and the map's own areas - with the properties each one carries, so a
 // designer can look through them, filter them by a property and act on what is left.
 
-export type FeatureSource = "country" | "province" | "district" | "area" | "import";
+export type FeatureSource = "country" | "province" | "district" | "area" | "import" | "history";
 
 export type FeatureRow = {
   /** Unique in the list: the source and the feature's own id. */

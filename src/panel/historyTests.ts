@@ -23,6 +23,8 @@ import { FrameRenderer } from "./render/frameRenderer.ts";
 import { callHost, evalScript, fs, path } from "./cep.ts";
 import { createMapComp } from "./mapApi.ts";
 import { runRenderJob } from "./render/renderJob.ts";
+import { autoLabels } from "./labels/autoLabels.ts";
+import { featurePolygons, featureRows } from "./features.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
 
 const SIZE = { width: 640, height: 360 };
@@ -237,6 +239,63 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
       }
       fs().rmSync(result.storeRoot, { recursive: true, force: true, maxRetries: 3 });
     }
+  }
+
+  // Auto labels (D96): a map of 1947 is named by 1947 (India and Pakistan, styled like countries,
+  // and none of today's country names); a map keyed from 1945 to 1947 shows the British Raj while the
+  // slider is nearer 1945 and India once it is nearer 1947.
+  {
+    const names = async (mapId: string, times: number[]) =>
+      JSON.parse(
+        await evalScript(`(function () {
+          var scene = LML.pins.findMapLayer(${JSON.stringify(mapId)}).containingComp, out = [];
+          for (var i = 1; i <= scene.numLayers; i++) {
+            var layer = scene.layer(i), tag = LML.tag.read(layer);
+            if (!tag || tag.kind !== "label" || (tag.part && tag.part !== "text")) continue;
+            var text = String(layer.property("ADBE Text Properties").property("ADBE Text Document").value.text), seen = [];
+            var opacity = layer.property("ADBE Transform Group").property("ADBE Opacity");
+            var times = ${JSON.stringify(times)};
+            for (var t = 0; t < times.length; t++) seen.push(Math.round(opacity.valueAtTime(times[t], false)));
+            out.push({ id: tag.labelId, text: text, seen: seen });
+          }
+          return LML.json.stringify(out);
+        })()`)
+      ) as { id: string; text: string; seen: number[] }[];
+    const plain = { places: false, water: false, land: false, city: false, theme: "atlas" };
+    const still = await createMapComp({ name: "HB1 names 1947", width: SIZE.width, height: SIZE.height, duration: 1, frameRate: 25, view: VIEW, newScene: true });
+    await callHost("setMapSettings", { mapId: still.id, history: { year: 1947 } });
+    await autoLabels(still.id, { ...plain, history: { year: 1947 } });
+    const placed = await names(still.id, [0.5]);
+    read["names 1947"] = placed.map((n) => n.text).join(", ");
+    for (const want of ["INDIA", "PAKISTAN"]) if (!placed.some((n) => n.text.toUpperCase() === want && n.id.startsWith("country:hb1947-"))) problems.push(`names 1947: no ${want} of 1947 (${read["names 1947"]})`);
+    const today = placed.filter((n) => n.id.startsWith("country:") && !n.id.startsWith("country:hb"));
+    if (today.length) problems.push(`names 1947: today's ${today.map((n) => n.text).join(", ")} came too`);
+
+    const moving = await createMapComp({ name: "HB1 names over time", width: SIZE.width, height: SIZE.height, duration: 2, frameRate: 25, view: VIEW, newScene: true });
+    await callHost("setMapSettings", { mapId: moving.id, history: { year: 1945 } });
+    await callHost("setControlKeys", { mapId: moving.id, name: "History Year", times: [0, 49 / 25], values: [1945, 1947] });
+    await autoLabels(moving.id, { ...plain, history: { year: 1945 } });
+    const overTime = await names(moving.id, [0.2, 1.9]);
+    const raj = overTime.find((n) => n.text.toUpperCase() === "BRITISH RAJ");
+    const india = overTime.find((n) => n.text.toUpperCase() === "INDIA");
+    read["names over time"] = overTime.map((n) => `${n.text} ${n.seen.join("/")}`).join(", ");
+    if (!raj || raj.seen[0] < 50 || raj.seen[1] > 1) problems.push(`names over time: the British Raj should show early and be gone late (${read["names over time"]})`);
+    if (!india || india.seen[0] > 1 || india.seen[1] < 50) problems.push(`names over time: India should be gone early and show late (${read["names over time"]})`);
+    // Nepal is Nepal in both years, in the same place: one name, there throughout.
+    const nepal = overTime.filter((n) => n.text.toUpperCase() === "NEPAL");
+    if (nepal.length !== 1 || nepal[0].seen.some((v) => v < 50)) problems.push(`names over time: Nepal should be one name shown throughout (${read["names over time"]})`);
+  }
+
+  // The feature browser's Past: every named shape of the year, with its ruler and its outline.
+  {
+    const year1914 = loadHistoryYear(1914)!.year;
+    const rows = featureRows("history", { history: year1914 });
+    const raj = rows.find((row) => row.name === "British Raj");
+    read["feature rows 1914"] = String(rows.length);
+    if (rows.length !== year1914.features.filter((f) => f.name).length) problems.push(`the Past lists ${rows.length} shapes of 1914`);
+    if (raj?.props.ruler !== "United Kingdom" || raj?.props.year !== "1914") problems.push(`the Past's British Raj reads ${JSON.stringify(raj?.props)}`);
+    if (!raj || !featurePolygons(raj, { history: year1914 })?.length) problems.push("the Past's British Raj has no outline");
+    if (featureRows("history", {}).length) problems.push("the Past lists shapes with no year on the map");
   }
 
   // The borders draw-on draws the past's borders, not today's.

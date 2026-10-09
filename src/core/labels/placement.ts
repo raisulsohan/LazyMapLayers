@@ -34,6 +34,11 @@ export type LabelCandidate = {
    * (they fade out as it fades in). Among major names the usual rules hold.
    */
   major?: boolean;
+  /**
+   * The frames [start, end) the name may show on at all, such as the frames a year of the past is on
+   * the map; without it, every frame.
+   */
+  frames?: [number, number][];
 };
 
 export type PlacementOptions = {
@@ -82,6 +87,7 @@ export function placeLabels(candidates: LabelCandidate[], views: View[], options
     const eligible: { candidate: LabelCandidate; box: Box }[] = [];
     for (const candidate of ordered) {
       if (view.zoom < candidate.minZoom || view.zoom >= candidate.maxZoom) continue;
+      if (candidate.frames && !candidate.frames.some(([start, end]) => f >= start && f < end)) continue;
       const p = projectPoint(view, options.viewport, candidate, { projection: options.projection ?? "mercator" });
       if (!p.visible) continue;
       const box = boxFor(candidate, p.x, p.y, padding);

@@ -23,6 +23,8 @@ import { callHost, callHostWithJobFile } from "../cep.ts";
 import { samplerFor } from "../elevation.ts";
 import { loadWorldLabels, type WorldLabel } from "../data/worldLabels.ts";
 import { readCameras, type RenderInfo } from "../render/renderJob.ts";
+import type { HistorySetting } from "../../core/history/historyStyle.ts";
+import { historyLabelSet } from "./historyNames.ts";
 
 type LabelRecord = WorldLabel & { names: LabelNames };
 
@@ -64,6 +66,8 @@ export type AutoLabelOptions = {
   keepOut?: { lat: number; lng: number; fromFrame: number; toFrame: number; dx: number; dy: number; width: number; height: number }[];
   /** Parts of the frame names must stay out of, such as the band a lower third sits in. */
   zones?: KeepOutZone[];
+  /** The map's year under Historical borders: its states and empires are the country names (D96). */
+  history?: HistorySetting | null;
 };
 
 export type AutoLabelResult = {
@@ -148,9 +152,13 @@ export async function autoLabels(mapId: string, options: AutoLabelOptions = {}):
     // A peak says how high it is under its name, after its English name when that line is asked for.
     const subtitle = nature === "peak" && record.elevation ? [named.subtitle, formatElevation(record.elevation)].filter(Boolean).join(" · ") : named.subtitle;
     const measured = measureLabel({ record, labelId: record.id, raw, subtitle, template, scale, design: design ? { width: design.width, height: design.height } : null, dot: template.dots, placeMaxZoom, angle: angleOf(record) });
+    const frames = past?.frames.get(record.id);
+    if (frames) measured.candidate.frames = frames;
     prepared.push({ ...measured, record, raw, subtitle: record.along ? null : subtitle });
   };
-  if (options.countries ?? true) data.countries.forEach(add);
+  // With a year of the past on the map, its states and empires are the country names.
+  const past = historyLabelSet(cameras, options.history ?? null);
+  if (options.countries ?? true) (past ? (past.records as LabelRecord[]) : data.countries).forEach(add);
   if (options.places ?? true) data.places.forEach(add);
   const water = options.water ?? true;
   const land = options.land ?? true;

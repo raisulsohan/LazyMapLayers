@@ -1133,6 +1133,9 @@ export function FeatureSheetView(): JSX.Element | null {
         <button class={`chip ${scope === "area" ? "on" : ""}`} data-id="feature-scope-area" onClick={() => setScope("area")} title="The areas this map already holds">
           On this map
         </button>
+        <button class={`chip ${scope === "history" ? "on" : ""}`} data-id="feature-scope-history" onClick={() => setScope("history")} title="The states, empires and colonies of the year under Historical borders (Look sheet), with their ruling power">
+          Past
+        </button>
       </div>
       {(scope === "province" || scope === "district") && (
         <div class="sheet-row">
@@ -1194,7 +1197,7 @@ export function FeatureSheetView(): JSX.Element | null {
       )}
       {view.filterFailed && <div class="warning small">That filter needs a property, a test and a value, like population &gt; 1000000 or name has delta.</div>}
       {needsCountry && <div class="muted small">Pick a country to see its {scope === "district" ? "districts" : "provinces"}.</div>}
-      {!needsCountry && view.rows.length === 0 && <div class="muted small">Nothing matches. {scope === "import" ? "Import a KML, GeoJSON or shapefile first." : scope === "district" ? "Districts are downloaded per country in the Highlight sheet." : "Try fewer words."}</div>}
+      {!needsCountry && view.rows.length === 0 && <div class="muted small">Nothing matches. {scope === "import" ? "Import a KML, GeoJSON or shapefile first." : scope === "history" ? "Pick a year under Historical borders in the Look sheet first." : scope === "district" ? "Districts are downloaded per country in the Highlight sheet." : "Try fewer words."}</div>}
       <div class="feature-list" data-id="feature-list">
         {view.rows.map((row) => (
           <div key={row.id} class="sheet-row feature-row">

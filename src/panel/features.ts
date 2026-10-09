@@ -12,6 +12,8 @@ import { provincesOf } from "./data/admin1.ts";
 import { countryOutline } from "./data/countries.ts";
 import { districtSetOf, districtsOf } from "./data/districts.ts";
 import { placeIndex } from "./data/worldLabels.ts";
+import type { HistoryYear } from "../core/history/historyPack.ts";
+import { shapeAreaId } from "../core/history/historyFind.ts";
 
 export type FeatureScope = FeatureSource;
 
@@ -26,6 +28,8 @@ export type FeatureSources = {
   imported?: ImportedArea[];
   /** How many points fall inside each feature, by row id, once it has been counted. */
   counts?: Record<string, number>;
+  /** The year of the past on the map, for the "history" scope (D96). */
+  history?: HistoryYear | null;
 };
 
 const round = (value: number, places = 2) => Math.round(value * 10 ** places) / 10 ** places;
@@ -82,6 +86,18 @@ function importRows(imported: ImportedArea[]): FeatureRow[] {
   }));
 }
 
+/** The named shapes of the year on the map: who ruled them, how sure their borders are, how large they are. */
+function historyRows(year: HistoryYear): FeatureRow[] {
+  return year.features
+    .filter((f) => f.name)
+    .map((f) => ({
+      id: `history:${shapeAreaId(f)}`,
+      name: f.name,
+      source: "history" as const,
+      props: { kind: "historical", year: year.label, ruler: f.ruler, precision: f.precision, km2: round(areaKm2(f.polygons), 0), ...(f.partOf && f.partOf !== f.name ? { partOf: f.partOf } : {}) }
+    }));
+}
+
 /** Every feature of one kind, ready for the browser to filter. */
 export function featureRows(scope: FeatureScope, sources: FeatureSources = {}): FeatureRow[] {
   const fill = sources.fill ?? null;
@@ -98,7 +114,11 @@ export function featureRows(scope: FeatureScope, sources: FeatureSources = {}): 
             : []
           : scope === "area"
             ? areaRows(sources.areas ?? {})
-            : importRows(sources.imported ?? []);
+            : scope === "history"
+              ? sources.history
+                ? historyRows(sources.history)
+                : []
+              : importRows(sources.imported ?? []);
   const counts = sources.counts;
   if (!counts) return rows;
   return rows.map((row) => (counts[row.id] === undefined ? row : { ...row, props: { ...row.props, inside: counts[row.id] } }));
@@ -111,6 +131,7 @@ export function featurePolygons(row: FeatureRow, sources: FeatureSources = {}): 
   if (row.source === "province") return provincesOf(row.country ?? "").find((province) => province.id === id)?.polygons ?? null;
   if (row.source === "district") return districtsOf(row.country ?? "").find((unit) => unit.id === id)?.polygons ?? null;
   if (row.source === "area") return sources.areas?.[id] ?? null;
+  if (row.source === "history") return sources.history?.features.find((f) => shapeAreaId(f) === id)?.polygons ?? null;
   const index = Number(id);
   return sources.imported?.[index]?.polygons ?? null;
 }
