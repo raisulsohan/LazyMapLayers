@@ -84,5 +84,6 @@ a distance ring, a journey from a GPS track.
 
 The pictures are made in the real After Effects by `tools/manual/` (see the header of
 `tools/manual/capture.mjs`): `node tools/manual/capture.mjs --only 10-pins` captures one chapter
-again after the panel changes. The sample data is in `tools/manual/samples/`. The page on
-raisulsohan.com is built from these files with `node tools/manual/wordpress.mjs --ref <tag>`.
+again after the panel changes. The sample data is in `tools/manual/samples/`. raisulsohan.com reads these
+files straight from this repository (a subfolder of `docs/` with its own README is a book there),
+so a push is all it takes.
