@@ -54,10 +54,12 @@ export type ProjectedPoint3 = {
 
 type PixelClip = { px: number; py: number; w: number; visible: boolean };
 
-function mercatorClip(view: View, viewport: Viewport, point: LngLat, altitudeMeters: number): PixelClip {
+function mercatorClip(view: View, viewport: Viewport, point: LngLat, altitudeMeters: number, referenceLng?: number): PixelClip {
   const d = cameraToCenterDistance(viewport);
   const center = lngLatToWorld(view.center, view.zoom);
-  const target = lngLatToWorld({ lng: unwrapLongitudeNear(point.lng, view.center.lng), lat: point.lat }, view.zoom);
+  // The world copy nearest the view centre, for the point itself or for the line it belongs to.
+  const anchor = referenceLng ?? point.lng;
+  const target = lngLatToWorld({ lng: point.lng + 360 * Math.round((view.center.lng - anchor) / 360), lat: point.lat }, view.zoom);
   const dx = target.x - center.x;
   const dy = target.y - center.y;
   const b = view.bearing * DEG;
@@ -147,14 +149,24 @@ export function pixelOnGlobe(view: View, viewport: Viewport, x: number, y: numbe
  * Projects a geographic point (optionally above the ground) to screen pixels, for the Mercator or the
  * globe projection. With the globe projection, the transition zooms mix both like MapLibre does.
  */
-export function projectPoint(view: View, viewport: Viewport, point: LngLat, options: { projection?: MapProjection; altitudeMeters?: number } = {}): ProjectedPoint3 {
+export function projectPoint(
+  view: View,
+  viewport: Viewport,
+  point: LngLat,
+  options: {
+    projection?: MapProjection;
+    altitudeMeters?: number;
+    /** A line's reference longitude (lineReferenceLongitude): the flat map draws the point on the world copy chosen for it, as the rest of its line. */
+    referenceLng?: number;
+  } = {}
+): ProjectedPoint3 {
   const altitude = options.altitudeMeters ?? 0;
   const t = globeness(view.zoom, options.projection ?? "mercator");
   let clip: PixelClip;
-  if (t === 0) clip = mercatorClip(view, viewport, point, altitude);
+  if (t === 0) clip = mercatorClip(view, viewport, point, altitude, options.referenceLng);
   else if (t === 1) clip = globeClip(view, viewport, point, altitude);
   else {
-    const flat = mercatorClip(view, viewport, point, altitude);
+    const flat = mercatorClip(view, viewport, point, altitude, options.referenceLng);
     const round = globeClip(view, viewport, point, altitude);
     clip = {
       px: flat.px + (round.px - flat.px) * t,

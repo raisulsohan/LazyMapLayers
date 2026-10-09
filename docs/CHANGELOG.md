@@ -1,5 +1,15 @@
 # Changelog
 
+## Unreleased
+
+- **A route across the Pacific stays one arc on the flat map.** A flow, a route or an imported line
+  that crosses the 180° meridian, such as Tokyo to Los Angeles, was drawn on the flat map (Globe
+  off) as a straight stroke across the whole world, because the points either side of 180° landed
+  on opposite edges of the map. Now the whole line is placed on one copy of the world, the one
+  nearest the camera, so it arcs over the Pacific; its traveller rides the same arc, and outlines
+  of areas that touch 180° (Fiji, the far east of Russia) keep their shape. Remake a route made
+  before to get the fix.
+
 ## 1.0.1 — Alt+Shift+click drops a 3D pin again (2026-10-09)
 
 - **Alt+Shift+click drops a 3D pin again.** With Shift held, the preview took the click as the

@@ -1,6 +1,7 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { centralAngle, distanceMeters, greatCircle } from "../../src/core/geo/greatCircle.ts";
+import { continuousLongitudes, lineReferenceLongitude } from "../../src/core/geo/mercator.ts";
 
 const paris = { lat: 48.8566, lng: 2.3522 };
 const tokyo = { lat: 35.6762, lng: 139.6503 };
@@ -29,4 +30,26 @@ test("longitudes stay continuous across the antimeridian", () => {
   const route = greatCircle({ lat: 35.5, lng: 139.8 }, { lat: 37.6, lng: -122.4 }, 50);
   for (let i = 1; i < route.length; i++) assert.ok(Math.abs(route[i].lng - route[i - 1].lng) < 10);
   assert.ok(Math.abs(route[49].lng - 237.6) < 1e-6);
+});
+
+test("Tokyo to Los Angeles crosses the Pacific eastwards with continuous longitudes", () => {
+  const losAngeles = { lat: 34.0522, lng: -118.2437 };
+  const route = greatCircle(tokyo, losAngeles, 64, 0.08);
+  assert.equal(route[0].lng, tokyo.lng);
+  assert.ok(Math.abs(route[63].lng - (losAngeles.lng + 360)) < 1e-9, `Los Angeles on the far side of 180: ${route[63].lng}`);
+  for (let i = 1; i < route.length; i++) {
+    const step = route[i].lng - route[i - 1].lng;
+    assert.ok(step > 0 && step < 5, `eastwards in small steps (point ${i}: ${step})`);
+  }
+  // The shortest way bends north over the Pacific, past 45 degrees.
+  assert.ok(Math.max(...route.map((p) => p.lat)) > 45);
+  const ref = lineReferenceLongitude(route.map((p) => p.lng));
+  assert.ok(Math.abs(ref - (tokyo.lng + losAngeles.lng + 360) / 2) < 1e-9, `the middle of the span: ${ref}`);
+});
+
+test("wrapped longitudes become continuous", () => {
+  assert.deepEqual(continuousLongitudes([170, 179, -179, -170]), [170, 179, 181, 190]);
+  assert.deepEqual(continuousLongitudes([-170, -179, 179]), [-170, -179, -181]);
+  assert.deepEqual(continuousLongitudes([]), []);
+  assert.equal(lineReferenceLongitude([]), 0);
 });

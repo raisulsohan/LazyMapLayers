@@ -1,6 +1,7 @@
 // Expressions for label, dot and route layers linked to a map (ES3: both expression engines, see
 // projectionExpression.ts).
 
+import { continuousLongitudes, lineReferenceLongitude } from "../geo/mercator.ts";
 import { compTransformSource, projectionPrelude } from "./projectionExpression.ts";
 
 export const LABEL_MARKER = "// LazyMapLayers label";
@@ -127,21 +128,38 @@ createPath(pts2, ins, outs, false);`;
 
 export const ROUTE_MARKER = "// LazyMapLayers route";
 
+/** [lat, lng, ...] points with the longitudes made continuous across ±180. */
+export function withContinuousLongitudes(points: number[][]): number[][] {
+  const lngs = continuousLongitudes(points.map((p) => p[1]));
+  return points.map((p, i) => (p[1] === lngs[i] ? p : [p[0], lngs[i], ...p.slice(2)]));
+}
+
+/** The reference longitude of [lat, lng, ...] points, rounded like the baked points. */
+export function referenceOf(points: number[][]): number {
+  return Math.round(lineReferenceLongitude(points.map((p) => p[1])) * 1e6) / 1e6;
+}
+
 /**
  * A shape path through geographic points, lifted by an arc: `points` are [lat, lng, altitude m] or
  * [lat, lng, altitude m, ground elevation m] (the elevation follows the map's 3D terrain).
  * Points hidden behind the planet take the position of the nearest visible point before them (or,
  * at the start, after them), so the path never jumps across the screen; trim the path with Trim
  * Paths to draw it on.
+ *
+ * On the flat map the whole line is drawn on one world copy (chosen by its reference longitude), so a
+ * line across ±180, such as Tokyo to Los Angeles, stays one arc over the Pacific. An open line's
+ * longitudes are made continuous first; a closed ring (an area's outline) keeps its own.
  */
 export function routePathExpression(points: number[][], options: { closed?: boolean; marker?: string } = {}): string {
-  const data = JSON.stringify(points.map((p) => p.map((v) => Math.round(v * 1e6) / 1e6)));
+  const line = options.closed ? points : withContinuousLongitudes(points);
+  const data = JSON.stringify(line.map((p) => p.map((v) => Math.round(v * 1e6) / 1e6)));
   return `${options.marker ?? ROUTE_MARKER} (generated)
 var map = effect("Map")(1);
 ${projectionPrelude()}${compTransformSource()}var pts = ${data};
+var ref = ${num(referenceOf(line))};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
-  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
+  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3]), ref));
   if (first < 0 && projected[i].visible) first = i;
 }
 var out = [], last = null, p = null;
@@ -188,14 +206,16 @@ export const TRAVELLER_EFFECTS = { map: "Map", progress: "Progress", rotate: "Ro
  */
 export function travellerExpressions(points: number[][]): { position: string; rotation: string; opacity: string } {
   const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 ** digits;
-  const data = JSON.stringify(points.map((p) => (p.length > 3 ? [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1), round(p[3], 1)] : [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1)])));
-  // The same polyline as routePathExpression builds (hidden points collapse onto visible neighbours),
-  // in comp pixels, with its running length.
+  const line = withContinuousLongitudes(points);
+  const data = JSON.stringify(line.map((p) => (p.length > 3 ? [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1), round(p[3], 1)] : [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1)])));
+  // The same polyline as routePathExpression builds (hidden points collapse onto visible neighbours,
+  // the whole line on one world copy), in comp pixels, with its running length.
   const path = `var map = effect(${JSON.stringify(TRAVELLER_EFFECTS.map)})(1);
 ${projectionPrelude()}${compTransformSource({ fromComp: false })}var pts = ${data};
+var ref = ${num(referenceOf(line))};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
-  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
+  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3]), ref));
   if (first < 0 && projected[i].visible) first = i;
 }
 var line = [], run = [0], last = null, p = null;

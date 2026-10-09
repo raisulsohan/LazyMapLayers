@@ -30,6 +30,32 @@ export function unwrapLongitudeNear(lng: number, reference: number): number {
   return lng + 360 * Math.round((reference - lng) / 360);
 }
 
+/**
+ * Longitudes of a line made continuous across the antimeridian: each one within half a turn of the
+ * one before it (Tokyo to Los Angeles runs 139.7 ... 180 ... 241.8 instead of jumping to -118.2).
+ */
+export function continuousLongitudes(lngs: number[]): number[] {
+  const out: number[] = [];
+  for (const lng of lngs) out.push(out.length ? unwrapLongitudeNear(lng, out[out.length - 1]) : lng);
+  return out;
+}
+
+/**
+ * The longitude a whole line is placed by on the flat map: the middle of its span of (continuous)
+ * longitudes. Every point of the line takes the world copy chosen for this one, so the line stays in
+ * one piece and lies as close to the camera's centre as it can.
+ */
+export function lineReferenceLongitude(lngs: number[]): number {
+  if (!lngs.length) return 0;
+  let west = lngs[0];
+  let east = lngs[0];
+  for (const lng of lngs) {
+    if (lng < west) west = lng;
+    if (lng > east) east = lng;
+  }
+  return (west + east) / 2;
+}
+
 /** Mercator x in [0, 1) for a longitude (unwrapped longitudes go outside that range). */
 export function mercatorXFromLng(lng: number): number {
   return (180 + lng) / 360;

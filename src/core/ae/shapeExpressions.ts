@@ -3,7 +3,7 @@
 // so the outline sits on the rendered map at every frame. Fill and stroke are ordinary shape layer
 // properties, so the layer can be styled and animated in After Effects like any other.
 
-import { routePathExpression } from "./labelExpressions.ts";
+import { referenceOf, routePathExpression } from "./labelExpressions.ts";
 import { compTransformSource, projectionPrelude } from "./projectionExpression.ts";
 
 export const SHAPE_MARKER = "// LazyMapLayers shape";
@@ -63,9 +63,10 @@ ${projectionPrelude()}${compTransformSource()}var coarse = ${bake(coarse)};
 var fine = ${bake(fine)};
 var pts = coarse;
 if (lmlView.zoom >= ${num(switchZoom)}) pts = fine;
+var ref = ${num(referenceOf(fine.concat(coarse)))};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
-  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3])));
+  projected.push(lmlProject(pts[i][0], pts[i][1], pts[i][2] + lmlGround(pts[i][3]), ref));
   if (first < 0 && projected[i].visible) first = i;
 }
 var out = [], last = null, p = null;

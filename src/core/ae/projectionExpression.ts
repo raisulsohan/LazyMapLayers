@@ -5,7 +5,11 @@
 //   lmlView                         the camera controls at the current time (with the terrain's
 //                                   height and ground level, 0 on maps without 3D terrain)
 //   lmlGround(elevation)            metres above the map's ground level, as the terrain shows them
-//   lmlProject(lat, lng, altitude)  -> { x, y, w, visible, k } in map comp pixels
+//   lmlProject(lat, lng, altitude, ref)  -> { x, y, w, visible, k } in map comp pixels
+//
+// On the flat map a point is drawn on the world copy nearest the camera's centre. With `ref` (a
+// longitude) the copy is chosen for `ref` instead, so every point of a line given the same `ref` lands
+// on the same copy and a line across ±180 stays in one piece (see lineReferenceLongitude).
 //
 // k is the map scale at the point relative to the view centre (1 at the centre of a flat, unpitched
 // view). The map layer's "Globe" checkbox selects MapLibre's globe projection; maps without it are
@@ -104,7 +108,7 @@ export function projectionPrelude(): string {
 function lmlGround(elevation) {
   return ((elevation || 0) - lmlView.ground) * lmlView.height;
 }
-function lmlProject(lat, lng, altitude) {
+function lmlProject(lat, lng, altitude, ref) {
   var DEG = Math.PI / 180, MAXLAT = ${num(MAX_LATITUDE)}, EARTH = ${num(EARTH_RADIUS_M)};
   var v = lmlView, W = map.source.width, H = map.source.height, D = H / 2 / ${num(Math.tan(DEFAULT_FOV_RAD / 2))};
   var alt = altitude || 0;
@@ -114,7 +118,9 @@ function lmlProject(lat, lng, altitude) {
   var b = v.bearing * DEG, p = v.pitch * DEG;
   var fx = 0, fy = 0, fw = 1, gx = 0, gy = 0, gw = 1, gVisible = true;
   if (t < 1) {
-    var near = lng + 360 * Math.round((v.lng - lng) / 360);
+    var anchor = lng;
+    if (typeof ref === "number") anchor = ref;
+    var near = lng + 360 * Math.round((v.lng - anchor) / 360);
     var dx = (lmlMercX(near) - lmlMercX(v.lng)) * size, dy = (lmlMercY(lat, MAXLAT) - lmlMercY(v.lat, MAXLAT)) * size;
     var xr = Math.cos(b) * dx + Math.sin(b) * dy, yr = -Math.sin(b) * dx + Math.cos(b) * dy;
     var h = alt * size / (2 * Math.PI * EARTH * Math.cos(v.lat * DEG));
