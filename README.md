@@ -12,6 +12,8 @@
 
 <p align="center"><strong>See a whole job:</strong> <a href="https://raisulsohan.com/en/portfolio/lazymaplayers/">the 32-second demo</a> makes one map shot in After Effects with no internet, from <em>New map</em> to the final render, and plays it. The player page is also in <a href="docs/demo/lazymaplayers-in-ae.html">docs/demo</a>: download it and open it in a browser.</p>
 
+<p align="center"><strong>📖 <a href="docs/manual/README.md">The manual</a>:</strong> every option, one chapter at a time, with pictures and animations from After Effects. Also on <a href="https://raisulsohan.com/en/portfolio/lazymaplayers/documentation/manual/">raisulsohan.com</a>.</p>
+
 <p align="center">
   <strong>Maps, flights, routes and data stories for motion designers, rendered frame-exact inside After Effects. Free forever: no account, no key, no trial.</strong>
 </p>
