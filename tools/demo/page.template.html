@@ -1,0 +1,861 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1">
+<title>LazyMapLayers Demo</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link href="https://fonts.googleapis.com/css2?family=Inter:wght@400;500;600;700;800&display=swap" rel="stylesheet">
+<style>
+  :root {
+    --page: #050c17;
+    --bar: #0d1a2b;
+    --bar-2: #16283f;
+    --line: #1f3550;
+    --text: #eef3f8;
+    --muted: #8aa0b8;
+    --accent: #ffc740;
+  }
+  * { box-sizing: border-box; }
+  html, body { margin: 0; background: var(--page); color: var(--text);
+    font-family: Inter, "Segoe UI", system-ui, sans-serif; }
+  body { min-height: 100vh; display: flex; align-items: center; justify-content: center; padding: 16px; }
+
+  .player { width: min(1280px, 100%); background: #07111f; border: 1px solid var(--line);
+    border-radius: 12px; overflow: hidden; box-shadow: 0 20px 60px rgba(0,0,0,.5); }
+  .player:fullscreen { width: 100vw; height: 100vh; border-radius: 0; border: 0;
+    display: flex; flex-direction: column; }
+  .stage { position: relative; aspect-ratio: 16 / 9; background: #07111f; }
+  .player:fullscreen .stage { flex: 1; aspect-ratio: auto; min-height: 0; }
+  canvas { display: block; width: 100%; height: 100%; object-fit: contain; }
+
+  .overlay { position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    cursor: pointer; background: rgba(5, 12, 23, .3); }
+  .overlay.hidden { display: none; }
+  .bigplay { width: 84px; height: 84px; border-radius: 50%; display: flex; align-items: center; justify-content: center;
+    background: linear-gradient(135deg, #2f7fc4, #36b3ff); box-shadow: 0 10px 40px rgba(54, 179, 255, .45);
+    transition: transform .15s; }
+  .overlay:hover .bigplay { transform: scale(1.06); }
+
+  .controls { display: flex; flex-direction: column; gap: 6px; padding: 8px 12px 10px;
+    background: var(--bar); border-top: 1px solid var(--line); user-select: none; }
+  .row { display: flex; align-items: center; gap: 6px; flex-wrap: wrap; }
+  .spacer { flex: 1; }
+
+  input[type=range] { -webkit-appearance: none; appearance: none; background: transparent; cursor: pointer; margin: 0; }
+  input[type=range]::-webkit-slider-runnable-track { height: 5px; border-radius: 3px;
+    background: linear-gradient(90deg, var(--accent) 0 var(--p, 0%), var(--bar-2) var(--p, 0%) 100%); }
+  input[type=range]::-webkit-slider-thumb { -webkit-appearance: none; width: 14px; height: 14px; margin-top: -4.5px;
+    border-radius: 50%; background: #fff; border: 0; box-shadow: 0 0 0 3px rgba(255, 199, 64, .35); }
+  input[type=range]::-moz-range-track { height: 5px; border-radius: 3px; background: var(--bar-2); }
+  input[type=range]::-moz-range-progress { height: 5px; border-radius: 3px; background: var(--accent); }
+  input[type=range]::-moz-range-thumb { width: 14px; height: 14px; border-radius: 50%; background: #fff; border: 0; }
+  #seek { width: 100%; height: 16px; }
+  #vol { width: 80px; height: 16px; }
+
+  .btn { width: 34px; height: 32px; border: 0; border-radius: 7px; background: transparent; color: var(--text);
+    display: inline-flex; align-items: center; justify-content: center; cursor: pointer; padding: 0; }
+  .btn:hover { background: var(--bar-2); }
+  .btn:focus-visible, select:focus-visible, input:focus-visible { outline: 2px solid var(--accent); outline-offset: 1px; }
+  .btn svg { width: 18px; height: 18px; fill: currentColor; }
+  .btn.on { color: var(--accent); background: #2a2a1c; }
+  .readout { font-size: 12px; font-variant-numeric: tabular-nums; color: var(--muted); padding: 0 6px; white-space: nowrap; }
+  .readout b { color: var(--text); font-weight: 600; }
+  select { background: var(--bar-2); color: var(--text); border: 1px solid var(--line); border-radius: 6px;
+    font: 12px Inter, "Segoe UI", sans-serif; height: 28px; padding: 0 6px; cursor: pointer; }
+  .keys { font-size: 11px; color: var(--muted); padding: 2px 4px 0; }
+  .keys kbd { font: 10px Inter, sans-serif; background: var(--bar-2); border: 1px solid var(--line); border-radius: 4px;
+    padding: 0 4px; color: var(--text); }
+  @media (max-width: 640px) {
+    .keys { display: none; }
+    #vol { width: 60px; }
+    .readout.frames { display: none; }
+  }
+</style>
+</head>
+<body>
+<div class="player" id="player">
+  <div class="stage">
+    <canvas id="cv" width="1280" height="720" aria-label="LazyMapLayers demo animation: a flight from the globe to Bangladesh and down to Dhaka, offline"></canvas>
+    <div class="overlay" id="overlay" title="Play">
+      <div class="bigplay"><svg viewBox="0 0 24 24" width="34" height="34" fill="#fff"><path d="M8 5v14l11-7z"/></svg></div>
+    </div>
+  </div>
+  <div class="controls">
+    <input type="range" id="seek" min="0" max="18000" step="1" value="0" aria-label="Seek">
+    <div class="row">
+      <button class="btn" id="bPlay" title="Play / pause (Space, K)" aria-label="Play"></button>
+      <button class="btn" id="bRestart" title="Restart (Home)" aria-label="Restart"><svg viewBox="0 0 24 24"><path d="M12 5V2L7 6l5 4V7a5 5 0 1 1-5 5H5a7 7 0 1 0 7-7z"/></svg></button>
+      <button class="btn" id="bPrev" title="Previous frame (← or ,)" aria-label="Previous frame"><svg viewBox="0 0 24 24"><path d="M6 6h2v12H6zM9.5 12 18 18V6z"/></svg></button>
+      <button class="btn" id="bNext" title="Next frame (→ or .)" aria-label="Next frame"><svg viewBox="0 0 24 24"><path d="M16 6h2v12h-2zM6 18l8.5-6L6 6z"/></svg></button>
+      <span class="readout" id="time"><b>0:00.00</b> / 0:18.00</span>
+      <span class="readout frames" id="frames">Frame <b>1</b> / 540</span>
+      <span class="spacer"></span>
+      <select id="speed" title="Playback speed" aria-label="Playback speed">
+        <option value="0.25">0.25×</option><option value="0.5">0.5×</option><option value="0.75">0.75×</option>
+        <option value="1" selected>1×</option><option value="1.5">1.5×</option><option value="2">2×</option>
+      </select>
+      <button class="btn on" id="bLoop" title="Loop (L)" aria-label="Loop"><svg viewBox="0 0 24 24"><path d="M7 7h10v3l4-4-4-4v3H5v6h2zm10 10H7v-3l-4 4 4 4v-3h12v-6h-2z"/></svg></button>
+      <button class="btn" id="bMute" title="Mute (M)" aria-label="Mute"></button>
+      <input type="range" id="vol" min="0" max="1" step="0.01" value="0.8" aria-label="Volume">
+      <button class="btn" id="bFull" title="Fullscreen (F)" aria-label="Fullscreen"><svg viewBox="0 0 24 24"><path d="M7 14H5v5h5v-2H7zm-2-4h2V7h3V5H5zm12 7h-3v2h5v-5h-2zM14 5v2h3v3h2V5z"/></svg></button>
+    </div>
+    <div class="keys"><kbd>Space</kbd>/<kbd>K</kbd> play · <kbd>←</kbd><kbd>→</kbd> or <kbd>,</kbd><kbd>.</kbd> frame · <kbd>Shift</kbd>+<kbd>←</kbd><kbd>→</kbd> ±1 s · <kbd>Home</kbd>/<kbd>End</kbd> · <kbd>M</kbd> mute · <kbd>L</kbd> loop · <kbd>F</kbd> fullscreen</div>
+  </div>
+</div>
+
+<!-- Map data, read from LazyMapLayers' own offline pack: Natural Earth outlines (public domain),
+     OpenStreetMap to zoom 9 (© OpenStreetMap contributors, ODbL, via Protomaps), geoBoundaries districts
+     (CC BY 3.0 IGO) and NASA Blue Marble. Gzipped JSON, Web Mercator in 2^-22 world units, delta-encoded. -->
+<script id="mapdata" type="application/octet-stream">/*DATA*/</script>
+<script>
+const SAT_URL = "/*SAT*/";
+const W = 1280, H = 720, FPS = 30, DUR = 18, TOTAL = DUR * FPS;
+const cv = document.getElementById("cv");
+const ctx = cv.getContext("2d");
+const DPR = Math.min(2, window.devicePixelRatio || 1);
+cv.width = W * DPR; cv.height = H * DPR;
+
+const clamp = (x, a = 0, b = 1) => Math.min(b, Math.max(a, x));
+const seg = (t, a, b) => clamp((t - a) / (b - a));
+const lerp = (a, b, u) => a + (b - a) * u;
+const eIO = u => u < .5 ? 4 * u * u * u : 1 - Math.pow(-2 * u + 2, 3) / 2;
+const eOut = u => 1 - Math.pow(1 - u, 3);
+const eSine = u => -(Math.cos(Math.PI * u) - 1) / 2;
+const eBack = u => { const c1 = 1.70158, c3 = c1 + 1; return 1 + c3 * Math.pow(u - 1, 3) + c1 * Math.pow(u - 1, 2); };
+const smooth = (a, b, x) => { const u = seg(x, a, b); return u * u * (3 - 2 * u); };
+const FONT = 'Inter, "Segoe UI", system-ui, sans-serif';
+const RAD = Math.PI / 180;
+
+/* ---------- looks: the palettes of src/core/style/themes.ts ---------- */
+const LOOKS = {
+  midnight: { name: "Midnight", ocean: "#07111f", land: "#1a2838", urban: "#202d3b", river: "#0f2a45", coast: "#3f78a8",
+    glow: "#2f7fc4", border: "#93a9bd", admin1: "#43566a", roadMajor: "#446280", highway: "#36b3ff",
+    text: "#eef3f8", textCountry: "#c9d6e2", halo: "#07111f", accent: "#ffc740", swatch: ["#07111f", "#1a2838", "#36b3ff"] },
+  satellite: { name: "Satellite", satellite: true, ocean: "#0a1c30", land: "#2b3527", urban: "#3b3b37", river: "#0f2a45", coast: "#b9d6ea",
+    glow: "", border: "#ffffff", admin1: "#d5dde4", roadMajor: "#8c8b7b", highway: "#ffd27a",
+    text: "#ffffff", textCountry: "#f3f3f3", halo: "#0a0f14", accent: "#ffd166", swatch: ["#123a63", "#4d6a3a", "#c9b98a"] },
+  atlas: { name: "Atlas", ocean: "#cfe6f3", land: "#efe9da", urban: "#e8e1d2", river: "#a9d3ea", coast: "#7fb3d1",
+    glow: "#ffffff", border: "#ffffff", admin1: "#ffffff", roadMajor: "#fbe7b0", highway: "#e9a23b",
+    text: "#2d2a26", textCountry: "#5a5246", halo: "#ffffff", accent: "#e2582a", swatch: ["#cfe6f3", "#f3c9a5", "#c9dba3"],
+    fills: { BGD: "#c9dba3", IND: "#f3c9a5", MMR: "#d5c3e0", NPL: "#f2e3a0", BTN: "#b5d6b9", CHN: "#f2e3a0" } },
+};
+const LOOK_ORDER = ["midnight", "satellite", "atlas"];
+const hex = h => [parseInt(h.slice(1, 3), 16), parseInt(h.slice(3, 5), 16), parseInt(h.slice(5, 7), 16)];
+const mix = (a, b, u) => { const A = hex(a), B = hex(b); return `rgb(${A.map((v, i) => Math.round(lerp(v, B[i], u))).join(",")})`; };
+
+/* ---------- geography ---------- */
+const mxOf = lng => (lng + 180) / 360;
+const myOf = lat => { const s = Math.sin(lat * RAD); return .5 - Math.log((1 + s) / (1 - s)) / (4 * Math.PI); };
+const DHAKA = [90.4074, 23.8103];             // Dhaka city centre
+let Q = 4194304, OX = 0, OY = 0;             // world units and the local origin (Dhaka)
+const G = {};                                 // prepared paths
+
+function rings(list) {                        // delta-encoded rings -> local coordinates
+  return list.map(r => { const out = new Float64Array(r.length); let x = 0, y = 0;
+    for (let i = 0; i < r.length; i += 2) { x += r[i]; y += r[i + 1]; out[i] = x - OX; out[i + 1] = y - OY; } return out; });
+}
+function pathOf(polys, closed = true) {
+  const p = new Path2D();
+  for (const ring of polys) {
+    p.moveTo(ring[0], ring[1]);
+    for (let i = 2; i < ring.length; i += 2) p.lineTo(ring[i], ring[i + 1]);
+    if (closed) p.closePath();
+  }
+  return p;
+}
+const polyRings = polys => polys.flatMap(rings);
+function ringLength(r) { let L = 0; for (let i = 2; i < r.length; i += 2) L += Math.hypot(r[i] - r[i - 2], r[i + 1] - r[i - 1]); return L; }
+
+async function loadData() {
+  const b64 = document.getElementById("mapdata").textContent.trim();
+  const bin = Uint8Array.from(atob(b64), c => c.charCodeAt(0));
+  const stream = new Blob([bin]).stream().pipeThrough(new DecompressionStream("gzip"));
+  const D = JSON.parse(await new Response(stream).text());
+  Q = D.Q; OX = Math.round(mxOf(DHAKA[0]) * Q); OY = Math.round(myOf(DHAKA[1]) * Q);
+  // globe: rings in radians
+  G.globe = D.globe.map(country => country.map(poly => poly.map(r => {
+    const out = new Float32Array(r.length); let x = 0, y = 0;
+    for (let i = 0; i < r.length; i += 2) { x += r[i]; y += r[i + 1];
+      out[i] = (x / Q * 360 - 180) * RAD; out[i + 1] = Math.atan(Math.sinh(Math.PI * (1 - 2 * y / Q))); }
+    return out; })));
+  G.worldLand = pathOf(D.globe.flatMap(c => c.flatMap(rings)));
+  G.region = {};
+  for (const id in D.region) G.region[id] = pathOf(D.region[id].map(poly => rings([poly[0]])[0]));
+  const bgd = polyRings(D.region.BGD);
+  G.bgdMain = bgd.reduce((a, b) => b.length > a.length ? b : a);
+  G.bgdMainPath = pathOf([G.bgdMain]); G.bgdMainLen = ringLength(G.bgdMain);
+  G.bgdRest = pathOf(bgd.filter(r => r !== G.bgdMain));
+  G.districts = pathOf(D.districts.flatMap(d => polyRings(d.p)));
+  const prep = L => ({
+    water: pathOf(L.water.flatMap(rings)),
+    roads: pathOf(rings(Object.entries(L.roads).filter(([k]) => k !== "highway").flatMap(([, v]) => v)), false),
+    highway: pathOf(rings(L.roads.highway || []), false),
+    urban: pathOf(L.urban.flatMap(u => rings(u.p))),
+    places: Object.fromEntries(L.places.map(p => [p.n, [p.q[0] - OX, p.q[1] - OY]])),
+  });
+  G.country = prep(D.country);
+  G.city = prep(D.city);
+  G.sat = await new Promise(res => { const im = new Image(); im.onload = () => res(im); im.onerror = () => res(null); im.src = SAT_URL; });
+  G.satRect = [23 / 32 * Q - OX, 13 / 32 * Q - OY, 2 / 32 * Q, 2 / 32 * Q];  // Blue Marble z5 tiles 23-24 x 13-14
+  G.ready = true;
+}
+
+/* ---------- camera ---------- */
+const C_START = [72, 16], C_COUNTRY = [90.28, 23.72], C_CITY = [90.415, 23.775];
+const Z_GLOBE = 1.36, Z_COUNTRY = 6.02, Z_CITY = 10.05;
+const FLY1 = [2.0, 4.1], FLY2 = [10.6, 12.6];   // the camera moves only in these two flights
+function camera(t) {
+  let lng = C_CITY[0], lat = C_CITY[1], Z = Z_CITY;
+  if (t < FLY2[0]) {
+    const u = seg(t, FLY1[0], FLY1[1]);
+    const ur = eIO(seg(t, FLY1[0], FLY1[0] + (FLY1[1] - FLY1[0]) * .75));
+    lng = lerp(C_START[0], C_COUNTRY[0], ur); lat = lerp(C_START[1], C_COUNTRY[1], ur);
+    Z = lerp(Z_GLOBE, Z_COUNTRY, eSine(u));
+  } else if (t < FLY2[1]) {
+    const u = eIO(seg(t, FLY2[0], FLY2[1]));
+    Z = lerp(Z_COUNTRY, Z_CITY, u);
+    const w = (1 - Math.pow(2, Z_COUNTRY - Z)) / (1 - Math.pow(2, Z_COUNTRY - Z_CITY));
+    lng = lerp(C_COUNTRY[0], C_CITY[0], w); lat = lerp(C_COUNTRY[1], C_CITY[1], w);
+  }
+  const k = 512 * Math.pow(2, Z) / Q;
+  return { lng, lat, Z, k, x: mxOf(lng) * Q - OX, y: myOf(lat) * Q - OY, globe: 1 - smooth(3.75, 4.35, Z) };
+}
+const toScreen = (c, p) => [W / 2 + (p[0] - c.x) * c.k, H / 2 + (p[1] - c.y) * c.k];
+
+/* ---------- looks over time: two one-click changes, shown as a wipe ---------- */
+const WIPES = [{ t: 8.0, d: .75, from: "midnight", to: "satellite" }, { t: 9.65, d: .75, from: "satellite", to: "atlas" }];
+function lookAt(t) {
+  let cur = "midnight";
+  for (const w of WIPES) {
+    if (t < w.t) return { a: cur, b: null, p: 0 };
+    if (t < w.t + w.d) return { a: w.from, b: w.to, p: eIO(seg(t, w.t, w.t + w.d)) };
+    cur = w.to;
+  }
+  return { a: cur, b: null, p: 0 };
+}
+
+/* ---------- the globe ---------- */
+function drawGlobe(c, L, alpha) {
+  const R = 512 * Math.pow(2, c.Z) / (2 * Math.PI * Math.cos(c.lat * RAD));
+  const l0 = c.lng * RAD, p0 = c.lat * RAD, sp0 = Math.sin(p0), cp0 = Math.cos(p0);
+  const cx = W / 2, cy = H / 2;
+  ctx.save(); ctx.globalAlpha = alpha;
+  // atmosphere
+  // atmosphere as two flat rings (flat colours keep the GIF small)
+  ctx.fillStyle = "#0b2036"; ctx.beginPath(); ctx.arc(cx, cy, R * 1.07, 0, 7); ctx.fill();
+  ctx.fillStyle = "#123150"; ctx.beginPath(); ctx.arc(cx, cy, R * 1.025, 0, 7); ctx.fill();
+  ctx.fillStyle = "#0a1a2c"; ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.fill();
+  ctx.save(); ctx.beginPath(); ctx.arc(cx, cy, R, 0, 7); ctx.clip();
+  const proj = (lam, phi, path, first) => {
+    const cp = Math.cos(phi), dl = lam - l0, cdl = Math.cos(dl);
+    let x = cp * Math.sin(dl), y = cp0 * Math.sin(phi) - sp0 * cp * cdl;
+    if (sp0 * Math.sin(phi) + cp0 * cp * cdl < 0) { const n = Math.hypot(x, y) || 1; x /= n; y /= n; }
+    first ? path.moveTo(cx + R * x, cy - R * y) : path.lineTo(cx + R * x, cy - R * y);
+  };
+  // graticule
+  const grat = new Path2D();
+  for (let lon = -180; lon < 180; lon += 20) for (let la = -80; la <= 80; la += 4) proj(lon * RAD, la * RAD, grat, la === -80);
+  for (let la = -60; la <= 60; la += 20) for (let lon = -180; lon <= 180; lon += 4) proj(lon * RAD, la * RAD, grat, lon === -180);
+  
+  // land
+  const land = new Path2D();
+  for (const country of G.globe) for (const poly of country) for (const r of poly) {
+    for (let i = 0; i < r.length; i += 2) proj(r[i], r[i + 1], land, i === 0);
+    land.closePath();
+  }
+  ctx.lineJoin = "round";
+  ctx.strokeStyle = L.glow; ctx.globalAlpha = alpha * .3; ctx.lineWidth = 4; ctx.stroke(land);
+  ctx.globalAlpha = alpha; ctx.fillStyle = L.land; ctx.fill(land);
+  ctx.strokeStyle = L.coast; ctx.lineWidth = 1; ctx.globalAlpha = alpha * .8; ctx.stroke(land);
+  ctx.restore();
+  ctx.restore();
+}
+
+/* ---------- the flat map in one look ---------- */
+function drawFlat(t, c, L) {
+  const k = c.k, px = v => v / k;
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  ctx.fillStyle = L.ocean; ctx.fillRect(0, 0, W, H);
+  ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * (W / 2 - c.x * k), DPR * (H / 2 - c.y * k));
+  ctx.lineJoin = "round"; ctx.lineCap = "round";
+  const cityA = smooth(FLY2[1] - .15, FLY2[1] + .45, t), countryRoadA = 1 - smooth(FLY2[0], FLY2[0] + .35, t), outlineA = 1 - smooth(8.5, 9.3, c.Z);
+
+  if (L.satellite && G.sat) {
+    ctx.imageSmoothingQuality = "high";
+    ctx.drawImage(G.sat, ...G.satRect);
+    ctx.strokeStyle = L.coast; ctx.globalAlpha = .35 * outlineA; ctx.lineWidth = px(.8);
+    ctx.stroke(G.worldLand); for (const id in G.region) ctx.stroke(G.region[id]);
+    ctx.globalAlpha = 1;
+  } else {
+    if (L.glow) {
+      ctx.strokeStyle = L.glow;
+      ctx.globalAlpha = L === LOOKS.atlas ? .9 : .3; ctx.lineWidth = px(L === LOOKS.atlas ? 5 : 4.5);
+      for (const id in G.region) ctx.stroke(G.region[id]);
+      ctx.globalAlpha = 1;
+    }
+    ctx.fillStyle = L.fills ? L.fills.BGD : L.land; ctx.fill(G.worldLand);
+    for (const id in G.region) { ctx.fillStyle = L.fills ? L.fills[id] : L.land; ctx.fill(G.region[id], "evenodd"); }
+    ctx.strokeStyle = L.fills ? "#ffffff" : L.coast; ctx.lineWidth = px(L.fills ? 1.4 : .9); ctx.globalAlpha = outlineA;
+    for (const id in G.region) ctx.stroke(G.region[id]);
+    ctx.globalAlpha = 1;
+  }
+
+  // OpenStreetMap from disk, revealed outward from Dhaka as it "loads"
+  const reveal = (a, b) => { const u = eOut(seg(t, a, b)); return u * 1700; };
+  const dh = toScreen(c, [0, 0]);
+  const withReveal = (r, fn) => {
+    if (r <= 0) return;
+    ctx.save();
+    if (r < 1650) { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.beginPath(); ctx.arc(dh[0], dh[1], r, 0, 7);
+      ctx.setTransform(DPR * k, 0, 0, DPR * k, DPR * (W / 2 - c.x * k), DPR * (H / 2 - c.y * k)); ctx.clip(); }
+    fn(); ctx.restore();
+  };
+  if (!L.satellite) {
+    // ground of the city: built-up areas
+    const urbanA = smooth(8.6, 9.6, c.Z);
+    if (urbanA > 0) { ctx.globalAlpha = urbanA; ctx.fillStyle = L.urban; ctx.fill(G.city.urban, "evenodd"); ctx.globalAlpha = 1; }
+    withReveal(reveal(4.45, 5.7), () => {
+      ctx.fillStyle = L.river; ctx.fill(G.country.water, "evenodd");
+      ctx.strokeStyle = L.coast; ctx.globalAlpha = L.fills ? .5 : .85; ctx.lineWidth = px(L.fills ? .6 : .9); ctx.stroke(G.country.water);
+      ctx.globalAlpha = 1;
+      if (urbanA > 0) { ctx.globalAlpha = urbanA; ctx.fill(G.city.water, "evenodd"); ctx.stroke(G.city.water); ctx.globalAlpha = 1; }
+    });
+  }
+  // districts
+  const dA = seg(t, 5.7, 6.3) * (1 - seg(t, FLY2[0], FLY2[0] + .3));
+  if (dA > 0) {
+    ctx.strokeStyle = L.admin1; ctx.globalAlpha = dA * (L.satellite ? .45 : L.fills ? .95 : .9);
+    ctx.lineWidth = px(L.fills ? 1.1 : .8); ctx.setLineDash([px(3), px(2.5)]); ctx.stroke(G.districts); ctx.setLineDash([]);
+    ctx.globalAlpha = 1;
+  }
+  // roads
+  withReveal(reveal(4.7, 6.0), () => {
+    const a = countryRoadA;
+    if (a > 0) {
+      if (L.fills) { ctx.strokeStyle = "#d8c9a6"; ctx.globalAlpha = a; ctx.lineWidth = px(2.2); ctx.stroke(G.country.roads); }
+      ctx.strokeStyle = L.roadMajor; ctx.globalAlpha = a * (L.satellite ? .55 : .95); ctx.lineWidth = px(L.fills ? 1.2 : .8); ctx.stroke(G.country.roads);
+      ctx.strokeStyle = L.highway; ctx.globalAlpha = a; ctx.lineWidth = px(1.5); ctx.stroke(G.country.highway);
+    }
+    if (cityA > 0) {
+      const w = clamp((c.Z - 8.3) / 2) ;
+      if (L.fills) { ctx.strokeStyle = "#d8c9a6"; ctx.globalAlpha = cityA; ctx.lineWidth = px(2 + w * 1.4); ctx.stroke(G.city.roads); }
+      ctx.strokeStyle = L.fills ? "#ffffff" : L.roadMajor; ctx.globalAlpha = cityA * (L.satellite ? .6 : 1);
+      ctx.lineWidth = px(1 + w * .8); ctx.stroke(G.city.roads);
+      ctx.strokeStyle = L.highway; ctx.lineWidth = px(2 + w * 1.5); ctx.stroke(G.city.highway);
+    }
+    ctx.globalAlpha = 1;
+  });
+  // the country's solid border, drawn on
+  const bp = eIO(seg(t, 5.1, 6.3));
+  if (bp > 0 && outlineA > 0) {
+    ctx.save(); ctx.globalAlpha = outlineA;
+    const len = G.bgdMainLen;
+    ctx.setLineDash([len * bp, len]);
+    ctx.strokeStyle = L.fills ? "rgba(45,42,38,.55)" : L.halo; ctx.globalAlpha = .8 * outlineA; ctx.lineWidth = px(5); ctx.stroke(G.bgdMainPath);
+    ctx.globalAlpha = outlineA; ctx.strokeStyle = L.border; ctx.lineWidth = px(2.4); ctx.stroke(G.bgdMainPath);
+    ctx.setLineDash([]);
+    ctx.globalAlpha = bp * outlineA; ctx.lineWidth = px(1.4); ctx.stroke(G.bgdRest);
+    ctx.restore();
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+}
+
+/* ---------- labels, pin, interface ---------- */
+function txt(s, x, y, o = {}) {
+  ctx.font = `${o.it ? "italic " : ""}${o.wt || 600} ${o.sz || 14}px ${FONT}`;
+  ctx.textAlign = o.align || "left"; ctx.textBaseline = o.base || "middle";
+  ctx.letterSpacing = (o.ls || 0) + "px";
+  if (o.halo) { ctx.strokeStyle = o.halo; ctx.lineWidth = o.hw || 4; ctx.lineJoin = "round"; ctx.strokeText(s, x, y); }
+  ctx.fillStyle = o.col || "#fff"; ctx.fillText(s, x, y);
+  ctx.letterSpacing = "0px";
+}
+function rrect(x, y, w, h, r) { ctx.beginPath(); ctx.roundRect(x, y, w, h, r); }
+
+const COUNTRY_LABELS = [["Chattogram", 6.6], ["Khulna", 6.67], ["Rajshahi", 6.74], ["Sylhet", 6.81], ["Rangpur", 6.88],
+  ["Barishal", 6.95], ["Mymensingh", 7.02], ["Kolkata", 7.09], ["Cumilla", 7.16]];
+const NAMES = [["BANGLADESH", [89.55, 24.55], 13, 6.5], ["INDIA", [87.35, 23.05], 12, 6.6], ["MYANMAR", [94.15, 22.1], 12, 6.7],
+  ["Bay of Bengal", [89.4, 21.05], 13, 6.8]];
+const CITY_LABELS = [["Tongi", 12.95], ["Savar", 13.03], ["Narayanganj", 13.11], ["Keraniganj", 13.19], ["Purbachal", 13.27],
+  ["Gazipur", 13.35], ["Rupganj", 13.43], ["Sonargaon", 13.51], ["Dhamrai", 13.59], ["Munshiganj", 13.67]];
+
+function labelColors(t) {
+  const lk = lookAt(t), A = LOOKS[lk.a], B = lk.b ? LOOKS[lk.b] : A;
+  return { text: mix(A.text, B.text, lk.p), country: mix(A.textCountry, B.textCountry, lk.p), halo: mix(A.halo, B.halo, lk.p),
+    accent: mix(A.accent, B.accent, lk.p) };
+}
+function placeDot(x, y, col, halo, r = 3.2) {
+  ctx.beginPath(); ctx.arc(x, y, r + 1.6, 0, 7); ctx.fillStyle = halo; ctx.fill();
+  ctx.beginPath(); ctx.arc(x, y, r, 0, 7); ctx.fillStyle = col; ctx.fill();
+}
+function drawLabels(t, c, lc) {
+  const countryA = 1 - smooth(6.2, 6.6, c.Z), cityA = smooth(9.6, 9.9, c.Z);
+  if (countryA > 0) {
+    for (const [name, pos, sz, t0] of NAMES) {
+      const a = eOut(seg(t, t0, t0 + .5)) * countryA; if (a <= 0) continue;
+      const q = [mxOf(pos[0]) * Q - OX, myOf(pos[1]) * Q - OY], [x, y] = toScreen(c, q);
+      ctx.globalAlpha = a;
+      const sea = name.startsWith("Bay");
+      txt(sea ? name : name, x, y + (1 - a) * 6, { sz, wt: sea ? 500 : 700, it: sea, ls: sea ? 1 : 4, align: "center",
+        col: sea ? "rgba(140,190,230,.9)" : lc.country, halo: sea ? null : lc.halo, hw: 4 });
+    }
+    for (const [name, t0] of COUNTRY_LABELS) {
+      const q = G.country.places[name]; if (!q) continue;
+      const a = eOut(seg(t, t0, t0 + .4)) * countryA; if (a <= 0) continue;
+      const [x, y] = toScreen(c, q);
+      ctx.globalAlpha = a;
+      placeDot(x, y, lc.text, lc.halo, 2.6 * a + .4);
+      txt(name, x + 8, y + (1 - a) * 5, { sz: 13, wt: 600, col: lc.text, halo: lc.halo, hw: 3.5 });
+    }
+  }
+  if (cityA > 0) {
+    for (const [name, t0] of CITY_LABELS) {
+      const q = G.city.places[name]; if (!q) continue;
+      const a = eOut(seg(t, t0, t0 + .4)) * cityA; if (a <= 0) continue;
+      const [x, y] = toScreen(c, q);
+      if (x < 20 || x > W - 120 || y < 40 || y > H - 60) continue;
+      ctx.globalAlpha = a;
+      placeDot(x, y, lc.text, lc.halo, 3 * a);
+      txt(name, x + 9, y + (1 - a) * 5, { sz: 14, wt: 600, col: lc.text, halo: lc.halo, hw: 4 });
+    }
+  }
+  ctx.globalAlpha = 1;
+}
+function drawPin(t, c, lc) {
+  const t0 = 6.15; if (t < t0) return;
+  const [x, y0] = toScreen(c, [0, 0]);
+  const u = seg(t, t0, t0 + .55), drop = (1 - eBack(u)) * -70, a = seg(t, t0, t0 + .15);
+  const s = lerp(1, 1.25, smooth(FLY2[0], FLY2[1], t));
+  // pulse rings
+  for (let i = 0; i < 2; i++) {
+    const ph = ((t - t0 - .5 + i * .6) % 1.2) / 1.2;
+    if (t - t0 < .5 + -i * .6 || ph < 0) continue;
+    ctx.globalAlpha = (1 - ph) * .7; ctx.strokeStyle = lc.accent; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.ellipse(x, y0, 6 + ph * 34, (6 + ph * 34) * .45, 0, 0, 7); ctx.stroke();
+  }
+  ctx.globalAlpha = a;
+  ctx.save(); ctx.translate(x, y0 + drop); ctx.scale(s, s);
+  ctx.fillStyle = "rgba(0,0,0,.35)"; ctx.beginPath(); ctx.ellipse(0, 1, 7, 3, 0, 0, 7); ctx.fill();
+  ctx.beginPath(); ctx.moveTo(0, 0);
+  ctx.bezierCurveTo(-4, -9, -13, -15, -13, -26); ctx.arc(0, -26, 13, Math.PI, 0); ctx.bezierCurveTo(13, -15, 4, -9, 0, 0);
+  ctx.fillStyle = lc.accent; ctx.fill(); ctx.strokeStyle = "rgba(0,0,0,.25)"; ctx.lineWidth = 1; ctx.stroke();
+  ctx.beginPath(); ctx.arc(0, -26, 5, 0, 7); ctx.fillStyle = "#fff"; ctx.fill();
+  ctx.restore();
+  // label card
+  const la = eOut(seg(t, t0 + .35, t0 + .8));
+  if (la > 0) {
+    ctx.globalAlpha = la;
+    const bx = x + 20 * s, by = y0 - 44 * s + (1 - la) * 6;
+    ctx.font = `700 ${Math.round(17 * s)}px ${FONT}`; const w1 = ctx.measureText("Dhaka").width;
+    ctx.font = `500 ${Math.round(11 * s)}px ${FONT}`; const w2 = ctx.measureText("23.81° N  90.41° E").width;
+    const bw = Math.max(w1, w2) + 22 * s;
+    rrect(bx, by, bw, 46 * s, 8 * s); ctx.fillStyle = "rgba(7,17,31,.82)"; ctx.fill();
+    ctx.strokeStyle = lc.accent; ctx.lineWidth = 1.2; ctx.stroke();
+    txt("Dhaka", bx + 11 * s, by + 17 * s, { sz: Math.round(17 * s), wt: 700, col: "#ffffff" });
+    txt("23.81° N  90.41° E", bx + 11 * s, by + 34 * s, { sz: Math.round(11 * s), wt: 500, col: "#9fb3c8" });
+  }
+  ctx.globalAlpha = 1;
+}
+
+function pill(x, y, w, h, fill = "rgba(7,17,31,.78)", stroke = "rgba(147,169,189,.28)") {
+  rrect(x, y, w, h, h / 2); ctx.fillStyle = fill; ctx.fill(); ctx.strokeStyle = stroke; ctx.lineWidth = 1; ctx.stroke();
+}
+function wifiOff(x, y, col) {
+  ctx.save(); ctx.translate(x, y); ctx.strokeStyle = col; ctx.lineWidth = 2; ctx.lineCap = "round";
+  for (const r of [4, 8.5, 13]) { ctx.beginPath(); ctx.arc(0, 6, r, -Math.PI * .78, -Math.PI * .22); ctx.stroke(); }
+  ctx.beginPath(); ctx.arc(0, 6, 1.6, 0, 7); ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = "#ff6b6b"; ctx.lineWidth = 2.2; ctx.beginPath(); ctx.moveTo(-10, -9); ctx.lineTo(10, 9); ctx.stroke();
+  ctx.restore();
+}
+function mapIcon(x, y, s, col) {
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.beginPath(); ctx.moveTo(-9, -6); ctx.lineTo(-3, -9); ctx.lineTo(3, -6); ctx.lineTo(9, -9); ctx.lineTo(9, 6); ctx.lineTo(3, 9); ctx.lineTo(-3, 6); ctx.lineTo(-9, 9); ctx.closePath();
+  ctx.fillStyle = col; ctx.fill();
+  ctx.strokeStyle = "rgba(7,17,31,.55)"; ctx.lineWidth = 1.4; ctx.beginPath(); ctx.moveTo(-3, -9); ctx.lineTo(-3, 6); ctx.moveTo(3, -6); ctx.lineTo(3, 9); ctx.stroke();
+  ctx.restore();
+}
+
+const CAPTIONS = [
+  [2.2, 4.4, "From the globe…"],
+  [4.5, 6.2, "…to any country, with its rivers and roads"],
+  [6.2, 7.6, "Solid borders, districts, pins and labels"],
+  [7.6, 10.6, "One click changes the look"],
+  [10.7, 15.3, "…down to city level. Still no internet."],
+];
+function drawCaption(t) {
+  for (const [a, b, s] of CAPTIONS) {
+    const v = seg(t, a, a + .3) * (1 - seg(t, b - .2, b)); if (v <= 0) continue;
+    ctx.font = `600 19px ${FONT}`; ctx.letterSpacing = "0px";
+    const w = ctx.measureText(s).width + 40, x = W / 2 - w / 2, y = 28 + (1 - eOut(v)) * -8;
+    ctx.globalAlpha = v; pill(x, y, w, 40, "rgba(7,17,31,.8)");
+    txt(s, W / 2, y + 20.5, { sz: 19, wt: 600, col: "#eef3f8", align: "center" });
+  }
+  ctx.globalAlpha = 1;
+}
+function drawHud(t, c) {
+  const a = seg(t, 2.0, 2.4) * (1 - seg(t, 15.3, 15.8)); if (a <= 0) return;
+  ctx.globalAlpha = a;
+  // offline badge
+  pill(W - 214, 32, 186, 36);
+  wifiOff(W - 190, 46, "#c9d6e2");
+  txt("Offline · no internet", W - 170, 50.5, { sz: 13, wt: 600, col: "#eef3f8" });
+  // scale and data line
+  const levels = ["Globe", "Country", "City"], lv = c.Z < 4.2 ? 0 : c.Z < 8.6 ? 1 : 2;
+  let x = 28; const y = H - 78;
+  rrect(24, y, 360, 58, 14); ctx.fillStyle = "rgba(7,17,31,.8)"; ctx.fill(); ctx.strokeStyle = "rgba(147,169,189,.28)"; ctx.lineWidth = 1; ctx.stroke();
+  x = 40;
+  levels.forEach((n, i) => {
+    ctx.font = `700 12px ${FONT}`; const w = ctx.measureText(n.toUpperCase()).width + 18;
+    if (i === lv) { rrect(x - 4, y + 8, w, 22, 11); ctx.fillStyle = "#ffc740"; ctx.fill(); }
+    txt(n.toUpperCase(), x + w / 2 - 4, y + 19.5, { sz: 12, wt: 700, ls: 1, col: i === lv ? "#07111f" : "#8aa0b8", align: "center" });
+    x += w + 6;
+    if (i < 2) { txt("›", x - 3, y + 18.5, { sz: 14, wt: 600, col: "#43566a", align: "center" }); x += 8; }
+  });
+  txt(`zoom ${c.Z.toFixed(1)}`, 372, y + 19.5, { sz: 12, wt: 600, col: "#c9d6e2", align: "right" });
+  txt("OSM to zoom 9 · terrain · satellite · districts — on disk", 40, y + 43, { sz: 11, wt: 500, col: "#8aa0b8" });
+  ctx.globalAlpha = 1;
+}
+
+/* the look picker, bottom right, with a pointer that clicks */
+const PK = { x: W - 228, y: H - 176, w: 204, row: 38 };
+function drawPicker(t) {
+  const a = seg(t, 7.1, 7.45) * (1 - seg(t, 14.6, 15.1)); if (a <= 0) return;
+  const lk = lookAt(t), active = lk.b && lk.p > .5 ? lk.b : lk.a;
+  ctx.globalAlpha = a;
+  const y0 = PK.y + (1 - eOut(a)) * 14;
+  rrect(PK.x, y0, PK.w, 30 + PK.row * 3 + 8, 12); ctx.fillStyle = "rgba(7,17,31,.86)"; ctx.fill();
+  ctx.strokeStyle = "rgba(147,169,189,.3)"; ctx.lineWidth = 1; ctx.stroke();
+  txt("LOOK", PK.x + 14, y0 + 18, { sz: 11, wt: 700, ls: 1.5, col: "#8aa0b8" });
+  LOOK_ORDER.forEach((id, i) => {
+    const L = LOOKS[id], ry = y0 + 30 + i * PK.row;
+    if (id === active) { rrect(PK.x + 6, ry + 2, PK.w - 12, PK.row - 4, 8); ctx.fillStyle = "rgba(255,199,64,.16)"; ctx.fill();
+      ctx.strokeStyle = "rgba(255,199,64,.7)"; ctx.stroke(); }
+    L.swatch.forEach((s, j) => { ctx.beginPath(); ctx.arc(PK.x + 24 + j * 11, ry + PK.row / 2, 7, 0, 7); ctx.fillStyle = s; ctx.fill();
+      ctx.strokeStyle = "rgba(255,255,255,.5)"; ctx.lineWidth = 1; ctx.stroke(); });
+    txt(L.name, PK.x + 62, ry + PK.row / 2 + .5, { sz: 14, wt: id === active ? 700 : 500, col: id === active ? "#ffffff" : "#c9d6e2" });
+    if (id === active) txt("✓", PK.x + PK.w - 22, ry + PK.row / 2 + .5, { sz: 14, wt: 700, col: "#ffc740", align: "center" });
+  });
+  ctx.globalAlpha = 1;
+}
+const rowCenter = i => [PK.x + 110, PK.y + 30 + i * PK.row + PK.row / 2];
+const CUR = [[7.2, W + 30, H - 40], [7.75, ...rowCenter(1)], [8.2, ...rowCenter(1)], [9.1, ...rowCenter(1)], [9.45, ...rowCenter(2)], [10.0, ...rowCenter(2)], [10.5, W + 30, H - 20]];
+const CLICKS = [7.88, 9.55];
+function drawCursor(t) {
+  if (t < CUR[0][0] || t > CUR[CUR.length - 1][0]) return;
+  let x = CUR[0][1], y = CUR[0][2];
+  for (let i = 0; i < CUR.length - 1; i++) {
+    const [ta, xa, ya] = CUR[i], [tb, xb, yb] = CUR[i + 1];
+    if (t >= ta && t <= tb) { const u = eIO(seg(t, ta, tb)); x = lerp(xa, xb, u); y = lerp(ya, yb, u); break; }
+  }
+  let press = 0;
+  for (const c of CLICKS) { const d = t - c; if (d > -.08 && d < .3) { press = Math.max(press, 1 - Math.abs(d - .02) / .2);
+    const r = seg(d, 0, .35); ctx.globalAlpha = (1 - r) * .7; ctx.strokeStyle = "#ffc740"; ctx.lineWidth = 2;
+    ctx.beginPath(); ctx.arc(x, y, 6 + r * 20, 0, 7); ctx.stroke(); ctx.globalAlpha = 1; } }
+  const s = 1 - clamp(press) * .15;
+  ctx.save(); ctx.translate(x, y); ctx.scale(s, s);
+  ctx.beginPath(); ctx.moveTo(0, 0); ctx.lineTo(0, 19); ctx.lineTo(4.6, 14.6); ctx.lineTo(8, 22); ctx.lineTo(11, 20.6); ctx.lineTo(7.7, 13.6); ctx.lineTo(14, 13.6); ctx.closePath();
+  ctx.fillStyle = "#fff"; ctx.fill(); ctx.strokeStyle = "#07111f"; ctx.lineWidth = 1.3; ctx.stroke();
+  ctx.restore();
+}
+
+/* title and outro */
+function drawTitle(t) {
+  const a = 1 - seg(t, 1.8, 2.3); if (a <= 0) return;
+  ctx.globalAlpha = a;
+  ctx.fillStyle = "rgba(5,12,23,.35)"; ctx.fillRect(0, 0, W, H);
+  const u = eOut(seg(t, .15, .9)), v = eOut(seg(t, .5, 1.2));
+  ctx.font = `800 54px ${FONT}`; ctx.letterSpacing = "-1px"; const nw = ctx.measureText("LazyMapLayers").width; ctx.letterSpacing = "0px";
+  const x0 = W / 2 - (nw + 44 + 76) / 2, ty = 300 + (1 - u) * 12;
+  ctx.globalAlpha = a * u;
+  mapIcon(x0 + 14, ty, 1.6, "#ffc740");
+  txt("LazyMapLayers", x0 + 44, ty, { sz: 54, wt: 800, col: "#ffffff", ls: -1 });
+  rrect(x0 + 44 + nw + 14, ty - 18, 62, 34, 9); ctx.fillStyle = "#ffc740"; ctx.fill();
+  txt("1.0", x0 + 44 + nw + 45, ty, { sz: 20, wt: 800, col: "#07111f", align: "center" });
+  ctx.globalAlpha = a * v;
+  txt("The whole world, from the globe to city level — offline", W / 2, 366 + (1 - v) * 10, { sz: 22, wt: 500, col: "#c9d6e2", align: "center" });
+  ctx.globalAlpha = 1;
+}
+function drawOutro(t) {
+  const a = t >= 15.4 ? 1 : 0; if (a <= 0) return;
+  ctx.fillStyle = "rgba(5,12,23,.8)"; ctx.fillRect(0, 0, W, H);
+  const parts = ["Free", "Works offline", "After Effects"];
+  ctx.font = `800 46px ${FONT}`; const dot = "  ·  ";
+  const widths = parts.map(p => ctx.measureText(p).width), dw = ctx.measureText(dot).width;
+  let x = W / 2 - (widths.reduce((s, w) => s + w, 0) + dw * 2) / 2;
+  parts.forEach((p, i) => {
+    const u = eOut(seg(t, 15.55 + i * .3, 16.0 + i * .3));
+    ctx.globalAlpha = u;
+    txt(p, x, 330 + (1 - u) * 14, { sz: 46, wt: 800, col: "#ffffff" });
+    x += widths[i];
+    if (i < 2) { txt(dot, x, 330, { sz: 46, wt: 800, col: "#ffc740" }); x += dw; }
+  });
+  const f = eOut(seg(t, 16.5, 17.0));
+  ctx.globalAlpha = f;
+  mapIcon(W / 2 - 150, 404 + (1 - f) * 8, .9, "#ffc740");
+  txt("LazyMapLayers 1.0 · free and open source (MIT)", W / 2 - 132, 404 + (1 - f) * 8, { sz: 17, wt: 600, col: "#c9d6e2" });
+  txt("github.com/raisulsohan/LazyMapLayers", W / 2, 440 + (1 - f) * 8, { sz: 17, wt: 700, col: "#36b3ff", align: "center" });
+  ctx.globalAlpha = 1;
+}
+
+/* ---------- one frame ---------- */
+function drawScene(t, c, L) {
+  if (c.globe < 1) drawFlat(t, c, L);
+  else { ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.fillStyle = "#050c17"; ctx.fillRect(0, 0, W, H); }
+  if (c.globe > 0) {
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    if (c.globe >= 1) {
+      ctx.fillStyle = "#050c17"; ctx.fillRect(0, 0, W, H);
+      stars(t);
+    }
+    drawGlobe(c, L, c.globe);
+  }
+}
+function stars(t) {
+  for (let i = 0; i < 140; i++) {
+    const h1 = Math.sin(i * 91.7) * 43758.5, h2 = Math.sin(i * 47.3) * 12345.6, h3 = Math.sin(i * 13.1) * 2345.6;
+    const x = (h1 - Math.floor(h1)) * W, y = (h2 - Math.floor(h2)) * H, b = h3 - Math.floor(h3);
+    ctx.globalAlpha = .25 + .45 * b;
+    ctx.fillStyle = "#cfe3ff"; ctx.fillRect(x, y, b > .8 ? 2 : 1.2, b > .8 ? 2 : 1.2);
+  }
+  ctx.globalAlpha = 1;
+}
+function render(t) {
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0); ctx.globalAlpha = 1;
+  if (!G.ready) { ctx.fillStyle = "#07111f"; ctx.fillRect(0, 0, W, H);
+    txt("Loading the map…", W / 2, H / 2, { sz: 16, wt: 500, col: "#8aa0b8", align: "center" }); return; }
+  const c = camera(t), lk = lookAt(t);
+  drawScene(t, c, LOOKS[lk.a]);
+  if (lk.b) {
+    // a diagonal wipe into the new look
+    const e = lerp(-260, W + 260, lk.p), sl = .32;
+    ctx.save(); ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    ctx.beginPath(); ctx.moveTo(-10, -10); ctx.lineTo(e + sl * H / 2 + 10, -10); ctx.lineTo(e - sl * H / 2 + 10, H + 10); ctx.lineTo(-10, H + 10); ctx.closePath(); ctx.clip();
+    drawScene(t, c, LOOKS[lk.b]);
+    ctx.restore();
+    ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+    const g = ctx.createLinearGradient(e - 30, 0, e + 30, 0);
+    g.addColorStop(0, "rgba(255,255,255,0)"); g.addColorStop(.5, "rgba(255,255,255,.55)"); g.addColorStop(1, "rgba(255,255,255,0)");
+    ctx.strokeStyle = g; ctx.lineWidth = 14; ctx.beginPath(); ctx.moveTo(e + sl * H / 2 + 10, -10); ctx.lineTo(e - sl * H / 2 + 10, H + 10); ctx.stroke();
+    ctx.strokeStyle = "#fff"; ctx.lineWidth = 1.5; ctx.stroke();
+  }
+  ctx.setTransform(DPR, 0, 0, DPR, 0, 0);
+  const lc = labelColors(t);
+  if (c.globe < 1) { drawLabels(t, c, lc); drawPin(t, c, lc); }
+  drawTitle(t);
+  drawHud(t, c);
+  drawCaption(t);
+  drawPicker(t);
+  drawCursor(t);
+  drawOutro(t);
+}
+
+/* ================================================================
+   Soundtrack: synthesized once with an OfflineAudioContext, played
+   from the current time so it follows seek, speed, mute and volume.
+   ================================================================ */
+let soundBuffer = null;
+async function buildSound() {
+  const sr = 44100, oc = new OfflineAudioContext(2, Math.ceil(DUR * sr), sr);
+  const master = oc.createGain(); master.gain.value = .9;
+  const comp = oc.createDynamicsCompressor(); comp.threshold.value = -16; comp.ratio.value = 3;
+  master.connect(comp).connect(oc.destination);
+  master.gain.setValueAtTime(.9, DUR - .8); master.gain.linearRampToValueAtTime(0, DUR);
+  let seed = 11;
+  const rnd = () => (seed = (seed * 16807) % 2147483647) / 2147483647;
+  const noise = oc.createBuffer(1, sr * 2, sr);
+  { const d = noise.getChannelData(0); for (let i = 0; i < d.length; i++) d[i] = rnd() * 2 - 1; }
+  const hz = m => 440 * Math.pow(2, (m - 69) / 12);
+
+  // pad: slow, wide chords
+  const padLp = oc.createBiquadFilter(); padLp.type = "lowpass"; padLp.frequency.value = 1000; padLp.connect(master);
+  const chords = [[0, 4.7, [50, 57, 62, 66]], [4.5, 8.1, [47, 54, 59, 62, 66]], [7.9, 13.3, [43, 55, 59, 62, 69]], [13.1, 18, [45, 52, 57, 61, 64, 69]]];
+  for (const [a, b, notes] of chords) for (const m of notes) for (const [type, det] of [["triangle", 0], ["sine", 6]]) {
+    const o = oc.createOscillator(); o.type = type; o.frequency.value = hz(m); o.detune.value = det;
+    const g = oc.createGain(); g.gain.setValueAtTime(0, a);
+    g.gain.linearRampToValueAtTime(.02, a + 1.1); g.gain.setValueAtTime(.02, b - .3); g.gain.linearRampToValueAtTime(0, b + .7);
+    o.connect(g).connect(padLp); o.start(a); o.stop(Math.min(DUR, b + .8));
+  }
+  const blip = (tt, f, dur, vol, type = "sine") => {
+    const o = oc.createOscillator(); o.type = type; o.frequency.value = f;
+    const g = oc.createGain(); g.gain.setValueAtTime(0, tt); g.gain.linearRampToValueAtTime(vol, tt + .006);
+    g.gain.exponentialRampToValueAtTime(.0008, tt + dur);
+    o.connect(g).connect(master); o.start(tt); o.stop(tt + dur + .02);
+  };
+  const tick = (tt, vol, freq = 3000, dur = .05) => {
+    const s = oc.createBufferSource(); s.buffer = noise;
+    const f = oc.createBiquadFilter(); f.type = "highpass"; f.frequency.value = freq;
+    const g = oc.createGain(); g.gain.setValueAtTime(vol, tt); g.gain.exponentialRampToValueAtTime(.001, tt + dur);
+    s.connect(f).connect(g).connect(master); s.start(tt, rnd() * .5, dur + .02);
+  };
+  const whoosh = (a, b, f0, f1, vol) => {
+    const s = oc.createBufferSource(); s.buffer = noise; s.loop = true;
+    const f = oc.createBiquadFilter(); f.type = "bandpass"; f.Q.value = 2.5;
+    f.frequency.setValueAtTime(f0, a); f.frequency.exponentialRampToValueAtTime(f1, b);
+    const g = oc.createGain(); g.gain.setValueAtTime(0, a); g.gain.linearRampToValueAtTime(vol, a + (b - a) * .6); g.gain.linearRampToValueAtTime(0, b);
+    s.connect(f).connect(g).connect(master); s.start(a); s.stop(b + .05);
+  };
+  // title shimmer
+  [74, 78, 81, 86].forEach((m, i) => blip(.25 + i * .13, hz(m), 1.3, .05));
+  // the flights
+  whoosh(FLY1[0], FLY1[1] + .3, 250, 1800, .13);
+  whoosh(FLY2[0], FLY2[1] + .3, 300, 2400, .13);
+  // data arriving from disk: soft ticks as rivers and roads appear
+  for (let i = 0; i < 12; i++) tick(4.5 + i * .12, .07, 4200, .03);
+  // the border closing
+  [69, 73, 76].forEach((m, i) => blip(5.5 + i * .25, hz(m), .7, .045, "triangle"));
+  // pin drop
+  { const tt = 6.52, o = oc.createOscillator(); o.frequency.setValueAtTime(160, tt); o.frequency.exponentialRampToValueAtTime(55, tt + .18);
+    const g = oc.createGain(); g.gain.setValueAtTime(.32, tt); g.gain.exponentialRampToValueAtTime(.001, tt + .3);
+    o.connect(g).connect(master); o.start(tt); o.stop(tt + .32); blip(tt + .05, hz(88), .5, .06); }
+  // labels popping
+  COUNTRY_LABELS.forEach(([, t0], i) => blip(t0 + .02, hz([81, 83, 86, 88, 90, 93, 95, 98, 100][i]), .18, .025));
+  CITY_LABELS.forEach(([, t0], i) => blip(t0 + .02, hz([86, 88, 90, 93, 95, 98, 100, 102, 105, 107][i]), .15, .02));
+  // clicks and wipes
+  for (const c of CLICKS) { blip(c, 1800, .05, .12); tick(c, .12, 5000, .02); }
+  for (const w of WIPES) whoosh(w.t - .05, w.t + w.d + .1, 1200, 5000, .09);
+  // outro
+  [74, 78, 81, 86, 90].forEach((m, i) => blip(15.6 + i * .2, hz(m), 1.4, .055));
+  soundBuffer = await oc.startRendering();
+}
+
+/* ================================================================
+   Player
+   ================================================================ */
+const $ = id => document.getElementById(id);
+const seekEl = $("seek"), volEl = $("vol"), speedEl = $("speed");
+const ICON = {
+  play: '<svg viewBox="0 0 24 24"><path d="M8 5v14l11-7z"/></svg>',
+  pause: '<svg viewBox="0 0 24 24"><path d="M6 5h4v14H6zm8 0h4v14h-4z"/></svg>',
+  vol: '<svg viewBox="0 0 24 24"><path d="M3 9v6h4l5 5V4L7 9zm13.5 3A4.5 4.5 0 0 0 14 8v8a4.5 4.5 0 0 0 2.5-4zM14 3.2v2.1a7 7 0 0 1 0 13.4v2.1a9 9 0 0 0 0-17.6z"/></svg>',
+  mute: '<svg viewBox="0 0 24 24"><path d="M16.5 12A4.5 4.5 0 0 0 14 8v2.2l2.4 2.4c.1-.2.1-.4.1-.6zM19 12c0 .9-.2 1.8-.5 2.6l1.5 1.5A9 9 0 0 0 14 3.2v2.1A7 7 0 0 1 19 12zM4.3 3 3 4.3 7.7 9H3v6h4l5 5v-6.7l4.3 4.3a7 7 0 0 1-2.3 1.1v2.1a9 9 0 0 0 3.7-1.8l2 2 1.3-1.3-9-9zM12 4 9.9 6.1 12 8.2z"/></svg>',
+};
+const S = { t: 0, playing: false, speed: 1, loop: true, muted: false, vol: .8, wall0: 0, t0: 0, dirty: true };
+let actx = null, gainNode = null, src = null;
+
+function ensureAudio() {
+  if (actx) return;
+  const AC = window.AudioContext || window.webkitAudioContext;
+  if (!AC) return;
+  actx = new AC();
+  gainNode = actx.createGain();
+  gainNode.connect(actx.destination);
+  applyGain();
+}
+function applyGain() {
+  if (!gainNode) return;
+  gainNode.gain.cancelScheduledValues(0);
+  gainNode.gain.value = S.muted ? 0 : S.vol;
+}
+function stopAudio() { if (src) { try { src.stop(); } catch (e) {} src.disconnect(); src = null; } }
+function startAudio() {
+  stopAudio();
+  if (!S.playing || !actx || !soundBuffer || S.t >= DUR) return;
+  src = actx.createBufferSource();
+  src.buffer = soundBuffer;
+  src.playbackRate.value = S.speed;
+  src.connect(gainNode);
+  src.start(0, S.t);
+}
+function anchor() { S.t0 = S.t; S.wall0 = performance.now(); }
+function play() {
+  if (S.t >= DUR - 1e-6) S.t = 0;
+  ensureAudio();
+  if (actx && actx.state === "suspended") actx.resume();
+  S.playing = true; anchor(); startAudio(); ui();
+}
+function pause() { S.playing = false; stopAudio(); ui(); }
+function toggle() { S.playing ? pause() : play(); }
+function seek(nt) {
+  S.t = clamp(nt, 0, DUR);
+  if (S.playing) { anchor(); startAudio(); }
+  S.dirty = true; ui();
+}
+function frameOf(t) { return Math.min(TOTAL - 1, Math.floor(t * FPS + 1e-6)); }
+function step(d) { pause(); seek((clamp(frameOf(S.t) + d, 0, TOTAL - 1)) / FPS); }
+function setSpeed(v) { S.speed = v; speedEl.value = String(v); if (S.playing) { anchor(); startAudio(); } }
+function setLoop(v) { S.loop = v; $("bLoop").classList.toggle("on", v); }
+function setMute(v) { S.muted = v; applyGain(); ui(); }
+function setVol(v) { S.vol = clamp(v); volEl.value = S.vol; if (S.vol > 0 && S.muted) S.muted = false; applyGain(); ui(); }
+function fullscreen() {
+  const p = $("player");
+  if (document.fullscreenElement) document.exitFullscreen().catch(() => {});
+  else if (document.webkitFullscreenElement) document.webkitExitFullscreen();
+  else if (p.requestFullscreen) p.requestFullscreen().catch(() => {});
+  else if (p.webkitRequestFullscreen) p.webkitRequestFullscreen();
+}
+const fmt = t => `${Math.floor(t / 60)}:${(t % 60).toFixed(2).padStart(5, "0")}`;
+function ui() {
+  $("bPlay").innerHTML = S.playing ? ICON.pause : ICON.play;
+  $("bPlay").setAttribute("aria-label", S.playing ? "Pause" : "Play");
+  $("overlay").classList.toggle("hidden", S.playing || S.t > 0);
+  $("bMute").innerHTML = S.muted || S.vol === 0 ? ICON.mute : ICON.vol;
+  $("bMute").classList.toggle("on", S.muted);
+  $("time").innerHTML = `<b>${fmt(S.t)}</b> / ${fmt(DUR)}`;
+  $("frames").innerHTML = `Frame <b>${frameOf(S.t) + 1}</b> / ${TOTAL}`;
+  if (!dragging) seekEl.value = Math.round(S.t * 1000);
+  seekEl.style.setProperty("--p", (S.t / DUR * 100) + "%");
+  volEl.style.setProperty("--p", ((S.muted ? 0 : S.vol) * 100) + "%");
+}
+
+function loop(now) {
+  if (S.playing) {
+    S.t = S.t0 + (now - S.wall0) / 1000 * S.speed;
+    if (S.t >= DUR) {
+      if (S.loop) { S.t = 0; anchor(); startAudio(); }
+      else { S.t = DUR; pause(); }
+    }
+    S.dirty = true;
+  }
+  if (S.dirty) { render(Math.min(S.t, DUR - 1e-4)); S.dirty = false; ui(); }
+  requestAnimationFrame(loop);
+}
+
+/* wiring */
+$("overlay").addEventListener("click", play);
+cv.addEventListener("click", toggle);
+$("bPlay").addEventListener("click", toggle);
+$("bRestart").addEventListener("click", () => seek(0));
+$("bPrev").addEventListener("click", () => step(-1));
+$("bNext").addEventListener("click", () => step(1));
+$("bLoop").addEventListener("click", () => setLoop(!S.loop));
+$("bMute").addEventListener("click", () => setMute(!S.muted));
+$("bFull").addEventListener("click", fullscreen);
+speedEl.addEventListener("change", () => setSpeed(parseFloat(speedEl.value)));
+volEl.addEventListener("input", () => setVol(parseFloat(volEl.value)));
+let dragging = false, wasPlaying = false;
+seekEl.addEventListener("pointerdown", () => { dragging = true; wasPlaying = S.playing; if (S.playing) pause(); });
+seekEl.addEventListener("input", () => seek(seekEl.value / 1000));
+const endDrag = () => { if (!dragging) return; dragging = false; if (wasPlaying) play(); };
+seekEl.addEventListener("pointerup", endDrag);
+seekEl.addEventListener("change", endDrag);
+document.querySelectorAll("button").forEach(b => b.addEventListener("click", () => b.blur()));
+
+document.addEventListener("keydown", e => {
+  if (e.ctrlKey || e.metaKey || e.altKey) return;
+  const k = e.key;
+  let handled = true;
+  if (k === " " || k === "k" || k === "K") { if (!e.repeat) toggle(); }
+  else if (k === "ArrowLeft") e.shiftKey ? seek(S.t - 1) : step(-1);
+  else if (k === "ArrowRight") e.shiftKey ? seek(S.t + 1) : step(1);
+  else if (k === "," || k === "<") step(-1);
+  else if (k === "." || k === ">") step(1);
+  else if (k === "Home") seek(0);
+  else if (k === "End") { pause(); seek(DUR); }
+  else if (k === "m" || k === "M") setMute(!S.muted);
+  else if (k === "l" || k === "L") setLoop(!S.loop);
+  else if (k === "f" || k === "F") fullscreen();
+  else handled = false;
+  if (handled) { e.preventDefault(); e.stopPropagation(); }
+}, true);
+document.addEventListener("keyup", e => { if (e.key === " ") e.preventDefault(); }, true);
+
+window.__demo = { render, seek, get state() { return S; }, get ready() { return !!G.ready; }, DUR, FPS };
+loadData().then(() => { S.dirty = true; }).catch(err => console.error("map data", err));
+buildSound().catch(err => console.warn("sound", err));
+(document.fonts ? document.fonts.ready : Promise.resolve()).then(() => { S.dirty = true; });
+ui();
+requestAnimationFrame(loop);
+</script>
+</body>
+</html>
