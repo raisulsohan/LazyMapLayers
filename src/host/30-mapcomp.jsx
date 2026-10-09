@@ -25,7 +25,9 @@ LML.map.ANIMATION_CONTROLS = [
     { name: "Terrain Height", key: "terrainHeight" },
     { name: "Ground Level", key: "groundLevel" },
     // The moment a map of numbers over time shows (a year), read per frame for its colours.
-    { name: "Data Time", key: "dataTime" }
+    { name: "Data Time", key: "dataTime" },
+    // The year a map of historical borders shows; between two years of the pack the renderer cross-fades.
+    { name: "History Year", key: "historyYear" }
 ];
 
 /** Sets a slider on the map layer to a plain value (created when missing); keys on it are kept. */
@@ -39,6 +41,12 @@ LML.map.setControlValue = function (layer, name, value) {
     if (prop.numKeys > 0) return false;
     prop.setValue(value);
     return true;
+};
+
+/** Takes a slider off the map layer, keys and all (nothing happens when it is missing). */
+LML.map.removeControl = function (layer, name) {
+    var effect = layer.property("ADBE Effect Parade").property(name);
+    if (effect) effect.remove();
 };
 
 /** The plain value of a slider on the map layer at the layer's start, or null when it is missing. */

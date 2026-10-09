@@ -24,9 +24,9 @@ import type { MapProjection } from "../../core/camera/globe.ts";
 import { sharedEncodePool } from "./encodePool.ts";
 import { FrameRenderer, layerGroup, layerHighlight } from "./frameRenderer.ts";
 import { RenderStore } from "./renderStore.ts";
-import { normaliseHistory, type HistorySetting } from "../../core/history/historyStyle.ts";
+import { normaliseHistory, yearsForRange, type HistorySetting } from "../../core/history/historyStyle.ts";
 import { HISTORY_CREDIT } from "../../core/history/historyPack.ts";
-import { hasHistoryPack } from "../data/history.ts";
+import { hasHistoryPack, historyManifest } from "../data/history.ts";
 
 export type { BasemapSource, Marker } from "../basemap/basemapStyle.ts";
 export { basemapStyle } from "../basemap/basemapStyle.ts";
@@ -179,7 +179,16 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   // sliders the style needs the terrain as soon as any frame lifts the ground.
   let terrain = terrainUsable(normaliseTerrain(spec.terrain)) ? normaliseTerrain(spec.terrain) : null;
   if (terrain && cameras.some((samples) => samples.some((v) => (v.animation?.terrainHeight ?? 0) > 0))) terrain = { ...terrain, height: Math.max(terrain.height, 0.01) };
-  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), own: normaliseOwnImagery(spec.own), sky: spec.sky, terrain, history: normaliseHistory(spec.history) }), normaliseDetails(spec.lookDetails));
+  // The History Year slider decides the years: every year of the pack it passes through is drawn, and
+  // the renderer cross-fades between them per frame.
+  const history = normaliseHistory(spec.history);
+  let historyYears: number[] | undefined;
+  if (history && info.animations.includes("historyYear")) {
+    const values = cameras.flatMap((samples) => samples.map((view) => view.animation?.historyYear)).filter((v): v is number => typeof v === "number" && Number.isFinite(v));
+    const pack = historyManifest()?.years.map((y) => y.year) ?? [];
+    if (values.length && pack.length) historyYears = yearsForRange(pack, values.reduce((a, b) => Math.min(a, b)), values.reduce((a, b) => Math.max(a, b)));
+  }
+  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), own: normaliseOwnImagery(spec.own), sky: spec.sky, terrain, history, historyYears }), normaliseDetails(spec.lookDetails));
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -342,7 +351,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
     // The offline world is OpenStreetMap data too, once a frame comes close enough for it to show.
-    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", normaliseHistory(spec.history) && hasHistoryPack() ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", history && hasHistoryPack() ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });

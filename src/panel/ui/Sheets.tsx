@@ -61,7 +61,8 @@ import { addMapMinimap, addMapNorthArrow, addMapScaleBar, minimapCorner, minimap
 import { openSatelliteSheet, removeSatelliteArea, satellitePacks, useSatelliteArea } from "../store.ts";
 import { satelliteNameOf } from "../../core/style/ownImagery.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
-import { changeHistory, downloadHistory, history, historyVersion } from "../store.ts";
+import { addHistoryYear, animateHistory, changeHistory, downloadHistory, history, historySlider, historyVersion, holdHistory } from "../store.ts";
+import { sliderYearLabel } from "../../core/history/historyStyle.ts";
 import { hasHistoryPack, historyManifest } from "../data/history.ts";
 import { HISTORY_PACK } from "../../core/history/packInfo.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
@@ -248,6 +249,34 @@ export function LookSheetView(): JSX.Element | null {
               ))}
             </select>
           </label>
+        </div>
+      )}
+      {pastPack && history.value && (
+        <div class="sheet-row import-row">
+          <label class="num-field grow" title="The map moves through history over the comp: the History Year slider on the map layer runs from the year above at the start to this one at the end, and the render cross-fades through every year of the pack in between. Retime or add keys in After Effects like any others.">
+            <span>Move to</span>
+            <select data-id="history-to" value="" disabled={busy.value} onChange={(e) => { const value = (e.target as HTMLSelectElement).value; (e.target as HTMLSelectElement).value = ""; if (value) void animateHistory(Number(value)); }}>
+              <option value="">Pick a year…</option>
+              {pastPack.years.slice().reverse().filter((y) => y.year !== history.value!.year).map((y) => (
+                <option key={y.year} value={String(y.year)}>
+                  {y.label}
+                </option>
+              ))}
+            </select>
+          </label>
+          <button class="small-button" data-id="history-year-add" disabled={busy.value} title="The year the map shows, as a text layer that counts with the History Year slider" onClick={() => void addHistoryYear()}>
+            Add the year
+          </button>
+        </div>
+      )}
+      {history.value && historySlider.value?.keys && (
+        <div class="sheet-row import-row">
+          <span class="grow muted small" data-id="history-keys">
+            History Year slider: {sliderYearLabel(historySlider.value.keys[0])} → {sliderYearLabel(historySlider.value.keys[1])}
+          </span>
+          <button class="small-button" data-id="history-hold" disabled={busy.value} title="Takes the keys off the History Year slider: the map holds the year above" onClick={() => void holdHistory()}>
+            Hold still
+          </button>
         </div>
       )}
       {pastYear?.note && <div class="muted small" data-id="history-note">{pastYear.note}</div>}

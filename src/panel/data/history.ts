@@ -61,13 +61,13 @@ export function loadHistoryYear(year: number): LoadedYear | null {
   }
 }
 
-/** The year's shapes as GeoJSON for MapLibre, each with the colour of its ruler (land nobody held has none). */
-export function historyShapes(loaded: LoadedYear, colours: Map<string, string>): GeoJSON.FeatureCollection {
+/** The year's shapes as GeoJSON for MapLibre, each with the colour of its ruler; land nobody held gets `unclaimed`. */
+export function historyShapes(loaded: LoadedYear, colours: Map<string, string>, unclaimed = "rgba(0,0,0,0)"): GeoJSON.FeatureCollection {
   return {
     type: "FeatureCollection",
     features: loaded.year.features.map((f) => ({
       type: "Feature",
-      properties: { id: f.id, name: f.name, ruler: f.ruler, precision: f.precision, color: (f.name && colours.get(f.ruler)) || "rgba(0,0,0,0)" },
+      properties: { id: f.id, name: f.name, ruler: f.ruler, precision: f.precision, color: f.name ? colours.get(f.ruler) ?? unclaimed : unclaimed },
       geometry: { type: "MultiPolygon", coordinates: f.polygons }
     }))
   };

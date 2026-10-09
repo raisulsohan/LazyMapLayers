@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { boundsArea, historyBorders, historyPalette, normaliseHistory, preferredSlot, rulerColours, rulerMap } from "../../src/core/history/historyStyle.ts";
+import { boundsArea, historyBorders, historyMix, historyPalette, historyWeights, normaliseHistory, preferredSlot, rulerColours, rulerMap, sliderYearLabel, yearsForRange } from "../../src/core/history/historyStyle.ts";
 import { themeById } from "../../src/core/style/themes.ts";
 
 const square = (west: number, south: number, size: number) => [
@@ -96,4 +96,42 @@ test("bounds area orders names by size", () => {
   assert.ok(boundsArea([0, 0, 10, 10]) > boundsArea([0, 0, 2, 2]));
   assert.ok(boundsArea([0, 60, 10, 70]) < boundsArea([0, 0, 10, 10]), "narrower towards the poles");
   assert.equal(boundsArea([10, 0, 0, 10]), 0);
+});
+
+test("a slider's range: the snapshots it passes, held at the ends of the pack", () => {
+  const pack = [1900, 1914, 1920, 1945, 1960];
+  assert.deepEqual(yearsForRange(pack, 1914, 1945), [1914, 1920, 1945]);
+  assert.deepEqual(yearsForRange(pack, 1945, 1914), [1914, 1920, 1945], "either direction");
+  assert.deepEqual(yearsForRange(pack, 1915, 1944), [1914, 1920, 1945], "between snapshots: the ones around");
+  assert.deepEqual(yearsForRange(pack, 1930, 1930), [1920, 1945]);
+  assert.deepEqual(yearsForRange(pack, 1920, 1920), [1920]);
+  assert.deepEqual(yearsForRange(pack, 1700, 1800), [1900], "before the pack: its first year");
+  assert.deepEqual(yearsForRange(pack, 2000, 2020), [1960]);
+  assert.deepEqual(yearsForRange([], 1, 2), []);
+});
+
+test("a slider value between two years", () => {
+  const years = [1914, 1920, 1945];
+  assert.deepEqual(historyMix(years, 1914), { from: 1914, to: 1914, w: 0 });
+  assert.deepEqual(historyMix(years, 1917), { from: 1914, to: 1920, w: 0.5 });
+  assert.deepEqual(historyMix(years, 1920), { from: 1920, to: 1920, w: 0 });
+  assert.deepEqual(historyMix(years, 1932.5), { from: 1920, to: 1945, w: 0.5 });
+  assert.deepEqual(historyMix(years, 1800), { from: 1914, to: 1914, w: 0 });
+  assert.deepEqual(historyMix(years, 2000), { from: 1945, to: 1945, w: 0 });
+  assert.deepEqual(historyMix([-500, -323], -411.5), { from: -500, to: -323, w: 0.5 });
+});
+
+test("weights: the earlier year's fills stay whole, the later one's come in, lines cross-fade", () => {
+  const years = [1914, 1920, 1945];
+  const at = (t: number) => Object.fromEntries([...historyWeights(years, t)].map(([y, w]) => [y, [w.fill, w.line]]));
+  assert.deepEqual(at(1917), { 1914: [1, 0.5], 1920: [0.5, 0.5], 1945: [0, 0] });
+  assert.deepEqual(at(1920), { 1914: [0, 0], 1920: [1, 1], 1945: [0, 0] });
+  assert.deepEqual(at(1945), { 1914: [0, 0], 1920: [0, 0], 1945: [1, 1] });
+});
+
+test("the year a slider reads as", () => {
+  assert.equal(sliderYearLabel(1947.6), "1947");
+  assert.equal(sliderYearLabel(-322.5), "323 BC");
+  assert.equal(sliderYearLabel(99.99999), "AD 100");
+  assert.equal(sliderYearLabel(0.5), "0");
 });

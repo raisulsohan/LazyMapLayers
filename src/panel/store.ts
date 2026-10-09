@@ -93,10 +93,10 @@ import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } 
 import { samplerFor } from "./elevation.ts";
 import { styleRgb } from "../core/style/layerStyle.ts";
 import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs.ts";
-import { normaliseHistory, type HistorySetting } from "../core/history/historyStyle.ts";
+import { historyMix, normaliseHistory, sliderYearLabel, type HistorySetting } from "../core/history/historyStyle.ts";
 import { HISTORY_CREDIT } from "../core/history/historyPack.ts";
 import { HISTORY_PACK } from "../core/history/packInfo.ts";
-import { downloadHistoryPack, historyYearInfo } from "./data/history.ts";
+import { downloadHistoryPack, historyManifest, historyYearInfo } from "./data/history.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 import { isoOfCountry } from "../core/data/boundarySet.ts";
 
@@ -127,6 +127,8 @@ export type MapEntry = {
   sky?: boolean;
   /** The world of another year instead of today's countries (D92). */
   history?: HistorySetting | null;
+  /** The map layer's History Year slider: its value at the comp's time, and its first and last keys. */
+  historySlider?: HistorySlider | null;
   terrain?: TerrainSetting | null;
   highlightLayers?: "each" | "one";
   layerStyle?: LayerStyleOverride | null;
@@ -188,6 +190,22 @@ export const skyOn = signal(true);
 export const history = signal<HistorySetting | null>(null);
 /** Bumped when the historical borders pack arrives, so the Look sheet redraws. */
 export const historyVersion = signal(0);
+export type HistorySlider = { now: number; keys: [number, number] | null };
+/** The History Year slider as After Effects has it: what the render will show. */
+export const historySlider = signal<HistorySlider | null>(null);
+
+/**
+ * The year the preview draws: the pack's year nearest to where the History Year slider stands at the
+ * comp's time (it may be keyed, or typed into After Effects), else the year picked in the panel.
+ */
+function previewHistory(): HistorySetting | null {
+  const picked = history.value;
+  const now = historySlider.value?.now;
+  const years = historyManifest()?.years.map((y) => y.year) ?? [];
+  if (!picked || now === undefined || !years.length) return picked;
+  const mix = historyMix(years, now);
+  return { year: mix.w < 0.5 ? mix.from : mix.to };
+}
 /** The map's elevation pack and shading, and the packs on this computer. */
 export const terrain = signal<TerrainSetting | null>(null);
 export const terrainPacks = signal<TerrainPackInfo[]>([]);
@@ -229,7 +247,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, own: ownImagery.value, sky: skyOn.value, terrain: terrain.value, history: history.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, own: ownImagery.value, sky: skyOn.value, terrain: terrain.value, history: previewHistory() });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -401,6 +419,7 @@ function showMap(entry: MapEntry): void {
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
   history.value = normaliseHistory(entry.history);
+  historySlider.value = entry.historySlider ?? null;
   terrain.value = normaliseTerrain(entry.terrain);
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
@@ -1433,6 +1452,8 @@ export const removeKeepOut = (id: string) => run("keep-out zone", () => storeKee
 export const changeHistory = (next: HistorySetting | null) =>
   run("historical borders", async () => {
     history.value = normaliseHistory(next);
+    // An unkeyed slider takes the picked year (setMapSettings); a keyed one keeps its keys.
+    if (!historySlider.value?.keys) historySlider.value = history.value ? { now: history.value.year, keys: null } : null;
     setPreviewStyle(basemap.value, projection.value, look());
     if (selectedId.value) {
       await callHost("setMapSettings", { mapId: selectedId.value, history: history.value });
@@ -1441,6 +1462,51 @@ export const changeHistory = (next: HistorySetting | null) =>
     const info = history.value ? historyYearInfo(history.value.year) : null;
     if (history.value) log(`the map shows the world of ${info?.label ?? history.value.year}${info?.note ? ` (${info.note})` : ""} · ${HISTORY_CREDIT}`, "ok");
     else log("the map shows today's countries again", "ok");
+  });
+
+/**
+ * The map moves through history: the History Year slider on the map layer runs from the year picked
+ * at the start of the comp to `target` at its end, and the render cross-fades through every year of
+ * the pack in between. The keys can be retimed or added to in After Effects like any others.
+ */
+export const animateHistory = (target: number) =>
+  run("history over time", async () => {
+    if (!selectedId.value || !history.value) return;
+    const info = await callHost<{ frames: number; frameRate: number }>("renderInfo", { mapId: selectedId.value });
+    const end = Math.max(0, (info.frames - 1) / info.frameRate);
+    await callHost("setControlKeys", { mapId: selectedId.value, name: "History Year", times: [0, end], values: [history.value.year, target] });
+    await readMaps();
+    const passes = (historyManifest()?.years ?? []).filter((y) => y.year > Math.min(history.value!.year, target) && y.year < Math.max(history.value!.year, target)).length;
+    log(`the map moves from ${sliderYearLabel(history.value.year)} to ${sliderYearLabel(target)} over the comp on the map layer's "History Year" slider${passes ? `, through ${passes} more ${passes === 1 ? "year" : "years"} of the pack` : ""}; render to see it. Add the year puts the year on screen`, "ok");
+  });
+
+/** Takes the keys off the History Year slider: the map holds the year picked in the panel. */
+export const holdHistory = () =>
+  run("history over time", async () => {
+    if (!selectedId.value || !history.value) return;
+    await callHost("setControlKeys", { mapId: selectedId.value, name: "History Year", times: [0], values: [history.value.year] });
+    await readMaps();
+    log(`the map holds ${sliderYearLabel(history.value.year)} again`, "ok");
+  });
+
+/** The year the map shows, as a text layer that counts with the History Year slider ("1947", "323 BC"). */
+export const addHistoryYear = () =>
+  run("year", async () => {
+    if (!selectedId.value || !history.value) {
+      log("pick a year under Historical borders first", "muted");
+      return;
+    }
+    const template = currentLabelTemplate.value;
+    const made = await callHost<{ name: string; expressionErrors: string[] }>("addDataYear", {
+      mapId: selectedId.value,
+      history: true,
+      corner: legendCorner.value === "bottomLeft" ? "bottomRight" : "bottomLeft",
+      fonts: templateFonts(template, SCRIPT_FONTS.latin.bold, "latin"),
+      color: hexToRgb(template.countryColor),
+      haloColor: hexToRgb(template.haloColor),
+      halo: template.halo
+    });
+    log(made.expressionErrors.length ? `the year layer has expression errors: ${made.expressionErrors.join("; ")}` : `"${made.name}" added: it counts the years with the History Year slider`, made.expressionErrors.length ? "fail" : "ok");
   });
 
 /** Downloads the historical borders pack from the project's GitHub release into the user data folder. */

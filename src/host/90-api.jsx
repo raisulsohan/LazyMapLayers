@@ -189,7 +189,12 @@ LML.api.setMapSettings = function (args) {
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
     if (args.sky !== undefined) tag.sky = !!args.sky;
-    if (args.history !== undefined) tag.history = args.history;
+    if (args.history !== undefined) {
+        tag.history = args.history;
+        // The History Year slider holds the year the render shows; keys on it are kept.
+        if (args.history && typeof args.history.year === "number") LML.map.setControlValue(layer, "History Year", args.history.year);
+        else LML.map.removeControl(layer, "History Year");
+    }
     if (args.terrain !== undefined) {
         tag.terrain = args.terrain;
         // The sliders linked layers read; a map without terrain gets a height of 0, so its layers stay flat.
@@ -281,6 +286,15 @@ LML.api.listMaps = function () {
             relief: !!tag.relief,
             sky: tag.sky !== false,
             history: tag.history || null,
+            historySlider: (function () {
+                // The slider decides what the render shows: its value now, and its first and last keys.
+                var prop = tag.history ? LML.map.controlValueProperty(layer, "History Year") : null;
+                if (!prop) return null;
+                return {
+                    now: prop.valueAtTime(comp.time, false),
+                    keys: prop.numKeys >= 2 ? [prop.keyValue(1), prop.keyValue(prop.numKeys)] : null
+                };
+            })(),
             terrain: (function () {
                 if (!tag.terrain) return null;
                 // The sliders win over the tag: they may have been edited or keyed in After Effects.

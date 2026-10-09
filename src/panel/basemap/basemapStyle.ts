@@ -27,7 +27,7 @@ import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/
 import type { Bbox } from "../../core/tiles/tileMath.ts";
 import { hasTerrainPack, terrainArchivePath } from "../terrain.ts";
 import type { HistorySetting } from "../../core/history/historyStyle.ts";
-import { loadHistoryYear } from "../data/history.ts";
+import { loadHistoryYear, type LoadedYear } from "../data/history.ts";
 import { historyDrawData, isHistoryLayer, withHistory } from "./historyLayers.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
@@ -70,6 +70,8 @@ export type BasemapStyleOptions = {
   offlineWorld?: boolean;
   /** The world of another year instead of today's countries (D92); ignored when the pack or year is missing. */
   history?: HistorySetting | null;
+  /** The pack's years a keyed History Year slider passes through; each is drawn and cross-faded per frame. */
+  historyYears?: number[];
 };
 
 export const HILLSHADE_SOURCE = "lml-hillshade";
@@ -221,8 +223,10 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
   let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, heat: options.heat, countryHits: options.countryHits });
   // Another year: its shapes, borders and names take the place of today's countries.
-  const past = options.history ? loadHistoryYear(options.history.year) : null;
-  if (past) world = withHistory(world, past, theme, { labels: options.labels, satellite: !!imagery.satelliteUrl });
+  const pastYears = options.history ? (options.historyYears?.length ? options.historyYears : [options.history.year]).map(loadHistoryYear).filter((y): y is LoadedYear => !!y) : [];
+  const past = pastYears[0] ?? null;
+  if (past) world = withHistory(world, pastYears, theme, { labels: options.labels, satellite: !!imagery.satelliteUrl });
+  // Several years cross-fade their own borders; the draw-on then has no layer to draw.
   if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme, past ? historyDrawData(past) : undefined);
   if (options.own) world = withOwnImagery(world, options.own);
   let style = world;

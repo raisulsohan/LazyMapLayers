@@ -5,12 +5,12 @@
  */
 LML.dataYear = LML.dataYear || {};
 
-LML.dataYear.removeTagged = function (scene, mapId) {
+LML.dataYear.removeTagged = function (scene, mapId, kind) {
     var removed = 0;
     for (var i = scene.numLayers; i >= 1; i--) {
         var layer = scene.layer(i);
         var tag = LML.tag.read(layer);
-        if (!tag || tag.kind !== "dataYear" || tag.mapId !== mapId) continue;
+        if (!tag || tag.kind !== (kind || "dataYear") || tag.mapId !== mapId) continue;
         layer.remove();
         removed++;
     }
@@ -25,16 +25,30 @@ LML.dataYear.EXPRESSION = [
     "String(Math.floor(t + 0.0001));"
 ].join("\n");
 
+/** The year of a map of historical borders, from its History Year slider: "1947", "323 BC". */
+LML.dataYear.HISTORY_EXPRESSION = [
+    "// LazyMapLayers history year (generated)",
+    "var m = effect(\"Map\")(1);",
+    "var t = Math.floor(m.effect(\"History Year\")(1).value + 0.0001);",
+    "t < 0 ? (-t) + \" BC\" : String(t);"
+].join("\n");
+
 /**
  * args: { mapId, corner: "bottomLeft" | "bottomRight" | "topLeft" | "topRight", fonts: [PostScript names],
- *         color: [r, g, b], haloColor: [r, g, b], halo }
+ *         color: [r, g, b], haloColor: [r, g, b], halo, history?: true (count the History Year slider) }
  */
 LML.api.addDataYear = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
     var scene = mapLayer.containingComp;
-    if (!LML.map.controlValueProperty(mapLayer, "Data Time")) throw LML.util.error("NO_SERIES", "This map has no Data Time slider: colour it by a table with years first");
-    return LML.withUndo("Data year", function () {
-        LML.dataYear.removeTagged(scene, args.mapId);
+    var control = args.history ? "History Year" : "Data Time";
+    var kind = args.history ? "historyYear" : "dataYear";
+    if (!LML.map.controlValueProperty(mapLayer, control)) {
+        throw args.history
+            ? LML.util.error("NO_HISTORY", "This map has no History Year slider: pick a year under Historical borders first")
+            : LML.util.error("NO_SERIES", "This map has no Data Time slider: colour it by a table with years first");
+    }
+    return LML.withUndo(args.history ? "History year" : "Data year", function () {
+        LML.dataYear.removeTagged(scene, args.mapId, kind);
         var scale = scene.height / 1080;
         var layer = scene.layers.addText("2000");
         layer.name = "Year";
@@ -56,9 +70,9 @@ LML.api.addDataYear = function (args) {
         link.name = "Map";
         link.property(1).setValue(mapLayer.index);
         var errors = [];
-        LML.pins.setExpression(layer.property("ADBE Text Properties").property("ADBE Text Document"), LML.dataYear.EXPRESSION, errors, "year", true);
+        LML.pins.setExpression(layer.property("ADBE Text Properties").property("ADBE Text Document"), args.history ? LML.dataYear.HISTORY_EXPRESSION : LML.dataYear.EXPRESSION, errors, "year", true);
         layer.moveToBeginning();
-        LML.tag.write(layer, { kind: "dataYear", v: 1, mapId: args.mapId });
+        LML.tag.write(layer, { kind: kind, v: 1, mapId: args.mapId });
         return { name: layer.name, expressionErrors: errors };
     });
 };

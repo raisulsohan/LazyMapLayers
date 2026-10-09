@@ -132,3 +132,57 @@ export function historyBorders(features: Pick<HistoryFeature, "ruler" | "polygon
 export function boundsArea([west, south, east, north]: [number, number, number, number]): number {
   return Math.max(0, east - west) * Math.max(0, north - south) * Math.cos((((south + north) / 2) * Math.PI) / 180);
 }
+
+/**
+ * The pack's years a History Year slider passes through while it moves between `from` and `to`: from
+ * the last year at or before the lower end to the first at or after the upper end. Values beyond the
+ * pack hold its first or last year.
+ */
+export function yearsForRange(packYears: number[], from: number, to: number): number[] {
+  const years = [...packYears].sort((a, b) => a - b);
+  if (!years.length) return [];
+  const low = Math.min(from, to);
+  const high = Math.max(from, to);
+  let first = 0;
+  while (first + 1 < years.length && years[first + 1] <= low) first++;
+  let last = years.length - 1;
+  while (last - 1 >= 0 && years[last - 1] >= high) last--;
+  return years.slice(first, Math.max(first, last) + 1);
+}
+
+/** Where a slider value falls between two of the years: `w` runs from 0 at `from` to 1 at `to`. */
+export function historyMix(years: number[], t: number): { from: number; to: number; w: number } {
+  const sorted = [...years].sort((a, b) => a - b);
+  if (!sorted.length) return { from: t, to: t, w: 0 };
+  if (!Number.isFinite(t) || t <= sorted[0]) return { from: sorted[0], to: sorted[0], w: 0 };
+  if (t >= sorted[sorted.length - 1]) return { from: sorted[sorted.length - 1], to: sorted[sorted.length - 1], w: 0 };
+  let i = 0;
+  while (sorted[i + 1] <= t) i++;
+  const from = sorted[i];
+  const to = sorted[i + 1];
+  return t === from ? { from, to: from, w: 0 } : { from, to, w: (t - from) / (to - from) };
+}
+
+/**
+ * How strongly each year draws at a slider value. The earlier year of the pair keeps its fills whole
+ * and the later one's come in over them, so what did not change hands never dims halfway; land that
+ * becomes nobody's is covered by the later year's plain land. Lines and names cross-fade.
+ */
+export function historyWeights(years: number[], t: number): Map<number, { fill: number; line: number }> {
+  const { from, to, w } = historyMix(years, t);
+  const out = new Map<number, { fill: number; line: number }>();
+  for (const year of years) {
+    if (year === from && from === to) out.set(year, { fill: 1, line: 1 });
+    else if (year === from) out.set(year, { fill: 1, line: 1 - w });
+    else if (year === to) out.set(year, { fill: w, line: w });
+    else out.set(year, { fill: 0, line: 0 });
+  }
+  return out;
+}
+
+/** The year a History Year slider value reads as: "1947", "AD 100", "323 BC". */
+export function sliderYearLabel(t: number): string {
+  const year = Math.floor(t + 0.0001);
+  if (year < 0) return `${-year} BC`;
+  return year < 1000 && year > 0 ? `AD ${year}` : String(year);
+}

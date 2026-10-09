@@ -887,6 +887,34 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D94 — The History Year slider: history over time (2026-10-10)
+
+- **Why.** A documentary needs the map to move through history: British India becoming India and
+  Pakistan, empires growing and falling, in one shot.
+- **The slider.** Picking a year puts a "History Year" slider on the map layer (one of the animated
+  controls the renderer reads per frame, like Data Time); picking Today takes it off. Its value is the
+  year the render shows, so it can be keyed, retimed, eased or driven by an expression in After Effects.
+  The Look sheet's **Move to** keys it from the picked year at the comp's start to another at its end;
+  **Hold still** takes the keys off; **Add the year** puts a text layer on the scene that counts with
+  it ("1947", "323 BC"), like the data year (D79).
+- **Between two years.** The render reads the slider on every frame and draws every year of the pack
+  it passes through, each with its own layers, oldest at the bottom. At a value between two years the
+  earlier year draws its fills whole and the later one's come in over them at the share of the way
+  travelled (core/history/historyStyle.ts historyWeights). A plain cross-fade would dim what did not
+  change hands halfway (25 % towards the land colour at the midpoint); this way an empire that holds
+  its land keeps its colour throughout, and only what changed hands changes colour. Land that becomes
+  nobody's is drawn with plain land in the later year, so the fallen empire fades out there. Borders
+  and names cross-fade. Shapes cannot morph: a shape in 1800 has no partner in 1815.
+- **What it costs.** Each year passed is one more GeoJSON source (about 1 MB); a slider from 1914 to
+  1945 draws five years. The frame key holds the slider's value, so frames that differ only in the year
+  are all drawn and held years are drawn once. While several years are drawn, Borders Draw-on has no
+  layer to draw (each year's borders fade instead).
+- **The preview** draws the pack's year nearest to where the slider stands at the comp's time.
+- **Tested.** Unit tests for the years a range passes, the mix and the weights, and the year's text.
+  HB1 renders 1945 to 1947 at three points of the fade, and in After Effects keys a real map from 1945
+  to 1947, reads the keys back, renders all 25 frames, checks central India British at the start,
+  halfway at the middle and India at the end, and the year layer counting 1945, 1946, 1947.
+
 ## D93 — How a map draws another year (2026-10-10)
 
 - **Where.** The Look sheet has a Historical borders section: a Download button (13.9 MB, once, from
@@ -917,8 +945,8 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   them; other looks mix ten hues into their land colour (32 % on a dark look, 50 % on a light one).
 - **Credit.** A render of a map with a year adds "Historical borders: historical-basemaps (GPL-3.0)"
   to the scene's credit layer.
-- **Not yet.** The year as a keyed slider with a cross-fade, historical shapes in the Highlight tool,
-  search, Auto labels and the feature browser.
+- **Not yet.** Historical shapes in the Highlight tool, search, Auto labels and the feature browser.
+  The keyed year came in D94.
 - **Tested.** Unit tests for the setting, palettes, slots, the ruler map, the colours of neighbours
   and colonies, and the borders between and within powers. HB1 in After Effects.
 

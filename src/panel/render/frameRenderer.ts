@@ -16,6 +16,8 @@ import { BORDERS_DRAW_LAYER, LAYER_COLOR_KEY, bordersGradient } from "../basemap
 import type { AnimatedView } from "../../core/render/plan.ts";
 import { GpuReader } from "./gpuReader.ts";
 import { SERIES_METADATA_KEY, seriesHeightAt, seriesMatchAt, type SeriesPaint } from "../../core/style/dataFill.ts";
+import { historyWeights } from "../../core/history/historyStyle.ts";
+import { HISTORY_METADATA_KEY, historyLayerId, type HistoryAnimation } from "../basemap/historyLayers.ts";
 
 export type FrameRendererOptions = {
   /** Container size in CSS pixels: the comp size, which fixes the geographic extent. */
@@ -241,6 +243,23 @@ export class FrameRenderer {
         this.maplibre.setPaintProperty("data-fill", "fill-extrusion-height", seriesHeightAt(series, dataTime) as never);
       } else if (layer && series) this.maplibre.setPaintProperty("data-fill", "fill-color", seriesMatchAt(series, dataTime) as never);
       this.animation.dataTime = dataTime;
+    }
+    // The past over time: how strongly each year the History Year slider passes through draws now.
+    const historyYear = animation?.historyYear;
+    const past = (this.options.style.metadata as Record<string, unknown> | undefined)?.[HISTORY_METADATA_KEY] as HistoryAnimation | undefined;
+    if (historyYear !== undefined && historyYear !== this.animation.historyYear && past?.years?.length) {
+      const fade = (opacity: number) => ["interpolate", ["linear"], ["zoom"], 7.5, opacity, 9.5, 0];
+      for (const [year, weight] of historyWeights(past.years, historyYear)) {
+        const set = (base: string, property: string, value: unknown) => {
+          const id = historyLayerId(base, year);
+          if (this.maplibre.getLayer(id)) this.maplibre.setPaintProperty(id, property as never, value as never);
+        };
+        set("history-fill", "fill-opacity", fade(past.fill * weight.fill));
+        set("history-within", "line-opacity", past.within * weight.line);
+        set("history-between", "line-opacity", past.between * weight.line);
+        set("history-labels", "text-opacity", weight.line);
+      }
+      this.animation.historyYear = historyYear;
     }
   }
 

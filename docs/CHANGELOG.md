@@ -10,6 +10,11 @@
   British India) and 1971 (Bangladesh) were made for LazyMapLayers, and British India in 1945 and
   Ceylon before 1948 corrected. A render adds "Historical borders: historical-basemaps (GPL-3.0)"
   to the credit layer.
+- **History over time.** The year lives on a "History Year" slider on the map layer. **Move to**
+  keys it from the picked year to another over the comp, and the render fades through every year in
+  between: what changed hands takes its new colour while the rest holds still. Retime the keys, add
+  more or ease them in After Effects; **Add the year** counts along on screen ("1947", "323 BC"),
+  and **Hold still** takes the keys off.
 
 ## 1.0.2 — a route across the Pacific stays one arc (2026-10-09)
 
