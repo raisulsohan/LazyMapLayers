@@ -322,17 +322,20 @@ export function App(): JSX.Element {
         <Header />
         <ToolRow />
         <SearchBar />
-        <RegionSheetView />
-        <ToolSheetView />
-        <DataSheetView />
-        <OsmSheetView />
-        <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
-        <SatelliteSheetView />
-        <FeatureSheetView />
-        <HighlightSheetView />
-        <AttachSheetView />
-        <LabelsSheetView />
-        <LookSheetView />
+        {/* Open sheets scroll together, so a tall one never pushes the preview and the tabs out of a short panel. */}
+        <div class="sheets" data-id="sheets">
+          <RegionSheetView />
+          <ToolSheetView />
+          <DataSheetView />
+          <OsmSheetView />
+          <ImportSheetView pickFile={() => document.querySelector<HTMLInputElement>('input[type="file"]')?.click()} />
+          <SatelliteSheetView />
+          <FeatureSheetView />
+          <HighlightSheetView />
+          <AttachSheetView />
+          <LabelsSheetView />
+          <LookSheetView />
+        </div>
         <div class={`map-wrap ${tool.value !== "none" ? "armed" : ""}`} ref={wrapNode}>
           <div id="map" ref={boxNode} />
           <div class="zones" ref={zoneNode}>

@@ -5,6 +5,13 @@
 - **A map reaches the end of a scene made longer.** Make a scene longer in After Effects and the
   next render grows its map to the new end instead of leaving the last seconds empty. A map layer
   you trimmed keeps its trim.
+- **A long sheet scrolls in a short panel.** In a panel shorter than a sheet (the Look sheet is the
+  tallest) the bottom of the sheet was out of reach, and the preview and the tabs were pushed out of
+  sight. Now the preview and the tabs give up room down to their smallest size, and then the open
+  sheets scroll.
+- **The basemap list names what the map is drawn from.** For a map drawn from some of the
+  downloaded regions - the world flight sample with only Paris downloaded, for one - the list stood
+  empty; it now says "World + paris".
 - **The read-me in the download names the right version.** "Read me first.txt" still said 0.5.0
   in the 0.6 to 0.9 downloads; the release script now writes the version into it.
 - **macOS is marked experimental.** The panel ships for macOS as before, but it has not been run on

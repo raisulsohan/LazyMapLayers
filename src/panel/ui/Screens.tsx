@@ -25,15 +25,23 @@ function ScreenHeader(props: { title: string }): JSX.Element {
 }
 
 export function BasemapPicker(): JSX.Element {
+  const source = basemap.value;
+  const current = sourceKey(source);
+  const all = regions.value.length > 1 ? sourceKey(allRegions(regions.value)) : null;
+  // A map can be drawn from a set the list does not offer (the world flight sample takes the cities it
+  // finds, or a region was deleted since); it is shown as it is rather than as an empty box.
+  const listed = current === "world" || current === all || regions.value.some((r) => `region:${r.name}` === current);
+  const unlisted = source.kind === "regions" ? `World + ${source.names.join(" + ")}` : source.kind === "region" ? `${source.name} (not on this computer)` : "";
   return (
-    <select data-id="basemap" value={sourceKey(basemap.value)} disabled={busy.value} onChange={(e) => void changeBasemap((e.target as HTMLSelectElement).value)} title="What the map is drawn from">
+    <select data-id="basemap" value={current} disabled={busy.value} onChange={(e) => void changeBasemap((e.target as HTMLSelectElement).value)} title="What the map is drawn from">
       <option value="world">World (offline)</option>
       {regions.value.map((r) => (
         <option key={r.name} value={`region:${r.name}`}>
           {r.name} ({mb(r.sizeBytes)})
         </option>
       ))}
-      {regions.value.length > 1 && <option value={sourceKey(allRegions(regions.value))}>World + all {regions.value.length} regions</option>}
+      {all && <option value={all}>World + all {regions.value.length} regions</option>}
+      {!listed && <option value={current}>{unlisted}</option>}
     </select>
   );
 }

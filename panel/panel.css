@@ -265,9 +265,11 @@ select.compact {
 }
 
 /* Preview */
+/* The preview and the tab body give up their room before the open sheets do (they shrink far
+   faster, down to their minimum heights); only then do the sheets start to scroll. */
 .map-wrap {
   position: relative;
-  flex: 1 1 52%;
+  flex: 1 1000 52%;
   min-height: 120px;
   background: #0a0a0a;
   overflow: hidden;
@@ -396,7 +398,7 @@ select.compact {
 }
 
 .tab-body {
-  flex: 1 1 40%;
+  flex: 1 1000 40%;
   min-height: 90px;
   overflow: auto;
 }
@@ -632,6 +634,15 @@ select.compact {
 }
 
 /* Sheets */
+/* Every open sheet sits in one area that scrolls. Once the preview and the tabs are down to their
+   minimum heights it scrolls instead of pushing them out of sight, and each sheet keeps its own
+   height inside it. */
+.sheets {
+  flex: 0 1 auto;
+  min-height: 0;
+  overflow-y: auto;
+}
+
 .sheet {
   flex: none;
   display: flex;
