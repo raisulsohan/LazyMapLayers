@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
+import { readDataTable } from "../../src/core/data/dataTable.ts";
 import { importTable, toDegrees } from "../../src/core/data/importTable.ts";
+import { detectSeries } from "../../src/core/data/series.ts";
 
 test("coordinates are read in the usual spellings", () => {
   assert.equal(toDegrees("48.85"), 48.85);
@@ -74,6 +76,43 @@ test("a table without headings is latitude, longitude and a name; unknown headin
   );
   assert.equal(importTable([["a", "b"], ["c", "d"]]).places.length, 0);
   assert.equal(importTable([]).skipped, 0);
+});
+
+test("a table of numbers by year is not read as coordinates, however small its values", () => {
+  // Percentages from 0 to 100 read as latitudes and longitudes just as well as places do.
+  const rows = [
+    ["country", "2000", "2005", "2010", "2015", "2020"],
+    ["Brazil", "3", "21", "40", "59", "81"],
+    ["India", "1", "2", "8", "26", "43"],
+    ["Nigeria", "0", "3", "11", "25", "36"]
+  ];
+  const result = importTable(rows, "internet.csv");
+  assert.equal(result.places.length, 0);
+  assert.equal(result.lines.length, 0);
+  // So the panel reads it as numbers, which animate over the years.
+  const table = readDataTable(rows, "internet.csv")!;
+  assert.equal(detectSeries(table)?.kind, "wide");
+  // Spelled the World Bank way, or with a heading row above it.
+  assert.equal(importTable([["Country Name", "YR2000", "YR2005"], ["Brazil", "3", "21"], ["India", "1", "2"]]).places.length, 0);
+  assert.equal(importTable([["Internet users"], ["", "2000", "2005"], ["Brazil", "3", "21"]]).places.length, 0);
+});
+
+test("headings that name a value are not coordinates, and a year among the values is a value", () => {
+  const values = [
+    ["Country", "Internet users (%)", "Growth rate"],
+    ["Brazil", "81", "4.2"],
+    ["India", "43", "9.1"]
+  ];
+  assert.equal(importTable(values).places.length, 0);
+  assert.equal(importTable([["Land", "Anteil", "Einwohner"], ["Brasilien", "81", "21"], ["Indien", "43", "14"]]).places.length, 0);
+  // A long table, a row per place per year: the year column cannot be a coordinate.
+  assert.equal(importTable([["country", "year", "share"], ["Brazil", "2000", "3"], ["Brazil", "2005", "21"]]).places.length, 0);
+  // A year among the values of a headerless file is a value, not a heading.
+  const dated = importTable([
+    ["Tokyo", "35.68", "139.69", "2020"],
+    ["Seoul", "37.57", "126.98", "2021"]
+  ]);
+  assert.deepEqual(dated.places[0], { name: "Tokyo", lat: 35.68, lng: 139.69 });
 });
 
 test("a flight log (one position column, a time column, no names) is a track with its recorded pace", () => {

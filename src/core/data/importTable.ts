@@ -1,10 +1,13 @@
 // A table of places or of track points (the rows of a CSV file) as lines and places. Columns are
 // found by their headings (lat, latitude, lon, lng, longitude, x, y, name, time, or one column with
 // both coordinates); a table without headings is read as "latitude, longitude" next to a name.
+// Headings that name years or values (2000, 2005, population, share, %) make it a table of numbers
+// about places instead, which the panel colours the map with (dataTable.ts, series.ts).
 
 import { lineLengthKm } from "../geo/simplify.ts";
 import { parseCoordinates } from "../search/placeSearch.ts";
 import { trackTimes, type Imported, type ImportedPlace } from "./importLines.ts";
+import { yearOf } from "./series.ts";
 
 /** Rows beyond this many are skipped: the panel stays light, and no animation needs more. */
 export const MAX_TABLE_ROWS = 50000;
@@ -17,6 +20,9 @@ const LNG = new RegExp("^(lng|lon|long|longitude|x|laenge|länge|längengrad|lon
 const BOTH = /^(coordinates?|coords?|lat_?l(ng|on)|latlong|location|position|gps|point)$/;
 const NAME = /^(name|title|label|place|city|town|station|stop|airport|address|description|desc)$/;
 const TIME = /^(time|timestamp|utc|date|datetime|date_?time|recorded_?at|when)$/;
+/** Words in a heading that name a value, never a coordinate (each word of the heading is tested). */
+const VALUE =
+  /^(%|percent|percentage|pct|per|capita|share|rate|ratio|value|values|total|count|number|amount|population|pop|people|inhabitants|gdp|income|score|index|votes|cases|deaths|births|sales|revenue|price|cost|growth|density|users|year|years|jahr|anzahl|anteil|wert|einwohner|bevölkerung|valeur|taux|année|annee|valor|tasa|población|poblacion|año|anno)$/;
 
 const heading = (cell: string) =>
   cell
@@ -57,20 +63,35 @@ export function importTable(rows: string[][], fileName = "Table"): Imported {
     // No headings we know: the first two cells that read as coordinates, in the order latitude,
     // longitude, in the first row that has them (rows before it are headings in other words).
     const numericCells = (row: string[]) => row.map((cell, i) => (Number.isFinite(toDegrees(cell)) ? i : -1)).filter((i) => i >= 0);
-    const probe = data.slice(0, 5).findIndex((row) => numericCells(row).length >= 2 || row.some((cell) => parseCoordinates(cell) !== null));
-    if (probe < 0) {
-      result.skipped = data.length;
-      return result;
-    }
-    data = data.slice(probe);
-    const sample = data[0];
+    // Two values that can be a latitude and a longitude, in either order: a row of years (2000,
+    // 2005) is headings, not a place.
+    const pairIn = (row: string[]) => {
+      const numeric = numericCells(row);
+      if (numeric.length < 2) return false;
+      const a = Math.abs(toDegrees(row[numeric[0]]));
+      const b = Math.abs(toDegrees(row[numeric[1]]));
+      return (a <= 90 && b <= 360) || (b <= 90 && a <= 360);
+    };
+    const probe = data.slice(0, 5).findIndex((row) => pairIn(row) || row.some((cell) => parseCoordinates(cell) !== null));
+    const headingRows = data.slice(0, Math.max(probe, 0));
+    data = data.slice(Math.max(probe, 0));
+    const sample = data[0] ?? [];
     const numeric = numericCells(sample);
-    if (numeric.length >= 2) {
+    if (probe >= 0 && numeric.length >= 2) {
       lat = numeric[0];
       lng = numeric[1];
       // A first value that cannot be a latitude means the file is written longitude first.
       if (Math.abs(toDegrees(sample[lat])) > 90) [lat, lng] = [lng, lat];
-    } else both = sample.findIndex((cell) => parseCoordinates(cell) !== null);
+    } else if (probe >= 0) both = sample.findIndex((cell) => parseCoordinates(cell) !== null);
+    // Headings over those columns that name a year or a value (2000, population, share, %) make the
+    // file a table of numbers about places. Percentages, rates and small counts read as coordinates
+    // just as well, so guessing would put pins at made-up places and hide the table (and its years).
+    const namesValue = (cell: string) => yearOf(cell) !== null || heading(cell).split("_").some((word) => VALUE.test(word));
+    const valueHeading = headingRows.some((row) => [lat, lng].some((i) => i >= 0 && namesValue(row[i] ?? "")));
+    if (probe < 0 || valueHeading) {
+      result.skipped = filled.length;
+      return result;
+    }
   }
   if (name < 0) {
     // No name heading: the first column of words that differ from row to row (a flight's call sign,

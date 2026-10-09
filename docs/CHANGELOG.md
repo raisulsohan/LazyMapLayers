@@ -2,6 +2,13 @@
 
 ## Unreleased
 
+- **A table of numbers by year opens as numbers again.** A CSV with a column per year (country,
+  2000, 2005, 2010...) whose values were small, such as percentages or rates, was read as places
+  with the first two values taken for latitude and longitude, so Import and the Numbers button
+  showed stray pins instead of the Numbers sheet and "Animate over the years". A file without
+  coordinate headings is now read as coordinates only when the headings over the guessed columns do
+  not name a year or a value (population, share, rate, %); files of bare latitude and longitude
+  still import as before.
 - **A route across the Pacific stays one arc on the flat map.** A flow, a route or an imported line
   that crosses the 180° meridian, such as Tokyo to Los Angeles, was drawn on the flat map (Globe
   off) as a straight stroke across the whole world, because the points either side of 180° landed
