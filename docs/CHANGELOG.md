@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.1.0 — the world in any year (2026-10-10)
 
 - **The world in another year.** The Look sheet's new Historical borders section downloads a
   13.9 MB pack once and offers 56 years from 123,000 BC to 2010. Pick one and the map shows that

@@ -192,6 +192,16 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
   **Add north arrow** puts an arrow that turns with the bearing, and follows the pole on the
   globe, with an upright **N** under it. Both are plain layers: move them, recolour them, keyframe
   them. Each has its own **Remove**.
+- **Historical borders**: **Download** the pack once (13.9 MB), then pick a **Year**: the map shows
+  that year's states, empires and colonies in place of today's countries, each colony in its ruling
+  power's colour, with the borders between them and their names; coasts, rivers, relief and cities
+  stay. A corrected or made year says so under the list. **Move to** another year keys the map
+  layer's **History Year** slider from the picked year at the comp's start to that one at its end;
+  the render fades through every year in between, changing only what changed hands. Retime or add
+  keys in After Effects as you like; **Hold still** takes them off, and **Add the year** counts the
+  year on screen ("1947", "323 BC"). With a year on the map, the Highlight tool picks what lay there
+  then (Shift+click: every land of its ruling power), the search finds that year's states first,
+  Auto labels names the map by them, and the feature browser lists them under **Past**.
 - **Terrain**: **Download…** an elevation pack for the area in the preview (open data through
   Mapterhorn). With a pack: **Shaded slopes** at any zoom, and **3D height** - real mountains,
   1× true to scale or more. Pins, labels and routes made with the pack sit on the ground; key the map
@@ -205,8 +215,9 @@ the detail level (the tile count is shown). Several areas layer on top of the wo
 ## The feature browser
 
 **Browse features…** in the Highlight sheet lists everything the panel can put on a map: every
-country, the provinces or districts of one country, the shapes of the file you last imported, and
-the areas this map already holds.
+country, the provinces or districts of one country, the shapes of the file you last imported, the
+areas this map already holds, and, with a year under Historical borders, the states of that year
+(**Past**, with their ruling power: try `ruler = France`).
 
 - **Search** looks through names and every property.
 - **Filter** is one written line: `population > 200000000`, `kind = country`, `name has delta`.
@@ -397,6 +408,10 @@ installer puts it on your computer:
   look and the relief switch.
 - **The districts of every country** (geoBoundaries), for highlights, numbers joined to districts, and
   search.
+
+The historical borders (historical-basemaps, GNU GPL 3.0) are one more download from the Look sheet,
+13.9 MB, kept in the same data folder; a render that shows them, or highlights a state of the past,
+credits them.
 
 Only finer detail is downloaded, when you ask, with the size shown first: street-level OpenStreetMap
 for an area (the free Protomaps planet build), finer elevation for an area (Mapterhorn), a Sentinel-2
