@@ -12,6 +12,8 @@ WHAT YOU NEED
   - Adobe After Effects 2024 or newer
   - A graphics card with WebGL 2 (any card from the last
     ten years)
+  - About 2.5 GB of free disk space: the map data for working
+    offline comes with the panel
 
 
 ------------------------------------------------------------
@@ -206,25 +208,35 @@ TERRAIN
 ------------------------------------------------------------
 MAP DATA AND DOWNLOADS
 ------------------------------------------------------------
-  The world map (Natural Earth) and the provinces of every
-  country are inside the panel and work offline. Everything
-  else is downloaded only when you ask, and the size is shown
-  first:
-    - OpenStreetMap detail for an area (the download button):
-      roads, buildings, water, from the free Protomaps planet
-      build.
-    - Satellite pictures (NASA Blue Marble, 20 MB) and shaded
-      relief (Natural Earth, 48 MB): Look sheet.
-    - District boundaries per country (geoBoundaries, open
-      data): Highlight tool > Districts.
-    - Elevation packs (Mapterhorn, open data): Look sheet.
-  Downloads are saved in
+  Everything below comes with the panel and works without
+  the internet; the installer copies it to your computer:
+    - The world map (Natural Earth) and the provinces of every
+      country.
+    - OpenStreetMap for the whole world down to city level
+      (zoom 9): coasts, rivers, lakes, roads, parks, places.
+    - Satellite pictures (NASA Blue Marble) and shaded relief
+      (Natural Earth).
+    - Elevation for the whole world (Mapterhorn), for 3D
+      terrain and shaded slopes at country scale: pick the
+      "world" pack in the Look sheet.
+    - The districts of every country (geoBoundaries, open
+      data), for highlights, numbers and search.
+  Only finer detail is downloaded, when you ask, with the size
+  shown first:
+    - Street-level OpenStreetMap for an area (the download
+      button): streets, buildings, the names inside a city.
+    - Finer elevation for an area: Look sheet.
+    - A satellite picture of an area from Sentinel-2, and
+      searches for streets and addresses.
+  Everything is kept in
     Windows  %APPDATA%\LazyMapLayers
     macOS    ~/Library/Application Support/LazyMapLayers
+  The credits of the offline data are in offline\CREDITS.txt
+  there.
 
-  Credits: rendering an OpenStreetMap region, district
-  boundaries or terrain adds one small credit text layer to
-  the scene ("(c) OpenStreetMap contributors", "Boundaries:
+  Credits: rendering OpenStreetMap detail (a city-level view
+  of the world, or a region), district boundaries or terrain
+  adds one small credit text layer to the scene ("(c) OpenStreetMap contributors", "Boundaries:
   geoBoundaries", "Terrain: (c) Mapterhorn"). Keep it, or put
   the credit in your video's end titles.
 

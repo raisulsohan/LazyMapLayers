@@ -12,6 +12,7 @@ failure is confirmed on a fresh instance before anything is changed.
 | One 1080p basemap frame, base pass, steady state | 300 ms | 75–170 ms | S1 |
 | One 4K basemap frame, base pass, steady state | 1200 ms | 280–640 ms | S1 |
 | One 1080p frame with all 8 passes and 2× supersampling | 400 ms per drawn frame | 206–316 ms | R1 |
+| One 1080p base frame over the offline world (D91), zoom 9 | 300 ms | 27–52 ms | OW1 |
 | A 10-second 4K move, 2× supersampling | 250 ms per frame | 88 ms (2026-09-24) | R2 (runs only when named) |
 | Pops in a 4K descent | none | none, largest frame change 17.3 of 255 | R2 |
 | Rendering again with nothing changed | 0 frames drawn | 0 | R1 |
@@ -31,6 +32,11 @@ failure is confirmed on a fresh instance before anything is changed.
 | A watched table re-read after the file changes | 2 s | the poll's own interval | src/panel/store.ts |
 | A satellite area of nine tiles at zoom 13 | 30 s and 8 MB | 18 s and 3.9 MB (2026-09-25, measured outside the panel) | SN1 |
 | The panel alive after After Effects starts | about 10 s | 9 s | the test runner's log |
+
+With the offline world installed (D91), R1's first render over Paris measured 286, 307 and 422 ms per
+drawn frame (median 307) against 299, 322 and 313 ms without it (median 313), each on a fresh instance,
+2026-10-09: no cost beyond the run-to-run spread, once the offline world hands its lines over to the
+region. Before that hand-over its zoom 9 roads were drawn again at street zooms, 452 to 477 ms.
 
 A heavy render means D1's 4K demo, TH1's twelve-look contact sheet or WB1's fourteen band frames.
 Each one fills After Effects' caches and every call after it in the same run pays for that, so the

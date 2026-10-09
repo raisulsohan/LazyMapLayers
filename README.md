@@ -23,8 +23,16 @@ your own switched on, tiles are fetched from the address you gave while you prev
 
 ## Install
 
-Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS (experimental). Tested on Windows
-11 with After Effects 2026; it has not been run on a Mac yet, so on macOS please report what you find.
+Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS (experimental), and about 2.5 GB
+of free disk space. Tested on Windows 11 with After Effects 2026; it has not been run on a Mac yet, so on
+macOS please report what you find.
+
+**Works offline.** The download (about 1.9 GB) carries the map data along with the panel, and the
+installer puts it on your computer: OpenStreetMap for the whole world down to city level (zoom 9),
+elevation for the whole world, satellite and shaded relief pictures, and the districts of every
+country. After installing, every map from the globe down to a city works with no internet connection.
+Only street-level detail for an area, finer elevation, Sentinel-2 pictures and street search go online,
+and only when you ask.
 
 1. Download `LazyMapLayers-v0.9.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.
@@ -237,20 +245,24 @@ docs/          plan, decisions, spike results, changelog, release steps
 
 - **[Natural Earth](https://www.naturalearthdata.com)** (public domain). "Made with Natural Earth."
 - **[OpenStreetMap](https://www.openstreetmap.org/copyright)** data (ODbL), through the
-  [Protomaps](https://protomaps.com) basemap builds. Maps that show OSM data must credit
-  "© OpenStreetMap contributors".
+  [Protomaps](https://protomaps.com) basemap builds: the whole world to zoom 9 comes with the download,
+  street-level areas are downloaded when you ask. Maps that show OSM data must credit
+  "© OpenStreetMap contributors"; the panel adds that credit to a render that shows it.
 - **[NASA Blue Marble Next Generation](https://visibleearth.nasa.gov/collection/1484/blue-marble)**
-  (public domain; NASA Earth Observatory) for the optional satellite imagery pack, and Natural Earth's
-  shaded relief for the optional relief pack. Both packs are published as assets of the
-  [Imagery packs release](https://github.com/raisulsohan/LazyMapLayers/releases/tag/imagery-1) and
-  downloaded from the panel when you ask.
+  (public domain; NASA Earth Observatory) for the satellite imagery pack, and Natural Earth's shaded
+  relief for the relief pack. Both come with the download and are also published as assets of the
+  [Imagery packs release](https://github.com/raisulsohan/LazyMapLayers/releases/tag/imagery-1).
 - **[geoBoundaries](https://www.geoboundaries.org)** (open release; each country's boundaries under
-  their own open licence, shown in the panel before a download) for district boundaries, which are
-  downloaded per country when you ask for them. Runfola, D. et al. (2020), geoBoundaries: A global
+  their own open licence, kept with each country's set) for the district boundaries of every country,
+  which come with the download. Runfola, D. et al. (2020), geoBoundaries: A global
   database of political administrative boundaries, PLoS ONE 15(4).
 - **[Mapterhorn](https://mapterhorn.com)** (open elevation tiles built from the Copernicus 30 m
   model and national open data, "© Mapterhorn"; the sources and their licences are listed at
-  mapterhorn.com/attribution) for elevation packs, which are downloaded per area when you ask.
+  mapterhorn.com/attribution) for elevation: the whole world to zoom 6 comes with the download, finer
+  packs are downloaded per area when you ask.
+
+The credits of the data that comes with the download are installed with it, in
+`offline/CREDITS.txt` in the panel's data folder.
 - **[MapLibre GL JS](https://maplibre.org)** (BSD-3-Clause), **[PMTiles](https://github.com/protomaps/PMTiles)**
   (BSD-3-Clause), and the other open-source packages listed in `package.json`.
 

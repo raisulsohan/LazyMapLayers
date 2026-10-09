@@ -11,7 +11,7 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { extensionRoot, fs, path } from "../cep.ts";
-import { naturalEarthArchivePath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
+import { hasOfflineWorld, naturalEarthArchivePath, offlineWorldPath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
 import { naturalEarthStyle, type WorldImagery } from "./naturalEarthStyle.ts";
 import { hasImagery, imageryPath } from "../imagery/packs.ts";
 import { hasSatellite, satellitePath } from "../imagery/sentinelBuild.ts";
@@ -63,6 +63,8 @@ export type BasemapStyleOptions = {
   own?: OwnImagery | null;
   /** The map's elevation pack and how strongly slopes are shaded; ignored when the pack is not on this computer. */
   terrain?: TerrainSetting | null;
+  /** Draw the offline world when it is installed (the default); false leaves it out, for comparisons. */
+  offlineWorld?: boolean;
 };
 
 export const HILLSHADE_SOURCE = "lml-hillshade";
@@ -99,6 +101,20 @@ export function regionHeader(name: string): { bounds: Bbox; maxZoom: number } | 
 }
 
 export const REGION_FADE = { from: 9, to: 9.8 } as const;
+
+/**
+ * Where the offline world (OpenStreetMap to zoom 9, D91) takes over from Natural Earth's lines. Natural
+ * Earth carries the globe and the continents; from here on the coastlines, rivers, roads and borders of
+ * every country come from the offline world, and downloaded regions draw over it as before.
+ */
+export const WORLD_DETAIL_FADE = { from: 6, to: 7 } as const;
+/** The offline world's layers carry this name, like a region's carry the region's. */
+export const WORLD_DETAIL = "world";
+/** The world map's shaded relief (naturalEarthStyle), which goes over the offline world's ground. */
+const RELIEF_LAYER = "relief";
+/** Water kinds drawn as polygons from the offline world's low-zoom tiles: wide water reads well there,
+ * while river polygons that thin are where low-zoom tiles go wrong (rivers stay as lines). */
+const WORLD_DETAIL_WATER: string[] = ["ocean", "sea", "lake", "water", "reservoir", "lagoon", "bay", "strait", "basin"];
 export const BORDERS_DRAW_LAYER = "boundaries";
 
 const OPACITY_PROPERTY: Partial<Record<LayerSpecification["type"], string>> = {
@@ -203,7 +219,9 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (options.own) world = withOwnImagery(world, options.own);
   let style = world;
   const regions = regionNames(basemap);
-  if (regions.length) {
+  // The offline world goes under every map, the world map included, when the data pack is installed.
+  const detail = options.offlineWorld !== false && hasOfflineWorld();
+  if (regions.length || detail) {
     const groupOf = (l: LayerSpecification) => (l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"];
     const ground = (l: LayerSpecification) => (l.type === "background" || l.type === "fill" || l.type === "raster") && ["background", "land", "water", "imagery"].includes(String(groupOf(l)));
     const viewport = options.viewport ?? { width: 1920, height: 1080 };
@@ -213,16 +231,47 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       viewport
     );
     const tierOf = (name: string) => tiers[name] ?? { fadeIn: { from: REGION_FADE.from, to: REGION_FADE.to }, fadeOut: null };
-    // Natural Earth lines and labels give way where the first region's detail is complete.
-    const worldFade = regions.map((name) => tierOf(name).fadeIn).reduce((a, b) => (b.to < a.to ? b : a));
-    // Highlights are not part of the hand-over: they stay whole at every zoom, above the regions.
+    // Natural Earth lines and labels give way where the first detail - the offline world, else a region - is complete.
+    const earliest = (list: ZoomRamp[]) => (list.length ? list.reduce((a, b) => (b.to < a.to ? b : a)) : null);
+    const regionFade = earliest(regions.map((name) => tierOf(name).fadeIn));
+    const worldFade = earliest([...(detail ? [WORLD_DETAIL_FADE] : []), ...(regionFade ? [regionFade] : [])])!;
+    // Highlights are not part of the hand-over: they stay whole at every zoom, above the regions. Pictures
+    // (satellite, relief, the user's tiles) give way to a region's detail only: the offline world draws
+    // its lines over them.
     const worldLayers = world.layers.map((layer) => {
       if (layer.type === "background" || layer.type === "fill" || groupOf(layer) === "highlight") return layer;
+      if (layer.type === "raster") return regionFade ? ({ ...rampOpacity(layer, regionFade.from, regionFade.to, false), maxzoom: regionFade.to } as LayerSpecification) : layer;
       return { ...rampOpacity(layer, worldFade.from, worldFade.to, false), maxzoom: worldFade.to } as LayerSpecification;
     });
+    // A look that colours every country keeps its colours until they fade (7.5 to 9.5); the offline
+    // world's ground fades in over the same zooms, its lines at the usual hand-over.
+    const detailGroundFade: ZoomRamp = theme.countryFills ? { from: 7.5, to: 9.5 } : WORLD_DETAIL_FADE;
     const sources = { ...world.sources };
+    const detailLayers: LayerSpecification[] = [];
     const regionLayers: LayerSpecification[] = [];
     let light = world.light;
+    // The offline world, under the downloaded regions: their ground covers it where they have detail.
+    if (detail) {
+      const offline = protomapsStyle(registerLocalArchive("lml-offline-world", offlineWorldPath()), { labels: options.labels, theme });
+      const sourceId = "osm-world";
+      // Over a satellite picture the picture is the ground: only lines and names come from the offline world.
+      const satellite = !!imagery.satelliteUrl;
+      for (const [id, source] of Object.entries(offline.sources)) sources[id === "osm" ? sourceId : id] = source;
+      for (const layer of offline.layers) {
+        if (layer.type === "background") continue;
+        const group = groupOf(layer);
+        if (satellite && (group === "land" || group === "water")) continue;
+        let shown: LayerSpecification = layer;
+        if (layer.id === WATER_POLYGON_LAYER) shown = { ...layer, filter: ["in", ["get", "kind"], ["literal", WORLD_DETAIL_WATER]] } as LayerSpecification;
+        const fade = ground(layer) ? detailGroundFade : WORLD_DETAIL_FADE;
+        const minzoom = (layer as { minzoom?: number }).minzoom ?? 0;
+        // Like a wide region under a detailed one: its ground stays to fill the far field, but its lines
+        // and names hand over where a downloaded region comes in, so a city is never drawn twice (and
+        // its zoom 9 tiles need not be drawn again at street zooms).
+        const faded = rampWindow(shown, minzoom >= fade.to ? null : fade, ground(layer) ? null : regionFade);
+        detailLayers.push({ ...faded, id: `${layer.id}@${WORLD_DETAIL}`, source: sourceId } as LayerSpecification);
+      }
+    }
     regions.forEach((name, index) => {
       const region = protomapsStyle(registerLocalArchive(name, regionArchivePath(name)), { labels: options.labels, theme });
       light = region.light;
@@ -245,14 +294,42 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
         regionLayers.push({ ...faded, id: `${layer.id}@${name}`, source: sourceId } as LayerSpecification);
       }
     });
+    const lastWorldGround = worldLayers.reduce((at, layer, index) => (ground(layer) ? index : at), -1);
+    // The shaded relief and the user's own tiles are drawn once more over the offline world's ground,
+    // coming in as it does (and giving way to a region as the originals do), so they never disappear.
+    const liftedPictures = detail
+      ? world.layers
+          .filter((layer) => layer.id === RELIEF_LAYER || layer.id === OWN_IMAGERY_LAYER)
+          .map((layer) => ({ ...rampWindow(layer, detailGroundFade, regionFade), id: `${layer.id}@${WORLD_DETAIL}` }) as LayerSpecification)
+      : [];
     style = {
       ...world,
-      name: `${world.name} + ${regions.join(", ")}`,
+      name: `${world.name} + ${[...(detail ? [WORLD_DETAIL] : []), ...regions].join(", ")}`,
       sources,
       light,
+      // With the offline world: the ground of the world, then the offline world's ground with the shaded
+      // relief over it (the relief must not vanish where the offline world takes over), then the regions'
+      // ground and the user's own tiles; every line over all the ground, highlights and names on top.
       // With the user's own tiles, every ground fill (world and region) goes under them and every line
       // over them, so a downloaded area's roads and buildings stand on the picture.
-      layers: options.own
+      layers: detail
+        ? [
+            // The world map in its own order up to its last ground layer, so nothing changes out where the
+            // offline world has not come in yet.
+            ...worldLayers.slice(0, lastWorldGround + 1).filter((l) => groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
+            ...detailLayers.filter((l) => ground(l)),
+            ...liftedPictures.filter((l) => l.id.startsWith(`${RELIEF_LAYER}@`)),
+            ...regionLayers.filter((l) => ground(l)),
+            ...liftedPictures.filter((l) => l.id.startsWith(`${OWN_IMAGERY_LAYER}@`)),
+            ...worldLayers.slice(lastWorldGround + 1).filter((l) => groupOf(l) !== "labels" && groupOf(l) !== "highlight"),
+            ...detailLayers.filter((l) => !ground(l) && groupOf(l) !== "labels"),
+            ...regionLayers.filter((l) => !ground(l) && groupOf(l) !== "labels"),
+            ...worldLayers.filter((l) => groupOf(l) === "highlight"),
+            ...worldLayers.filter((l) => groupOf(l) === "labels"),
+            ...detailLayers.filter((l) => groupOf(l) === "labels"),
+            ...regionLayers.filter((l) => groupOf(l) === "labels")
+          ]
+        : options.own
         ? [
             ...worldLayers.filter((l) => ground(l) && l.id !== OWN_IMAGERY_LAYER),
             ...regionLayers.filter((l) => ground(l)),

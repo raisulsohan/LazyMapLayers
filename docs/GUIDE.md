@@ -383,19 +383,30 @@ what you typed to OpenStreetMap's search (Nominatim) and nothing else, and keeps
 
 ## Data, downloads and credits
 
-The world map (Natural Earth, with the provinces of every country) is inside the panel and works
-offline. It carries coastlines, borders, rivers, lakes, place names, built-up areas and the
-motorways between cities, so a flight from the globe down to a city still has something on the
-ground at the zooms in between. The cities and motorways fade out as you come closer, where a
-downloaded area takes over with the real streets. Everything else is downloaded only when you ask, and the size is shown first: OpenStreetMap
-areas (the free Protomaps planet build), satellite pictures (NASA Blue Marble, 20 MB) and shaded
-relief (Natural Earth, 48 MB), district boundaries per country (geoBoundaries), elevation packs
-(Mapterhorn), and any OpenStreetMap search (Overpass). Downloads live in `%APPDATA%\LazyMapLayers`
-(Windows) or `~/Library/Application Support/LazyMapLayers` (macOS).
+Everything a map needs from the globe down to a city comes with the download and works offline; the
+installer puts it on your computer:
 
-The panel never sends anything about you or your project. Rendering OpenStreetMap data, district
-boundaries or terrain adds one small credit text layer to the scene; keep it, or put the credit in
-your end titles.
+- **The world map** (Natural Earth, with the provinces of every country): coastlines, borders, place
+  names and, out to zoom 6, the globe and the continents.
+- **OpenStreetMap for the whole world to zoom 9**: coasts, rivers, lakes, roads, parks and the borders
+  of every country, drawn under every map. It takes over from the world map between zoom 6 and 7, so a
+  flight from space into any country lands on real detail; a downloaded area draws over it closer in.
+- **Elevation for the whole world to zoom 6**: pick the pack "world" under Terrain in the Look sheet
+  for 3D ground and shaded slopes at country scale.
+- **Satellite pictures** (NASA Blue Marble) and **shaded relief** (Natural Earth), for the Satellite
+  look and the relief switch.
+- **The districts of every country** (geoBoundaries), for highlights, numbers joined to districts, and
+  search.
+
+Only finer detail is downloaded, when you ask, with the size shown first: street-level OpenStreetMap
+for an area (the free Protomaps planet build), finer elevation for an area (Mapterhorn), a Sentinel-2
+picture of an area, any OpenStreetMap search (Overpass), and street or address search. All of it
+lives in `%APPDATA%\LazyMapLayers` (Windows) or `~/Library/Application Support/LazyMapLayers` (macOS),
+where `offline/CREDITS.txt` lists the sources of the data that came with the download.
+
+The panel never sends anything about you or your project. Rendering OpenStreetMap data (a view close
+enough for the offline world, or a downloaded area), district boundaries or terrain adds one small
+credit text layer to the scene; keep it, or put the credit in your end titles.
 
 ## What it does not do yet
 

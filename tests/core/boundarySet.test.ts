@@ -78,5 +78,6 @@ test("files without areas are refused, and country codes map to ISO", () => {
   assert.equal(isoOfCountry("BGD", "BGD"), "BGD");
   assert.equal(isoOfCountry("FRA", "-99"), "FRA");
   assert.equal(isoOfCountry("KOS", "-99"), "XKX");
+  assert.equal(isoOfCountry("KOS", "KSV"), "XKX", "the country code table's unofficial KSV");
   assert.equal(isoOfCountry("SDS", undefined), "SSD");
 });

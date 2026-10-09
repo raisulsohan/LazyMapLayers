@@ -23,7 +23,7 @@ export type PmtilesArchiveOptions = {
   leafSize?: number;
 };
 
-type Entry = { tileId: number; offset: number; length: number; runLength: number };
+export type Entry = { tileId: number; offset: number; length: number; runLength: number };
 
 const HEADER_BYTES = 127;
 /** Readers load header and root directory with a single 16384-byte request. */
@@ -80,71 +80,16 @@ export class PmtilesWriter {
       }
     }
 
-    // Readers fetch the first 16384 bytes and expect header + root directory inside them.
-    const maxRootEntries = options.maxRootEntries ?? 4096;
-    let rootBytes: Uint8Array = serializeDirectory(entries);
-    let leafBytes: Uint8Array = new Uint8Array(0);
-    if (entries.length > maxRootEntries || HEADER_BYTES + rootBytes.length > ROOT_BYTE_BUDGET) {
-      let leafSize = options.leafSize ?? 4096;
-      for (;;) {
-        const leafChunks: Uint8Array[] = [];
-        const rootEntries: Entry[] = [];
-        let leafOffset = 0;
-        for (let i = 0; i < entries.length; i += leafSize) {
-          const leaf = serializeDirectory(entries.slice(i, i + leafSize));
-          rootEntries.push({ tileId: entries[i].tileId, offset: leafOffset, length: leaf.length, runLength: 0 });
-          leafChunks.push(leaf);
-          leafOffset += leaf.length;
-        }
-        rootBytes = serializeDirectory(rootEntries);
-        leafBytes = concat(leafChunks, leafOffset);
-        if (HEADER_BYTES + rootBytes.length <= ROOT_BYTE_BUDGET) break;
-        leafSize *= 2;
-      }
-    }
-
-    const metadataBytes = new TextEncoder().encode(JSON.stringify(options.metadata ?? {}));
-    const rootOffset = HEADER_BYTES;
-    const metadataOffset = rootOffset + rootBytes.length;
-    const leafOffset = metadataOffset + metadataBytes.length;
-    const tileDataOffset = leafOffset + leafBytes.length;
-    const total = tileDataOffset + dataLength;
-
-    const out = new Uint8Array(total);
-    const view = new DataView(out.buffer);
-    out.set(new TextEncoder().encode("PMTiles"), 0);
-    out[7] = 3;
-    setUint64(view, 8, rootOffset);
-    setUint64(view, 16, rootBytes.length);
-    setUint64(view, 24, metadataOffset);
-    setUint64(view, 32, metadataBytes.length);
-    setUint64(view, 40, leafOffset);
-    setUint64(view, 48, leafBytes.length);
-    setUint64(view, 56, tileDataOffset);
-    setUint64(view, 64, dataLength);
-    setUint64(view, 72, entries.reduce((sum, e) => sum + e.runLength, 0));
-    setUint64(view, 80, entries.length);
-    setUint64(view, 88, contents);
-    out[96] = 1; // clustered: tile data is in tile-id order
-    out[97] = PMTILES_COMPRESSION.none;
-    out[98] = options.tileCompression;
-    out[99] = options.tileType;
     const hasTiles = ids.length > 0;
-    out[100] = hasTiles ? this.minZoom : 0;
-    out[101] = hasTiles ? this.maxZoom : 0;
-    const [west, south, east, north] = options.bounds ?? [-180, -85.051129, 180, 85.051129];
-    view.setInt32(102, Math.round(west * 1e7), true);
-    view.setInt32(106, Math.round(south * 1e7), true);
-    view.setInt32(110, Math.round(east * 1e7), true);
-    view.setInt32(114, Math.round(north * 1e7), true);
-    const center = options.center ?? { lng: (west + east) / 2, lat: (south + north) / 2, zoom: hasTiles ? this.minZoom : 0 };
-    out[118] = Math.max(0, Math.min(255, Math.round(center.zoom)));
-    view.setInt32(119, Math.round(center.lng * 1e7), true);
-    view.setInt32(123, Math.round(center.lat * 1e7), true);
-
-    out.set(rootBytes, rootOffset);
-    out.set(metadataBytes, metadataOffset);
-    out.set(leafBytes, leafOffset);
+    const { head, tileDataOffset } = archiveHead(entries, {
+      ...options,
+      dataLength,
+      contents,
+      minZoom: hasTiles ? this.minZoom : 0,
+      maxZoom: hasTiles ? this.maxZoom : 0
+    });
+    const out = new Uint8Array(tileDataOffset + dataLength);
+    out.set(head, 0);
     let cursor = tileDataOffset;
     for (const chunk of chunks) {
       out.set(chunk, cursor);
@@ -152,6 +97,96 @@ export class PmtilesWriter {
     }
     return out;
   }
+}
+
+/**
+ * Directory entries for tiles that already have a place in a tile data section: sorted by tile id,
+ * with consecutive ids that share one stored tile collapsed into a run.
+ */
+export function entriesForTiles(tiles: readonly { tileId: number; offset: number; length: number }[]): Entry[] {
+  const sorted = [...tiles].sort((a, b) => a.tileId - b.tileId);
+  const entries: Entry[] = [];
+  for (const t of sorted) {
+    const last = entries[entries.length - 1];
+    if (last && last.offset === t.offset && last.length === t.length && last.tileId + last.runLength === t.tileId) last.runLength++;
+    else entries.push({ tileId: t.tileId, offset: t.offset, length: t.length, runLength: 1 });
+  }
+  return entries;
+}
+
+/**
+ * Everything in an archive before its tile data: header, root directory, metadata and leaf
+ * directories. The tile data (`dataLength` bytes, which the entries' offsets point into) follows at
+ * `tileDataOffset`, so a caller can write the head and then stream the tile data from anywhere.
+ */
+export function archiveHead(
+  entries: readonly Entry[],
+  options: PmtilesArchiveOptions & { dataLength: number; contents: number; minZoom: number; maxZoom: number }
+): { head: Uint8Array; tileDataOffset: number } {
+  // Readers fetch the first 16384 bytes and expect header + root directory inside them.
+  const maxRootEntries = options.maxRootEntries ?? 4096;
+  let rootBytes: Uint8Array = serializeDirectory(entries);
+  let leafBytes: Uint8Array = new Uint8Array(0);
+  if (entries.length > maxRootEntries || HEADER_BYTES + rootBytes.length > ROOT_BYTE_BUDGET) {
+    let leafSize = options.leafSize ?? 4096;
+    for (;;) {
+      const leafChunks: Uint8Array[] = [];
+      const rootEntries: Entry[] = [];
+      let leafOffset = 0;
+      for (let i = 0; i < entries.length; i += leafSize) {
+        const leaf = serializeDirectory(entries.slice(i, i + leafSize));
+        rootEntries.push({ tileId: entries[i].tileId, offset: leafOffset, length: leaf.length, runLength: 0 });
+        leafChunks.push(leaf);
+        leafOffset += leaf.length;
+      }
+      rootBytes = serializeDirectory(rootEntries);
+      leafBytes = concat(leafChunks, leafOffset);
+      if (HEADER_BYTES + rootBytes.length <= ROOT_BYTE_BUDGET) break;
+      leafSize *= 2;
+    }
+  }
+
+  const metadataBytes = new TextEncoder().encode(JSON.stringify(options.metadata ?? {}));
+  const rootOffset = HEADER_BYTES;
+  const metadataOffset = rootOffset + rootBytes.length;
+  const leafOffset = metadataOffset + metadataBytes.length;
+  const tileDataOffset = leafOffset + leafBytes.length;
+
+  const out = new Uint8Array(tileDataOffset);
+  const view = new DataView(out.buffer);
+  out.set(new TextEncoder().encode("PMTiles"), 0);
+  out[7] = 3;
+  setUint64(view, 8, rootOffset);
+  setUint64(view, 16, rootBytes.length);
+  setUint64(view, 24, metadataOffset);
+  setUint64(view, 32, metadataBytes.length);
+  setUint64(view, 40, leafOffset);
+  setUint64(view, 48, leafBytes.length);
+  setUint64(view, 56, tileDataOffset);
+  setUint64(view, 64, options.dataLength);
+  setUint64(view, 72, entries.reduce((sum, e) => sum + e.runLength, 0));
+  setUint64(view, 80, entries.length);
+  setUint64(view, 88, options.contents);
+  out[96] = 1; // clustered: tile data is in tile-id order
+  out[97] = PMTILES_COMPRESSION.none;
+  out[98] = options.tileCompression;
+  out[99] = options.tileType;
+  out[100] = options.minZoom;
+  out[101] = options.maxZoom;
+  const [west, south, east, north] = options.bounds ?? [-180, -85.051129, 180, 85.051129];
+  view.setInt32(102, Math.round(west * 1e7), true);
+  view.setInt32(106, Math.round(south * 1e7), true);
+  view.setInt32(110, Math.round(east * 1e7), true);
+  view.setInt32(114, Math.round(north * 1e7), true);
+  const center = options.center ?? { lng: (west + east) / 2, lat: (south + north) / 2, zoom: options.minZoom };
+  out[118] = Math.max(0, Math.min(255, Math.round(center.zoom)));
+  view.setInt32(119, Math.round(center.lng * 1e7), true);
+  view.setInt32(123, Math.round(center.lat * 1e7), true);
+
+  out.set(rootBytes, rootOffset);
+  out.set(metadataBytes, metadataOffset);
+  out.set(leafBytes, leafOffset);
+  return { head: out, tileDataOffset };
 }
 
 /** Directory encoding: count, delta tile ids, run lengths, lengths, offsets (0 = contiguous). */

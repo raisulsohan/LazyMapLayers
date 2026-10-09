@@ -29,10 +29,15 @@ export type BoundarySetInfo = {
 /** Natural Earth's own codes where they differ from ISO 3166-1 alpha-3. */
 const ISO_OF_ADM0: Record<string, string> = { KOS: "XKX", SDS: "SSD", PSX: "PSE", SAH: "ESH" };
 
-/** The ISO code of a country of the world data: its iso_a3 when Natural Earth has one (it writes -99 for France and Norway), else its adm0_a3. */
+/**
+ * The ISO code of a country of the world data: the code in the table above when it is there (some
+ * tables give Kosovo the unofficial KSV, which geoBoundaries does not know), else its iso_a3 when
+ * Natural Earth has one (it writes -99 for France and Norway), else its adm0_a3.
+ */
 export function isoOfCountry(adm0: string, isoA3: unknown): string {
+  if (ISO_OF_ADM0[adm0]) return ISO_OF_ADM0[adm0];
   if (typeof isoA3 === "string" && /^[A-Z]{3}$/.test(isoA3)) return isoA3;
-  return ISO_OF_ADM0[adm0] ?? adm0;
+  return adm0;
 }
 
 /** Ids of downloaded units start with this, so a highlight says where its shape came from. */

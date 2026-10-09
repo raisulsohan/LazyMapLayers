@@ -14,8 +14,8 @@ import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from 
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
-import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreSetup.ts";
-import { basemapStyle, regionNames, terrainUsable, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import { hasOfflineWorld, naturalEarthArchivePath, offlineWorldPath, regionArchivePath } from "../basemap/maplibreSetup.ts";
+import { basemapStyle, regionNames, terrainUsable, WORLD_DETAIL_FADE, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
 import type { ThemeLike } from "../../core/style/themes.ts";
 import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
 import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
@@ -119,7 +119,7 @@ const OSM_CREDIT = "© OpenStreetMap contributors";
 const BOUNDARIES_CREDIT = "Boundaries: geoBoundaries";
 
 function archivesOf(basemap: BasemapSource): string[] {
-  return [naturalEarthArchivePath(), ...regionNames(basemap).map((name) => regionArchivePath(name))];
+  return [naturalEarthArchivePath(), ...(hasOfflineWorld() ? [offlineWorldPath()] : []), ...regionNames(basemap).map((name) => regionArchivePath(name))];
 }
 
 function dataFingerprint(basemap: BasemapSource, terrain: TerrainSetting | null): string {
@@ -336,7 +336,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     quality: spec.quality,
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
-    attribution: [regionNames(spec.basemap).length || spec.osmData ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
+    // The offline world is OpenStreetMap data too, once a frame comes close enough for it to show.
+    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });

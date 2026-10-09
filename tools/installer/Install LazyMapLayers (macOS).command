@@ -47,6 +47,31 @@ if [ ! -f "${DEST}/CSXS/manifest.xml" ]; then
   exit 1
 fi
 
+# The map data for working without the internet: the whole world to zoom 9,
+# elevation, satellite pictures and every country's districts. rsync skips
+# files that are already there and unchanged, so installing again is quick.
+DATA="$HOME/Library/Application Support/LazyMapLayers"
+offline=0
+if [ -d "offline-data" ]; then
+  echo
+  echo "Copying the map data for working offline (about 2 GB)"
+  echo "        to ${DATA}"
+  echo "This takes a minute or two."
+  mkdir -p "${DATA}"
+  if command -v rsync >/dev/null 2>&1; then
+    rsync -a "offline-data/" "${DATA}/" && offline=1
+  else
+    cp -R "offline-data/." "${DATA}/" && offline=1
+  fi
+  xattr -dr com.apple.quarantine "${DATA}" 2>/dev/null || true
+  if [ "${offline}" != 1 ]; then
+    echo "[!] The map data could not be copied completely. Check that the disk"
+    echo "    has about 2 GB free, then run this again. The panel itself is installed."
+  else
+    echo "The map data is in place."
+  fi
+fi
+
 echo
 echo "============================================================"
 echo "  Installed."
@@ -55,6 +80,12 @@ echo
 echo "  Open it:"
 echo "    After Effects  Window > Extensions > LazyMapLayers"
 echo
+if [ "${offline}" = 1 ]; then
+  echo "  It works without the internet: the world map down to city"
+  echo "  level, elevation, satellite pictures and the districts of"
+  echo "  every country are on this computer now."
+  echo
+fi
 echo "  Downloaded map regions and render caches from an earlier"
 echo "  LazyMapLayers are kept."
 echo

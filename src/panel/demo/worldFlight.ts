@@ -14,6 +14,7 @@ import type { BasemapSource } from "../basemap/basemapStyle.ts";
 import { autoLabels, type AutoLabelResult } from "../labels/autoLabels.ts";
 import { addPin, createMapComp } from "../mapApi.ts";
 import { addCallout, addRoute } from "../overlays/routeCallout.ts";
+import { hasOfflineWorld } from "../basemap/maplibreSetup.ts";
 
 export type City = { name: string; lat: number; lng: number; view: View; title: string; subtitle: string };
 
@@ -46,6 +47,9 @@ export type WorldFlightOptions = {
   /** Ends the second flight above the city instead of in the street (when there is no region data for it). */
   secondZoom?: number;
 };
+
+/** Where a flight stops above a city that has no region of its own: city level over the offline world (D91), else higher. */
+export const aboveCityZoom = (): number => (hasOfflineWorld() ? 9 : 5.2);
 
 export type WorldFlightResult = { mapId: string; sceneName: string; frames: number; labels: AutoLabelResult; expressionErrors: string[] };
 

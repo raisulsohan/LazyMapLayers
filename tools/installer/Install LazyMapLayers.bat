@@ -48,6 +48,24 @@ if not exist "%DEST%\CSXS\manifest.xml" (
   goto :fail
 )
 
+rem The map data for working without the internet: the whole world to
+rem zoom 9, elevation, satellite pictures and every country's districts.
+rem Robocopy skips files that are already there and unchanged, so installing
+rem again is quick. Exit codes below 8 mean success.
+if exist "offline-data" (
+  echo.
+  echo Copying the map data for working offline ^(about 2 GB^)
+  echo         to %APPDATA%\LazyMapLayers
+  echo This takes a minute or two.
+  robocopy "offline-data" "%APPDATA%\LazyMapLayers" /E /NFL /NDL /NJH /NJS /NP /R:2 /W:2 >nul
+  if errorlevel 8 (
+    echo [!] The map data could not be copied completely. Check that the disk
+    echo     has about 2 GB free, then run this again. The panel itself is installed.
+    goto :fail_data
+  )
+  echo The map data is in place.
+)
+
 echo.
 echo ============================================================
 echo   Installed.
@@ -56,6 +74,12 @@ echo.
 echo   Open it:
 echo     After Effects  Window - Extensions - LazyMapLayers
 echo.
+if exist "offline-data" (
+  echo   It works without the internet: the world map down to city
+  echo   level, elevation, satellite pictures and the districts of
+  echo   every country are on this computer now.
+  echo.
+)
 echo   Downloaded map regions and render caches from an earlier
 echo   LazyMapLayers are kept.
 echo.
@@ -81,6 +105,11 @@ exit /b 0
 :fail
 echo.
 echo Nothing was installed. Fix the problem above and run this again.
+goto :end
+
+:fail_data
+echo.
+echo The panel is installed and works; the offline map data is not complete yet.
 
 :end
 echo.

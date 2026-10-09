@@ -3,7 +3,8 @@
  * install with one double-click (Windows or macOS).
  *
  *   node tools/package-zxp.mjs --cert     make the signing certificate (once)
- *   node tools/package-zxp.mjs            build, sign and package
+ *   node tools/package-zxp.mjs            build, sign and package, with the offline map data
+ *   node tools/package-zxp.mjs --no-offline   the panel alone (a quick test build, not a release)
  *
  * Adobe's own ZXPSignCmd does the signing; tools/get-zxpsigncmd.mjs fetches it
  * into tools/vendor/. The key that signs it sits in the repository folder but
@@ -14,11 +15,17 @@
  *
  * It works like the release scripts of the other Lazy tools, so they all
  * install alike.
+ *
+ * A release also carries the offline map data (DECISIONS D91), built once by
+ * tools/build-offline-pack.ts into .cache/offline/pack (LAZYMAPLAYERS_OFFLINE_PACK
+ * names another folder). It goes into the zip as "offline-data", next to the
+ * installers, which copy it into the user data folder; it is never part of the
+ * signed .zxp, so a panel update does not have to carry it again.
  */
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
 import {
-  cpSync, existsSync, mkdirSync, readFileSync, readdirSync, rmSync, writeFileSync,
+  closeSync, cpSync, existsSync, mkdirSync, openSync, readFileSync, readSync, readdirSync, rmSync, writeFileSync,
 } from "node:fs";
 import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
@@ -280,6 +287,44 @@ function verify(tool) {
 
 /* ------------------------------------------------------- what a user gets */
 
+const OFFLINE_PACK = resolve(process.env.LAZYMAPLAYERS_OFFLINE_PACK || join(root, ".cache", "offline", "pack"));
+const OFFLINE_FILES = [
+  "offline/world.pmtiles", "offline/pack.json", "offline/CREDITS.txt", "terrain/world.pmtiles",
+  "imagery/blue-marble.pmtiles", "imagery/relief.pmtiles", "boundaries/manifest.json",
+];
+/* GitHub refuses release assets of 2 GiB or more. */
+const ASSET_LIMIT = 2 * 1024 * 1024 * 1024;
+
+/** The offline data to ship, or null for a panel-only build; a release refuses a pack that is incomplete or a test area. */
+function offlinePack() {
+  if (has("--no-offline")) return null;
+  const missing = OFFLINE_FILES.filter((file) => !existsSync(join(OFFLINE_PACK, file)));
+  if (missing.length) {
+    fail(`the offline data pack in ${OFFLINE_PACK} lacks ${missing.join(", ")}.
+` +
+      "    Build it with node tools/build-offline-pack.ts, or pass --no-offline for a panel-only test build.");
+  }
+  const pack = JSON.parse(readFileSync(join(OFFLINE_PACK, "offline", "pack.json"), "utf8"));
+  const [west, south, east, north] = pack.bbox ?? [];
+  if (!(west <= -179.9 && east >= 179.9 && south <= -85 && north >= 85)) {
+    fail(`the offline data pack covers only ${JSON.stringify(pack.bbox)}, a test area, not the world.`);
+  }
+  return OFFLINE_PACK;
+}
+
+/** SHA-256 of a file read in pieces, so a zip of gigabytes is never held in memory. */
+function sha256Of(file) {
+  const hash = createHash("sha256");
+  const fd = openSync(file, "r");
+  const piece = Buffer.alloc(8 * 1024 * 1024);
+  try {
+    for (let n; (n = readSync(fd, piece, 0, piece.length, null)) > 0; ) hash.update(piece.subarray(0, n));
+  } finally {
+    closeSync(fd);
+  }
+  return hash.digest("hex");
+}
+
 function assemble() {
   rmSync(payload, { recursive: true, force: true });
   mkdirSync(payload, { recursive: true });
@@ -312,10 +357,14 @@ function zip() {
   const out = join(downloads, zipName);
   /* Built here rather than with Compress-Archive, which writes nested paths
      with backslashes (see tools/zip.mjs). */
-  const bytes = writeZip(out, walk(payload, `${PRODUCT}/`));
-  const sha256 = createHash("sha256").update(readFileSync(out)).digest("hex");
-  log("[6/6]", `${out} (${(bytes / 1024 / 1024).toFixed(1)} MB)`);
+  const files = walk(payload, `${PRODUCT}/`);
+  /* The offline data streams straight from the pack folder into the zip. */
+  if (offline) files.push(...walk(offline, `${PRODUCT}/offline-data/`));
+  const bytes = writeZip(out, files);
+  const sha256 = sha256Of(out);
+  log("[6/6]", `${out} (${(bytes / 1024 / 1024).toFixed(1)} MB${offline ? ", with the offline map data" : ", the panel alone"})`);
   console.log(`        SHA-256 ${sha256}`);
+  if (bytes >= ASSET_LIMIT) console.log(`        [!] ${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB: GitHub takes release assets under 2 GB only.`);
   return out;
 }
 
@@ -328,6 +377,7 @@ if (has("--cert")) {
   process.exit(0);
 }
 
+const offline = offlinePack();
 stage();
 sign(tool);
 verify(tool);
@@ -342,5 +392,6 @@ Done. One file to give people:
   ${out}
 
 They unzip it and double-click "Install LazyMapLayers.bat" (Windows) or
-"Install LazyMapLayers (macOS).command". No extension manager, no debug mode.
+"Install LazyMapLayers (macOS).command". No extension manager, no debug mode${offline ? `,
+and the map data for working offline comes with it` : ""}.
 `);

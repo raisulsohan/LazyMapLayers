@@ -20,8 +20,9 @@ fi
 
 if [ -d "${DATA}" ]; then
   echo
-  echo "LazyMapLayers keeps downloaded map regions, imagery, elevation packs,"
-  echo "district boundaries, the render queue and renders of unsaved projects in"
+  echo "LazyMapLayers keeps the offline map data it came with (about 2 GB),"
+  echo "downloaded map regions, imagery, elevation packs, district boundaries,"
+  echo "the render queue and renders of unsaved projects in"
   echo "  ${DATA}"
   read -r -p "Delete them as well? [y/N] " answer
   case "${answer}" in

@@ -50,6 +50,7 @@ that go online run only when they are named.
 | FB1 | The feature browser: what is under the view, listed and searched, and turned into pins, names, highlights or shape layers; half a real country clipped off with nothing left west of the cut | PASS |
 | ES1 | A Google Earth Studio camera read from its exported numbers: 256 orientations round-tripped, the comp built to the render's size, length and frame rate, track points placed as pins | PASS |
 | WB1 | Cities and roads fill zooms 7 to 9: 36.5 %, 52.9 % and 66.3 % of the frame against 10.0 % at zoom 5, and gone by 11 | PASS |
+| OW1 | The offline world (OpenStreetMap to zoom 9, D91) under every map: nothing changes at zoom 5; at zooms 8 to 10 it paints 12 to 100 % of the frame over Dhaka, Paris, the Alps, the Amazon, the Nile delta, Norway, Nairobi and Tokyo; the Caspian, Lake Michigan and Lake Victoria stay water; over a satellite picture it adds only lines (7 %), country colours hold at zoom 7, the relief shows on 99 % of the Alps; a 1080p frame at zoom 9 in about 50 ms. Needs the pack in the user data folder | PASS |
 | LB4 | Names of the natural world from the Bay of Bengal to Everest: italic water names in the water colour, ranges in spaced capitals, Everest with a triangle and 8,848 m, local-language names with an English line, Bengali upright and shaped | PASS |
 | LB5 | Names inside Paris from the region's own tiles: districts, landmarks, stations, parks, the Seine and 18 streets, street and river names bent along their line on a mask path (a sharp corner keeps a straight turned name), reading left to right at their middle at both ends of a turning move and turning with the map, kept when placed again | PASS |
 | LB6 | Oceans on a turning globe: a globe turned from the South Atlantic to the Pacific with the world's names names the Atlantic, Indian and Pacific Oceans, with no two names overlapping at 24 moments | PASS |
@@ -65,6 +66,29 @@ that go online run only when they are named.
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
 | GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
+
+## OW1 — The offline world under every map: PASS (2026-10-09)
+
+- **What it renders.** Every view twice, with the offline world (`offline/world.pmtiles`, the
+  Protomaps planet build to zoom 9, D91) and without it, at 640x360 in the Midnight look; the pixels
+  that differ are what it draws. Frames are saved to `OW1-frames` for review.
+- **Zoom 5** over Dhaka and Paris: 0 % of the frame changes, so Natural Earth still carries the globe
+  and the continents exactly as before.
+- **Zooms 8 to 10:** Dhaka 31 and 51 %, Paris 63 and 100 %, the Alps 59 %, the Amazon 43 %, the Nile
+  delta 12 %, Norway 53 %, Nairobi 36 % and Tokyo 90 %. Reviewed: the rivers of Bangladesh as water,
+  Manaus between the Rio Negro and the Amazon, the fjords, and the country borders solid in the look's
+  border colour (they were lost at first, when every OpenStreetMap border shared one thin dash).
+- **Lakes:** the middle of the Caspian, Lake Michigan and Lake Victoria (a patch, since Victoria has a
+  border through it) stays the colour of water: 100, 100 and 90 %.
+- **Looks that keep their own ground:** over the satellite picture only lines come on (7.4 % of the
+  frame; 100 % before rasters were kept out of the hand-over); with Atlas' country colours, 11.9 % at
+  zoom 7; the shaded relief shows on 98.9 % of the Alps at zoom 7.5 (0 % before it was drawn again
+  over the offline world's ground). Districts are drawn only from zoom 9: at 8 they netted the whole
+  satellite picture of Bangladesh.
+- **Speed:** a 1080p base frame over Dhaka at zoom 9, 27 to 52 ms.
+- **Around it:** the full offline run passed with the offline world installed. R1's first render over
+  Paris went over its budget until the offline world handed its lines over to the region; since then
+  it measures the same with and without it (docs/PERFORMANCE.md).
 
 ## X1 — Both expression engines in After Effects: PASS (2026-09-17)
 

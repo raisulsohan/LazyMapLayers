@@ -57,7 +57,7 @@ import { districtAt, districtJoinTargets, districtPoint, districtSetOf, district
 import { buildGeoJson, type ExportLayer } from "../core/data/geoJsonExport.ts";
 import { countryOutline } from "./data/countries.ts";
 import { placeIndex, resetPlaceIndex } from "./data/worldLabels.ts";
-import { buildWorldFlight } from "./demo/worldFlight.ts";
+import { aboveCityZoom, buildWorldFlight } from "./demo/worldFlight.ts";
 import { autoLabels } from "./labels/autoLabels.ts";
 import { addCameraRig, addPin, attachLayers, createMapComp, detachLayers, flyTo, selectionInfo, setView, type SelectionInfo } from "./mapApi.ts";
 import { importFile } from "./data/importFile.ts";
@@ -94,6 +94,7 @@ import { samplerFor } from "./elevation.ts";
 import { styleRgb } from "../core/style/layerStyle.ts";
 import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
+import { isoOfCountry } from "../core/data/boundarySet.ts";
 
 export type LogKind = "ok" | "fail" | "muted";
 export type LogLine = { text: string; kind?: LogKind };
@@ -1529,8 +1530,10 @@ export const buildSample = () =>
     const demo = await buildWorldFlight(
       {
         basemap: wanted.length ? { kind: "regions", names: wanted } : { kind: "world" },
-        firstZoom: wanted.includes("paris") ? undefined : 5.2,
-        secondZoom: wanted.includes("tokyo") ? undefined : 5.2
+        // Without a city's own region the flight stops above it: at city level when the offline world is
+        // installed (D91), higher up otherwise, where the world map still has detail.
+        firstZoom: wanted.includes("paris") ? undefined : aboveCityZoom(),
+        secondZoom: wanted.includes("tokyo") ? undefined : aboveCityZoom()
       },
       (line) => log(`sample: ${line}`, "muted")
     );
@@ -2629,7 +2632,7 @@ export const changeDataLevel = (level: DataLevelChoice, country?: string | null)
     // Districts a country does not have on this computer yet are offered for download, right here.
     if (level === "district" && dataCountry.value && !districtSetOf(dataCountry.value)) {
       const row = countryCodeRows().find((entry) => entry.code === dataCountry.value);
-      if (row) void offerDistricts({ code: row.code, name: row.names[0] ?? row.code, iso: row.iso3 ?? row.code });
+      if (row) void offerDistricts({ code: row.code, name: row.names[0] ?? row.code, iso: isoOfCountry(row.code, row.iso3) });
     }
     rejoinTable();
   });

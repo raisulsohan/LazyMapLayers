@@ -1,7 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
 import { PMTiles, type Source, type RangeResponse } from "pmtiles";
-import { PMTILES_COMPRESSION, PMTILES_TILE_TYPE, PmtilesWriter, serializeDirectory } from "../../src/core/pmtiles/writer.ts";
+import { zxyToTileId } from "pmtiles";
+import { PMTILES_COMPRESSION, PMTILES_TILE_TYPE, PmtilesWriter, archiveHead, entriesForTiles, serializeDirectory } from "../../src/core/pmtiles/writer.ts";
 
 class MemorySource implements Source {
   private readonly bytes: Uint8Array;
@@ -114,4 +115,65 @@ test("directory encoding matches the spec example shape", () => {
   ]);
   // count 3 | ids 0,1,4 | runs 1,2,1 | lengths 10,5,10 | offsets 1 (0+1), 0 (contiguous), 1 (0+1)
   assert.deepEqual(Array.from(bytes), [3, 0, 1, 4, 1, 2, 1, 10, 5, 10, 1, 0, 1]);
+});
+
+test("a head written apart from its tile data reads back like a whole archive", async () => {
+  // Tiles that already sit in a data section, as an extract streamed to disk has them: shared
+  // contents (the ocean) point at one offset, and the list arrives out of tile-id order.
+  const ocean = bytesOf("ocean");
+  const parts: Uint8Array[] = [ocean];
+  const tiles: { tileId: number; offset: number; length: number }[] = [];
+  const expected = new Map<string, Uint8Array>();
+  let dataLength = ocean.length;
+  for (let z = 0; z <= 4; z++) {
+    const n = 2 ** z;
+    for (let x = 0; x < n; x++) {
+      for (let y = 0; y < n; y++) {
+        let offset = 0;
+        let data = ocean;
+        if ((x * 3 + y) % 5 === 0) {
+          data = bytesOf(`land ${z}/${x}/${y}`);
+          offset = dataLength;
+          parts.push(data);
+          dataLength += data.length;
+        }
+        tiles.push({ tileId: zxyToTileId(z, x, y), offset, length: data.length });
+        expected.set(`${z}/${x}/${y}`, data);
+      }
+    }
+  }
+  tiles.reverse();
+  const entries = entriesForTiles(tiles);
+  assert.ok(entries.length < tiles.length, "runs of ocean collapse");
+  for (const [label, maxRootEntries] of [["root only", undefined], ["leaves", 20]] as const) {
+    const { head, tileDataOffset } = archiveHead(entries, {
+      tileType: PMTILES_TILE_TYPE.mvt,
+      tileCompression: PMTILES_COMPRESSION.none,
+      metadata: { name: "streamed" },
+      dataLength,
+      contents: parts.length,
+      minZoom: 0,
+      maxZoom: 4,
+      maxRootEntries,
+      leafSize: 16
+    });
+    assert.equal(head.length, tileDataOffset);
+    const archive = new Uint8Array(tileDataOffset + dataLength);
+    archive.set(head, 0);
+    let cursor = tileDataOffset;
+    for (const part of parts) {
+      archive.set(part, cursor);
+      cursor += part.length;
+    }
+    const reader = new PMTiles(new MemorySource(archive));
+    const header = await reader.getHeader();
+    assert.equal(header.numAddressedTiles, tiles.length, label);
+    assert.equal(header.numTileContents, parts.length, label);
+    for (const [key, data] of expected) {
+      const [z, x, y] = key.split("/").map(Number);
+      const tile = await reader.getZxy(z, x, y);
+      assert.ok(tile, `${label}: missing ${key}`);
+      assert.deepEqual(new Uint8Array(tile.data), data, `${label}: ${key}`);
+    }
+  }
 });

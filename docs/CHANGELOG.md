@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Works without the internet, down to city level, anywhere.** The download now carries the map
+  data the panel used to fetch piece by piece, about 1.9 GB, and the installer puts it on your
+  computer: OpenStreetMap for the whole world to zoom 9 (coasts, rivers, lakes, roads, parks and the
+  borders of every country), elevation for the whole world (the "world" pack in the Look sheet), the
+  satellite and shaded relief pictures, and the districts of every country for highlights, numbers
+  and search. A flight from the globe into any country now lands on real detail instead of an empty
+  map, with no download first. Only street-level detail for an area, finer elevation, Sentinel-2
+  pictures and street search still go online, and only when you ask (DECISIONS D91).
+- **Borders read at every zoom.** On a downloaded region, and on the new offline world, country
+  borders are solid in the look's border colour, provinces dashed, and districts lighter and only
+  from zoom 9, instead of every border the same thin dash.
+- **Kosovo's districts download.** The search offered them under a code geoBoundaries does not know.
 - **A map reaches the end of a scene made longer.** Make a scene longer in After Effects and the
   next render grows its map to the new end instead of leaving the last seconds empty. A map layer
   you trimmed keeps its trim.

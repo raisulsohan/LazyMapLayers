@@ -31,8 +31,9 @@ echo Removed the panel.
 :data
 if not exist "%DATA%" goto :done
 echo.
-echo LazyMapLayers keeps downloaded map regions, imagery, elevation packs,
-echo district boundaries, the render queue and renders of unsaved projects in
+echo LazyMapLayers keeps the offline map data it came with (about 2 GB),
+echo downloaded map regions, imagery, elevation packs, district boundaries,
+echo the render queue and renders of unsaved projects in
 echo   %DATA%
 echo Keep them if you might install LazyMapLayers again.
 choice /c YN /m "Delete them as well"

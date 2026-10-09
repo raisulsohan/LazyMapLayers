@@ -40,3 +40,19 @@ export function regionArchivePath(name: string): string {
 export function naturalEarthArchivePath(): string {
   return path().join(extensionRoot(), "data", "natural-earth.pmtiles");
 }
+
+/**
+ * The whole world's OpenStreetMap to zoom 9, which the installer copies from the offline data pack
+ * (tools/build-offline-pack.ts, DECISIONS D91). Every map draws it when it is there.
+ */
+export function offlineWorldPath(): string {
+  return path().join(userDataDir(), "offline", "world.pmtiles");
+}
+
+export function hasOfflineWorld(): boolean {
+  try {
+    return isInCep() && fs().existsSync(offlineWorldPath());
+  } catch {
+    return false;
+  }
+}

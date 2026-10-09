@@ -887,6 +887,54 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D91 — The release carries the map data for working offline (2026-10-09)
+
+- **Why.** Map tools for After Effects draw their maps from tile servers, so they stop working
+  without the internet. LazyMapLayers had the world offline only to zoom 6 (Natural Earth); everything
+  closer - a country's roads and rivers, elevation, satellite pictures, districts - was a download
+  the user had to ask for. A user should install once and have every map up to city level, anywhere,
+  with no connection.
+- **What was measured** (index reads only, 2026-10-09). OpenStreetMap for the whole world (Protomaps
+  planet build): 43 MB to zoom 6, 532 MB to 8, 1.5 GB to 9, 3.6 GB to 10, 138 GB to 15. Elevation
+  (Mapterhorn, 512 px WebP): 265 MB to zoom 6, 904 MB to 7, 3.1 GB to 8. Districts of every country
+  (geoBoundaries gbOpen ADM2): 352 MB of simplified GeoJSON, 111 MB after the panel's own thinning,
+  32 MB deflated. Re-compressing the vector tiles with gzip 9 saves 2.4 %, so it is not done; nothing
+  is dropped from the tiles either (unused landuse kinds would save about 15 %, but they are data a
+  later look may want).
+- **Decision.** A release zip carries an offline data pack beside the installers, about 1.9 GB in all
+  (GitHub takes release assets under 2 GB): the world's OpenStreetMap to zoom 9, elevation to zoom 6,
+  the Blue Marble and relief packs, and every country's districts. `tools/build-offline-pack.ts`
+  builds it once per release from the public sources, streaming the large archives straight to disk
+  (resumable, four ranges at a time) and writing the districts exactly as the panel's own download
+  does. The pack is laid out like the user data folder, and the installers copy it there (robocopy or
+  rsync, so installing again copies only what changed). It is never part of the signed `.zxp`, so a
+  panel update need not carry it again; `--no-offline` packages the panel alone for a test build.
+- **How the panel uses it.** The elevation, imagery and districts are what the panel already reads
+  from the user data folder (the elevation shows as the pack "world"). The world's OpenStreetMap
+  (`offline/world.pmtiles`) goes under every map, the world map included: its lines come in over
+  zoom 6 to 7 while Natural Earth's lines go, its ground at the same time (7.5 to 9.5 for a look that
+  colours every country, as those colours fade there). Downloaded regions draw over it as before, and
+  like a wide region under a detailed one it keeps its ground there but hands its lines and names
+  over where a region comes in, so a city is never drawn twice.
+  Below zoom 6 nothing changes. Its wide water (ocean, sea, lake, water, reservoir, lagoon, bay,
+  strait, basin) is drawn as polygons, which low-zoom tiles carry cleanly; rivers stay lines. Over a
+  satellite picture it adds only lines and names. The shaded relief and the user's own tiles are drawn
+  once more over its ground, so they do not vanish where it takes over. Region and offline-world
+  borders now separate countries (solid, in the look's border colour, as wide as the world map's),
+  provinces (dashed) and districts (lighter, from zoom 9). A render whose camera comes within a zoom
+  of the hand-over carries the OpenStreetMap credit, as a region does, and the archive is part of
+  every frame's data fingerprint.
+- **What stays online.** Street-level detail (zoom 10 to 15) for an area, finer elevation, a
+  Sentinel-2 picture, OpenStreetMap features through Overpass, street and address search, and the
+  update check: each only when the user asks.
+- **Tested.** Unit tests for the archive head written apart from its data, and for Kosovo's code
+  (geoBoundaries' XKX, which the country table gives as KSV, so its districts never matched before).
+  Every tile of two test extracts compared byte for byte with the in-memory extractor's. OW1 in After
+  Effects: nothing changes at zoom 5; the offline world paints 12 to 100 % of the frame at zooms 8 to
+  10 over eight places; the Caspian, Lake Michigan and Lake Victoria stay water; the satellite picture
+  and the country colours stay, the relief shows; a 1080p frame at zoom 9 takes about 50 ms. The
+  installer tested end to end (docs/RELEASING.md).
+
 ## D90 — macOS is experimental, and 1.0 does not wait for a Mac (2026-10-09)
 
 - **Why.** The plan held 1.0 back for a run on macOS (PLAN §8), and there is no Mac to run it on.

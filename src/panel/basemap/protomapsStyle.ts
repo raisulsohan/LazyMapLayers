@@ -76,13 +76,48 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
           "line-width": ["interpolate", ["exponential", 1.8], ["zoom"], 8, ["match", ["get", "kind"], "river", 0.8, 0.4], 12, ["match", ["get", "kind"], "river", 4, 1.5], 15, ["match", ["get", "kind"], "river", 18, 5]]
         }
       },
+      // Provinces dashed as on the world map; districts lighter and only from zoom 9, where a country
+      // no longer fills the frame (out further they net the whole picture). Countries have their own layer.
+      // Opacities stay constant, so the hand-over fades (basemapStyle's rampWindow) can fold into them.
       {
         id: "boundaries",
         type: "line",
         metadata: group("boundaries"),
         source: OSM_SOURCE,
         "source-layer": "boundaries",
+        filter: ["!", ["in", ["get", "kind"], ["literal", ["country", "county"]]]] as unknown as boolean,
         paint: { "line-color": t.admin1, "line-width": 1, "line-dasharray": [3, 2] }
+      },
+      {
+        id: "boundaries-county",
+        type: "line",
+        metadata: group("boundaries"),
+        source: OSM_SOURCE,
+        "source-layer": "boundaries",
+        minzoom: 9,
+        filter: ["==", ["get", "kind"], "county"] as unknown as boolean,
+        paint: { "line-color": t.admin1, "line-width": 1, "line-opacity": 0.55, "line-dasharray": [3, 2] }
+      },
+      // Country borders solid in the look's border colour, as wide as the world map draws them where it
+      // hands over (zoom 6 to 7), so a flight into a country never loses its outline. Disputed ones dashed.
+      {
+        id: "boundaries-country",
+        type: "line",
+        metadata: group("boundaries"),
+        source: OSM_SOURCE,
+        "source-layer": "boundaries",
+        filter: ["all", ["==", ["get", "kind"], "country"], ["!=", ["get", "disputed"], true]] as unknown as boolean,
+        layout: { "line-join": "round", "line-cap": "round" },
+        paint: { "line-color": t.border, "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 1, 0.6, 8, 2.4, 14, 3.6] }
+      },
+      {
+        id: "boundaries-country-disputed",
+        type: "line",
+        metadata: group("boundaries"),
+        source: OSM_SOURCE,
+        "source-layer": "boundaries",
+        filter: ["all", ["==", ["get", "kind"], "country"], ["==", ["get", "disputed"], true]] as unknown as boolean,
+        paint: { "line-color": t.border, "line-width": ["interpolate", ["exponential", 1.4], ["zoom"], 1, 0.6, 8, 2, 14, 3], "line-dasharray": [2, 2] }
       },
       {
         id: "roads-minor",

@@ -8,7 +8,7 @@ import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS } from "../core/render/plan.ts";
 import { evalScript, fs, path } from "./cep.ts";
 import { regionArchivePath } from "./basemap/maplibreSetup.ts";
-import { buildWorldFlight, TOKYO } from "./demo/worldFlight.ts";
+import { aboveCityZoom, buildWorldFlight, TOKYO } from "./demo/worldFlight.ts";
 import { runRenderJob } from "./render/renderJob.ts";
 import { spikeDir, type SpikeLog } from "./spikes.ts";
 
@@ -25,7 +25,7 @@ export async function runDemoTest(log: SpikeLog, options: { width: number; heigh
   const started = performance.now();
   const steps: string[] = [];
   const demo = await buildWorldFlight(
-    { width: options.width, height: options.height, basemap: regions.length ? { kind: "regions", names: regions } : { kind: "world" }, second: TOKYO, firstZoom: hasParis ? undefined : 5.2, secondZoom: hasTokyo ? undefined : 5.2 },
+    { width: options.width, height: options.height, basemap: regions.length ? { kind: "regions", names: regions } : { kind: "world" }, second: TOKYO, firstZoom: hasParis ? undefined : aboveCityZoom(), secondZoom: hasTokyo ? undefined : aboveCityZoom() },
     (line) => {
       log(`D1 ${line}`, "muted");
       steps.push(line);
