@@ -8,7 +8,9 @@
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
 
-![LazyMapLayers demo: with no internet, a flight from the globe to Bangladesh with its rivers, roads and districts, a solid border, a pin and labels, the look changed from Midnight to Satellite to Atlas, then down to Dhaka at city level](docs/demo/lazymaplayers-demo.gif)
+<p align="center"><a href="https://raisulsohan.com/en/portfolio/lazymaplayers/"><img src="docs/demo/lazymaplayers-in-ae.svg" width="100%" alt="LazyMapLayers at work in After Effects with no internet: the steps checked off in the panel, a route drawn from Dhaka to Chattogram with its arrow, names placed in Bengali with English below, and the render turning the preview into the finished map" /></a></p>
+
+<p align="center"><strong>See a whole job:</strong> <a href="https://raisulsohan.com/en/portfolio/lazymaplayers/">the 32-second demo</a> makes one map shot in After Effects with no internet, from <em>New map</em> to the final render, and plays it. The player page is also in <a href="docs/demo/lazymaplayers-in-ae.html">docs/demo</a>: download it and open it in a browser.</p>
 
 <p align="center">
   <strong>Maps, flights, routes and data stories for motion designers, rendered frame-exact inside After Effects. Free forever: no account, no key, no trial.</strong>
@@ -48,6 +50,10 @@ run **Fix a blank panel.bat** (Windows) and restart After Effects.
 **First map in a minute:** click **World flight sample**, then **Render**. For the street-level ending,
 move the preview over Paris or Tokyo, click **Download this area…**, name the region `paris` or
 `tokyo`, and build the sample again.
+
+## A flight, offline
+
+![LazyMapLayers demo: with no internet, a flight from the globe to Bangladesh with its rivers, roads and districts, a solid border, a pin and labels, the look changed from Midnight to Satellite to Atlas, then down to Dhaka at city level](docs/demo/lazymaplayers-demo.gif)
 
 ---
 
