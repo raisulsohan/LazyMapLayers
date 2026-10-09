@@ -1,14 +1,14 @@
 ============================================================
-  LAZYMAPLAYERS 0.5.0
+  LAZYMAPLAYERS 0.9.0
   Free map animation for After Effects: globe to street level,
   3D terrain, your own looks, labels, routes, highlights,
   data maps, rendered frame-exact
 ============================================================
 
 WHAT YOU NEED
-  - Windows 10 / 11, or macOS
-    (tested on Windows 11; the macOS installer has not been
-    tried on a Mac yet)
+  - Windows 10 / 11, or macOS (experimental: tested on
+    Windows 11 only, not yet run on a Mac; please report
+    what you find)
   - Adobe After Effects 2024 or newer
   - A graphics card with WebGL 2 (any card from the last
     ten years)

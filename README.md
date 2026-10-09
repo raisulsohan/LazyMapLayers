@@ -23,8 +23,8 @@ your own switched on, tiles are fetched from the address you gave while you prev
 
 ## Install
 
-Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS. Tested on Windows 11 with After
-Effects 2026; the macOS installer has not been tried on a Mac yet.
+Requirements: After Effects 2024 or newer, on Windows 10/11 or macOS (experimental). Tested on Windows
+11 with After Effects 2026; it has not been run on a Mac yet, so on macOS please report what you find.
 
 1. Download `LazyMapLayers-v0.9.zip` from the [Releases](https://github.com/raisulsohan/LazyMapLayers/releases) page and unzip it.
 2. Close After Effects.

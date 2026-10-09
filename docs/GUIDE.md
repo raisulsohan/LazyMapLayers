@@ -399,8 +399,9 @@ your end titles.
 
 ## What it does not do yet
 
-- Everything here is tested on Windows. macOS should work the same way; it has not been run
-  through yet.
+- macOS is experimental. Everything here is tested on Windows; macOS should work the same way, but
+  it has not been run on a Mac yet. If something differs there, **Report a problem** under Maps >
+  About says so.
 
 ## If something goes wrong
 

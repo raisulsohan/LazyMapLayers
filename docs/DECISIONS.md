@@ -887,6 +887,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D90 — macOS is experimental, and 1.0 does not wait for a Mac (2026-10-09)
+
+- **Why.** The plan held 1.0 back for a run on macOS (PLAN §8), and there is no Mac to run it on.
+  Everything else in that run can be checked from Windows, and was on 2026-10-09: downloads, the
+  render queue and renders of unsaved projects go to `~/Library/Application Support/LazyMapLayers`
+  (panel/cep.ts), every script has a Mac font in its list (core/labels/language.ts), paths are split
+  on both separators, and the shipped zip gives both `.command` installers mode 755 and Unix line
+  endings (tools/zip.mjs, tools/package-zxp.mjs). Nothing that works only on Windows was found.
+- **Decision.** The panel and its installers keep shipping for macOS, marked experimental in the
+  README, the guide and the read-me in the download, with Mac users' problem reports (D56) deciding
+  what changes. A run on a Mac is no longer a condition for 1.0; the installer test on a user's
+  computer still is.
+- **Tested.** Not on a Mac. On Windows: `npm run verify`, and the entries of the 0.9 zip read back
+  (mode, line endings).
+
 ## D89 — A map grows to the end of a scene made longer (2026-09-27)
 
 - **Why.** A map comp is as long as its scene when it is made. A designer who makes the scene

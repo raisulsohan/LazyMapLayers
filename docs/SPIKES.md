@@ -5,10 +5,16 @@ RTX 3070 (ANGLE, Direct3D 11). Run with `npm run ae:spikes` (`tools/ae-spikes.mj
 Effects, runs the host spikes, opens the panel, runs the renderer spikes and quits. R2 is long and
 only runs with `-- --only R2`.
 
-Last full offline run: 2026-09-23, after D49-D61 (spikes, heat, district joins, layer copies, the readout, look
-details, the update check, label restyling, the heat legend, imagery of the user's own): H1, P1, C1, E1, X1, R1,
-G2, D1, SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1, ST1, DT1, LK1, FL1, HT1, OI1 and U1 all pass on the dev
-build.
+Last full offline run: 2026-10-09, after 0.9.0 and LN1, on the dev build and on a machine with no downloaded
+regions or imagery packs: S3, S5, H1, P1, G1, G2, X1, R1, AT1, LB2, LB3, FL1, OI1, HT1, LD1, WB1, LB4, LB6, DT2, DT3,
+DR1, FO1, LN1, LD2, DU1, RD1, ES1, FB1, MF1, LK1, DT1, ST1, SL1, RT1, HL1, SH1, C1, then D1, D1L, TH1 and LB1, and
+U1 all pass (S1: 88 ms a 1080p frame, 285 ms at 4K). Not run for want of that data: E1, LB5 and S4 (the Paris
+region), SAT1 (the satellite pack). S6b found the coast-glow difference described under S6. D1 without regions
+now flies to Paris from above, as the panel's sample button does, instead of into empty streets.
+
+The run before, 2026-09-23, after D49-D61 (spikes, heat, district joins, layer copies, the readout, look details,
+the update check, label restyling, the heat legend, imagery of the user's own): H1, P1, C1, E1, X1, R1, G2, D1,
+SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1, ST1, DT1, LK1, FL1, HT1, OI1 and U1 all pass on the dev build.
 
 ## The in-AE tests, and what each one settles
 
@@ -345,6 +351,15 @@ encode (zlib level 1, opaque) and a write to disk.
 - **Decision.** Final-render labels stay out of the renderer. They are AE text layers placed by our
   own engine (Phase 6), or a label pass that engine draws. Basemap passes are deterministic, so
   re-rendering a single frame is safe.
+- **Measured again 2026-10-09: not quite identical since the coast glow.** S6b was not run between
+  2026-09-17 and 2026-10-09, and the looks that came on 2026-09-18 draw a soft glow along the coast
+  (a wide blurred line). Three runs gave 132 to 305 differing bytes: 85 to 135 pixels, each channel
+  off by at most 4 of 255, alpha never, all where glowing coast lines cross or meet; the same frame
+  drawn twice in a row differs the same way, so it is not tile loading. With the glow layer left out,
+  or with the canvas's multisample antialiasing off, four repeats came out identical (0 pixels), so
+  the pair of them is the cause on this GPU (RTX 3070, ANGLE on Direct3D 11). Nothing a viewer can
+  see, but a frame re-rendered alone can differ from its first render in those pixels. S6b now
+  reports the pixels, the largest step and where they lie, and saves the frames when they differ.
 
 ## Automation note
 

@@ -169,11 +169,13 @@ function makeCert(tool) {
 
 /*
  * package.json holds the version. tools/build.mjs writes it into the manifest
- * and the host script; the README names the zip, so it is kept in step here.
+ * and the host script; the README names the zip and the read-me in the download
+ * opens with the version, so both are kept in step here.
  */
 function syncVersion() {
   const edits = [
     { file: "README.md", find: /LazyMapLayers-v[\d.]+\.zip/g, to: zipName },
+    { file: join("tools", "installer", "Read me first.txt"), find: /^(\s*LAZYMAPLAYERS )[\d.]+/m, to: `$1${VERSION}` },
   ];
   for (const edit of edits) {
     const path = join(root, edit.file);

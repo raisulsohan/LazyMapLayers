@@ -19,11 +19,13 @@ export async function runDemoTest(log: SpikeLog, options: { width: number; heigh
     await evalScript(`app.project.expressionEngine = ${JSON.stringify(options.engine)}; "1"`);
   }
   const regions = ["paris-wide", "paris", "tokyo-wide", "tokyo"].filter((name) => fs().existsSync(regionArchivePath(name)));
+  // Like the panel's sample button: a city without its region is flown to from above, not into empty streets.
+  const hasParis = regions.includes("paris");
   const hasTokyo = regions.includes("tokyo");
   const started = performance.now();
   const steps: string[] = [];
   const demo = await buildWorldFlight(
-    { width: options.width, height: options.height, basemap: regions.length ? { kind: "regions", names: regions } : { kind: "world" }, second: TOKYO, secondZoom: hasTokyo ? undefined : 5.2 },
+    { width: options.width, height: options.height, basemap: regions.length ? { kind: "regions", names: regions } : { kind: "world" }, second: TOKYO, firstZoom: hasParis ? undefined : 5.2, secondZoom: hasTokyo ? undefined : 5.2 },
     (line) => {
       log(`D1 ${line}`, "muted");
       steps.push(line);

@@ -66,6 +66,36 @@ export function spikeDir(): string {
 const europe: View = { center: { lng: 2.35, lat: 48.86 }, zoom: 4, bearing: 0, pitch: 0 };
 const eastAsia: View = { center: { lng: 139.69, lat: 35.69 }, zoom: 5.5, bearing: 25, pitch: 50 };
 
+/** Where two RGBA frames of the same size differ: bytes, pixels, the largest step in one channel, and the box around them. */
+function frameDifference(a: Uint8Array, b: Uint8Array, width: number) {
+  let bytes = 0;
+  let pixels = 0;
+  let maxDelta = 0;
+  let box: { x0: number; y0: number; x1: number; y1: number } | null = null;
+  for (let p = 0; p < a.length; p += 4) {
+    let differs = false;
+    for (let k = 0; k < 4; k++) {
+      const delta = Math.abs(a[p + k] - b[p + k]);
+      if (!delta) continue;
+      bytes++;
+      differs = true;
+      if (delta > maxDelta) maxDelta = delta;
+    }
+    if (!differs) continue;
+    pixels++;
+    const x = (p / 4) % width;
+    const y = Math.floor(p / 4 / width);
+    if (!box) box = { x0: x, y0: y, x1: x, y1: y };
+    else {
+      box.x0 = Math.min(box.x0, x);
+      box.y0 = Math.min(box.y0, y);
+      box.x1 = Math.max(box.x1, x);
+      box.y1 = Math.max(box.y1, y);
+    }
+  }
+  return { bytes, pixels, maxDelta, box };
+}
+
 export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<string, unknown>> {
   const wants = (id: string) => !only || only.includes(id);
   const results: Record<string, unknown> = {
@@ -664,10 +694,18 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
       const a = await renderer.renderFrame(flight.at(0.37), 1234);
       await renderer.renderFrame(flight.at(0.9), 5000);
       const b = await renderer.renderFrame(flight.at(0.37), 1234);
-      let differing = 0;
-      for (let i = 0; i < a.rgba.length; i++) if (a.rgba[i] !== b.rgba[i]) differing++;
-      results.S6b_noLabels_differingBytes = differing;
-      log(`S6b determinism without labels: ${differing} differing bytes`, differing === 0 ? "ok" : "fail");
+      // The same frame once more, straight after: tells a first-frame effect from one left by the frame between.
+      const c = await renderer.renderFrame(flight.at(0.37), 1234);
+      const ab = frameDifference(a.rgba, b.rgba, a.width);
+      const bc = frameDifference(b.rgba, c.rgba, b.width);
+      results.S6b_noLabels_differingBytes = ab.bytes;
+      results.S6b_detail = { firstVsAgain: ab, againVsStraightAfter: bc };
+      if (ab.bytes || bc.bytes) {
+        for (const [name, frame] of [["a", a], ["b", b], ["c", c]] as const) {
+          fs().writeFileSync(path().join(dir, "frames", `S6b_${name}.png`), encodePng(frame.rgba, frame.width, frame.height, { level: 1 }));
+        }
+      }
+      log(`S6b determinism without labels: ${ab.bytes} differing bytes (${ab.pixels} px, largest step ${ab.maxDelta}, box ${JSON.stringify(ab.box)}); straight after: ${bc.bytes}`, ab.bytes === 0 ? "ok" : "fail");
     } catch (error) {
       results.S6b_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`S6b failed: ${results.S6b_error}`, "fail");
