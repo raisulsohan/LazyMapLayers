@@ -35,19 +35,60 @@ async function devtoolsUp() {
   }
 }
 
-/** True while tools/ae-spikes.mjs runs: its After Effects instance must not be touched. */
-function spikesRunning() {
+/** Held while a script drives After Effects through this file, so a second one (another session's capture, a one-off check) waits. */
+const lockFile = path.join(os.tmpdir(), "LazyMapLayers", "manual-session.lock");
+
+/** The node processes other than this one, as { pid, cmd }. */
+function otherNodeProcesses() {
   try {
-    const out = execFileSync("powershell", ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | Select-Object -ExpandProperty CommandLine"], { encoding: "utf8" });
-    return /ae-spikes\.mjs/.test(out);
+    const out = execFileSync("powershell", ["-NoProfile", "-Command", "Get-CimInstance Win32_Process -Filter \"Name='node.exe'\" | ForEach-Object { \"$($_.ProcessId)`t$($_.CommandLine)\" }"], { encoding: "utf8" });
+    return out
+      .split(/\r?\n/)
+      .map((line) => ({ pid: Number(line.split("\t")[0]), cmd: line.slice(line.indexOf("\t") + 1) }))
+      .filter((p) => p.pid && p.pid !== process.pid);
   } catch {
-    return false;
+    return [];
   }
+}
+
+/**
+ * Why After Effects is not ours to drive right now, or null: tools/ae-spikes.mjs runs its own
+ * instance, another capture.mjs or poke.mjs is at work, or another script holds the session lock.
+ */
+function someoneElseDriving() {
+  const others = otherNodeProcesses();
+  const spikes = others.find((p) => /ae-spikes\.mjs/.test(p.cmd));
+  if (spikes) return "tools/ae-spikes.mjs is running; its After Effects is not ours to drive.";
+  const manual = others.find((p) => /tools[\\/]manual[\\/](capture|poke)\.mjs/.test(p.cmd));
+  if (manual) return `another manual script drives After Effects (process ${manual.pid}: ${manual.cmd.trim()}).`;
+  try {
+    const lock = JSON.parse(fs.readFileSync(lockFile, "utf8"));
+    const holder = others.find((p) => p.pid === lock.pid);
+    if (holder) return `process ${lock.pid} holds ${lockFile} (${holder.cmd.trim()}).`;
+  } catch {
+    // No lock, or one left by a process that has ended.
+  }
+  return null;
+}
+
+/** Takes the session lock for this process; it goes when the process ends. */
+function takeLock() {
+  fs.mkdirSync(path.dirname(lockFile), { recursive: true });
+  fs.writeFileSync(lockFile, JSON.stringify({ pid: process.pid, cmd: process.argv.join(" "), since: new Date().toISOString() }), "utf8");
+  process.on("exit", () => {
+    try {
+      if (JSON.parse(fs.readFileSync(lockFile, "utf8")).pid === process.pid) fs.rmSync(lockFile, { force: true });
+    } catch {
+      // Already gone.
+    }
+  });
 }
 
 /** Starts After Effects when it is not running, and waits until the panel answers on DevTools. */
 export async function startAe() {
-  if (spikesRunning()) throw new Error("tools/ae-spikes.mjs is running; its After Effects is not ours to drive. Wait until it ends.");
+  const busy = someoneElseDriving();
+  if (busy) throw new Error(`After Effects is in use: ${busy} Wait until it ends.`);
+  takeLock();
   if (await devtoolsUp()) return;
   if (!aeRunning()) {
     console.log("starting After Effects");
