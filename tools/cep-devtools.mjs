@@ -42,6 +42,7 @@ export async function connectPanel({ timeoutMs = 30000 } = {}) {
     });
 
   return {
+    send,
     async evaluate(expression) {
       const result = await send("Runtime.evaluate", { expression, awaitPromise: true, returnByValue: true });
       if (result.exceptionDetails) throw new Error(`panel exception: ${result.exceptionDetails.exception?.description ?? result.exceptionDetails.text}`);

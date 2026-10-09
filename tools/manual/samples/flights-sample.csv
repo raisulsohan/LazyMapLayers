@@ -1,0 +1,11 @@
+from,to,passengers
+London,New York,4000
+London,Dubai,3200
+Dubai,Mumbai,3000
+Dubai,Singapore,1800
+Singapore,Sydney,2200
+Tokyo,Los Angeles,1500
+New York,Sao Paulo,900
+Johannesburg,London,1200
+Lagos,London,800
+Istanbul,Berlin,1400

@@ -1,0 +1,43 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<gpx version="1.1" creator="LazyMapLayers manual sample" xmlns="http://www.topografix.com/GPX/1/1">
+  <wpt lat="55.7766" lon="37.6556"><name>Moscow</name></wpt>
+  <wpt lat="56.3216" lon="43.942"><name>Nizhny Novgorod</name></wpt>
+  <wpt lat="55.7887" lon="49.1006"><name>Kazan</name></wpt>
+  <wpt lat="56.858" lon="60.606"><name>Yekaterinburg</name></wpt>
+  <wpt lat="57.146" lon="65.532"><name>Tyumen</name></wpt>
+  <wpt lat="54.9894" lon="73.37"><name>Omsk</name></wpt>
+  <wpt lat="55.0352" lon="82.8975"><name>Novosibirsk</name></wpt>
+  <wpt lat="56.008" lon="92.85"><name>Krasnoyarsk</name></wpt>
+  <wpt lat="52.283" lon="104.267"><name>Irkutsk</name></wpt>
+  <wpt lat="51.808" lon="107.585"><name>Ulan-Ude</name></wpt>
+  <wpt lat="52.033" lon="113.499"><name>Chita</name></wpt>
+  <wpt lat="48.486" lon="135.059"><name>Khabarovsk</name></wpt>
+  <wpt lat="43.111" lon="131.882"><name>Vladivostok</name></wpt>
+  <trk><name>Trans-Siberian (sample)</name><trkseg>
+    <trkpt lat="55.7766" lon="37.6556"><time>2026-06-01T23:45:00Z</time></trkpt>
+    <trkpt lat="55.7776" lon="37.6566"><time>2026-06-02T00:30:00Z</time></trkpt>
+    <trkpt lat="56.3216" lon="43.942"><time>2026-06-02T07:00:00Z</time></trkpt>
+    <trkpt lat="56.322599999999994" lon="43.943"><time>2026-06-02T07:20:00Z</time></trkpt>
+    <trkpt lat="55.7887" lon="49.1006"><time>2026-06-02T14:50:00Z</time></trkpt>
+    <trkpt lat="55.789699999999996" lon="49.1016"><time>2026-06-02T15:10:00Z</time></trkpt>
+    <trkpt lat="56.858" lon="60.606"><time>2026-06-03T06:10:00Z</time></trkpt>
+    <trkpt lat="56.858999999999995" lon="60.607"><time>2026-06-03T06:55:00Z</time></trkpt>
+    <trkpt lat="57.146" lon="65.532"><time>2026-06-03T11:55:00Z</time></trkpt>
+    <trkpt lat="57.147" lon="65.533"><time>2026-06-03T12:15:00Z</time></trkpt>
+    <trkpt lat="54.9894" lon="73.37"><time>2026-06-03T20:15:00Z</time></trkpt>
+    <trkpt lat="54.9904" lon="73.37100000000001"><time>2026-06-03T20:35:00Z</time></trkpt>
+    <trkpt lat="55.0352" lon="82.8975"><time>2026-06-04T05:35:00Z</time></trkpt>
+    <trkpt lat="55.0362" lon="82.8985"><time>2026-06-04T06:20:00Z</time></trkpt>
+    <trkpt lat="56.008" lon="92.85"><time>2026-06-04T18:20:00Z</time></trkpt>
+    <trkpt lat="56.009" lon="92.851"><time>2026-06-04T18:40:00Z</time></trkpt>
+    <trkpt lat="52.283" lon="104.267"><time>2026-06-05T12:40:00Z</time></trkpt>
+    <trkpt lat="52.284" lon="104.268"><time>2026-06-05T13:00:00Z</time></trkpt>
+    <trkpt lat="51.808" lon="107.585"><time>2026-06-05T20:30:00Z</time></trkpt>
+    <trkpt lat="51.809" lon="107.586"><time>2026-06-05T21:15:00Z</time></trkpt>
+    <trkpt lat="52.033" lon="113.499"><time>2026-06-06T06:15:00Z</time></trkpt>
+    <trkpt lat="52.034" lon="113.5"><time>2026-06-06T06:35:00Z</time></trkpt>
+    <trkpt lat="48.486" lon="135.059"><time>2026-06-07T20:35:00Z</time></trkpt>
+    <trkpt lat="48.486999999999995" lon="135.06"><time>2026-06-07T20:55:00Z</time></trkpt>
+    <trkpt lat="43.111" lon="131.882"><time>2026-06-08T08:55:00Z</time></trkpt>
+  </trkseg></trk>
+</gpx>
