@@ -8,6 +8,8 @@
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
 
+![LazyMapLayers demo: with no internet, a flight from the globe to Bangladesh with its rivers, roads and districts, a solid border, a pin and labels, the look changed from Midnight to Satellite to Atlas, then down to Dhaka at city level](docs/demo/lazymaplayers-demo.gif)
+
 <p align="center">
   <strong>Maps, flights, routes and data stories for motion designers, rendered frame-exact inside After Effects. Free forever: no account, no key, no trial.</strong>
 </p>
