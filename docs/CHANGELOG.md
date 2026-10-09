@@ -1,5 +1,10 @@
 # Changelog
 
+## Unreleased
+
+- **Alt+Shift+click drops a 3D pin again.** With Shift held, the preview took the click as the
+  start of a zoom box and dropped nothing; Alt+click (a flat pin) was not affected.
+
 ## 1.0.0 — the world offline down to city level (2026-10-09)
 
 - **Works without the internet, down to city level, anywhere.** The download now carries the map

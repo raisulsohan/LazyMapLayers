@@ -192,6 +192,9 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
       pixelRatio: Math.min(2, scale * (window.devicePixelRatio || 1)),
       // The panel shows the data credit itself: inside the scaled box it would be too small to read.
       attributionControl: false,
+      // MapLibre's Shift+drag box zoom takes every Shift-held mousedown and swallows the click that
+      // follows, which Alt+Shift+click (a 3D pin) needs. The panel offers no box zoom.
+      boxZoom: false,
       // Frames are captured for shot thumbnails inside the render event, so no preserved buffer is needed.
       fadeDuration: 0
     });
