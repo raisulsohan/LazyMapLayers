@@ -333,3 +333,67 @@ Rendered at 1080p and 4K. This is the first "wow" release (0.1).
 | 7 — Map styles | DONE 2026-09-22: a look of the designer's own - sea, land, lines and names, with everything else derived and the names kept readable - and a look taken from the palette of a picture (D42, LK1, U1). A look saved to a file and opened again, and Illustrator or Photoshop palettes (.ase, .act) read straight into a look (D43). Five more looks built from three colours each - twelve in all (D47, TH1). The look's details - line and road widths, fewer or more names - as three knobs on the finished style (D55, U1). Done |
 | 8 — Data visualisation and extras | DONE 2026-09-26 (categories and numbers over the years with a year counter, D79; line and area charts that follow the map, D80; 2026-09-27 prism maps, D84, DT3): a CSV joined to countries, states and provinces and drawn as a choropleth with a legend (D40); the same numbers as bubbles whose area stands for the value, as one editable layer, with their sizes in the legend (D41, DT1). The values written on the map as text layers of their own kind, which Auto labels leaves alone (D41). Flows: one great-circle arc per row of a from/to/amount table, width by amount, arrows riding, places found by the search (D46, FL1), each arc in the colour of its step of the ramp when asked (D49). Every place with a number as its own shape layer, filled and stroked by that number (D65, DT1). Spikes: a triangle per place rising up the frame, its height standing for the value, as one layer, with the legend showing three heights (D50, DT1). Heat: the places' warmth summed and drawn by the renderer as its own pass, in the ramp's colours (D51, HT1). All five map types of the plan are in. The same numbers as a bar chart precomp, longest first, each bar growing in turn (D66, DT1) |
 | 9 — Polish and 1.0 | DONE 2026-10-09, released as 1.0 with the map data for working offline down to city level (D91). Since 2026-09-24: a table of numbers watched on disk, so a map follows a file that keeps changing (D70, U1); a scripting API through a request folder, off by default, with docs/SCRIPTING.md and an ExtendScript helper (D71, U1); an inset locator map with a box that follows the big map's frame, itself a map with its own look and render (D68, MF1); a scale bar that measures itself from the map on every frame and a north arrow that turns with it, both in any corner, in metric or imperial (D67, MF1). Earlier 2026-09-23: a once-a-day check of the release list with a switch to turn it off, and a problem report the user pastes into a new issue (D56, U1). A second sample, a data map of every country by population from the bundled data (U1). Performance budgets written down with their measurements and enforced by the tests where a number can be checked (docs/PERFORMANCE.md). 2026-09-26: the guide opens with a five-minute map, and docs/QUALITY.md shows every item of the quality bar with the sample and the test that show it. 2026-10-09: macOS ships as experimental, without a run on a Mac (D90). The installer test, on the development PC switched to a user's setup (docs/RELEASING.md): a signed zip from main installed by its own installer over the development link and again over a release install, the panel opening with the signature check on, the world flight sample built and rendered in a project on the Legacy expression engine, Fly here and Alt+click; it found two panel bugs, both fixed (a sheet taller than the panel out of reach, an empty basemap list). Not tried: Auto labels in another language. 2026-10-09 also: the release carries the map data for working offline, about 1.9 GB - the world's OpenStreetMap to zoom 9 under every map, elevation to zoom 6, the satellite and relief pictures and the districts of every country - built by tools/build-offline-pack.ts and copied in by the installers (D91, OW1). Done |
+| 10 — Historical borders | IN PROGRESS 2026-10-09 (§9): the pack is built - 56 years, 13.9 MB, with British India in 1945 and Ceylon before 1948 corrected and 1947 and 1971 made by LazyMapLayers (D92). Left: the GitHub release, the download in the panel, drawing on the map, the year slider, highlight, labels and search, HB1 |
+
+## 9. After 1.0: historical borders
+
+**Goal.** A user picks a year, from 123,000 BC to 2010, and the map shows the world's countries,
+empires and colonies as they were then. Everything that works on today's countries works on them:
+highlight, shape layers, labels, search, tables joined by name. A keyed year moves the map from one
+period to the next. The borders are vector data (Sohan's choice, 2026-10-09); scanned old maps as
+pictures are a later, separate idea.
+
+**Source checked on 2026-10-09.**
+
+| Source | What | Licence | Use |
+|---|---|---|---|
+| [historical-basemaps](https://github.com/aourednik/historical-basemaps) (A. Ourednik) | 53 world snapshots of GeoJSON, 123,000 BC to 2010; about 75 MB raw, about 0.5 MB per year gzipped; every shape has `NAME`, `SUBJECTO` (the ruling power), `PARTOF` and `BORDERPRECISION` (1 approximate, 2 moderate, 3 by international law) | GPL-3.0 | The pack |
+| [CShapes 2.0](https://icr.ethz.ch/data/cshapes/) (ETH Zürich) | States and dependencies 1886 to 2019, by the day | CC BY-NC-SA 4.0 | Not shipped: no commercial use (hard rule 1). A user may import it as GeoJSON |
+| [OldMapsOnline](https://www.oldmapsonline.org) / TimeMap (Klokan) | A search over scanned maps of many libraries, and TimeMap's historical places | Personal, non-commercial use, no redistribution (its Terms of Use 4.2 and 4.6) | Not used. Each scanned map keeps its library's own licence; that is for the picture idea later |
+
+The snapshot years: -123000, -10000, -8000, -5000, -4000, -3000, -2000, -1500, -1000, -700, -500,
+-400, -323, -300, -200, -100, -1, then every century from 100 to 1400, 1279, 1492, 1500, 1530, 1600,
+1650, 1700, 1715, 1783, 1800, 1815, 1878, 1880, 1900, 1914, 1920, 1930, 1938, 1945, 1960, 1994,
+2000, 2010.
+
+**Known gaps and errors.** The project calls itself work in progress. In `world_1945` India, Pakistan
+and Bangladesh are already separate countries; in 1945 they were all British India. There is no
+1947 (partition) or 1971 (Bangladesh), and 1914 names the region "British Raj" while 1900 says
+"India". The build therefore applies a corrections file kept in this repository, every fix sent
+upstream as well, and the panel shows each snapshot's own year, never a year between two snapshots
+as if it were exact.
+
+**How it reaches the user** (the D29 pattern).
+1. `tools/build-history-pack.ts` reads the source at a pinned commit, applies the corrections, clips
+   every shape to Natural Earth's land (so coasts match the map under it), thins all shapes of a year
+   together so shared borders stay shared (`simplifyTogether`), rounds coordinates, and writes one file
+   per year plus a manifest (names, ruling power, precision, label points, bounds) and the licence.
+   First estimate: 10 to 20 MB in all.
+2. The pack is a GitHub release asset of this repository (`history-1`, not Latest). The panel knows
+   its URL, size and SHA-256 and refuses a file that does not match. It is not in the offline pack
+   or the `.zxp`.
+3. In the panel a **Historical borders** section shows source, licence and size next to a Download
+   button. Nothing goes online by itself. The pack is unpacked to `<user data>/history/`.
+
+**How the map uses it.**
+- A year picker per map, listing the snapshots. With a year set, the historical shapes replace
+  today's country fills and borders at every zoom (the offline world's modern borders are hidden
+  too); coasts, rivers, relief, terrain and imagery stay.
+- A keyed **History Year** slider on the map layer, like Data Time (D79): between two snapshots the
+  renderer cross-fades the two sets of shapes. Shapes cannot morph, because a shape in 1800 has no
+  partner in 1815. The frame cache keys on the slider.
+- Colour by `SUBJECTO`, so every colony takes its ruling power's colour, with the categorical palettes
+  of D79. `BORDERPRECISION` 1 can be drawn soft or dashed.
+- Highlight, shape layers, Auto labels (English names only, the source has no other scripts), the
+  feature browser, search within the chosen year, and tables joined by historical name.
+- The credit layer reads "Historical borders: historical-basemaps, A. Ourednik (GPL-3.0)".
+
+**Settled with Sohan (2026-10-09).** LazyMapLayers makes 1947 and 1971 itself, as derived years in
+the corrections (D92). The panel shows only the credit and the licence's name; the licence text
+travels in the pack. The shapes are not clipped to Natural Earth's land at build time after all: the
+map can draw them under its water, which hides the same overlap at no cost (to be confirmed when the
+drawing is built).
+
+**Tests.** Unit tests for the build (shared borders stay identical, the corrections apply, every
+manifest entry has a file) and for the cross-fade weights; HB1 in After Effects renders 1815 and 1914
+over the same view and finds a known colony in its ruling power's colour.

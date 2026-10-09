@@ -887,6 +887,33 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D92 — Historical borders: built from historical-basemaps with our own corrections (2026-10-09)
+
+- **Why.** Sohan wants maps of the world as it was in any year (docs/PLAN.md §9): empires, colonies
+  and countries for history and documentary films. He chose vector borders over scanned old maps,
+  every period, and a pack the panel downloads apart from the offline data.
+- **Source.** historical-basemaps (aourednik/historical-basemaps, GPL-3.0), read at a pinned commit:
+  54 world snapshots from 123,000 BC to 2010, each shape with its name, its ruling power
+  (`SUBJECTO`) and how precise its border is. The source covers all land; a shape with no name is land
+  that no state held, so it is kept as such rather than given to a neighbour. CShapes 2.0 (CC BY-NC-SA)
+  and OldMapsOnline/TimeMap (personal, non-commercial use, no redistribution) fail hard rule 1.
+- **Corrections.** `data/history/corrections.json` lists ops (`merge`, `set`, `split`) per year; an op
+  that finds nothing stops the build. Fixed in the source: British India in 1945 (the source already
+  split it into India, Pakistan and Bangladesh), Ceylon and Burma as British colonies. Derived by
+  LazyMapLayers: 1947 from 1945 (the partition: India, and Pakistan with East Bengal) and 1971 from
+  1960 (Bangladesh, plus the colonies, names and annexations of 1971 the 1960 source shows otherwise).
+  A derived year starts from the source snapshot as it came, never from a corrected one. Vietnam and
+  Yemen in 1971 stay as the source has them.
+- **Build.** `tools/build-history-pack.ts` writes one JSON file per year (rings rounded to about 10 m,
+  an id `hb<year>-<n>`, a label point and bounds per shape), a manifest with the credit, licence and
+  source commit, and the GPL text, zipped with a fixed date so a build is reproducible: 56 years,
+  17,855 shapes, 2.0 million points, 13.9 MB. No thinning: the source is already drawn for world and
+  continent scale.
+- **Credit.** The panel shows only "Historical borders: historical-basemaps (GPL-3.0)"; the licence
+  text travels in the pack.
+- **Tested.** Unit tests for the year names, the snapshot reading, every op and its errors, derived
+  years, and, when the source is downloaded, South Asia in 1945, 1947 and 1971.
+
 ## D91 — The release carries the map data for working offline (2026-10-09)
 
 - **Why.** Map tools for After Effects draw their maps from tile servers, so they stop working

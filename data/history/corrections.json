@@ -1,0 +1,58 @@
+{
+  "v": 1,
+  "about": "Corrections LazyMapLayers applies to historical-basemaps when it builds the historical borders pack (tools/build-history-pack.ts, src/core/history/historyPack.ts). A year with 'from' is derived from that source snapshot as it came. Every op must find what it names, or the build stops. Fixes to source years are also sent upstream.",
+  "years": [
+    { "year": 1800, "note": "Ceylon's coast corrected: British since 1796.", "ops": [{ "op": "set", "name": "Ceylon (Dutch)", "to": { "name": "Ceylon (British)", "ruler": "United Kingdom" }, "note": "The British took the Dutch coast in 1796." }] },
+    { "year": 1815, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1878, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1880, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1900, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1914, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1920, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1930, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    { "year": 1938, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },
+    {
+      "year": 1945,
+      "note": "South Asia corrected: British India was one colony until the partition of August 1947; Burma and Ceylon were British colonies too.",
+      "ops": [
+        { "op": "merge", "names": ["India", "Pakistan", "Bangladesh"], "into": { "name": "British Raj", "ruler": "United Kingdom" }, "note": "The source already splits India, Pakistan and Bangladesh in 1945." },
+        { "op": "set", "name": "Sri Lanka", "to": { "name": "Ceylon", "ruler": "United Kingdom" }, "note": "Independent in February 1948, named Sri Lanka in 1972." },
+        { "op": "set", "name": "Burma", "to": { "ruler": "United Kingdom" }, "note": "Independent in January 1948." }
+      ]
+    },
+    {
+      "year": 1947,
+      "from": 1945,
+      "note": "Made by LazyMapLayers from 1945: South Asia after the partition of 15 August 1947 (India; Pakistan with East Bengal; Burma and Ceylon still British). Princely states that had not yet joined are not shown apart. Elsewhere as in 1945.",
+      "ops": [
+        { "op": "merge", "names": ["Pakistan", "Bangladesh"], "into": { "name": "Pakistan" }, "note": "East Bengal (East Pakistan from 1955) was part of Pakistan." },
+        { "op": "set", "name": "Sri Lanka", "to": { "name": "Ceylon", "ruler": "United Kingdom" }, "note": "Independent in February 1948." },
+        { "op": "set", "name": "Burma", "to": { "ruler": "United Kingdom" }, "note": "Independent in January 1948." }
+      ]
+    },
+    {
+      "year": 1971,
+      "from": 1960,
+      "note": "Made by LazyMapLayers from 1960: Bangladesh, independent in 1971, and the colonies, names and annexations of 1971 that the 1960 source shows otherwise. Vietnam and Yemen stay as the source has them.",
+      "ops": [
+        { "op": "split", "name": "Pakistan", "box": [85, 18, 95, 28], "into": { "name": "Bangladesh" }, "note": "Declared independent on 26 March 1971, won on 16 December 1971." },
+        { "op": "set", "name": "Sri Lanka", "to": { "name": "Ceylon" }, "note": "Named Sri Lanka in 1972." },
+        { "op": "set", "name": "Zimbabwe", "to": { "name": "Rhodesia" }, "note": "Rhodesia from 1965 to 1979." },
+        { "op": "set", "name": "Namibia", "to": { "name": "South West Africa", "ruler": "South Africa" }, "note": "Held by South Africa until 1990." },
+        { "op": "set", "name": "Angola", "to": { "ruler": "Portugal" }, "note": "Independent in 1975." },
+        { "op": "set", "name": "Mozambique", "to": { "ruler": "Portugal" }, "note": "Independent in 1975." },
+        { "op": "set", "name": "Guinea-Bissau", "to": { "name": "Portuguese Guinea", "ruler": "Portugal" }, "note": "Independent in 1973-1974." },
+        { "op": "set", "name": "Western Sahara", "to": { "name": "Spanish Sahara", "ruler": "Spain" }, "note": "Spanish until 1975." },
+        { "op": "set", "name": "Djibouti", "to": { "name": "French Territory of the Afars and the Issas", "ruler": "France" }, "note": "Independent in 1977." },
+        { "op": "set", "name": "Papua New Guinea", "to": { "ruler": "Australia" }, "note": "Independent in 1975." },
+        { "op": "set", "name": "Suriname", "to": { "ruler": "Netherlands" }, "note": "Independent in 1975." },
+        { "op": "set", "name": "Bahamas", "to": { "ruler": "United Kingdom" }, "note": "Independent in 1973." },
+        { "op": "set", "name": "Belize", "to": { "ruler": "United Kingdom" }, "note": "Independent in 1981." },
+        { "op": "set", "name": "Brunei", "to": { "ruler": "United Kingdom" }, "note": "Independent in 1984." },
+        { "op": "set", "name": "Greenland", "to": { "ruler": "Denmark" }, "note": "Part of the Kingdom of Denmark." },
+        { "op": "merge", "names": ["Ethiopia", "Eritrea"], "into": { "name": "Ethiopia" }, "note": "Eritrea was annexed in 1962." },
+        { "op": "merge", "names": ["China", "Tibet"], "into": { "name": "China" }, "note": "Held by the People's Republic of China since 1951." }
+      ]
+    }
+  ]
+}
