@@ -27,7 +27,7 @@ Pins and shapes on After Effects layers stay within 0.5 px of the rendered basem
 and bearing.
 
 - **Why it holds:** the camera maths lives once, in core, and both the renderer and the expressions
-  on the layers use it; the expressions are checked against Node in the ES3 engine (1,305 of them).
+  on the layers use it; the expressions are checked against Node in the ES3 engine (1,593 of them).
 - **Seen in:** the pins and the route of the world flight sample.
 - **Checked by:** P1 (0.0061 px worst at 1080p and 4K), C1 (0.004 px with the matched 3D camera),
   E1 (After Effects' own render, 20 of 20), G2 (pins on the globe), AT1 (a layer of the user's own
@@ -81,7 +81,7 @@ A 10-second fly-to comp holds one footage item per render pass, not hundreds of 
 Every panel action can be undone with Ctrl+Z.
 
 - **Why it holds:** every host action runs inside one undo group, and the undo history is never
-  purged (CLAUDE.md, hard rule 2).
+  purged (AGENTS.md, hard rule 2).
 - **Checked by:** H1 (one undo removes the view keyframes, a second the whole map comp), DU1 (one
   undo brings a separated copy back, and the panel leaves it that way).
 
