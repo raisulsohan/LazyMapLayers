@@ -1,5 +1,16 @@
 # Changelog
 
+## Unreleased
+
+- **The world in another year.** The Look sheet's new Historical borders section downloads a
+  13.9 MB pack once and offers 56 years from 123,000 BC to 2010. Pick one and the map shows that
+  year's countries, empires, colonies and unclaimed lands instead of today's: every colony in its
+  ruling power's colour, neighbours never in one colour, the borders between them (which Borders
+  Draw-on draws), and their names. Coasts, rivers, relief and cities stay. 1947 (the partition of
+  British India) and 1971 (Bangladesh) were made for LazyMapLayers, and British India in 1945 and
+  Ceylon before 1948 corrected. A render adds "Historical borders: historical-basemaps (GPL-3.0)"
+  to the credit layer.
+
 ## 1.0.2 — a route across the Pacific stays one arc (2026-10-09)
 
 - **A table of numbers by year opens as numbers again.** A CSV with a column per year (country,

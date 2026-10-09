@@ -93,6 +93,10 @@ import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } 
 import { samplerFor } from "./elevation.ts";
 import { styleRgb } from "../core/style/layerStyle.ts";
 import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs.ts";
+import { normaliseHistory, type HistorySetting } from "../core/history/historyStyle.ts";
+import { HISTORY_CREDIT } from "../core/history/historyPack.ts";
+import { HISTORY_PACK } from "../core/history/packInfo.ts";
+import { downloadHistoryPack, historyYearInfo } from "./data/history.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 import { isoOfCountry } from "../core/data/boundarySet.ts";
 
@@ -121,6 +125,8 @@ export type MapEntry = {
   theme: string | null;
   relief: boolean;
   sky?: boolean;
+  /** The world of another year instead of today's countries (D92). */
+  history?: HistorySetting | null;
   terrain?: TerrainSetting | null;
   highlightLayers?: "each" | "one";
   layerStyle?: LayerStyleOverride | null;
@@ -178,6 +184,10 @@ export const themeId = signal<string>(DEFAULT_THEME_ID);
 export const reliefOn = signal(false);
 /** The sky above the horizon of a tilted flat map. */
 export const skyOn = signal(true);
+/** The year whose borders the map shows instead of today's (D92), or null for today. */
+export const history = signal<HistorySetting | null>(null);
+/** Bumped when the historical borders pack arrives, so the Look sheet redraws. */
+export const historyVersion = signal(0);
 /** The map's elevation pack and shading, and the packs on this computer. */
 export const terrain = signal<TerrainSetting | null>(null);
 export const terrainPacks = signal<TerrainPackInfo[]>([]);
@@ -219,7 +229,7 @@ export const importSheetOpen = signal(false);
 export const highlights = signal<Highlight[]>([]);
 /** Polygons of the custom areas among the highlights (stored with the map, on their own comment line). */
 export const areas = signal<Areas>({});
-const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, own: ownImagery.value, sky: skyOn.value, terrain: terrain.value });
+const look = () => ({ theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, data: dataFill.value, heat: heat.value, details: lookDetails.value, own: ownImagery.value, sky: skyOn.value, terrain: terrain.value, history: history.value });
 export const view = signal<View | null>(null);
 export const screen = signal<Screen>("main");
 export const tab = signal<Tab>("shots");
@@ -390,6 +400,7 @@ function showMap(entry: MapEntry): void {
   ownImageryDraft.value = ownImagery.value?.url ?? "";
   reliefOn.value = !!entry.relief;
   skyOn.value = entry.sky !== false;
+  history.value = normaliseHistory(entry.history);
   terrain.value = normaliseTerrain(entry.terrain);
   layerStyle.value = normaliseLayerStyle(entry.layerStyle);
   labelTemplate.value = normaliseLabelTemplate(entry.labelTemplate);
@@ -552,7 +563,7 @@ export const createMap = (options: NewMapOptions) =>
       view: { ...v, zoom: v.zoom + Math.log2(height / compSize().height) },
       projection: projection.value
     });
-    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, layerStyle: layerStyle.value, labelTemplate: labelTemplate.value, keepOut: keepOut.value });
+    await callHost("setMapSettings", { mapId: created.id, basemap: basemap.value, theme: themeId.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, history: history.value, terrain: terrain.value, layerStyle: layerStyle.value, labelTemplate: labelTemplate.value, keepOut: keepOut.value });
     log(`created ${created.mapCompName} in ${created.sceneCompName}`, "ok");
     selectedId.value = created.id;
     screen.value = "main";
@@ -1418,6 +1429,34 @@ export const keepOutFromLayers = () =>
 
 export const removeKeepOut = (id: string) => run("keep-out zone", () => storeKeepOut(keepOut.value.filter((zone) => zone.id !== id)));
 
+/** Shows the world of another year (null: today's world). The pack must be installed to draw it. */
+export const changeHistory = (next: HistorySetting | null) =>
+  run("historical borders", async () => {
+    history.value = normaliseHistory(next);
+    setPreviewStyle(basemap.value, projection.value, look());
+    if (selectedId.value) {
+      await callHost("setMapSettings", { mapId: selectedId.value, history: history.value });
+      await readMaps();
+    }
+    const info = history.value ? historyYearInfo(history.value.year) : null;
+    if (history.value) log(`the map shows the world of ${info?.label ?? history.value.year}${info?.note ? ` (${info.note})` : ""} · ${HISTORY_CREDIT}`, "ok");
+    else log("the map shows today's countries again", "ok");
+  });
+
+/** Downloads the historical borders pack from the project's GitHub release into the user data folder. */
+export const downloadHistory = () =>
+  run("download historical borders", async () => {
+    const stopper = new AbortController();
+    const cancel = () => stopper.abort();
+    const label = "Downloading historical borders";
+    progress.value = { label, done: 0, total: HISTORY_PACK.bytes, cancel };
+    const started = performance.now();
+    const installed = await downloadHistoryPack({ signal: stopper.signal, onProgress: (done, total) => (progress.value = { label, done, total, cancel }) });
+    historyVersion.value++;
+    setPreviewStyle(basemap.value, projection.value, look());
+    log(`historical borders installed: ${installed.years.length} years (${mb(HISTORY_PACK.bytes)} in ${((performance.now() - started) / 1000).toFixed(1)} s) · ${installed.credit}`, "ok");
+  });
+
 export const changeSky = (on: boolean) =>
   run("sky", async () => {
     skyOn.value = on;
@@ -1575,7 +1614,7 @@ export function renderBasemap(quality: RenderQuality): void {
   const entry = selected.value;
   if (!entry) return;
   const settings = quality === "preview" ? PREVIEW_SETTINGS : renderSettings.value;
-  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value, lookDetails: lookDetails.value, own: ownImagery.value }, entry.mapCompName);
+  renderQueue.add({ mapId: entry.mapId, quality, settings, basemap: basemap.value, theme: currentTheme.value, relief: reliefOn.value, highlights: highlights.value, areas: areas.value, highlightLayers: highlightLayers.value, sky: skyOn.value, history: history.value, terrain: terrain.value, osmData: osmData.value, dataFill: dataFill.value, heat: heat.value, lookDetails: lookDetails.value, own: ownImagery.value }, entry.mapCompName);
   tab.value = "render";
 }
 
@@ -3097,7 +3136,7 @@ export const shareWithAllMaps = (what: "look" | "names") =>
       return;
     }
     const settings = what === "look"
-      ? { theme: themeId.value, look: lookOverride.value, lookDetails: lookDetails.value, layerStyle: layerStyle.value, relief: reliefOn.value, sky: skyOn.value, ownImagery: ownImagery.value }
+      ? { theme: themeId.value, look: lookOverride.value, lookDetails: lookDetails.value, layerStyle: layerStyle.value, relief: reliefOn.value, sky: skyOn.value, ownImagery: ownImagery.value, history: history.value }
       : { labelTemplate: labelTemplate.value, keepOut: keepOut.value };
     let restyled = 0;
     for (const map of others) {

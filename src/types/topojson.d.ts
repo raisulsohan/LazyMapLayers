@@ -8,6 +8,10 @@ declare module "topojson-server" {
 
 declare module "topojson-client" {
   export function feature(topology: LmlTopology, object: unknown): GeoJSON.FeatureCollection | GeoJSON.Feature;
+  /** The arcs of an object as lines, each once; `filter(a, b)` picks arcs between shapes a and b (a === b on an outer edge). */
+  /** For every geometry of the list, the indices of the geometries it shares an arc with. */
+  export function neighbors(objects: unknown[]): number[][];
+  export function mesh(topology: LmlTopology, object: unknown, filter?: (a: unknown, b: unknown) => boolean): GeoJSON.MultiLineString;
 }
 
 declare module "topojson-simplify" {

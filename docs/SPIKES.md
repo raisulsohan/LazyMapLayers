@@ -66,6 +66,7 @@ that go online run only when they are named.
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
 | GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
+| HB1 | Online when the pack is missing: historical borders (D92, D93). Installs the pack from the history-1 release, renders South Asia in 1914, 1945, 1947 and 1971 with a look that has country colours and one without, and reads British India in the colour of the United Kingdom, India and Pakistan apart with East Bengal in Pakistan's colour, Bangladesh in its own, neighbours never in one colour, the Bay of Bengal still sea; the borders draw-on draws the past's borders. Frames in `HB1-frames`. 2026-10-10: pack installed in 1.7 s, 28 places read right, 0 problems | PASS |
 
 ## OW1 — The offline world under every map: PASS (2026-10-09)
 

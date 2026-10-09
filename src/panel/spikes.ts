@@ -33,6 +33,7 @@ import { runEarthStudioTest } from "./earthStudioTests.ts";
 import { runSentinelTest } from "./sentinelTests.ts";
 import { runWorldBandTest } from "./worldBandTests.ts";
 import { runOfflineWorldTest } from "./offlineWorldTests.ts";
+import { runHistoryTest } from "./historyTests.ts";
 import { runRenderDiskTest } from "./renderDiskTests.ts";
 import { runDuplicateTest } from "./duplicateTests.ts";
 import { runNatureLabelTest } from "./natureLabelTests.ts";
@@ -356,6 +357,16 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.TS1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`TS1 failed: ${results.TS1_error}`, "fail");
+    }
+  }
+
+  // HB1 downloads the historical borders pack when it is not installed: only when named.
+  if (only && only.includes("HB1")) {
+    try {
+      results.HB1_history = await runHistoryTest(log);
+    } catch (error) {
+      results.HB1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`HB1 failed: ${results.HB1_error}`, "fail");
     }
   }
 

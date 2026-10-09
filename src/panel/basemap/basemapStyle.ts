@@ -26,6 +26,9 @@ import type { Areas, Highlight } from "../../core/style/highlights.ts";
 import { hillshadeIndex, hillshadePaint, type TerrainSetting } from "../../core/style/terrain.ts";
 import type { Bbox } from "../../core/tiles/tileMath.ts";
 import { hasTerrainPack, terrainArchivePath } from "../terrain.ts";
+import type { HistorySetting } from "../../core/history/historyStyle.ts";
+import { loadHistoryYear } from "../data/history.ts";
+import { historyDrawData, isHistoryLayer, withHistory } from "./historyLayers.ts";
 
 export type BasemapSource = { kind: "world" } | { kind: "region"; name: string } | { kind: "regions"; names: string[] };
 
@@ -65,6 +68,8 @@ export type BasemapStyleOptions = {
   terrain?: TerrainSetting | null;
   /** Draw the offline world when it is installed (the default); false leaves it out, for comparisons. */
   offlineWorld?: boolean;
+  /** The world of another year instead of today's countries (D92); ignored when the pack or year is missing. */
+  history?: HistorySetting | null;
 };
 
 export const HILLSHADE_SOURCE = "lml-hillshade";
@@ -163,7 +168,7 @@ function bordersData(): unknown {
   return bordersCache;
 }
 
-function withAnimatedBorders(style: StyleSpecification, theme: Theme): StyleSpecification {
+function withAnimatedBorders(style: StyleSpecification, theme: Theme, data: unknown = bordersData()): StyleSpecification {
   const index = style.layers.findIndex((l) => l.id === BORDERS_DRAW_LAYER);
   if (index < 0) return style;
   const original = style.layers[index] as LayerSpecification & { paint?: Record<string, unknown>; metadata?: unknown };
@@ -179,7 +184,7 @@ function withAnimatedBorders(style: StyleSpecification, theme: Theme): StyleSpec
       "line-gradient": bordersGradient(100, theme.border)
     }
   } as LayerSpecification;
-  return { ...style, sources: { ...style.sources, "lml-borders": { type: "geojson", data: bordersData() as GeoJSON.FeatureCollection, lineMetrics: true } }, layers };
+  return { ...style, sources: { ...style.sources, "lml-borders": { type: "geojson", data: data as GeoJSON.FeatureCollection, lineMetrics: true } }, layers };
 }
 
 /** Metadata key under which the borders layer carries its colour (themes change it). */
@@ -215,7 +220,10 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (theme.satellite && hasImagery("blue-marble")) imagery.satelliteUrl = registerLocalArchive("lml-blue-marble", imageryPath("blue-marble"));
   if (options.relief && !theme.satellite && hasImagery("relief")) imagery.reliefUrl = registerLocalArchive("lml-relief", imageryPath("relief"));
   let world = naturalEarthStyle(registerLocalArchive("natural-earth", naturalEarthArchivePath()), { labels: options.labels, theme, imagery, highlights: options.highlights, areas: options.areas, data: options.data, heat: options.heat, countryHits: options.countryHits });
-  if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme);
+  // Another year: its shapes, borders and names take the place of today's countries.
+  const past = options.history ? loadHistoryYear(options.history.year) : null;
+  if (past) world = withHistory(world, past, theme, { labels: options.labels, satellite: !!imagery.satelliteUrl });
+  if (options.animations?.includes("bordersDraw")) world = withAnimatedBorders(world, theme, past ? historyDrawData(past) : undefined);
   if (options.own) world = withOwnImagery(world, options.own);
   let style = world;
   const regions = regionNames(basemap);
@@ -239,13 +247,16 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     // (satellite, relief, the user's tiles) give way to a region's detail only: the offline world draws
     // its lines over them.
     const worldLayers = world.layers.map((layer) => {
-      if (layer.type === "background" || layer.type === "fill" || groupOf(layer) === "highlight") return layer;
+      // The past has no detail to hand over to: its borders and names stay at every zoom.
+      if (layer.type === "background" || layer.type === "fill" || groupOf(layer) === "highlight" || isHistoryLayer(layer)) return layer;
       if (layer.type === "raster") return regionFade ? ({ ...rampOpacity(layer, regionFade.from, regionFade.to, false), maxzoom: regionFade.to } as LayerSpecification) : layer;
       return { ...rampOpacity(layer, worldFade.from, worldFade.to, false), maxzoom: worldFade.to } as LayerSpecification;
     });
     // A look that colours every country keeps its colours until they fade (7.5 to 9.5); the offline
     // world's ground fades in over the same zooms, its lines at the usual hand-over.
-    const detailGroundFade: ZoomRamp = theme.countryFills ? { from: 7.5, to: 9.5 } : WORLD_DETAIL_FADE;
+    const detailGroundFade: ZoomRamp = theme.countryFills || past ? { from: 7.5, to: 9.5 } : WORLD_DETAIL_FADE;
+    // Today's borders of the offline world and the regions would cross the past's.
+    const todaysBorder = (layer: LayerSpecification) => !!past && layer.id.startsWith("boundaries");
     const sources = { ...world.sources };
     const detailLayers: LayerSpecification[] = [];
     const regionLayers: LayerSpecification[] = [];
@@ -258,7 +269,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       const satellite = !!imagery.satelliteUrl;
       for (const [id, source] of Object.entries(offline.sources)) sources[id === "osm" ? sourceId : id] = source;
       for (const layer of offline.layers) {
-        if (layer.type === "background") continue;
+        if (layer.type === "background" || todaysBorder(layer)) continue;
         const group = groupOf(layer);
         if (satellite && (group === "land" || group === "water")) continue;
         let shown: LayerSpecification = layer;
@@ -281,7 +292,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       const tier = tierOf(name);
       const maxZoom = headers[index].header?.maxZoom ?? 15;
       for (const layer of region.layers) {
-        if (layer.type === "background") continue;
+        if (layer.type === "background" || todaysBorder(layer)) continue;
         const group = groupOf(layer);
         const polygons = layer.id === WATER_POLYGON_LAYER;
         if (polygons && maxZoom < REGION_WATER_MIN_ZOOM) continue;

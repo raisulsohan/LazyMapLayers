@@ -189,6 +189,7 @@ LML.api.setMapSettings = function (args) {
     if (args.theme !== undefined) tag.theme = args.theme;
     if (args.relief !== undefined) tag.relief = !!args.relief;
     if (args.sky !== undefined) tag.sky = !!args.sky;
+    if (args.history !== undefined) tag.history = args.history;
     if (args.terrain !== undefined) {
         tag.terrain = args.terrain;
         // The sliders linked layers read; a map without terrain gets a height of 0, so its layers stay flat.
@@ -279,6 +280,7 @@ LML.api.listMaps = function () {
             theme: tag.theme || null,
             relief: !!tag.relief,
             sky: tag.sky !== false,
+            history: tag.history || null,
             terrain: (function () {
                 if (!tag.terrain) return null;
                 // The sliders win over the tag: they may have been edited or keyed in After Effects.

@@ -887,6 +887,41 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D93 — How a map draws another year (2026-10-10)
+
+- **Where.** The Look sheet has a Historical borders section: a Download button (13.9 MB, once, from
+  the history-1 release, size and SHA-256 checked, unpacked to `<user data>/history/`), then a Year list
+  ("Today" and the pack's 56 years). The year is stored with the map (`history` in the map layer's tag)
+  and goes to the preview and the renderer like the sky or the relief. Under it: the note of a corrected
+  or derived year, and only the credit and the licence's name.
+- **What changes on the map.** Today's country colours, borders, province lines and country names
+  leave the style; the year's shapes are filled, the borders between them are drawn and their names
+  written (when the map draws names). Coasts, lakes, rivers, relief, terrain, imagery and cities stay.
+  The offline world's and the regions' borders are left out too, so today's borders never cross the
+  past's; the fills fade from zoom 7.5 to 9.5 as a look's own country colours do.
+- **The coast.** The shapes' coasts are coarser than Natural Earth's. Rather than clipping at build
+  time (D92 left it open), Natural Earth's ocean polygons are drawn once more over the fills: what spills
+  into the sea disappears at no cost. Over a satellite picture the fills sit on the picture at 45 %
+  without that mask.
+- **Borders.** The year's shapes go through one topology (topojson, as the province thinning does);
+  an arc between two shapes is a border, an arc of one shape alone is a coast and is left to the map's
+  coastline. Borders between powers use the look's border colour and keep the borders layer's id, so
+  the borders draw-on draws them; borders inside one power's lands (between two of its colonies) are
+  dashed in the province colour. Measured: the source's neighbours share their points, so the borders
+  come out whole.
+- **Colours.** One colour per ruling power, so a colony takes its ruler's colour. A hash of the name
+  alone put India and Pakistan in one colour on Midnight, so the powers are coloured by size: the
+  largest take the slot their name asks for (the British Empire keeps its colour from 1800 to 1945),
+  a smaller one whose slot a neighbour holds takes the next free one. No neighbours shared a colour in
+  1914, 1945, 1947 or 1971 on Atlas (7 colours) or Midnight (10). A look with country colours uses
+  them; other looks mix ten hues into their land colour (32 % on a dark look, 50 % on a light one).
+- **Credit.** A render of a map with a year adds "Historical borders: historical-basemaps (GPL-3.0)"
+  to the scene's credit layer.
+- **Not yet.** The year as a keyed slider with a cross-fade, historical shapes in the Highlight tool,
+  search, Auto labels and the feature browser.
+- **Tested.** Unit tests for the setting, palettes, slots, the ruler map, the colours of neighbours
+  and colonies, and the borders between and within powers. HB1 in After Effects.
+
 ## D92 — Historical borders: built from historical-basemaps with our own corrections (2026-10-09)
 
 - **Why.** Sohan wants maps of the world as it was in any year (docs/PLAN.md §9): empires, colonies

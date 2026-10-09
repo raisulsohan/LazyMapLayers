@@ -61,6 +61,9 @@ import { addMapMinimap, addMapNorthArrow, addMapScaleBar, minimapCorner, minimap
 import { openSatelliteSheet, removeSatelliteArea, satellitePacks, useSatelliteArea } from "../store.ts";
 import { satelliteNameOf } from "../../core/style/ownImagery.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
+import { changeHistory, downloadHistory, history, historyVersion } from "../store.ts";
+import { hasHistoryPack, historyManifest } from "../data/history.ts";
+import { HISTORY_PACK } from "../../core/history/packInfo.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
@@ -94,6 +97,9 @@ function ThemeSwatch(props: { theme: Theme }): JSX.Element {
 export function LookSheetView(): JSX.Element | null {
   if (!lookSheetOpen.value) return null;
   void imageryVersion.value;
+  void historyVersion.value;
+  const pastPack = historyManifest();
+  const pastYear = history.value ? pastPack?.years.find((y) => y.year === history.value!.year) ?? null : null;
   const satellitePack = hasImagery("blue-marble");
   const reliefPack = hasImagery("relief");
   const current = THEMES.find((t) => t.id === themeId.value);
@@ -218,6 +224,34 @@ export function LookSheetView(): JSX.Element | null {
         <input type="checkbox" data-id="sky" checked={skyOn.value} disabled={busy.value} onChange={(e) => void changeSky((e.target as HTMLInputElement).checked)} />
         Sky above the horizon
       </label>
+      <div class="section-title">Historical borders</div>
+      {!hasHistoryPack() ? (
+        <div class="sheet-row import-row">
+          <span class="grow" title="The world's countries, empires and colonies at 56 moments from 123,000 BC to 2010. Downloaded once from the project's GitHub page into your data folder; then it works offline.">
+            The world in another year <span class="muted">· {mb(HISTORY_PACK.bytes)}, once</span>
+          </span>
+          <button class="small-button" data-id="history-download" disabled={busy.value} onClick={() => void downloadHistory()}>
+            Download
+          </button>
+        </div>
+      ) : (
+        <div class="sheet-row import-row">
+          <label class="num-field grow" title="The borders, empires and colonies of that year take the place of today's countries, borders and country names. Coasts, rivers, relief and cities stay.">
+            <span>Year</span>
+            <select data-id="history-year" value={history.value ? String(history.value.year) : ""} disabled={busy.value} onChange={(e) => { const value = (e.target as HTMLSelectElement).value; void changeHistory(value ? { year: Number(value) } : null); }}>
+              <option value="">Today</option>
+              {history.value && !pastYear && <option value={String(history.value.year)}>{history.value.year} (not in the pack)</option>}
+              {pastPack!.years.slice().reverse().map((y) => (
+                <option key={y.year} value={String(y.year)}>
+                  {y.label}
+                </option>
+              ))}
+            </select>
+          </label>
+        </div>
+      )}
+      {pastYear?.note && <div class="muted small" data-id="history-note">{pastYear.note}</div>}
+      <div class="muted small">historical-basemaps · {pastPack?.license ?? "GPL-3.0"}</div>
       <div class="section-title">Imagery of your own</div>
       <div class="sheet-row import-row">
         <input class="grow" type="text" data-id="own-url" placeholder="https://…/{z}/{x}/{y}.png, or a .pmtiles file on the web" value={ownImageryDraft.value} disabled={busy.value} title="Any XYZ tile address or PMTiles archive on the web, with your own key if it needs one. Drawn over the ground and under the lines, in the preview and the render; tiles are fetched while previewing and rendering." onInput={(e) => (ownImageryDraft.value = (e.target as HTMLInputElement).value)} onChange={(e) => void changeOwnImagery({ url: (e.target as HTMLInputElement).value })} />
