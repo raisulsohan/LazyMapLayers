@@ -15,6 +15,10 @@
   between: what changed hands takes its new colour while the rest holds still. Retime the keys, add
   more or ease them in After Effects; **Add the year** counts along on screen ("1947", "323 BC"),
   and **Hold still** takes the keys off.
+- **Highlight and search the past.** With a year on the map, the Highlight tool picks what lay
+  there then: a click takes the British Raj, Shift+click every land of the British Empire. They render
+  as their own layers and become shape layers like any highlight, on a map of that year or of today.
+  The search finds that year's states and empires first, and the readout under the pointer names them.
 
 ## 1.0.2 — a route across the Pacific stays one arc (2026-10-09)
 

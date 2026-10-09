@@ -63,7 +63,7 @@ import { satelliteNameOf } from "../../core/style/ownImagery.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { addHistoryYear, animateHistory, changeHistory, downloadHistory, history, historySlider, historyVersion, holdHistory } from "../store.ts";
 import { sliderYearLabel } from "../../core/history/historyStyle.ts";
-import { hasHistoryPack, historyManifest } from "../data/history.ts";
+import { hasHistoryPack, historyManifest, historyPackOutdated } from "../data/history.ts";
 import { HISTORY_PACK } from "../../core/history/packInfo.ts";
 import { changeLayerStyle, changeSky, changeTerrain, currentLayerStyle, downloadImageryPack, groundAtCentre, imageryVersion, layerStyleFollowsLook, openTerrainSheet, pickUpLayerStyle, skyOn, terrain, terrainPacks, TERRAIN_DETAIL_ZOOMS } from "../store.ts";
 import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
@@ -280,6 +280,16 @@ export function LookSheetView(): JSX.Element | null {
         </div>
       )}
       {pastYear?.note && <div class="muted small" data-id="history-note">{pastYear.note}</div>}
+      {historyPackOutdated() && (
+        <div class="sheet-row import-row">
+          <span class="grow" title="A newer build of the historical borders, with corrections. Downloaded once; it replaces the one you have.">
+            A newer historical pack <span class="muted">· {mb(HISTORY_PACK.bytes)}</span>
+          </span>
+          <button class="small-button" data-id="history-update" disabled={busy.value} onClick={() => void downloadHistory()}>
+            Update
+          </button>
+        </div>
+      )}
       <div class="muted small">historical-basemaps · {pastPack?.license ?? "GPL-3.0"}</div>
       <div class="section-title">Imagery of your own</div>
       <div class="sheet-row import-row">

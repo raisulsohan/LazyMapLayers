@@ -38,6 +38,12 @@ export function historyManifest(): HistoryManifest | null {
 
 export const hasHistoryPack = () => historyManifest() !== null;
 
+/** True when the installed pack is an older build than the one this panel knows (an update is offered). */
+export const historyPackOutdated = () => {
+  const installed = historyManifest();
+  return !!installed && installed.pack !== HISTORY_PACK.tag;
+};
+
 /** The manifest entry of one of the pack's years, or null (the panel only offers the pack's own years). */
 export function historyYearInfo(year: number) {
   const found = historyManifest()?.years.find((entry) => entry.year === year);

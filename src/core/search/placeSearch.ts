@@ -28,7 +28,7 @@ export type PlaceRecord = {
 
 export type SearchResult = {
   id: string;
-  kind: "country" | "province" | "district" | "place" | "nature" | "city" | "address" | "coordinates";
+  kind: "country" | "province" | "district" | "place" | "nature" | "city" | "address" | "coordinates" | "history";
   /** English (or first available) name. */
   name: string;
   /** The name that matched, when it differs from `name` (for example the local spelling). */
@@ -51,7 +51,10 @@ export type SearchResult = {
 // marks are letters to their readers and must stay.
 const LATIN_ACCENTS = new RegExp(`[${String.fromCharCode(0x300)}-${String.fromCharCode(0x36f)}]`, "g");
 
-const fold = (text: string) => text.normalize("NFD").replace(LATIN_ACCENTS, "").normalize("NFC").toLowerCase().trim();
+/** A name made comparable: lower case, Latin accents gone, other scripts kept. */
+export const foldText = (text: string): string => text.normalize("NFD").replace(LATIN_ACCENTS, "").normalize("NFC").toLowerCase().trim();
+
+const fold = foldText;
 
 /** "48.85, 2.29", "48.85 2.29", "48.85N 2.29E", "-33.9;151.2" -> a position, or null. */
 export function parseCoordinates(text: string): { lat: number; lng: number } | null {

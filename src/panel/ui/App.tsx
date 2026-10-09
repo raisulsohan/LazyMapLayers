@@ -106,7 +106,7 @@ function ToolRow(): JSX.Element {
         active={tool.value === "attach"}
         onClick={() => armTool("attach")}
       />
-      <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
+      <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap. With a year under Historical borders, a click picks what lay there then, and Shift+click every land of its ruling power." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
       <IconButton
         icon="import"
         id="tool-import"

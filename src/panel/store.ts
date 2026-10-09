@@ -96,7 +96,8 @@ import { downloadImagery, IMAGERY_INFO, type ImageryPack } from "./imagery/packs
 import { historyMix, normaliseHistory, sliderYearLabel, type HistorySetting } from "../core/history/historyStyle.ts";
 import { HISTORY_CREDIT } from "../core/history/historyPack.ts";
 import { HISTORY_PACK } from "../core/history/packInfo.ts";
-import { downloadHistoryPack, historyManifest, historyYearInfo } from "./data/history.ts";
+import { downloadHistoryPack, historyManifest, historyYearInfo, loadHistoryYear, type LoadedYear } from "./data/history.ts";
+import { searchHistory, shapeAt, targetAt, type HistoryTarget } from "../core/history/historyFind.ts";
 import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 import { isoOfCountry } from "../core/data/boundarySet.ts";
 
@@ -198,7 +199,7 @@ export const historySlider = signal<HistorySlider | null>(null);
  * The year the preview draws: the pack's year nearest to where the History Year slider stands at the
  * comp's time (it may be keyed, or typed into After Effects), else the year picked in the panel.
  */
-function previewHistory(): HistorySetting | null {
+export function previewHistory(): HistorySetting | null {
   const picked = history.value;
   const now = historySlider.value?.now;
   const years = historyManifest()?.years.map((y) => y.year) ?? [];
@@ -749,6 +750,21 @@ let hereTimer: ReturnType<typeof setTimeout> | null = null;
 
 /** The place, district, province and country at a position, nearest first, without a name repeating itself. */
 export function describePlace(position: { lat: number; lng: number }, point: { x: number; y: number } | null, zoom: number): string {
+  // With another year on the map, what lay there then takes the place of today's country.
+  const past = shownHistoryYear();
+  if (past) {
+    const old = shapeAt(past.year, position);
+    const reachPast = Math.max(0.02, (50 * 360) / (512 * Math.pow(2, zoom)));
+    let near: string | null = null;
+    try {
+      near = nearestPlaceName(placeIndex(), position, reachPast);
+    } catch {
+      near = null;
+    }
+    const then = old ? (old.ruler !== old.name ? `${old.name} (${old.ruler}, ${past.year.label})` : `${old.name} (${past.year.label})`) : null;
+    const where = [near, then].filter(Boolean).join(" · ") || (point ? "open sea" : "");
+    return `${position.lat.toFixed(4)}, ${position.lng.toFixed(4)}${where ? ` · ${where}` : ""}`;
+  }
   const country = point ? countryAt(point) : null;
   // A place within about fifty pixels of the pointer, whatever the zoom.
   const reach = Math.max(0.02, (50 * 360) / (512 * Math.pow(2, zoom)));
@@ -794,6 +810,15 @@ export function previewClicked(position: { lat: number; lng: number }, event: Mo
   const active = tool.value;
   if (active === "none") return;
   if (active === "highlight") {
+    // With another year on the map, a click picks what lay there then: a shape, or with Shift every
+    // land of its ruling power.
+    const past = highlightLevel.value === "country" ? shownHistoryYear() : null;
+    if (past) {
+      const target = targetAt(past.year, position, event.shiftKey);
+      if (target) toggleHistoryHighlight(target);
+      else log(`no state of ${past.year.label} there (click on its land)`, "muted");
+      return;
+    }
     // The tool stays on, so several countries can be clicked in a row (Esc ends it).
     const country = countryAt(point);
     if (!country) log("no country there (click on land)", "muted");
@@ -1296,6 +1321,39 @@ export function toggleProvinceHighlight(province: Province): void {
   const geometry = simplifyPolygons(province.polygons, AREA_MAX_POINTS);
   void setHighlights(toggleHighlight(highlights.value, code, province.name), had ? areas.value : { ...areas.value, [province.id]: geometry });
   log(had ? `${province.name} is no longer highlighted` : `${province.name} highlighted: render to get it as its own layer above the basemap`, "ok");
+}
+
+/** The year the preview draws, read from the pack; null for today's world. */
+export function shownHistoryYear(): LoadedYear | null {
+  const shown = previewHistory();
+  return shown ? loadHistoryYear(shown.year) : null;
+}
+
+/**
+ * Highlights a shape of the past, or every land of one ruling power (or removes it again). It is a
+ * custom area, so it renders as its own layer, becomes a shape layer and exports like any other.
+ */
+export function toggleHistoryHighlight(target: HistoryTarget): void {
+  const code = `${AREA_PREFIX}${target.id}`;
+  const had = highlights.value.some((h) => h.code === code);
+  if (!had && Object.keys(areas.value).length >= MAX_AREAS) {
+    log(`a map can highlight up to ${MAX_AREAS} provinces and custom areas`, "muted");
+    return;
+  }
+  const geometry = simplifyPolygons(target.polygons, AREA_MAX_POINTS);
+  if (!had && !geometry.length) {
+    log(`"${target.name}" has no usable outline`, "fail");
+    return;
+  }
+  const name = `${target.name} (${target.detail.split(" · ")[0]})`;
+  void setHighlights(toggleHighlight(highlights.value, code, name), had ? areas.value : { ...areas.value, [target.id]: geometry });
+  log(had ? `${name} is no longer highlighted` : `${name} highlighted: render to get it as its own layer above the basemap · ${HISTORY_CREDIT}`, "ok");
+}
+
+/** Shapes and powers of the year on the map whose names match the search (none for today's world). */
+export function historySearch(text: string): HistoryTarget[] {
+  const past = shownHistoryYear();
+  return past ? searchHistory(past.year, text) : [];
 }
 
 /** A province from a search result (its country and id). */

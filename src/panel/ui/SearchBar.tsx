@@ -11,7 +11,21 @@ import { searchOnline } from "../data/geocode.ts";
 import { NOMINATIM_CREDIT } from "../../core/search/geocode.ts";
 import { log, panelVersion } from "../store.ts";
 import { compView } from "../preview.ts";
-import { addPinAt, fail, goToResult, highlights, selected, toggleCountryHighlight, toggleDistrictById, toggleProvinceById } from "../store.ts";
+import { addPinAt, fail, goToResult, highlights, historySearch, selected, toggleCountryHighlight, toggleDistrictById, toggleHistoryHighlight, toggleProvinceById } from "../store.ts";
+import type { HistoryTarget } from "../../core/history/historyFind.ts";
+
+/** A shape or a power of the year on the map as a search result: it frames its lands when chosen. */
+const pastResult = (target: HistoryTarget): SearchResult => ({
+  id: `history:${target.id}`,
+  kind: "history",
+  name: target.name,
+  detail: target.detail,
+  adm1: target.id,
+  lat: target.label[1],
+  lng: target.label[0],
+  bbox: { west: target.bounds[0], south: target.bounds[1], east: target.bounds[2], north: target.bounds[3] },
+  population: 0
+});
 import { Icon, IconButton } from "./icons.tsx";
 
 export function SearchBar() {
@@ -42,6 +56,8 @@ export function SearchBar() {
     }
   };
   const timer = useRef<ReturnType<typeof setTimeout> | null>(null);
+  /** The shapes and powers of the past behind the history results, by their area id. */
+  const past = useRef(new Map<string, HistoryTarget>());
 
   const search = (text: string) => {
     setQuery(text);
@@ -51,7 +67,10 @@ export function SearchBar() {
     timer.current = setTimeout(() => {
       if (!isInCep()) return;
       try {
-        setResults(searchPlaces(placeIndex(), text));
+        // The year on the map first: with 1914 shown, "British" finds the British Raj before Britain today.
+        const then = historySearch(text);
+        past.current = new Map(then.map((target) => [target.id, target]));
+        setResults([...then.map(pastResult), ...searchPlaces(placeIndex(), text)].slice(0, 10));
         setActive(0);
         setOpen(true);
       } catch (error) {
@@ -109,7 +128,7 @@ export function SearchBar() {
           {results.length === 0 && !online?.length && <div class="search-empty">No place with that name in the offline list. Try the English or the local spelling, or search OpenStreetMap below.</div>}
           {results.map((r, i) => (
             <div key={r.id} class={`search-result ${i === active ? "active" : ""}`} onMouseDown={() => choose(r)} onMouseEnter={() => setActive(i)}>
-              <Icon name={r.kind === "country" ? "globe" : r.kind === "province" || r.kind === "district" ? "borders" : r.kind === "coordinates" ? "target" : r.kind === "nature" ? (/^(Ocean|Sea|Lake|River|Waterfall)/.test(r.detail) ? "wave" : "mountain") : "pin"} size={13} />
+              <Icon name={r.kind === "history" ? "borders" : r.kind === "country" ? "globe" : r.kind === "province" || r.kind === "district" ? "borders" : r.kind === "coordinates" ? "target" : r.kind === "nature" ? (/^(Ocean|Sea|Lake|River|Waterfall)/.test(r.detail) ? "wave" : "mountain") : "pin"} size={13} />
               <span class="search-name">
                 {r.name}
                 {r.matched && <span class="muted"> · {r.matched}</span>}
@@ -129,6 +148,24 @@ export function SearchBar() {
                     active={highlights.value.some((h) => h.code === r.code)}
                     title="Highlight this country (again to remove)"
                     onClick={() => toggleCountryHighlight(r.code!, r.name)}
+                  />
+                </span>
+              )}
+              {r.kind === "history" && r.adm1 && past.current.has(r.adm1) && (
+                <span
+                  onMouseDown={(e) => {
+                    e.stopPropagation();
+                    e.preventDefault();
+                  }}
+                >
+                  <IconButton
+                    icon="highlight"
+                    size={12}
+                    class="flat"
+                    id={`highlight-${r.adm1}`}
+                    active={highlights.value.some((h) => h.code === `area:${r.adm1}`)}
+                    title="Highlight this (again to remove)"
+                    onClick={() => toggleHistoryHighlight(past.current.get(r.adm1!)!)}
                   />
                 </span>
               )}

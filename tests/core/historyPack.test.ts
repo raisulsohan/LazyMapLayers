@@ -167,6 +167,18 @@ test("derived years start from the source as it came, not from the corrected yea
   assert.throws(() => buildHistory(new Map([[1945, snapshot()]]), { v: 1, years: [{ year: 1950, from: 1900, note: "x", ops: [{ op: "set", name: "West", to: {} }] }] }), /no source snapshot for 1900/);
 });
 
+test("one name per ruling power, before the year's own ops", () => {
+  const source = collection(
+    feature({ NAME: "Home", SUBJECTO: "Old Empire Name", BORDERPRECISION: 3 }, square(0, 0, 10)),
+    feature({ NAME: "Colony", SUBJECTO: "Empire", BORDERPRECISION: 3 }, square(20, 0, 10)),
+    feature({ NAME: "Other", SUBJECTO: "Other", BORDERPRECISION: 3 }, square(40, 0, 10))
+  );
+  const built = buildHistory(new Map([[1900, source]]), { v: 1, rulers: { "Old Empire Name": "Empire" }, years: [{ year: 1900, note: "x", ops: [{ op: "set", name: "Other", to: { ruler: "Old Empire Name" } }] }] });
+  assert.deepEqual(built[0].year.features.map((f) => [f.name, f.ruler]), [["Home", "Empire"], ["Colony", "Empire"], ["Other", "Old Empire Name"]]);
+  assert.throws(() => readCorrections({ v: 1, rulers: { A: "B", B: "C" }, years: [] }), /renamed again/);
+  assert.throws(() => readCorrections({ v: 1, rulers: { A: "" }, years: [] }), /bad ruler/);
+});
+
 test("the corrections file is well formed and makes 1947 and 1971", () => {
   const corrections = readCorrections(JSON.parse(fs.readFileSync(path.join(root, "data", "history", "corrections.json"), "utf8")));
   const derived = corrections.years.filter((y) => y.from !== undefined).map((y) => [y.year, y.from]);
@@ -195,6 +207,9 @@ test("South Asia in the real source, corrected", { skip: !fs.existsSync(path.joi
   assert.equal(shape(1945, "British Raj")[0].polygons.length, 1, "one colony, no border inside");
   assert.equal(ruler(1945, "Ceylon"), "United Kingdom");
   assert.equal(ruler(1938, "Ceylon"), "United Kingdom");
+  // The source spells the United Kingdom two ways in 1914; the pack has one.
+  assert.ok(!built.get(1914)!.features.some((f) => f.ruler === "United Kingdom of Great Britain and Ireland"));
+  assert.equal(ruler(1914, "Nigeria"), "United Kingdom");
 
   const pakistan1947 = shape(1947, "Pakistan");
   assert.equal(pakistan1947.length, 1);

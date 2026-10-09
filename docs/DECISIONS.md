@@ -887,6 +887,33 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D95 — The past in the Highlight tool and the search; one name per ruling power (2026-10-10)
+
+- **Highlight.** With a year on the map and the Highlight tool on Countries, a click picks the shape of
+  that year under it (the British Raj in 1914, not India); Shift+click picks every land of its ruling
+  power at once ("United Kingdom and its lands"). Either becomes a custom area highlight, its polygons
+  thinned to the area budget and kept with the map like a province's, so its own render pass, a shape
+  layer and the export work unchanged, on a map of that year or of today. Its name carries the year
+  ("British Raj (1914)"). A render with such a highlight credits historical-basemaps.
+- **Area ids.** Highlight codes take letters and digits only (`area:[a-z0-9]{4,24}`), and the pack's
+  ids have a hyphen, so a shape's area id writes it as an "x" (`hb1914x75`); a power's is
+  `hb<year>r<8 hex of a hash of its name>`.
+- **Search.** With a year on the map, the search lists that year's shapes and powers first (at most
+  four), matched like places (exact, prefix, word, anywhere); choosing one frames its lands, and its
+  highlight button highlights it. A power is offered whole only when it holds more than one land.
+- **The readout** under the pointer names what lay there then: "British Raj (United Kingdom, 1914)".
+- **One name per power.** The source spells some powers several ways, even within a year: in 1914 the
+  British Raj is held by "United Kingdom" and Nigeria by "United Kingdom of Great Britain and
+  Ireland", which split the empire into two colours and two highlights. `rulers` in
+  data/history/corrections.json renames them before each year's ops ("Great Britain" and the long form
+  to "United Kingdom", "USA" to "United States"). That changes the pack: it is published as history-2
+  (D29: a new build gets a new tag), history-1 stays where it is, and a panel with history-1 installed
+  offers the update in the Look sheet.
+- **Tested.** Unit tests for the shape under a point, a power's lands, ids that highlight codes accept,
+  the search order, the British Raj found by click and name in the real 1914, the ruler names and the
+  corrections file. HB1 renders the British Raj of 1914 as a highlight on today's map: central India in
+  the highlight's colour, Nepal clear.
+
 ## D94 — The History Year slider: history over time (2026-10-10)
 
 - **Why.** A documentary needs the map to move through history: British India becoming India and

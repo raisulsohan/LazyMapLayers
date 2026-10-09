@@ -74,7 +74,16 @@ export type YearCorrection = {
   ops: CorrectionOp[];
 };
 
-export type Corrections = { v: 1; years: YearCorrection[] };
+export type Corrections = {
+  v: 1;
+  /**
+   * One name for each ruling power the source spells several ways in one era ("United Kingdom of
+   * Great Britain and Ireland" and "United Kingdom" in the same year), so its lands share a colour and
+   * a highlight. Applied to the ruler of every shape of every year before the year's own ops.
+   */
+  rulers?: Record<string, string>;
+  years: YearCorrection[];
+};
 
 type Draft = { name: string; ruler: string; partOf: string; precision: 1 | 2 | 3; polygons: Polygons };
 
@@ -243,6 +252,13 @@ export function buildYear(drafts: Draft[], year: number): HistoryYear {
 export function readCorrections(data: unknown): Corrections {
   const file = data as Partial<Corrections> | null;
   if (!file || file.v !== 1 || !Array.isArray(file.years)) throw new Error("corrections: expected { v: 1, years: [...] }");
+  if (file.rulers !== undefined) {
+    if (!file.rulers || typeof file.rulers !== "object" || Array.isArray(file.rulers)) throw new Error("corrections: rulers must map a name to a name");
+    for (const [from, to] of Object.entries(file.rulers)) {
+      if (typeof to !== "string" || !to.trim() || !from.trim()) throw new Error(`corrections: bad ruler name for ${JSON.stringify(from)}`);
+      if (file.rulers[to] !== undefined) throw new Error(`corrections: ruler ${JSON.stringify(to)} is renamed again`);
+    }
+  }
   const seen = new Set<number>();
   for (const entry of file.years) {
     if (!Number.isInteger(entry?.year) || entry.year === 0) throw new Error(`corrections: bad year ${JSON.stringify(entry?.year)}`);
@@ -273,6 +289,8 @@ export function buildHistory(snapshots: Map<number, unknown>, corrections: Corre
     const source = snapshots.get(base);
     if (source === undefined) throw new Error(`corrections: no source snapshot for ${yearLabel(base)}`);
     let drafts = readSnapshot(source);
+    const rulers = corrections.rulers ?? {};
+    drafts = drafts.map((draft) => (rulers[draft.ruler] ? { ...draft, ruler: rulers[draft.ruler] } : draft));
     if (correction) drafts = applyCorrections(drafts, year, correction.ops);
     const built = buildYear(drafts, year);
     const info: Omit<HistoryYearInfo, "file"> = { year, label: built.label, features: built.features.length };

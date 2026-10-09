@@ -1,6 +1,11 @@
 {
   "v": 1,
   "about": "Corrections LazyMapLayers applies to historical-basemaps when it builds the historical borders pack (tools/build-history-pack.ts, src/core/history/historyPack.ts). A year with 'from' is derived from that source snapshot as it came. Every op must find what it names, or the build stops. Fixes to source years are also sent upstream.",
+  "rulers": {
+    "United Kingdom of Great Britain and Ireland": "United Kingdom",
+    "Great Britain": "United Kingdom",
+    "USA": "United States"
+  },
   "years": [
     { "year": 1800, "note": "Ceylon's coast corrected: British since 1796.", "ops": [{ "op": "set", "name": "Ceylon (Dutch)", "to": { "name": "Ceylon (British)", "ruler": "United Kingdom" }, "note": "The British took the Dutch coast in 1796." }] },
     { "year": 1815, "note": "Ceylon corrected: a British colony from 1802 to 1948.", "ops": [{ "op": "set", "name": "Ceylon", "to": { "ruler": "United Kingdom" } }] },

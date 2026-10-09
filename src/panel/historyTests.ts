@@ -1,5 +1,5 @@
-// HB1: historical borders (D92). Installs the pack from its GitHub release when it is not on this
-// computer yet (online, so HB1 runs only when named), then renders South Asia in several years and
+// HB1: historical borders (D92 to D95). Installs the pack from its GitHub release when it is missing or
+// older than this panel's (online, so HB1 runs only when named), then renders South Asia in several years and
 // reads the colour at known places: British India in 1914 and 1945 in the colour of the United
 // Kingdom, India and Pakistan apart in 1947 with East Bengal in Pakistan's colour, Bangladesh in its own
 // colour in 1971, and the Bay of Bengal still the sea in every year. A look with its own country
@@ -12,9 +12,13 @@ import { encodePng } from "../core/image/png.ts";
 import { hexToRgb, themeById, type Theme } from "../core/style/themes.ts";
 import { historyPalette, rulerColours } from "../core/history/historyStyle.ts";
 import { HISTORY_PACK } from "../core/history/packInfo.ts";
+import { targetAt } from "../core/history/historyFind.ts";
+import { highlightPassId } from "../core/render/passes.ts";
+import { simplifyPolygons } from "../core/geo/simplify.ts";
+import { AREA_MAX_POINTS } from "../core/style/highlights.ts";
 import { basemapStyle } from "./basemap/basemapStyle.ts";
 import { HISTORY_BORDERS_SOURCE, HISTORY_SOURCE } from "./basemap/historyLayers.ts";
-import { downloadHistoryPack, hasHistoryPack, historyManifest, loadHistoryYear } from "./data/history.ts";
+import { downloadHistoryPack, hasHistoryPack, historyManifest, historyPackOutdated, loadHistoryYear } from "./data/history.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import { callHost, evalScript, fs, path } from "./cep.ts";
 import { createMapComp } from "./mapApi.ts";
@@ -60,7 +64,8 @@ const distance = (a: number[], b: number[]) => Math.max(...a.map((v, i) => Math.
 export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unknown>> {
   const problems: string[] = [];
   let downloaded: number | null = null;
-  if (!hasHistoryPack()) {
+  // Missing, or an older build than this panel's (history-1 before history-2): the release's pack goes in.
+  if (!hasHistoryPack() || historyPackOutdated()) {
     const started = performance.now();
     await downloadHistoryPack();
     downloaded = Math.round(performance.now() - started);
@@ -69,6 +74,7 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
   const manifest = historyManifest();
   if (!manifest) return { passed: false, problems: ["the pack did not install"] };
   if (manifest.years.length !== 56) problems.push(`the pack has ${manifest.years.length} years, expected 56`);
+  if (manifest.pack !== HISTORY_PACK.tag) problems.push(`the installed pack is ${manifest.pack}, not ${HISTORY_PACK.tag}`);
 
   const folder = path().join(spikeDir(), "HB1-frames");
   fs().mkdirSync(folder, { recursive: true });
@@ -199,6 +205,37 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
       if (counted.join(",") !== "1945,1946,1947") problems.push(`the year layer counts ${counted.join(",") || "nothing"}`);
     } catch (error) {
       problems.push(`the year layer: ${error instanceof Error ? error.message : String(error)}`);
+    }
+  }
+
+  // A shape of the past as a highlight on today's map: the British Raj of 1914 found under a click in
+  // central India, rendered as its own pass - central India in the highlight's colour, Nepal (never
+  // part of it) left clear.
+  {
+    const raj = targetAt(loadHistoryYear(1914)!.year, CENTRAL_INDIA, false);
+    if (raj?.name !== "British Raj") problems.push(`a click in central India in 1914 finds ${raj?.name ?? "nothing"}`);
+    else {
+      const map = await createMapComp({ name: "HB1 highlight", width: SIZE.width, height: SIZE.height, duration: 0.04, frameRate: 25, view: VIEW, newScene: true });
+      const code = `area:${raj.id}`;
+      const settings = normaliseSettings({ ...DEFAULT_FINAL_SETTINGS, supersample: 1, passes: ["base"] }, DEFAULT_FINAL_SETTINGS);
+      const result = await runRenderJob({ mapId: map.id, quality: "final", settings, basemap: { kind: "world" }, theme: "atlas", highlights: [{ code, name: "British Raj (1914)", color: "#ff5d73", fill: 1, outline: 0 }], areas: { [raj.id]: simplifyPolygons(raj.polygons, AREA_MAX_POINTS) } });
+      const pass = result.sequences.find((sequence) => sequence.pass === highlightPassId(code));
+      if (!pass) problems.push(`the highlight rendered no pass of its own (passes: ${result.sequences.map((sequence) => sequence.pass).join(", ")})`);
+      else {
+        const rgba = decodePng(new Uint8Array(fs().readFileSync(path().join(pass.folder, sequenceFileName(0))))).rgba;
+        const at = (place: { lat: number; lng: number }) => {
+          const p = project(VIEW, SIZE, place);
+          const i = (Math.round(p.y) * SIZE.width + Math.round(p.x)) * 4;
+          return [rgba[i], rgba[i + 1], rgba[i + 2], rgba[i + 3]];
+        };
+        const inside = at(CENTRAL_INDIA);
+        const nepal = at({ lat: 28.2, lng: 84.0 });
+        read["highlight central India"] = `rgba(${inside.join(",")})`;
+        read["highlight Nepal"] = `rgba(${nepal.join(",")})`;
+        if (inside[3] < 200 || distance(inside.slice(0, 3), rgb255("#ff5d73")) > 8) problems.push(`the British Raj highlight reads rgba(${inside.join(",")}) in central India`);
+        if (nepal[3] > 10) problems.push(`the British Raj highlight covers Nepal (alpha ${nepal[3]})`);
+      }
+      fs().rmSync(result.storeRoot, { recursive: true, force: true, maxRetries: 3 });
     }
   }
 

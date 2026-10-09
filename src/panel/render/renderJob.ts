@@ -25,7 +25,7 @@ import { sharedEncodePool } from "./encodePool.ts";
 import { FrameRenderer, layerGroup, layerHighlight } from "./frameRenderer.ts";
 import { RenderStore } from "./renderStore.ts";
 import { normaliseHistory, yearsForRange, type HistorySetting } from "../../core/history/historyStyle.ts";
-import { HISTORY_CREDIT } from "../../core/history/historyPack.ts";
+import { HISTORY_CREDIT, HISTORY_ID_PREFIX } from "../../core/history/historyPack.ts";
 import { hasHistoryPack, historyManifest } from "../data/history.ts";
 
 export type { BasemapSource, Marker } from "../basemap/basemapStyle.ts";
@@ -351,7 +351,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
     // The offline world is OpenStreetMap data too, once a frame comes close enough for it to show.
-    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", history && hasHistoryPack() ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", (history && hasHistoryPack()) || shown.some((h) => h.code.startsWith(`area:${HISTORY_ID_PREFIX}`)) ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });
