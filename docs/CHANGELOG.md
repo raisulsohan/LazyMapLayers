@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.0.0 — the world offline down to city level (2026-10-09)
 
 - **Works without the internet, down to city level, anywhere.** The download now carries the map
   data the panel used to fetch piece by piece, about 1.9 GB, and the installer puts it on your
