@@ -7,7 +7,7 @@ Key the year and the map moves through history in one shot, fading only what cha
 
 ![South Asia from 1945 to 1947: the British Raj gives way to India and Pakistan, and the year counts on screen](media/hb-partition.gif)
 
-New in LazyMapLayers 1.1.
+New in LazyMapLayers 1.1; the colours as in 1.1.2.
 
 ## Download the pack once
 
@@ -42,7 +42,7 @@ What changes on the map, and what stays:
 | Changes | Stays |
 |---|---|
 | Today's country colours, borders, province lines and country names give way to that year's states, borders and names | Coasts, lakes, rivers, relief, terrain, imagery and cities |
-| Every colony takes its **ruling power's colour**, and two neighbours never share one | Your look: the colours are mixed from it, or a look's own country colours are used (Atlas) |
+| Every colony takes its **ruling power's colour**, and two neighbours never share one. The largest powers of each year (six on Atlas, eight on a ten-colour look) always get colours of their own, chosen over all the years at once, so an empire keeps **the same colour in every year** | Your look: the colours are mixed from it, or a look's own country colours are used (Atlas) |
 | Borders between powers in the look's border colour; borders inside one power's lands (between two of its colonies) dashed | **Animate borders** draws the year's borders on ([chapter 21](21-animate-borders.md)) |
 
 The year is saved with the map. **Today** at the top of the list puts today's world back.
