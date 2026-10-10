@@ -694,7 +694,7 @@ select.compact {
 }
 
 .warning {
-  color: var(--bad);
+  color: var(--warn);
 }
 
 .import-row {
