@@ -1,5 +1,11 @@
 # Changelog
 
+## 1.1.2 — empires never share a colour (2026-10-10)
+
+- **Empires never share a colour.** In the historical borders the largest powers of a year now always
+  get colours of their own, even where they do not meet (the British Raj and the Russian Empire of 1914
+  shared one on Atlas), and an empire keeps its colour from year to year.
+
 ## 1.1.1 — Vietnam and Yemen divided (2026-10-10)
 
 - **Vietnam and Yemen divided in 1960 and 1971.** The historical borders showed one Vietnam and one

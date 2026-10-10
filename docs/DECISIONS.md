@@ -887,6 +887,27 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D98 — The largest powers always apart, and steady over the years (2026-10-10)
+
+- **Why.** D93 kept neighbours apart only, so two empires that do not touch could share a colour:
+  on Atlas (seven colours) the British Raj and the Russian Empire of 1914 were one colour, with
+  Afghanistan between them. On a world map the empires are what the colours are read for.
+- **Apart.** The largest powers of a year - one fewer than the look's colours, at most eight (six on
+  Atlas, eight on the ten-colour looks) - count as each other's neighbours, so they never share a
+  colour. Smaller powers still only avoid the powers they touch.
+- **Steady.** Settling that per year moved the United Kingdom to another colour in 1914, where the
+  Russia of that year wanted its slot. So the slots of the large powers are settled once over every
+  year of the pack (`globalSlots`): powers that are large in the same year get different slots, and
+  the power that is large in the most years chooses first. The panel reads every year's file once for
+  it (about half a second) and keeps the result per palette size. Measured from 1800 to 2010: the
+  United Kingdom keeps one colour in every year on Atlas and changes once on Midnight; colour changes
+  between consecutive years over all powers fell from 291 to 218 (Atlas) and 191 to 171 (Midnight); no
+  two of the largest powers share a colour in any year.
+- **No pack change.** It is how the panel colours the pack; history-3 stays.
+- **Tested.** Unit tests for the largest powers apart where they do not meet, the settled slots, and,
+  in the built pack, the largest powers apart in every year and the United Kingdom in at most two
+  colours.
+
 ## D97 — Vietnam and Yemen divided in 1960 and 1971; the history-3 pack (2026-10-10)
 
 - **Why.** The source shows Vietnam and Yemen whole in every year, so 1960 and 1971 showed one

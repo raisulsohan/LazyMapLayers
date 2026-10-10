@@ -57,15 +57,20 @@ function shapesTopology(features: Pick<HistoryFeature, "ruler" | "polygons">[]) 
 }
 
 /** Who rules what in a year: the powers by the land they hold, and their neighbours. */
-export function rulerMap(features: Pick<HistoryFeature, "name" | "ruler" | "polygons">[]): RulerMap {
+/** The ruling powers of a year by the land they hold, largest first. */
+export function rulerOrder(features: Pick<HistoryFeature, "name" | "ruler" | "polygons">[]): string[] {
   const area = new Map<string, number>();
+  for (const f of features) {
+    if (!ruled(f)) continue;
+    area.set(f.ruler, (area.get(f.ruler) ?? 0) + f.polygons.reduce((n, polygon) => n + ringArea(polygon[0]), 0));
+  }
+  return [...area.keys()].sort((a, b) => area.get(b)! - area.get(a)! || (a < b ? -1 : 1));
+}
+
+export function rulerMap(features: Pick<HistoryFeature, "name" | "ruler" | "polygons">[]): RulerMap {
   const neighbours = new Map<string, Set<string>>();
-  features.forEach((f) => {
-    if (!ruled(f)) return;
-    const size = f.polygons.reduce((n, polygon) => n + ringArea(polygon[0]), 0);
-    area.set(f.ruler, (area.get(f.ruler) ?? 0) + size);
-    if (!neighbours.has(f.ruler)) neighbours.set(f.ruler, new Set());
-  });
+  const order = rulerOrder(features);
+  for (const ruler of order) neighbours.set(ruler, new Set());
   if (features.length) {
     const { object } = shapesTopology(features);
     neighbors(object.geometries).forEach((list, i) => {
@@ -73,28 +78,77 @@ export function rulerMap(features: Pick<HistoryFeature, "name" | "ruler" | "poly
       for (const j of list) if (ruled(features[j]) && features[j].ruler !== features[i].ruler) neighbours.get(features[i].ruler)!.add(features[j].ruler);
     });
   }
-  const order = [...area.keys()].sort((a, b) => area.get(b)! - area.get(a)! || (a < b ? -1 : 1));
   return { order, neighbours };
 }
+
+/**
+ * The slot each power that is ever among the largest of a year asks for, settled once over every year
+ * of the pack, so an empire keeps its colour from year to year: powers that are large in the same year
+ * get different slots, and the power that is large in the most years chooses first (the British Empire
+ * before the Russia of 1914 alone). `orders` are each year's rulerOrder. Other powers keep their name's
+ * slot (preferredSlot).
+ */
+export function globalSlots(orders: string[][], paletteSize: number): Map<string, number> {
+  const count = bigPowers(paletteSize);
+  const together = new Map<string, Set<string>>();
+  const years = new Map<string, number>();
+  for (const order of orders) {
+    const big = order.slice(0, count);
+    for (const a of big) {
+      years.set(a, (years.get(a) ?? 0) + 1);
+      const set = together.get(a) ?? new Set<string>();
+      for (const b of big) if (b !== a) set.add(b);
+      together.set(a, set);
+    }
+  }
+  const slots = new Map<string, number>();
+  for (const ruler of [...years.keys()].sort((a, b) => years.get(b)! - years.get(a)! || (a < b ? -1 : 1))) {
+    const taken = new Set<number>();
+    for (const other of together.get(ruler) ?? []) {
+      const slot = slots.get(other);
+      if (slot !== undefined) taken.add(slot);
+    }
+    const wish = preferredSlot(ruler, paletteSize);
+    let chosen = wish;
+    for (let step = 0; step < paletteSize; step++) {
+      const slot = (wish + step) % paletteSize;
+      if (!taken.has(slot)) {
+        chosen = slot;
+        break;
+      }
+    }
+    slots.set(ruler, chosen);
+  }
+  return slots;
+}
+
+/** How many of the largest powers always get colours of their own, whether they meet or not. */
+export const bigPowers = (paletteSize: number) => Math.max(0, Math.min(8, paletteSize - 1));
 
 /**
  * A colour per ruling power, neighbours apart. The largest powers choose first and take the slot their
  * name asks for, so an empire keeps its colour from year to year; a smaller power whose slot a
  * neighbour already holds takes the next free one, or, with every slot taken around it, the one its
- * neighbours use least.
+ * neighbours use least. The largest few (bigPowers) also keep apart from each other wherever they
+ * lie, so the British Raj and the Russian Empire never share a colour though Afghanistan lies
+ * between them: on a world map the empires are what the colours are read for. `preferred` holds the
+ * slots settled over every year (globalSlots); without it a power asks for its name's slot.
  */
-export function rulerColours(map: RulerMap, palette: string[]): Map<string, string> {
+export function rulerColours(map: RulerMap, palette: string[], preferred?: Map<string, number>): Map<string, string> {
   const slots = new Map<string, number>();
+  const big = new Set(map.order.slice(0, bigPowers(palette.length)));
   for (const ruler of map.order) {
     const taken = new Map<number, number>();
-    for (const other of map.neighbours.get(ruler) ?? []) {
+    const apart = new Set(map.neighbours.get(ruler) ?? []);
+    if (big.has(ruler)) for (const other of big) if (other !== ruler) apart.add(other);
+    for (const other of apart) {
       const slot = slots.get(other);
       if (slot !== undefined) taken.set(slot, (taken.get(slot) ?? 0) + 1);
     }
-    const preferred = preferredSlot(ruler, palette.length);
+    const wish = preferred?.get(ruler) ?? preferredSlot(ruler, palette.length);
     let chosen = -1;
     for (let step = 0; step < palette.length && chosen < 0; step++) {
-      const slot = (preferred + step) % palette.length;
+      const slot = (wish + step) % palette.length;
       if (!taken.has(slot)) chosen = slot;
     }
     if (chosen < 0) chosen = [...taken.entries()].sort((a, b) => a[1] - b[1] || a[0] - b[0])[0][0];

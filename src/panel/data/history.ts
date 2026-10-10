@@ -13,12 +13,14 @@ import { fs, nodeRequire, path, userDataDir } from "../cep.ts";
 import { httpsRequest } from "../net.ts";
 import { HISTORY_PACK } from "../../core/history/packInfo.ts";
 import type { HistoryFeature, HistoryManifest, HistoryYear } from "../../core/history/historyPack.ts";
-import { boundsArea, historyBorders, rulerMap, type HistoryBorders, type RulerMap } from "../../core/history/historyStyle.ts";
+import { boundsArea, globalSlots, historyBorders, rulerColours, rulerMap, rulerOrder, type HistoryBorders, type RulerMap } from "../../core/history/historyStyle.ts";
 
 const folder = () => path().join(userDataDir(), "history");
 const manifestPath = () => path().join(folder(), "manifest.json");
 
 let manifest: HistoryManifest | null | undefined;
+let orders: string[][] | null = null;
+const slotsBySize = new Map<number, Map<string, number>>();
 const years = new Map<number, LoadedYear>();
 
 /** A year ready to draw: its shapes, and the lines between them. */
@@ -66,6 +68,32 @@ export function loadHistoryYear(year: number): LoadedYear | null {
     return null;
   }
 }
+
+/**
+ * The colour slots the largest powers keep over every year of the pack (core globalSlots): read once,
+ * every year's file (about half a second), then kept for each palette size.
+ */
+export function historySlots(paletteSize: number): Map<string, number> {
+  const known = slotsBySize.get(paletteSize);
+  if (known) return known;
+  if (!orders) {
+    orders = [];
+    for (const info of historyManifest()?.years ?? []) {
+      try {
+        const data = JSON.parse(fs().readFileSync(path().join(folder(), info.file), "utf8")) as HistoryYear;
+        orders.push(rulerOrder(data.features));
+      } catch {
+        // A year that cannot be read leaves its powers to their names' slots.
+      }
+    }
+  }
+  const slots = globalSlots(orders, paletteSize);
+  slotsBySize.set(paletteSize, slots);
+  return slots;
+}
+
+/** A year's colour per ruling power with a palette: neighbours apart, the largest apart and steady over the years. */
+export const yearColours = (loaded: LoadedYear, palette: string[]) => rulerColours(loaded.rulers, palette, historySlots(palette.length));
 
 /** The year's shapes as GeoJSON for MapLibre, each with the colour of its ruler; land nobody held gets `unclaimed`. */
 export function historyShapes(loaded: LoadedYear, colours: Map<string, string>, unclaimed = "rgba(0,0,0,0)"): GeoJSON.FeatureCollection {
@@ -115,6 +143,8 @@ export async function downloadHistoryPack(options: { signal?: AbortSignal; onPro
   nodeFs.renameSync(temporary, target);
   manifest = undefined;
   years.clear();
+  orders = null;
+  slotsBySize.clear();
   const installed = historyManifest();
   if (!installed) throw new Error("the downloaded manifest could not be read");
   return installed;

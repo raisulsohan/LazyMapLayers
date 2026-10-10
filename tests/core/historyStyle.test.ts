@@ -1,6 +1,8 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { boundsArea, historyBorders, historyMix, historyPalette, historyWeights, normaliseHistory, preferredSlot, rulerColours, rulerMap, sliderYearLabel, yearsForRange } from "../../src/core/history/historyStyle.ts";
+import fs from "node:fs";
+import path from "node:path";
+import { bigPowers, boundsArea, globalSlots, historyBorders, historyMix, historyPalette, historyWeights, normaliseHistory, preferredSlot, rulerColours, rulerMap, rulerOrder, sliderYearLabel, yearsForRange } from "../../src/core/history/historyStyle.ts";
 import { themeById } from "../../src/core/style/themes.ts";
 
 const square = (west: number, south: number, size: number) => [
@@ -134,4 +136,53 @@ test("the year a slider reads as", () => {
   assert.equal(sliderYearLabel(-322.5), "323 BC");
   assert.equal(sliderYearLabel(99.99999), "AD 100");
   assert.equal(sliderYearLabel(0.5), "0");
+});
+
+test("the largest powers keep apart from each other even where they do not meet", () => {
+  // Four powers far apart, largest first; with three colours the two largest still differ.
+  const far = (name: string, west: number, size: number) => ({ name, ruler: name, polygons: [square(west, 0, size)] });
+  const names = ["A", "B", "C", "D", "E", "F", "G", "H", "I", "J"];
+  // Two names that ask for the same slot of three, as the largest two.
+  const [first, second] = names.filter((n) => preferredSlot(n, 3) === preferredSlot(names.find((m) => names.filter((k) => preferredSlot(k, 3) === preferredSlot(m, 3)).length > 1)!, 3));
+  const map = rulerMap([far(first, 0, 20), far(second, 40, 15), far("small1", 80, 1), far("small2", 90, 1)]);
+  assert.deepEqual(map.neighbours.get(first), new Set(), "they do not meet");
+  const colours = rulerColours(map, ["#111111", "#222222", "#333333"]);
+  assert.notEqual(colours.get(first), colours.get(second));
+  assert.equal(bigPowers(7), 6);
+  assert.equal(bigPowers(10), 8);
+  assert.equal(bigPowers(1), 0);
+});
+
+test("slots settled over every year: powers large together differ; the one large most often chooses first", () => {
+  const names = ["A", "B", "C", "D", "E", "F", "G", "H"];
+  // Two names asking for the same slot of three.
+  const clash = names.filter((n) => preferredSlot(n, 3) === preferredSlot("A", 3));
+  const other = names.find((n) => preferredSlot(n, 3) === preferredSlot("A", 3) && n !== clash[0]) ?? clash[1];
+  const often = clash[0];
+  // `often` is large in three years, `other` in one, alongside it.
+  const slots = globalSlots([[often, "x"], [often, "y"], [often, other], ["z"]], 3);
+  assert.equal(slots.get(often), preferredSlot(often, 3), "the one large most often keeps its wish");
+  assert.notEqual(slots.get(other), slots.get(often));
+  assert.ok(!slots.has("w"));
+});
+
+// The real pack: the United Kingdom keeps one colour in every year it holds land, on a look of 7 and of 10 colours.
+const built = path.resolve(import.meta.dirname, "..", "..", ".cache", "history", "pack", "history");
+test("the British Empire keeps its colour through the years", { skip: !fs.existsSync(path.join(built, "manifest.json")) && "the pack is not built" }, () => {
+  const manifest = JSON.parse(fs.readFileSync(path.join(built, "manifest.json"), "utf8")) as { years: { year: number; file: string }[] };
+  const years = manifest.years.filter((y) => y.year >= 1800).map((y) => JSON.parse(fs.readFileSync(path.join(built, y.file), "utf8")) as { features: { name: string; ruler: string; polygons: number[][][][] }[] });
+  const orders = manifest.years.map((y) => rulerOrder((JSON.parse(fs.readFileSync(path.join(built, y.file), "utf8")) as { features: { name: string; ruler: string; polygons: number[][][][] }[] }).features));
+  for (const id of ["atlas", "midnight"]) {
+    const palette = historyPalette(themeById(id));
+    const slots = globalSlots(orders, palette.length);
+    const seen = new Set<string>();
+    for (const year of years) {
+      const map = rulerMap(year.features);
+      const colours = rulerColours(map, palette, slots);
+      const big = map.order.slice(0, bigPowers(palette.length));
+      assert.equal(new Set(big.map((r) => colours.get(r))).size, big.length, `${id}: the largest powers apart`);
+      if (colours.has("United Kingdom")) seen.add(colours.get("United Kingdom")!);
+    }
+    assert.ok(seen.size <= 2, `${id}: the United Kingdom took ${seen.size} colours`);
+  }
 });

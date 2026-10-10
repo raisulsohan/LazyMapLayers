@@ -8,8 +8,8 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { LayerGroup } from "../../core/render/passes.ts";
 import type { Theme } from "../../core/style/themes.ts";
-import { historyPalette, rulerColours } from "../../core/history/historyStyle.ts";
-import { historyLabels, historyShapes, type LoadedYear } from "../data/history.ts";
+import { historyPalette } from "../../core/history/historyStyle.ts";
+import { historyLabels, historyShapes, yearColours, type LoadedYear } from "../data/history.ts";
 import { NATURAL_EARTH_SOURCE } from "./naturalEarthStyle.ts";
 
 export const HISTORY_SOURCE = "lml-history";
@@ -71,7 +71,7 @@ export function withHistory(style: StyleSpecification, loadedYears: LoadedYear[]
     const shapes = id(HISTORY_SOURCE);
     const borders = id(HISTORY_BORDERS_SOURCE);
     const labels = id(HISTORY_LABELS_SOURCE);
-    sources[shapes] = { type: "geojson", data: historyShapes(loaded, rulerColours(loaded.rulers, palette), unclaimed), tolerance: 0.3 };
+    sources[shapes] = { type: "geojson", data: historyShapes(loaded, yearColours(loaded, palette), unclaimed), tolerance: 0.3 };
     sources[borders] = {
       type: "geojson",
       lineMetrics: true,

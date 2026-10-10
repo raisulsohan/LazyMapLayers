@@ -10,7 +10,7 @@ import { decodePng } from "../core/image/pngDecode.ts";
 import { DEFAULT_FINAL_SETTINGS, normaliseSettings, sequenceFileName } from "../core/render/plan.ts";
 import { encodePng } from "../core/image/png.ts";
 import { hexToRgb, themeById, type Theme } from "../core/style/themes.ts";
-import { historyPalette, rulerColours } from "../core/history/historyStyle.ts";
+import { historyPalette } from "../core/history/historyStyle.ts";
 import { HISTORY_PACK } from "../core/history/packInfo.ts";
 import { targetAt } from "../core/history/historyFind.ts";
 import { highlightPassId } from "../core/render/passes.ts";
@@ -18,7 +18,7 @@ import { simplifyPolygons } from "../core/geo/simplify.ts";
 import { AREA_MAX_POINTS } from "../core/style/highlights.ts";
 import { basemapStyle } from "./basemap/basemapStyle.ts";
 import { HISTORY_BORDERS_SOURCE, HISTORY_SOURCE } from "./basemap/historyLayers.ts";
-import { downloadHistoryPack, hasHistoryPack, historyManifest, historyPackOutdated, loadHistoryYear } from "./data/history.ts";
+import { downloadHistoryPack, hasHistoryPack, historyManifest, historyPackOutdated, loadHistoryYear, yearColours } from "./data/history.ts";
 import { FrameRenderer } from "./render/frameRenderer.ts";
 import { callHost, evalScript, fs, path } from "./cep.ts";
 import { createMapComp } from "./mapApi.ts";
@@ -85,7 +85,7 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
   for (const theme of [themeById("atlas"), themeById("midnight")] as Theme[]) {
     const palette = historyPalette(theme);
     for (const { year, probes } of YEARS) {
-      const colours = year === null ? new Map<string, string>() : rulerColours(loadHistoryYear(year)!.rulers, palette);
+      const colours = year === null ? new Map<string, string>() : yearColours(loadHistoryYear(year)!, palette);
       const colourOf = (ruler: string | null) => rgb255(ruler === null ? theme.ocean : colours.get(ruler) ?? "#ff00ff");
       const style = basemapStyle({ kind: "world" }, { labels: false, theme, viewport: SIZE, history: year === null ? null : { year }, offlineWorld: false });
       if (year !== null && !style.sources[HISTORY_SOURCE]) {
@@ -121,8 +121,8 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
   {
     const theme = themeById("atlas");
     const palette = historyPalette(theme);
-    const british = rgb255(rulerColours(loadHistoryYear(1945)!.rulers, palette).get("United Kingdom")!);
-    const later = rulerColours(loadHistoryYear(1947)!.rulers, palette);
+    const british = rgb255(yearColours(loadHistoryYear(1945)!, palette).get("United Kingdom")!);
+    const later = yearColours(loadHistoryYear(1947)!, palette);
     const india = rgb255(later.get("India")!);
     const pakistan = rgb255(later.get("Pakistan")!);
     const style = basemapStyle({ kind: "world" }, { labels: false, theme, viewport: SIZE, history: { year: 1945 }, historyYears: [1945, 1947], animations: ["historyYear"], offlineWorld: false });
@@ -163,8 +163,8 @@ export async function runHistoryTest(log: SpikeLog): Promise<Record<string, unkn
   {
     const theme = themeById("atlas");
     const palette = historyPalette(theme);
-    const british = rgb255(rulerColours(loadHistoryYear(1945)!.rulers, palette).get("United Kingdom")!);
-    const india = rgb255(rulerColours(loadHistoryYear(1947)!.rulers, palette).get("India")!);
+    const british = rgb255(yearColours(loadHistoryYear(1945)!, palette).get("United Kingdom")!);
+    const india = rgb255(yearColours(loadHistoryYear(1947)!, palette).get("India")!);
     const map = await createMapComp({ name: "HB1 over time", width: SIZE.width, height: SIZE.height, duration: 1, frameRate: 25, view: VIEW, newScene: true });
     await callHost("setMapSettings", { mapId: map.id, history: { year: 1945 } });
     await callHost("setControlKeys", { mapId: map.id, name: "History Year", times: [0, 24 / 25], values: [1945, 1947] });
