@@ -140,3 +140,4 @@ Instead of plain names, put **a comp you designed** on every place: a box, an ic
 - [11. Callouts](11-callouts.md)
 - [22. The looks](22-looks.md)
 - [27. Downloading an area](27-download-area.md)
+- [Historical borders](historical-borders.md): with a year on the map, the names are that year's states, and they change with the History Year slider.

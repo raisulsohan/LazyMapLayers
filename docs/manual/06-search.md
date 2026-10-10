@@ -88,5 +88,6 @@ It never searches online while you type, only when you click or press Enter.
 ## Related
 
 - [7. Moving the preview](07-moving-the-preview.md)
+- [Historical borders](historical-borders.md): with a year on the map, that year's states and empires come first in the list.
 - [18. Finding things on OpenStreetMap](18-openstreetmap.md): rivers, parks, buildings as shapes, not
   just a place to go to.

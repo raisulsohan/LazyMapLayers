@@ -99,7 +99,8 @@ Dhaka to Chittagong with an arrow, say:
   slider on the map layer moves the map through history over the comp, fading only what changed hands,
   with a year counter on screen. Click a state of the past to highlight it (Shift+click: every land of
   its empire), find it in the search, let Auto labels name the map by that year, and browse them all
-  in the feature browser.
+  in the feature browser. Step by step, with pictures: [Historical borders](docs/manual/historical-borders.md)
+  in the manual.
 
 - **Offline, down to city level.** The download carries the map data and the installer puts it on your
   computer: OpenStreetMap for the whole world to zoom 9 (coasts, rivers, lakes, roads, parks, the

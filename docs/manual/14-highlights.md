@@ -116,4 +116,5 @@ Rendering district boundaries adds a small *Boundaries: geoBoundaries* credit la
 ## Related
 
 - [15. The feature browser](15-feature-browser.md)
+- [Historical borders](historical-borders.md): with a year on the map, a click picks that year's state, Shift+click its whole empire.
 - [28. Colouring places by a number](28-numbers-colour.md)

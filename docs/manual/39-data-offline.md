@@ -28,6 +28,7 @@ The installer puts all of this on your computer; it works with no internet conne
 | **Find in view** (OpenStreetMap) | Overpass | |
 | **Search OpenStreetMap for "…"** | Nominatim | |
 | A district set not on the computer | geoBoundaries | Its size and licence |
+| **Historical borders > Download** | The pack on the project's GitHub page (historical-basemaps, GPL-3.0) | 13.9 MB |
 | **Imagery of your own** | The address you typed, while previewing and rendering | |
 | **Look for new versions once a day** | GitHub's release list, once a day | Off with one switch |
 
@@ -43,6 +44,7 @@ Nothing about you or your project is ever sent.
 | Elevation packs | `terrain\` | `terrain/` |
 | Satellite and relief pictures | `imagery\` | `imagery/` |
 | District sets | `boundaries\` | `boundaries/` |
+| Historical borders | `history\` | `history/` |
 | Script requests | `api\` | `api/` |
 | Renders of unsaved projects | `renders\` | `renders/` |
 
@@ -56,6 +58,7 @@ for one:
 | OpenStreetMap detail (the offline world closer in, or a downloaded area) | © OpenStreetMap contributors |
 | District boundaries | Boundaries: geoBoundaries |
 | Terrain | Terrain: © Mapterhorn |
+| Historical borders (a year, or a highlight of the past) | Historical borders: historical-basemaps (GPL-3.0) |
 | Imagery of your own | The credit you typed |
 | A Sentinel-2 area | The Copernicus credit |
 

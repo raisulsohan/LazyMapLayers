@@ -69,6 +69,15 @@ chapter, so you can look up what a control does.
 3. In its **Map settings**: **Follow the camera of** the main map, **Zoom offset** −3, **Tilt** off.
 4. Give it its own look; render both.
 
+## A partition map, 1945 to 1947
+
+1. **New map** over South Asia, a little tilted.
+2. **Look > Historical borders**: Download once, Year **1945**, Move to **1947**, **Add the year**
+   ([Historical borders](historical-borders.md)).
+3. **Auto labels**: the British Raj fades out as India and Pakistan fade in
+   ([20](20-auto-labels.md)).
+4. A slow push in with **Fly here** ([8](08-quick-camera.md)). **Render**.
+
 ## A distance ring around an event
 
 1. Frame the place in the preview, centred.

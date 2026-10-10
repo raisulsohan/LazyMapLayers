@@ -88,5 +88,6 @@ the layer style, relief, sky and imagery. Render them again to see it.
 ## Related
 
 - [23. Sky, shaded relief, and the style of pins, routes and callouts](23-sky-relief-layer-style.md)
+- [Historical borders](historical-borders.md): the world in another year, from the same sheet.
 - [24. Imagery](24-imagery.md)
 - [36. Render passes](36-render.md): grade the land and the water separately in After Effects.

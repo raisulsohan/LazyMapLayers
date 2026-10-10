@@ -55,6 +55,10 @@ The short version of all this is the [guide](../GUIDE.md). This manual is the lo
 26. [Inset map, scale bar and north arrow](26-inset-scale-north.md)
 27. [Downloading an area for street-level detail](27-download-area.md)
 
+New in 1.1: [**Historical borders: the world in any year**](historical-borders.md): the states, empires
+and colonies of 56 moments from 123,000 BC to 2010, a year keyed through history, and the past in
+the Highlight tool, search, Auto labels and the feature browser.
+
 ## Part 5. Numbers on the map
 
 28. [Colouring places by a number](28-numbers-colour.md): matching, ramps, steps, categories

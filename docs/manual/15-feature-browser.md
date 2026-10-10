@@ -17,6 +17,7 @@ Open it from the Highlight sheet: **Highlight** in the tool row > **Browse featu
 | **Districts** | The districts of the country you pick, from its district set ([chapter 14](14-highlights.md)) |
 | **Imported** | The shapes of the file you imported last, with the properties the file gave them |
 | **On this map** | The areas this map already holds: merged, grown, circles, drawn |
+| **Past** | With a year under Historical borders: that year's states, empires and colonies, with their ruling power (`ruler = France`), year and border precision ([Historical borders](historical-borders.md)) |
 
 When you colour the map by numbers ([chapter 28](28-numbers-colour.md)), each country, province or
 district also carries its value under the column's name.
