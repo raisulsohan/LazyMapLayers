@@ -1,5 +1,12 @@
 # Changelog
 
+## 1.1.1 — Vietnam and Yemen divided (2026-10-10)
+
+- **Vietnam and Yemen divided in 1960 and 1971.** The historical borders showed one Vietnam and one
+  Yemen in those years. Now North and South Vietnam meet at the 17th parallel, and Yemen is split into
+  the Kingdom of Yemen and British Aden (1960) and North and South Yemen (1971), along today's
+  provinces (approximate). The Look sheet offers the updated historical pack (history-3).
+
 ## 1.1.0 — the world in any year (2026-10-10)
 
 - **The world in another year.** The Look sheet's new Historical borders section downloads a

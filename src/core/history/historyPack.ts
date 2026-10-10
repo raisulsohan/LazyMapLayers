@@ -7,7 +7,8 @@
 // snapshot, and years LazyMapLayers derives from one (1947 and 1971, made from 1945 and 1960).
 
 import { labelPoint } from "../geo/polylabel.ts";
-import { mergeAreas, type Polygons } from "../geo/combine.ts";
+import { growArea, mergeAreas, type Polygons } from "../geo/combine.ts";
+import { difference, intersection } from "polyclip-ts";
 
 export type HistoryFeature = {
   id: string;
@@ -64,7 +65,40 @@ export type CorrectionOp =
   /** A shape's name, ruler, area or precision changes. */
   | { op: "set"; name: string; to: ShapeProps; note?: string }
   /** The parts of a shape that lie wholly inside a box become a shape of their own. */
-  | { op: "split"; name: string; box: [number, number, number, number]; into: ShapeProps; note?: string };
+  | { op: "split"; name: string; box: [number, number, number, number]; into: ShapeProps; note?: string }
+  /**
+   * A shape cut in two along a line the source does not have: what lies inside `by` becomes a shape of
+   * its own, the rest keeps the shape's name. `by` is a box, or provinces of today's country that
+   * cover the part (Natural Earth, resolved by the build; see CutBy).
+   */
+  | { op: "cut"; name: string; by: CutBy; into: ShapeProps; note?: string };
+
+/**
+ * What a cut keeps apart. A box cuts along its edges (the 17th parallel). Provinces cut along their
+ * borders with the country's other provinces; the build lets them reach into the sea, so the coarser
+ * coast of the source never leaves a strip of the shape behind along it.
+ */
+export type CutBy = { box: [number, number, number, number] } | { provinces: { country: string; names: string[] } };
+
+/** Turns a cut's provinces into the area it keeps; the build supplies it (core has no data files). */
+export type CutResolver = (by: CutBy) => Polygons;
+
+/** How far the provinces of a cut reach into the sea, past the coast of the source. */
+export const CUT_SEA_KM = 30;
+
+/**
+ * The area a cut by provinces keeps: the named provinces grown into the sea, less the country's other
+ * provinces, so the line between the two parts is the provinces' own border and the coarser coast of
+ * the source leaves no strip behind. `provinces` are all of today's country's.
+ */
+export function cutByProvinces(provinces: { name: string; polygons: Polygons }[], names: string[]): Polygons {
+  const missing = names.filter((name) => !provinces.some((p) => p.name === name));
+  if (missing.length) throw new Error(`no province ${missing.join(", ")}`);
+  const wanted = provinces.filter((p) => names.includes(p.name));
+  const others = provinces.filter((p) => !names.includes(p.name));
+  const grown = growArea(mergeAreas(wanted.map((p) => p.polygons)), CUT_SEA_KM);
+  return others.length ? (difference(grown as never, mergeAreas(others.map((p) => p.polygons)) as never) as unknown as Polygons) : grown;
+}
 
 export type YearCorrection = {
   year: number;
@@ -159,6 +193,20 @@ export function readSnapshot(data: unknown): Draft[] {
 
 const describe = (year: number, op: CorrectionOp) => `${yearLabel(year)}: ${op.op} ${op.op === "merge" ? op.names.join(" + ") : op.name}`;
 
+/** A box as one polygon. */
+const boxPolygons = ([west, south, east, north]: [number, number, number, number]): Polygons => [[[[west, south], [east, south], [east, north], [west, north], [west, south]]]];
+
+/** Polygons from the clipper, rounded and cleaned; slivers of less than about a square kilometre go. */
+function clipped(polygons: unknown): Polygons {
+  return cleanRings(polygons as Polygons).filter((polygon) => Math.abs(shoelace(polygon[0])) > 1e-4);
+}
+
+function shoelace(ring: number[][]): number {
+  let twice = 0;
+  for (let i = 0, j = ring.length - 1; i < ring.length; j = i++) twice += ring[j][0] * ring[i][1] - ring[i][0] * ring[j][1];
+  return twice / 2;
+}
+
 function apply(props: ShapeProps, draft: Draft): Draft {
   return {
     name: props.name ?? draft.name,
@@ -176,7 +224,7 @@ const inBox = (polygon: number[][][], [west, south, east, north]: [number, numbe
  * A year's corrections applied in order. A correction that finds nothing to change throws: the source
  * moved on, and the correction must be looked at again rather than silently doing nothing.
  */
-export function applyCorrections(drafts: Draft[], year: number, ops: CorrectionOp[]): Draft[] {
+export function applyCorrections(drafts: Draft[], year: number, ops: CorrectionOp[], resolve?: CutResolver): Draft[] {
   let list = drafts.slice();
   for (const op of ops) {
     if (op.op === "set") {
@@ -197,6 +245,21 @@ export function applyCorrections(drafts: Draft[], year: number, ops: CorrectionO
       const first = list.indexOf(parts[0]);
       list = list.filter((draft) => !parts.includes(draft));
       list.splice(Math.min(first, list.length), 0, merged);
+    } else if (op.op === "cut") {
+      const index = list.findIndex((draft) => draft.name === op.name);
+      if (index < 0) throw new Error(`${describe(year, op)}: no shape of that name`);
+      const whole = list[index];
+      let cutter: Polygons;
+      if ("box" in op.by) cutter = boxPolygons(op.by.box);
+      else if (resolve) cutter = resolve(op.by);
+      else throw new Error(`${describe(year, op)}: provinces need the build's resolver`);
+      if (!cutter.length) throw new Error(`${describe(year, op)}: the cut has no area`);
+      const inside = clipped(intersection(whole.polygons as never, cutter as never));
+      const outside = clipped(difference(whole.polygons as never, cutter as never));
+      if (!inside.length || !outside.length) throw new Error(`${describe(year, op)}: the cut takes ${inside.length ? "every" : "no"} part of the shape`);
+      const part = apply(op.into, { ...whole, polygons: inside });
+      if (!op.into.ruler && op.into.name) part.ruler = op.into.name;
+      list.splice(index, 1, { ...whole, polygons: outside }, part);
     } else {
       const index = list.findIndex((draft) => draft.name === op.name);
       if (index < 0) throw new Error(`${describe(year, op)}: no shape of that name`);
@@ -267,7 +330,7 @@ export function readCorrections(data: unknown): Corrections {
     if (typeof entry.note !== "string" || !entry.note.trim()) throw new Error(`corrections: ${entry.year} has no note`);
     if (!Array.isArray(entry.ops) || !entry.ops.length) throw new Error(`corrections: ${entry.year} has no ops`);
     for (const op of entry.ops as { op?: unknown }[]) {
-      if (op?.op !== "merge" && op?.op !== "set" && op?.op !== "split") throw new Error(`corrections: ${entry.year} has an unknown op ${JSON.stringify(op?.op)}`);
+      if (op?.op !== "merge" && op?.op !== "set" && op?.op !== "split" && op?.op !== "cut") throw new Error(`corrections: ${entry.year} has an unknown op ${JSON.stringify(op?.op)}`);
     }
   }
   return file as Corrections;
@@ -278,7 +341,7 @@ export function readCorrections(data: unknown): Corrections {
  * derived years, each made from a source snapshot as it came (not from a corrected one), so a fix to
  * 1945 never leaks into the 1947 derived from it. Years come out oldest first.
  */
-export function buildHistory(snapshots: Map<number, unknown>, corrections: Corrections): { year: HistoryYear; info: Omit<HistoryYearInfo, "file"> }[] {
+export function buildHistory(snapshots: Map<number, unknown>, corrections: Corrections, resolve?: CutResolver): { year: HistoryYear; info: Omit<HistoryYearInfo, "file"> }[] {
   const byYear = new Map(corrections.years.map((entry) => [entry.year, entry]));
   const out: { year: HistoryYear; info: Omit<HistoryYearInfo, "file"> }[] = [];
   const years = new Set([...snapshots.keys(), ...corrections.years.map((entry) => entry.year)]);
@@ -291,7 +354,7 @@ export function buildHistory(snapshots: Map<number, unknown>, corrections: Corre
     let drafts = readSnapshot(source);
     const rulers = corrections.rulers ?? {};
     drafts = drafts.map((draft) => (rulers[draft.ruler] ? { ...draft, ruler: rulers[draft.ruler] } : draft));
-    if (correction) drafts = applyCorrections(drafts, year, correction.ops);
+    if (correction) drafts = applyCorrections(drafts, year, correction.ops, resolve);
     const built = buildYear(drafts, year);
     const info: Omit<HistoryYearInfo, "file"> = { year, label: built.label, features: built.features.length };
     if (correction?.from !== undefined) info.from = correction.from;

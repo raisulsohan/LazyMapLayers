@@ -36,10 +36,23 @@
       ]
     },
     {
+      "year": 1960,
+      "note": "Vietnam split at the 17th parallel (1954 to 1976), and the British Aden Protectorate apart from the Kingdom of Yemen; the source shows both whole. The Yemeni line follows today's provinces and is approximate.",
+      "ops": [
+        { "op": "cut", "name": "Vietnam", "by": { "box": [100, 0, 115, 17.0] }, "into": { "name": "South Vietnam", "precision": 2 }, "note": "The Geneva line of 1954: the Ben Hai river, about the 17th parallel." },
+        { "op": "set", "name": "Vietnam", "to": { "name": "North Vietnam" } },
+        { "op": "cut", "name": "Yemen", "by": { "provinces": { "country": "YEM", "names": ["Hadhramaut", "Al Mahrah", "Lahij", "'Adan", "Abyan", "Shabwah", "Ad Dali'"] } }, "into": { "name": "Aden Protectorate", "ruler": "United Kingdom", "precision": 1 }, "note": "Aden and its protectorate were British until 1967; they are today's southern and eastern governorates (Ad Dali' counted with them)." }
+      ]
+    },
+    {
       "year": 1971,
       "from": 1960,
-      "note": "Made by LazyMapLayers from 1960: Bangladesh, independent in 1971, and the colonies, names and annexations of 1971 that the 1960 source shows otherwise. Vietnam and Yemen stay as the source has them.",
+      "note": "Made by LazyMapLayers from 1960: Bangladesh, independent in 1971; North and South Vietnam; North and South Yemen; and the colonies, names and annexations of 1971 that the 1960 source shows otherwise. The Yemeni line follows today's provinces and is approximate.",
       "ops": [
+        { "op": "cut", "name": "Vietnam", "by": { "box": [100, 0, 115, 17.0] }, "into": { "name": "South Vietnam", "precision": 2 }, "note": "Divided at about the 17th parallel from 1954 to 1976." },
+        { "op": "set", "name": "Vietnam", "to": { "name": "North Vietnam" } },
+        { "op": "cut", "name": "Yemen", "by": { "provinces": { "country": "YEM", "names": ["Hadhramaut", "Al Mahrah", "Lahij", "'Adan", "Abyan", "Shabwah", "Ad Dali'"] } }, "into": { "name": "South Yemen", "precision": 1 }, "note": "Independent from Britain in 1967, united with the north in 1990." },
+        { "op": "set", "name": "Yemen", "to": { "name": "North Yemen" } },
         { "op": "split", "name": "Pakistan", "box": [85, 18, 95, 28], "into": { "name": "Bangladesh" }, "note": "Declared independent on 26 March 1971, won on 16 December 1971." },
         { "op": "set", "name": "Sri Lanka", "to": { "name": "Ceylon" }, "note": "Named Sri Lanka in 1972." },
         { "op": "set", "name": "Zimbabwe", "to": { "name": "Rhodesia" }, "note": "Rhodesia from 1965 to 1979." },

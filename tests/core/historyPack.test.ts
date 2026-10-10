@@ -5,6 +5,7 @@ import path from "node:path";
 import {
   applyCorrections,
   buildHistory,
+  cutByProvinces,
   buildYear,
   readCorrections,
   readSnapshot,
@@ -12,9 +13,11 @@ import {
   yearLabel,
   yearOfSourceFile,
   HISTORY_ID_PREFIX,
-  type Corrections
+  type Corrections,
+  type CutResolver
 } from "../../src/core/history/historyPack.ts";
 import { HISTORY_PACK } from "../../src/core/history/packInfo.ts";
+import { pointInPolygons } from "../../src/core/geo/pointInPolygon.ts";
 
 const root = path.resolve(import.meta.dirname, "..", "..");
 
@@ -130,6 +133,36 @@ test("split: the parts inside the box become a shape of their own, next to the r
   assert.equal(drafts[3].ruler, "Far Island");
 });
 
+test("cut: a shape cut in two along a line the source does not have", () => {
+  const drafts = applyCorrections(readSnapshot(snapshot()), 1971, [{ op: "cut", name: "West", by: { box: [-10, -10, 20, 4] }, into: { name: "South West", precision: 1 } }]);
+  assert.deepEqual(names(drafts), ["West", "South West", "East", "Islands", ""]);
+  const [north, south] = drafts;
+  const lats = (polygons: number[][][][]) => polygons.flatMap((polygon) => polygon[0].map((p) => p[1]));
+  assert.equal(Math.min(...lats(north.polygons)), 4);
+  assert.equal(Math.max(...lats(south.polygons)), 4);
+  assert.equal(south.precision, 1);
+  assert.equal(south.ruler, "South West", "a part that is named rules itself");
+  assert.equal(north.ruler, "Empire", "the rest keeps its ruler");
+  assert.throws(() => applyCorrections(readSnapshot(snapshot()), 1971, [{ op: "cut", name: "West", by: { box: [50, 50, 60, 60] }, into: { name: "X" } }]), /takes no part/);
+  assert.throws(() => applyCorrections(readSnapshot(snapshot()), 1971, [{ op: "cut", name: "West", by: { box: [-90, -90, 90, 90] }, into: { name: "X" } }]), /takes every part/);
+  assert.throws(() => applyCorrections(readSnapshot(snapshot()), 1971, [{ op: "cut", name: "West", by: { provinces: { country: "XXX", names: ["A"] } }, into: { name: "X" } }]), /resolver/);
+});
+
+test("a cut by provinces reaches into the sea but not into the other provinces", () => {
+  // Two provinces side by side: A west of lng 5, B east of it; the coast is their outer edge.
+  const provinces = [
+    { name: "A", polygons: [[[[0, 0], [5, 0], [5, 5], [0, 5], [0, 0]]]] },
+    { name: "B", polygons: [[[[5, 0], [10, 0], [10, 5], [5, 5], [5, 0]]]] }
+  ];
+  const kept = cutByProvinces(provinces, ["A"]);
+  const xs = kept.flatMap((polygon) => polygon[0].map((p) => p[0]));
+  const ys = kept.flatMap((polygon) => polygon[0].map((p) => p[1]));
+  assert.ok(Math.min(...xs) < -0.2 && Math.min(...ys) < -0.2, "out into the sea by about 30 km");
+  assert.ok(!pointInPolygons({ lat: 2.5, lng: 5.01 }, kept) && !pointInPolygons({ lat: 2.5, lng: 7 }, kept), "never into B");
+  assert.ok(Math.max(...xs) < 5.4, "past B only by its corner, within the reach");
+  assert.throws(() => cutByProvinces(provinces, ["C"]), /no province C/);
+});
+
 test("a correction that finds nothing stops the build", () => {
   const drafts = readSnapshot(snapshot());
   assert.throws(() => applyCorrections(drafts, 1945, [{ op: "set", name: "Nowhere", to: { ruler: "X" } }]), /1945: set Nowhere: no shape/);
@@ -198,7 +231,9 @@ test("South Asia in the real source, corrected", { skip: !fs.existsSync(path.joi
   const read = (year: number) => JSON.parse(fs.readFileSync(path.join(sourceDir, `world_${year}.geojson`), "utf8"));
   const corrections = readCorrections(JSON.parse(fs.readFileSync(path.join(root, "data", "history", "corrections.json"), "utf8")));
   const snapshots = new Map<number, unknown>(corrections.years.map((y) => [y.from ?? y.year, read(y.from ?? y.year)]));
-  const built = new Map(buildHistory(snapshots, corrections).map((b) => [b.year.year, b.year]));
+  // Cuts by provinces read the bundled provinces, as the build does.
+  const resolve: CutResolver = (by) => ("provinces" in by ? cutByProvinces((JSON.parse(fs.readFileSync(path.join(root, "data", "generated", "admin1", `${by.provinces.country}.json`), "utf8")) as { features: { name: string; polygons: number[][][][] }[] }).features, by.provinces.names) : []);
+  const built = new Map(buildHistory(snapshots, corrections, resolve).map((b) => [b.year.year, b.year]));
   const shape = (year: number, name: string) => built.get(year)!.features.filter((f) => f.name === name);
   const ruler = (year: number, name: string) => shape(year, name).map((f) => f.ruler).join();
 
@@ -228,4 +263,21 @@ test("South Asia in the real source, corrected", { skip: !fs.existsSync(path.joi
   assert.ok(shape(1971, "Pakistan")[0].polygons.every((p) => p[0].every(([lng]) => lng < 80)), "Pakistan of 1971 is only the west");
   assert.equal(ruler(1971, "Angola"), "Portugal");
   assert.equal(shape(1971, "Tibet").length, 0);
+
+  // Vietnam at the 17th parallel and Yemen north and south, in 1960 and 1971.
+  for (const year of [1960, 1971]) {
+    assert.equal(shape(year, "Vietnam").length, 0, `${year}: Vietnam whole`);
+    assert.equal(shape(year, "North Vietnam")[0].bounds[1], 17);
+    assert.equal(shape(year, "South Vietnam")[0].bounds[3], 17);
+    assert.equal(shape(year, "Yemen").length, year === 1960 ? 1 : 0);
+  }
+  assert.equal(ruler(1960, "Aden Protectorate"), "United Kingdom");
+  assert.equal(ruler(1971, "South Yemen"), "South Yemen");
+  const north = shape(1971, "North Yemen")[0];
+  const sanaa = { lat: 15.37, lng: 44.19 };
+  // Inland of Aden: the source draws its coast coarser than the port.
+  const aden = { lat: 13.06, lng: 44.88 };
+  const inside = (f: { polygons: number[][][][] }, p: { lat: number; lng: number }) => pointInPolygons(p, f.polygons);
+  assert.ok(inside(north, sanaa) && !inside(north, aden), "Sana'a in the north, Lahij not");
+  assert.ok(inside(shape(1971, "South Yemen")[0], aden), "Lahij, by Aden, in the south");
 });

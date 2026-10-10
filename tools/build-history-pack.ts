@@ -19,6 +19,8 @@ import { fileURLToPath } from "node:url";
 import { zipSync } from "fflate";
 import { buildHistory, readCorrections, yearFile, yearOfSourceFile, HISTORY_CREDIT, HISTORY_LICENSE, type HistoryManifest } from "../src/core/history/historyPack.ts";
 import { HISTORY_PACK } from "../src/core/history/packInfo.ts";
+import type { Polygons } from "../src/core/geo/combine.ts";
+import { cutByProvinces, type CutBy } from "../src/core/history/historyPack.ts";
 
 const root = path.resolve(path.dirname(fileURLToPath(import.meta.url)), "..");
 const arg = (name: string) => {
@@ -33,6 +35,15 @@ const sourceDir = path.join(cache, `source-${commit}`);
 const out = path.resolve(arg("out") ?? path.join(cache, "pack"));
 const raw = (file: string) => `https://raw.githubusercontent.com/${REPO}/${commit}/${file}`;
 const mb = (bytes: number) => `${(bytes / 1048576).toFixed(1)} MB`;
+
+/** A cut by provinces of today's country (Natural Earth, public domain, `npm run data:provinces`). */
+function resolveCut(by: CutBy): Polygons {
+  if ("box" in by) return [];
+  const file = path.join(root, "data", "generated", "admin1", `${by.provinces.country}.json`);
+  if (!fs.existsSync(file)) throw new Error(`${file} is missing: run npm run data:provinces`);
+  const provinces = (JSON.parse(fs.readFileSync(file, "utf8")) as { features: { name: string; polygons: Polygons }[] }).features;
+  return cutByProvinces(provinces, by.provinces.names);
+}
 
 async function download(file: string, into: string): Promise<void> {
   if (fs.existsSync(into)) return;
@@ -56,7 +67,7 @@ async function main() {
   const snapshots = new Map<number, unknown>();
   for (const file of files) snapshots.set(yearOfSourceFile(file)!, JSON.parse(fs.readFileSync(path.join(sourceDir, file), "utf8")));
   const corrections = readCorrections(JSON.parse(fs.readFileSync(path.join(root, "data", "history", "corrections.json"), "utf8")));
-  const years = buildHistory(snapshots, corrections);
+  const years = buildHistory(snapshots, corrections, resolveCut);
 
   const folder = path.join(out, "history");
   fs.rmSync(folder, { recursive: true, force: true });

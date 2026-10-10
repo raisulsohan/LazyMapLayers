@@ -887,6 +887,29 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D97 — Vietnam and Yemen divided in 1960 and 1971; the history-3 pack (2026-10-10)
+
+- **Why.** The source shows Vietnam and Yemen whole in every year, so 1960 and 1971 showed one
+  Vietnam in the middle of its war and one Yemen while Aden was British and then South Yemen. D92 left
+  them open; Sohan asked for them.
+- **A new op, `cut`.** A shape is cut in two along a line the source does not have: what lies inside
+  `by` becomes a shape of its own, the rest keeps the shape's name (polyclip-ts, as Cut out does,
+  D83). `by` is a box, or provinces of today's country. Provinces come from the bundled Natural Earth
+  data (public domain); the build grows the named provinces 30 km into the sea and takes the
+  country's other provinces away again, so the line between the parts is the provinces' own border
+  and the source's coarser coast leaves no strip behind (`cutByProvinces`).
+- **Vietnam** is cut at 17° N, the Geneva line of 1954 (the Ben Hai river runs within a few
+  kilometres of it): North Vietnam and South Vietnam in 1960 and 1971. South Vietnam's precision is 2.
+- **Yemen** is cut along today's governorates: Hadhramaut, Al Mahrah, Lahij, 'Adan, Abyan, Shabwah
+  and Ad Dali' were Aden and its protectorates (British, 1960) and South Yemen (1971); the rest is the
+  Kingdom of Yemen (1960) and North Yemen (1971). Ad Dali' was split between the two and is counted
+  with the south, so the line is approximate there, and the south's precision is 1 (approximate).
+- **The pack** becomes history-3 (D29); the history-2 release stays. Panels with an older pack offer
+  the update.
+- **Tested.** Unit tests for a cut by a box, its errors, and a cut by provinces that reaches into the
+  sea but never into the other provinces; in the real source, the 17th parallel as the two Vietnams'
+  shared edge in both years, Sana'a in the north and Lahij in the south, and the rulers.
+
 ## D96 — The past in Auto labels and the feature browser (2026-10-10)
 
 - **Auto labels.** With a year under Historical borders, that year's states and empires are the
