@@ -175,7 +175,7 @@ function ToolRow(): JSX.Element {
         onClick={() => void addCamera()}
       />
       <span class="spacer" />
-      <IconButton icon="palette" id="look" title="Look: the colours of the map (Midnight, Daylight, Atlas, Blueprint, Mono, Paper)" active={lookSheetOpen.value} onClick={() => (lookSheetOpen.value = !lookSheetOpen.value)} />
+      <IconButton icon="palette" id="look" title="Look: ready looks or your own colours, sky, shaded relief, imagery, terrain, historical borders, scale bar, north arrow and inset map" active={lookSheetOpen.value} onClick={() => (lookSheetOpen.value = !lookSheetOpen.value)} />
       <BasemapPicker />
       <IconButton icon="download" id="download-area" title="Download OpenStreetMap detail for the area in the preview (once, then it works offline)" disabled={busy.value} onClick={openRegionSheet} />
       <IconButton

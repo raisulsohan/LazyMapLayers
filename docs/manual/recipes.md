@@ -88,7 +88,8 @@ chapter, so you can look up what a control does.
 ## A journey from a GPS track
 
 1. **Import** the GPX ([16](16-import.md)).
-2. **Camera** on the track: shots along it in the Shots tab; **Apply to timeline**.
-3. **Draw + arrow** with **Recorded pace** on, over the same length.
-4. **Pin N places** for the waypoints.
-5. **Look > Terrain** with the world pack or a finer one, so the track sits on the hills.
+2. **Look > Terrain** with the world pack or a finer one, before the route and the pins, so they
+   sit on the hills ([25](25-terrain.md)).
+3. **Camera** on the track: shots along it in the Shots tab; **Apply to timeline**.
+4. **Draw + arrow** with **Recorded pace** on, over the same length.
+5. **Pin N places** for the waypoints.
