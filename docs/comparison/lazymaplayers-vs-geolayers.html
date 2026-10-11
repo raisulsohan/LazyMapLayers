@@ -1,0 +1,299 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8">
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover">
+<title>LazyMapLayers vs GEOlayers 3</title>
+<link rel="preconnect" href="https://fonts.googleapis.com">
+<link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+<link rel="stylesheet" href="https://fonts.googleapis.com/css2?family=Bricolage+Grotesque:opsz,wght@12..96,500;12..96,700&family=Source+Sans+3:wght@400;600&family=JetBrains+Mono:wght@400;500&display=swap">
+<style>
+/* Layout: a single reading column like a map legend sheet; sections are comparison grids that stack to cards on phones. */
+:root {
+  --bg: #f3f6f7;
+  --surface: #ffffff;
+  --fg: #14212b;
+  --muted: #586a76;
+  --line: #d3dce1;
+  --lml: #0b7fbf;
+  --lml-soft: #e1f1fa;
+  --gl: #9a5b12;
+  --gl-soft: #f6ecdf;
+  --yes: #2f8a54;
+  --part: #b07b12;
+  --no: #8a96a0;
+  --display: "Bricolage Grotesque", "Segoe UI", system-ui, sans-serif;
+  --body: "Source Sans 3", "Segoe UI", system-ui, sans-serif;
+  --mono: "JetBrains Mono", ui-monospace, Consolas, monospace;
+}
+@media (prefers-color-scheme: dark) {
+  :root:not([data-theme="light"]) {
+    --bg: #0f171d; --surface: #16212a; --fg: #dde6eb; --muted: #93a4af; --line: #2a3843;
+    --lml: #4fb8f2; --lml-soft: #12303f; --gl: #e0a35a; --gl-soft: #35281a;
+    --yes: #5cc285; --part: #e3b04d; --no: #6f7e89; color-scheme: dark;
+  }
+}
+:root[data-theme="dark"] {
+  --bg: #0f171d; --surface: #16212a; --fg: #dde6eb; --muted: #93a4af; --line: #2a3843;
+  --lml: #4fb8f2; --lml-soft: #12303f; --gl: #e0a35a; --gl-soft: #35281a;
+  --yes: #5cc285; --part: #e3b04d; --no: #6f7e89; color-scheme: dark;
+}
+* { box-sizing: border-box; }
+[hidden] { display: none !important; }
+body {
+  background: var(--bg); color: var(--fg);
+  font: 400 17px/1.55 var(--body);
+  margin: 0; padding-inline: 16px; padding-block: 0 64px;
+}
+.wrap { max-width: 1040px; margin: 0 auto; }
+a { color: var(--lml); }
+a:focus-visible, button:focus-visible { outline: 2px solid var(--lml); outline-offset: 2px; }
+
+header { padding-block: 48px 28px; display: grid; gap: 14px; }
+.coords { font: 500 12px/1 var(--mono); letter-spacing: .08em; color: var(--muted); text-transform: uppercase; }
+h1 { font: 700 clamp(34px, 6vw, 58px)/1.02 var(--display); margin: 0; text-wrap: balance; letter-spacing: -.01em; }
+h1 .lml { color: var(--lml); }
+h1 .vs { font-weight: 500; color: var(--muted); font-size: .55em; vertical-align: .25em; padding-inline: .2em; }
+h1 .gl { color: var(--gl); }
+.lede { max-width: 64ch; color: var(--muted); margin: 0; font-size: 18px; }
+.versions { display: flex; flex-wrap: wrap; gap: 8px 18px; font: 400 13px/1.4 var(--mono); color: var(--muted); }
+.versions b { font-weight: 500; color: var(--fg); }
+
+/* scale bar divider, the map's own furniture */
+.scalebar { display: flex; align-items: flex-end; gap: 10px; margin-block: 8px 0; font: 400 11px/1 var(--mono); color: var(--muted); }
+.scalebar .bar { display: grid; grid-template-columns: repeat(4, 34px); height: 7px; border: 1px solid var(--fg); }
+.scalebar .bar span:nth-child(odd) { background: var(--fg); }
+
+.summary { display: grid; grid-template-columns: repeat(auto-fit, minmax(280px, 1fr)); gap: 16px; margin-block: 24px 8px; }
+.pick { background: var(--surface); border: 1px solid var(--line); border-radius: 8px; padding: 20px 22px; min-width: 0; }
+.pick h2 { font: 700 20px/1.2 var(--display); margin: 0 0 4px; }
+.pick.lml h2 { color: var(--lml); }
+.pick.gl h2 { color: var(--gl); }
+.pick .count { font: 400 13px/1.4 var(--mono); color: var(--muted); margin: 0 0 10px; }
+.pick ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+
+.toolbar {
+  position: sticky; top: env(safe-area-inset-top, 0px); z-index: 2;
+  background: var(--bg); padding-block: 14px; margin-top: 28px;
+  display: flex; flex-wrap: wrap; gap: 8px 16px; align-items: center;
+  border-bottom: 1px solid var(--line);
+}
+.toolbar .label { font: 500 11px/1 var(--mono); letter-spacing: .1em; text-transform: uppercase; color: var(--muted); }
+.chips { display: flex; flex-wrap: wrap; gap: 6px; }
+.chips button {
+  font: 600 14px/1 var(--body); color: var(--fg); background: var(--surface);
+  border: 1px solid var(--line); border-radius: 999px; padding: 8px 13px; cursor: pointer;
+}
+.chips button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
+.legend { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; font-size: 14px; color: var(--muted); }
+.legend span { display: inline-flex; align-items: center; gap: 6px; }
+
+section { margin-top: 40px; }
+section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: balance; }
+.grid { border: 1px solid var(--line); border-radius: 8px; overflow: hidden; background: var(--surface); }
+.row { display: grid; grid-template-columns: minmax(150px, 1fr) 2fr 2fr; border-top: 1px solid var(--line); }
+.row:first-child { border-top: 0; }
+.row.head { background: var(--bg); font: 500 12px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; color: var(--muted); }
+.row.head > div { padding: 12px 16px; }
+.row.head .h-gl { color: var(--gl); }
+.row.head .h-lml { color: var(--lml); }
+.row > div { padding: 14px 16px; min-width: 0; }
+.feat { font-weight: 600; }
+.cell { display: grid; grid-template-columns: 18px 1fr; gap: 8px; align-items: start; }
+.cell .who { display: none; }
+.row[data-lead="gl"] .c-gl { background: var(--gl-soft); }
+.row[data-lead="lml"] .c-lml { background: var(--lml-soft); }
+.dot { width: 14px; height: 14px; margin-top: 5px; border-radius: 50%; border: 2px solid currentColor; }
+.dot.y { color: var(--yes); background: var(--yes); }
+.dot.p { color: var(--part); background: linear-gradient(90deg, var(--part) 50%, transparent 50%); }
+.dot.n { color: var(--no); background: transparent; }
+.empty { padding: 16px; color: var(--muted); }
+
+.notes { margin-top: 48px; display: grid; gap: 14px; max-width: 70ch; color: var(--muted); font-size: 15px; }
+.notes h2 { font: 700 20px/1.2 var(--display); color: var(--fg); margin: 0; }
+.notes ul { margin: 0; padding-left: 1.1em; display: grid; gap: 4px; }
+
+@media (max-width: 680px) {
+  .row, .row.head { grid-template-columns: 1fr; }
+  .row.head { display: none; }
+  .row > div { padding: 10px 14px; }
+  .row .feat { padding-bottom: 2px; }
+  .cell .who { display: block; grid-column: 2; font: 500 11px/1 var(--mono); letter-spacing: .08em; text-transform: uppercase; margin-bottom: 2px; }
+  .c-gl .who { color: var(--gl); }
+  .c-lml .who { color: var(--lml); }
+  .cell .dot { grid-row: 1 / span 2; }
+  .legend { margin-left: 0; }
+}
+@media (prefers-reduced-motion: no-preference) {
+  .row { transition: background-color .15s; }
+}
+</style>
+</head>
+<body>
+
+<div class="wrap">
+  <header>
+    <div class="coords">23.81° N · 90.41° E · zoom 0 → 16</div>
+    <h1><span class="lml">LazyMapLayers</span><span class="vs">vs</span><span class="gl">GEOlayers&nbsp;3</span></h1>
+    <p class="lede">Two map panels for After Effects, compared row by row: what each costs, how the picture is made, what it can draw, and where each one is still ahead.</p>
+    <div class="versions">
+      <span><b>LazyMapLayers 1.1.2</b> · 10 Oct 2026</span>
+      <span><b>GEOlayers 3</b> · as documented up to v1.19</span>
+      <span>Compared 11 Oct 2026</span>
+    </div>
+    <div class="scalebar" aria-hidden="true"><div class="bar"><span></span><span></span><span></span><span></span></div><span>0 · 500 km</span></div>
+  </header>
+
+  <div class="summary">
+    <div class="pick lml">
+      <h2>Pick LazyMapLayers when</h2>
+      <p class="count" id="count-lml"></p>
+      <ul>
+        <li>the budget is zero and nothing may expire</li>
+        <li>you work without internet</li>
+        <li>you need a globe, one smooth flight to street level, and crisp frames at every zoom</li>
+        <li>you want 3D terrain and compositing passes without extra plugins</li>
+        <li>you tell data stories (flows, prisms) or history (borders by year)</li>
+      </ul>
+    </div>
+    <div class="pick gl">
+      <h2>Pick GEOlayers 3 when</h2>
+      <p class="count" id="count-gl"></p>
+      <ul>
+        <li>you work on a Mac, or on After Effects older than 2024</li>
+        <li>you need routes that follow real roads</li>
+        <li>you want street-level detail anywhere, straight away, online</li>
+        <li>you want Esri or Bing imagery built in</li>
+        <li>you want paid support and a long track record</li>
+      </ul>
+    </div>
+  </div>
+
+  <div class="toolbar" role="group" aria-label="Filter rows">
+    <span class="label">Show</span>
+    <div class="chips">
+      <button type="button" id="f-all" data-filter="all" aria-pressed="true">All rows</button>
+      <button type="button" id="f-lml" data-filter="lml" aria-pressed="false">LazyMapLayers ahead</button>
+      <button type="button" id="f-gl" data-filter="gl" aria-pressed="false">GEOlayers ahead</button>
+      <button type="button" id="f-tie" data-filter="tie" aria-pressed="false">Both have it</button>
+    </div>
+    <div class="legend" aria-label="Legend">
+      <span><i class="dot y"></i>Yes</span>
+      <span><i class="dot p"></i>Partly</span>
+      <span><i class="dot n"></i>No</span>
+    </div>
+  </div>
+
+  <main id="sections"></main>
+
+  <div class="notes">
+    <h2>How this was put together</h2>
+    <p>Written by the author of LazyMapLayers, so read it with that in mind. The GEOlayers 3 rows come from the aescripts product page, MapTiler's guide, the aescripts forum and the help that ships with GEOlayers 3 up to v1.19. Later versions may have changed things, and today's price is on the aescripts page. If a row is wrong, please open an issue on the <a href="https://github.com/raisulsohan/LazyMapLayers/issues">LazyMapLayers GitHub</a> and it will be corrected.</p>
+    <ul>
+      <li><a href="https://aescripts.com/geolayers/">aescripts: GEOlayers 3</a></li>
+      <li><a href="https://docs.maptiler.com/guides/maps-apis/maps-platform/maptiler-cloud-maps-for-adobe-after-effects-via-geolayers-3-plugin">MapTiler: maps for After Effects via GEOlayers 3</a></li>
+      <li><a href="https://aescripts.com/forums/discussion/2017/geolayers-mapdata">aescripts forum: GEOlayers map data</a></li>
+      <li><a href="https://www.toolfarm.com/?p=13904">ToolFarm: GEOlayers 3</a></li>
+      <li><a href="https://github.com/raisulsohan/LazyMapLayers">LazyMapLayers on GitHub</a> and <a href="https://raisulsohan.com/en/portfolio/lazymaplayers/documentation/manual/">its manual</a></li>
+    </ul>
+    <p>GEOlayers is a product of Markus Bergelt, sold through aescripts + aeplugins. LazyMapLayers is an independent project, not affiliated with either.</p>
+  </div>
+</div>
+
+<script>
+// y = yes, p = partly, n = no. lead: which tool is ahead on this row.
+const SECTIONS = [
+  { id: "cost", title: "Cost, licence and data", rows: [
+    ["Price", "p", "Paid, one-time licence from aescripts.", "y", "Free and open source (MIT).", "lml"],
+    ["Map data", "p", "Styled maps come from MapTiler Cloud: six months included, then a MapTiler subscription.", "y", "Open data only: OpenStreetMap, Natural Earth, Mapterhorn elevation, NASA, geoBoundaries. No subscription.", "lml"],
+    ["After the data period", "p", "Styled maps, 3D buildings, multilingual auto labels and the water mask need the subscription; basic imagery such as Bing and CartoDB stays.", "y", "Nothing expires.", "lml"],
+    ["Account and key", "p", "aescripts licence activation; a trial is available.", "y", "No account, no key, no trial.", "lml"],
+    ["Without internet", "p", "Natural Earth search works offline; map imagery is fetched online.", "y", "The 1.9 GB download carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts.", "lml"],
+    ["Disk space", "y", "Small install; tiles are cached as you work.", "p", "About 2.5 GB with the offline data.", "gl"],
+  ]},
+  { id: "picture", title: "Picture and camera", rows: [
+    ["Basemap", "p", "Raster tiles placed as layers; zoom levels cross-fade over a short blend.", "y", "Every frame is rendered at its exact camera: no tile steps, no zoom cross-fades, no shrinking labels.", "lml"],
+    ["Fly-to", "p", "Zoom out, pan, zoom in, in visible phases.", "y", "One continuous zoom-and-pan curve (van Wijk–Nuij) from globe to street.", "lml"],
+    ["Globe", "n", "Flat Web Mercator only.", "y", "A turning globe with atmosphere that becomes the flat map by zoom 8.", "lml"],
+    ["Camera pitch", "p", "Up to 60°.", "y", "Up to 85°.", "lml"],
+    ["3D terrain", "p", "Through third-party plugins: Helium, FreeForm Pro, Plexus or Mir.", "y", "Built in: open elevation, real mountains, sky above the horizon, a keyable Terrain Height slider.", "lml"],
+    ["3D buildings", "y", "Extruded shape layers (Cinema 4D or ray-traced renderer).", "y", "Drawn by the renderer, also as a pass of their own.", "tie"],
+    ["Compositing", "p", "A water mask comp.", "y", "Land, water, roads, boundaries and buildings as separate passes, plus land and water mattes.", "lml"],
+    ["Your layers on the map", "y", "Pin layers to a place; an anchor layer lets overlays follow the map.", "y", "Attach your artwork to a place; a matched AE camera keeps 3D layers on the ground.", "tie"],
+    ["Renaming comps", "p", "Rename map comps from the panel; a Repair button fixes broken expressions.", "y", "Links use layer controls, so a rename breaks nothing.", "lml"],
+  ]},
+  { id: "labels", title: "Labels", rows: [
+    ["Auto labels", "y", "One click, with collision checks and fades.", "y", "Placed over the whole timeline with collision checks, a minimum time on screen and no flicker.", "tie"],
+    ["Label languages", "y", "Many languages through MapTiler's multilingual data.", "y", "Local script with an English subtitle, offline; search in 26 languages.", "tie"],
+    ["Label templates", "y", "Any comp becomes a template with {property} fields.", "y", "Any comp becomes a template with {property} fields, plus a flag per country and keep-out zones.", "tie"],
+    ["Names along a curve", "n", "Not available.", "y", "Street and river names bend along their line.", "lml"],
+  ]},
+  { id: "data", title: "Data and drawing", rows: [
+    ["File import", "y", "GeoJSON, KML/KMZ, GPX, TCX, CSV, shapefile.", "y", "GeoJSON, KML/KMZ, GPX, CSV, shapefile.", "tie"],
+    ["OpenStreetMap features", "y", "Overpass search over the current view.", "y", "Overpass search over the preview area, free.", "tie"],
+    ["Feature browser", "y", "Filter, merge, subtract, mesh, points in polygons.", "y", "Filter in words, merge, cut, break apart, count points, connection lines.", "tie"],
+    ["Numbers on the map", "y", "Data-driven shape styles; heatmap, choropleth and circle styles.", "y", "Colours, bubbles, spikes, heat, flows as arcs, prism maps in 3D, legend and bar chart.", "lml"],
+    ["Data over time", "y", "Array values animate over the comp.", "y", "Years animate, with a line or area chart that follows.", "tie"],
+    ["Live CSV and scripting", "y", "ExtendScript API with CSV watch.", "y", "Scripting API with CSV watch.", "tie"],
+    ["Arrows", "y", "A dedicated arrow rig: taper, dashes, head size.", "p", "Routes with an arrowhead and a traveller layer.", "gl"],
+    ["Routes on roads", "y", "Driving routes from a routing service.", "n", "Great-circle, straight, imported or Pen-drawn routes; no road routing.", "gl"],
+    ["Imagery sources", "y", "Esri, Bing, CartoDB, any XYZ or WMS server, local tile folders.", "p", "Any XYZ or PMTiles address; ten open government services listed.", "gl"],
+    ["Free satellite picture", "p", "Bing aerial; MapTiler satellite with the subscription.", "y", "Sentinel-2 at 10 m a pixel, built cloud-free, no account.", "lml"],
+    ["Historical borders", "n", "Not available.", "y", "56 moments from 123,000 BC to 2010, with a keyable History Year slider.", "lml"],
+    ["Google Earth Studio camera", "n", "Not available.", "y", "Imported frame by frame from Earth Studio's JSON.", "lml"],
+    ["Inset, scale bar, north arrow", "y", "Included as scripts.", "y", "Built-in tools; the inset is a real second map.", "tie"],
+    ["Linked maps", "y", "One map comp can follow another.", "y", "One map can take another's camera.", "tie"],
+  ]},
+  { id: "platform", title: "Platform and support", rows: [
+    ["After Effects versions", "y", "Back to CC 2015 (see the compatibility tab on aescripts).", "p", "2024 or newer.", "gl"],
+    ["macOS", "y", "Windows and macOS.", "p", "Experimental: not yet run on a Mac.", "gl"],
+    ["Street detail anywhere", "y", "Any city at street level, online, with the subscription.", "p", "Past zoom 9, download the area first (free).", "gl"],
+    ["Support", "y", "aescripts support tickets and years of tutorials.", "p", "GitHub issues and a 40-chapter manual; one developer.", "gl"],
+  ]},
+];
+
+const esc = s => s.replace(/[&<>]/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;" }[c]));
+const label = { y: "Yes", p: "Partly", n: "No" };
+const cell = (cls, who, s, t) =>
+  `<div class="cell ${cls}"><i class="dot ${s}" role="img" aria-label="${label[s]}"></i><span class="who">${who}</span><span>${esc(t)}</span></div>`;
+
+document.getElementById("sections").innerHTML = SECTIONS.map(sec => `
+  <section id="${sec.id}">
+    <h2>${sec.title}</h2>
+    <div class="grid">
+      <div class="row head"><div>Feature</div><div class="h-gl">GEOlayers 3</div><div class="h-lml">LazyMapLayers</div></div>
+      ${sec.rows.map(([f, gs, gt, ls, lt, lead]) => `
+        <div class="row" data-lead="${lead}">
+          <div class="feat">${esc(f)}</div>
+          ${cell("c-gl", "GEOlayers 3", gs, gt)}
+          ${cell("c-lml", "LazyMapLayers", ls, lt)}
+        </div>`).join("")}
+      <div class="empty" hidden>No rows in this section for this filter.</div>
+    </div>
+  </section>`).join("");
+
+const all = SECTIONS.flatMap(s => s.rows);
+const n = k => all.filter(r => r[5] === k).length;
+document.getElementById("count-lml").textContent = `Ahead on ${n("lml")} of ${all.length} rows`;
+document.getElementById("count-gl").textContent = `Ahead on ${n("gl")} of ${all.length} rows · ${n("tie")} rows even`;
+
+function applyFilter(f) {
+  document.querySelectorAll(".chips button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.filter === f)));
+  document.querySelectorAll("section").forEach(sec => {
+    let shown = 0;
+    sec.querySelectorAll(".row[data-lead]").forEach(r => {
+      const on = f === "all" || r.dataset.lead === f;
+      r.hidden = !on;
+      if (on) shown++;
+    });
+    sec.querySelector(".empty").hidden = shown > 0;
+  });
+  try { localStorage.setItem("lml-vs-gl-filter", f); } catch (e) {}
+}
+document.querySelectorAll(".chips button").forEach(b => b.addEventListener("click", () => applyFilter(b.dataset.filter)));
+let saved = "all";
+try { saved = localStorage.getItem("lml-vs-gl-filter") || "all"; } catch (e) {}
+applyFilter(["all", "lml", "gl", "tie"].includes(saved) ? saved : "all");
+</script>
+</body>
+</html>

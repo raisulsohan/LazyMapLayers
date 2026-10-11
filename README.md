@@ -65,6 +65,9 @@ Paid map plugins for After Effects work, but they are expensive, depend on paid 
 still show their seams: blurry zoom steps, labels that pop, moves that stop halfway. LazyMapLayers is
 built to be free **and** to give better final frames.
 
+For a row-by-row comparison with GEOlayers 3, including where it is still ahead, see
+[docs/COMPARISON.md](docs/COMPARISON.md).
+
 | | LazyMapLayers |
 |---|---|
 | Basemap | Every frame is rendered at its exact camera, so there are no tile steps, zoom cross-fades or shrinking labels. |
