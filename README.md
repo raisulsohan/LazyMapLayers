@@ -1,3 +1,5 @@
+<p align="center"><img src="docs/brand/lazymaplayers-icon.svg" width="112" alt="LazyMapLayers logo: a map pin holding an After Effects keyframe, over a motion path" /></p>
+
 # 🗺️ LazyMapLayers — Free Map Animation for After Effects
 
 <p align="center">

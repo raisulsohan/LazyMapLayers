@@ -1,6 +1,6 @@
 // Builds the extension into dist/:
 //   dist/CSXS/manifest.xml
-//   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css}
+//   dist/panel/{index.html, panel.css, panel.js, maplibre-worker.js, encode-worker.js, maplibre-gl.css, icons/}
 //   dist/host/lazymaplayers.jsx   (src/host/*.jsx concatenated in name order)
 //   dist/data/{natural-earth.pmtiles, borders.geojson, labels.json, country-codes.json, admin1-index.json,
 //              admin1/*.json, countries/*.json}
@@ -60,6 +60,8 @@ async function main() {
   copy(path.join(root, "LICENSE"), path.join(dist, "LICENSE"));
   copy(path.join(root, "panel", "index.html"), path.join(dist, "panel", "index.html"));
   copy(path.join(root, "panel", "panel.css"), path.join(dist, "panel", "panel.css"));
+  // the panel's icon (CSXS/manifest.xml), rendered from docs/brand by tools/brand/render-icons.mjs
+  for (const name of ["icon.png", "icon@2x.png"]) copy(path.join(root, "panel", "icons", name), path.join(dist, "panel", "icons", name));
   copy(path.join(root, "node_modules", "maplibre-gl", "dist", "maplibre-gl.css"), path.join(dist, "panel", "maplibre-gl.css"));
 
   await esbuild.build({

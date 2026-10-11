@@ -3,7 +3,6 @@
 <defs>
 	<linearGradient id="bg" x1="0" y1="0" x2="1920" y2="1080" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#0f1a24"/><stop offset="1" stop-color="#090d14"/></linearGradient>
 	<radialGradient id="glow" cx="960" cy="200" r="700" gradientUnits="userSpaceOnUse"><stop offset="0" stop-color="#10b981" stop-opacity=".22"/><stop offset="1" stop-color="#10b981" stop-opacity="0"/></radialGradient>
-	<linearGradient id="tile" x1="0" y1="0" x2="1" y2="1"><stop offset="0" stop-color="#10b981"/><stop offset="1" stop-color="#0ea5e9"/></linearGradient>
 	<clipPath id="view"><rect width="860" height="560"/></clipPath>
 	<pattern id="grid" width="72" height="72" patternUnits="userSpaceOnUse"><path d="M72 0H0V72" stroke="#ffffff" stroke-opacity=".05" stroke-width="2"/></pattern>
 </defs>
@@ -45,11 +44,11 @@
 <rect width="1920" height="1080" fill="url(#glow)"/>
 
 <!-- mark and name -->
-<g transform="translate(560 104)">
-	<rect width="104" height="104" rx="27" fill="url(#tile)"/>
-	<path d="M30 30 L52 22 L74 30 V80 L52 72 L30 80 Z" fill="#fff" fill-opacity=".25" stroke="#fff" stroke-width="4" stroke-linejoin="round"/>
-	<path d="M52 22 V72" stroke="#fff" stroke-width="4"/>
-	<path d="M62 46 C56 39 56 33 62 29 C68 33 68 39 62 46 Z" fill="#fff"/>
+<g transform="translate(560 104) scale(0.6933)">
+	<rect x="1.5" y="1.5" width="147" height="147" rx="34" fill="#0f1a24" stroke="#2a3b4c" stroke-width="3"/>
+	<path d="M30 132 Q75 110 120 132" fill="none" stroke="#34d399" stroke-width="4" stroke-dasharray="2 8" stroke-linecap="round"/>
+	<path d="M75 118 C60 98 48 86 48 64 A27 27 0 1 1 102 64 C102 86 90 98 75 118 Z" fill="#0ea5e9"/>
+	<path d="M75 49 L90 64 L75 79 L60 64 Z" fill="#ffc740" stroke="#0f1a24" stroke-width="3" stroke-linejoin="round"/>
 </g>
 <text x="690" y="186" font-size="92" font-weight="800" letter-spacing="-2"><tspan fill="#fff">LazyMap</tspan><tspan fill="#34d399">Layers</tspan></text>
 

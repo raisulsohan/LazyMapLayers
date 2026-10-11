@@ -58,6 +58,12 @@
                             <Width>3000</Width>
                         </MaxSize>
                     </Geometry>
+                    <Icons>
+                        <Icon Type="Normal">./panel/icons/icon.png</Icon>
+                        <Icon Type="RollOver">./panel/icons/icon.png</Icon>
+                        <Icon Type="DarkNormal">./panel/icons/icon.png</Icon>
+                        <Icon Type="DarkRollOver">./panel/icons/icon.png</Icon>
+                    </Icons>
                 </UI>
             </DispatchInfo>
         </Extension>

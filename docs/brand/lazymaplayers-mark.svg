@@ -1,0 +1,7 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="100" height="106" viewBox="25 32 100 106" role="img" aria-label="LazyMapLayers">
+	<title>LazyMapLayers mark</title>
+	<!-- the mark without its tile, for any background -->
+	<path d="M30 132 Q75 110 120 132" fill="none" stroke="#10b981" stroke-width="4" stroke-dasharray="2 8" stroke-linecap="round"/>
+	<path d="M75 118 C60 98 48 86 48 64 A27 27 0 1 1 102 64 C102 86 90 98 75 118 Z" fill="#0ea5e9"/>
+	<path d="M75 49 L90 64 L75 79 L60 64 Z" fill="#ffc740" stroke="#0f1a24" stroke-width="3" stroke-linejoin="round"/>
+</svg>

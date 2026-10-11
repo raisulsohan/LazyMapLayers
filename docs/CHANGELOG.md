@@ -1,5 +1,11 @@
 # Changelog
 
+## Unreleased
+
+- **A new logo.** A map pin holding an After Effects keyframe, over the motion path the map
+  travels: a map that animates, in one mark. The panel shows it as its icon, and the README and its
+  top picture carry it. The masters, the sizes and how to use them are in `docs/brand/`.
+
 ## 1.1.2 — empires never share a colour (2026-10-10)
 
 - **Empires never share a colour.** In the historical borders the largest powers of a year now always

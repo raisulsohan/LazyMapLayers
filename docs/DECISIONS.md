@@ -887,6 +887,21 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D99 — The Keyframe pin logo, and an icon for the panel (2026-10-11)
+
+- **Why.** The old mark (a white folded map with a pin on an emerald-to-sky tile) said "a map app"
+  like many others, never "animation in After Effects", and its thin white lines blurred at the
+  16 px an extension menu shows.
+- **Decision.** The mark is a map pin (#0ea5e9) holding an After Effects keyframe diamond (#ffc740)
+  over a dotted motion path (#34d399) on a navy tile (#0f1a24, edge #2a3b4c). Chosen by Sohan from six
+  drawn options. At 32 px and below a second master drops the path and draws the pin larger, so pin and
+  keyframe still read at 16 px.
+- **Files.** `docs/brand/` holds the SVG masters (icon, small icon, bare mark, lockups for dark and
+  light backgrounds) and the PNG sizes; `tools/brand/render-icons.mjs` renders the PNGs and the
+  panel's icon (`panel/icons/`, 23 and 46 px) in headless Edge, with no new package.
+- **The panel's icon.** The manifest names it for all four states, as LazyTyper does; `tools/build.mjs`
+  copies it into `dist/panel/icons/`, so the signed extension carries it.
+
 ## D98 — The largest powers always apart, and steady over the years (2026-10-10)
 
 - **Why.** D93 kept neighbours apart only, so two empires that do not touch could share a colour:
