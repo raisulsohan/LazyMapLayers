@@ -10,6 +10,15 @@
   <img src="https://img.shields.io/badge/Developed%20By-RaisulSohan-00E676?style=for-the-badge&logo=github" alt="Developer" />
 </p>
 
+<p align="center"><strong>🎬 New to LazyMapLayers? Start with the video tutorials:</strong> <a href="https://youtu.be/FkpwM74xt-s">the complete tutorial</a> shows every tool, and <a href="https://www.youtube.com/playlist?list=PLdM39o5SFdHk">the tutorial playlist</a> has the lessons one by one.</p>
+
+<p align="center">
+  <a href="https://youtu.be/FkpwM74xt-s"><img src="https://img.shields.io/badge/%E2%96%B6%20Watch-Complete%20tutorial-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="Watch the complete LazyMapLayers tutorial on YouTube" /></a>
+  <a href="https://www.youtube.com/playlist?list=PLdM39o5SFdHk"><img src="https://img.shields.io/badge/%E2%96%B6%20YouTube-Tutorial%20playlist-FF0000?style=for-the-badge&logo=youtube&logoColor=white" alt="The LazyMapLayers tutorial playlist on YouTube" /></a>
+</p>
+
+<p align="center"><a href="https://youtu.be/FkpwM74xt-s"><img src="https://img.youtube.com/vi/FkpwM74xt-s/maxresdefault.jpg" width="560" alt="LazyMapLayers Complete Tutorial: Every Tool for Free Map Animation in After Effects, on YouTube" /></a></p>
+
 <p align="center"><a href="https://raisulsohan.com/en/portfolio/lazymaplayers/"><img src="docs/demo/lazymaplayers-in-ae.svg" width="100%" alt="LazyMapLayers at work in After Effects with no internet: the steps checked off in the panel, a route drawn from Dhaka to Chattogram with its arrow, names placed in Bengali with English below, and the render turning the preview into the finished map" /></a></p>
 
 <p align="center"><strong>See a whole job:</strong> <a href="https://raisulsohan.com/en/portfolio/lazymaplayers/">the 32-second demo</a> makes one map shot in After Effects with no internet, from <em>New map</em> to the final render, and plays it. The player page is also in <a href="docs/demo/lazymaplayers-in-ae.html">docs/demo</a>: download it and open it in a browser.</p>
