@@ -1,5 +1,5 @@
 ============================================================
-  LAZYMAPLAYERS 1.2.0
+  LAZYMAPLAYERS 1.3.0
   Free map animation for After Effects: globe to street level,
   3D terrain, your own looks, labels, routes, highlights,
   data maps, rendered frame-exact
@@ -145,11 +145,12 @@ MAKING YOUR OWN MAP
                    layer. "Make a new area" merges the highlights
                    into one shape, grows or shrinks them by a
                    distance, or drops a distance circle.
-  Import           GPX, KML, KMZ, GeoJSON, CSV or a zipped
-                   shapefile: draw lines as routes (with an arrow
-                   that rides along, at the recorded pace of a
-                   GPS track if you like), pin places, highlight
-                   areas, or fly the camera along a line.
+  Import           GPX, TCX, KML, KMZ, GeoJSON, CSV or a
+                   zipped shapefile: draw lines as routes (with
+                   an arrow that rides along, at the recorded
+                   pace of a GPS track if you like), pin places,
+                   highlight areas, or fly the camera along a
+                   line.
   Attach           select your own layers in After Effects, then
                    click a place: they stay on it while the
                    camera moves. "Unlink" puts them back.

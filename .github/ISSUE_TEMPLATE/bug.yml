@@ -14,7 +14,7 @@ body:
     attributes:
       label: Versions
       description: After Effects and LazyMapLayers (Maps > About shows both)
-      placeholder: After Effects 26.5 · LazyMapLayers 1.2.0
+      placeholder: After Effects 26.5 · LazyMapLayers 1.3.0
     validations:
       required: true
   - type: input

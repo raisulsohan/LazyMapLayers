@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 
 - **TCX files.** The import button reads TCX files from Garmin and other watches and bike computers.
   The laps of an activity come in as one track, with its times, so **Recorded pace** works on it as

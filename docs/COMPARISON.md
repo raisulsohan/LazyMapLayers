@@ -3,7 +3,7 @@
 Two map panels for After Effects, compared row by row: what each costs, how the picture is made,
 what it can draw, and where each one is still ahead.
 
-**LazyMapLayers 1.2** (12 Oct 2026; TCX import, Connect from a hub and Borders come in the next version) · **GEOlayers 3** as documented up to v1.19 · compared 12 Oct 2026.
+**LazyMapLayers 1.3** (12 Oct 2026) · **GEOlayers 3** as documented up to v1.19 · compared 12 Oct 2026.
 A page version with filters and a features-only view is in [comparison/lazymaplayers-vs-geolayers.html](comparison/lazymaplayers-vs-geolayers.html)
 (download it and open it in a browser).
 

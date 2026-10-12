@@ -5,7 +5,7 @@
  * other panels share this ExtendScript engine.
  */
 var LML = (typeof LML !== "undefined" && LML) ? LML : {};
-LML.version = "1.2.0";
+LML.version = "1.3.0";
 LML.api = LML.api || {};
 LML.util = LML.util || {};
 

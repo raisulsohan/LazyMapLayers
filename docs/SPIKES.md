@@ -15,6 +15,15 @@ Protomaps build (37.8 MB, 57 requests) and the satellite pack from the imagery-1
 described under S6. D1 without regions now flies to Paris from above, as the panel's sample button does,
 instead of into empty streets.
 
+Release 1.3.0, 2026-10-12, on the minified build with the full offline pack in the user data folder
+(RELEASING step 3), the offline and light packs of 1.2.0 used again (no map data changed): R1 (first
+render 353 ms a frame, while another program ran its own tests on the same PC), G2, E1 (40/40 and 20/20
+in 3D), X1 (worst 1.2e-10), D1 and D1L (900 frames, 317 expressions in the Legacy engine, none broken,
+every compared frame within 0.09/255 of D1's), FB1 (with the hub, the borders of India's states and a
+TCX import) and SL1 all pass. Then the signed full zip installed as a user installs it (through
+Explorer, outside any development setup): Full over the signed 1.2.0, the offline data kept as it was;
+After Effects started on its own opened the signed panel, whose host answered 1.3.0.
+
 Release 1.2.0, 2026-10-12, on the minified build with the full offline pack in the user data folder
 (RELEASING step 3): R1 (first render 252 ms a frame), G2, E1 (40/40 and 20/20 in 3D, over a Paris region
 downloaded again from build 20261012, 37.8 MB), X1 (worst 1.2e-10), D1 and D1L (900 frames, 313
