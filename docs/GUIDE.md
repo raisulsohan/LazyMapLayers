@@ -127,7 +127,7 @@ geoBoundaries; the size is shown first). In the sheet:
   **Grow** or **Shrink** them by a distance in kilometres, or drop a distance circle around the
   preview's centre (**Circle here**). Each is a new area you can highlight, add as a shape, or save.
 
-**Import**: GPX, KML, KMZ, GeoJSON, CSV, or a zipped shapefile. For each line: **Fit** (frame it),
+**Import**: GPX, TCX, KML, KMZ, GeoJSON, CSV, or a zipped shapefile (a TCX activity's laps come in as one track). For each line: **Fit** (frame it),
 **Draw** or **Draw + arrow** (a route that draws on, with an arrow riding it; **Comet**, **Dashed**,
 **Arrow rig** and, for a GPS track with times, **Recorded pace** are switches above) or **Camera** (shots along
 it). Places become pins; areas can be
@@ -258,7 +258,11 @@ Tick what you want, then:
 - **Count points** counts the imported points inside each one, as a property called `inside` you
   can sort or filter on.
 - **Connect** draws a line between them all, or only between the **nearest** neighbours you ask
-  for, all drawing on from the current time.
+  for, all drawing on from the current time. With **From the first** the lines run from the first
+  ticked feature to each of the others: flights out of a hub.
+- **Borders** draws the borders the ticked areas share, as one shape layer of lines that follow the
+  map: a country's provinces give the lines between them without the coast. Areas share a border
+  when they come from the same list (countries, a country's provinces, its districts).
 
 ## Numbers on the map
 

@@ -86,6 +86,7 @@ h1 .gl { color: var(--gl); }
 }
 .chips button[aria-pressed="true"] { background: var(--fg); color: var(--bg); border-color: var(--fg); }
 .legend { display: flex; flex-wrap: wrap; gap: 12px; margin-left: auto; font-size: 14px; color: var(--muted); }
+.view-note { margin: 14px 0 0; color: var(--muted); font-size: 15px; max-width: 70ch; }
 .legend span { display: inline-flex; align-items: center; gap: 6px; }
 
 section { margin-top: 40px; }
@@ -134,10 +135,10 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
 <div class="wrap">
   <header>
     <div class="coords">23.81° N · 90.41° E · zoom 0 → 16</div>
-    <h1><span class="lml">LazyMapLayers</span><span class="vs">vs</span><span class="gl">GEOlayers&nbsp;3</span></h1>
+    <h1><span class="lml">LazyMapLayers</span><wbr><span class="vs">vs</span><wbr><span class="gl">GEOlayers&nbsp;3</span></h1>
     <p class="lede">Two map panels for After Effects, compared row by row: what each costs, how the picture is made, what it can draw, and where each one is still ahead.</p>
     <div class="versions">
-      <span><b>LazyMapLayers 1.2</b> · 12 Oct 2026</span>
+      <span><b>LazyMapLayers 1.2</b> · 12 Oct 2026 · TCX, hub lines and Borders in the next version</span>
       <span><b>GEOlayers 3</b> · as documented up to v1.19</span>
       <span>Compared 12 Oct 2026</span>
     </div>
@@ -149,7 +150,7 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
       <h2>Pick LazyMapLayers when</h2>
       <p class="count" id="count-lml"></p>
       <ul>
-        <li>the budget is zero and nothing may expire</li>
+        <li data-kind="other">the budget is zero and nothing may expire</li>
         <li>you work without internet, or want street detail anywhere with no subscription</li>
         <li>you need a globe, one smooth flight to street level, and crisp frames at every zoom</li>
         <li>you want 3D terrain and compositing passes without extra plugins</li>
@@ -160,16 +161,21 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
       <h2>Pick GEOlayers 3 when</h2>
       <p class="count" id="count-gl"></p>
       <ul>
-        <li>you work on a Mac, or on After Effects older than 2024</li>
+        <li data-kind="other">you work on a Mac, or on After Effects older than 2024</li>
         <li>you want Esri or Bing imagery built in</li>
-        <li>you want paid support and a long track record</li>
+        <li data-kind="other">you want paid support and a long track record</li>
       </ul>
     </div>
   </div>
 
   <div class="toolbar" role="group" aria-label="Filter rows">
+    <span class="label">View</span>
+    <div class="chips" id="views">
+      <button type="button" id="v-all" data-view="all" aria-pressed="true">Everything</button>
+      <button type="button" id="v-features" data-view="features" aria-pressed="false">Features only</button>
+    </div>
     <span class="label">Show</span>
-    <div class="chips">
+    <div class="chips" id="filters">
       <button type="button" id="f-all" data-filter="all" aria-pressed="true">All rows</button>
       <button type="button" id="f-lml" data-filter="lml" aria-pressed="false">LazyMapLayers ahead</button>
       <button type="button" id="f-gl" data-filter="gl" aria-pressed="false">GEOlayers ahead</button>
@@ -181,6 +187,8 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
       <span><i class="dot n"></i>No</span>
     </div>
   </div>
+
+  <p class="view-note" id="view-note" hidden>Features only: what each panel can make and do. Price, licence, map data terms, disk space, the After Effects versions, macOS and support are left out; <a href="#all" data-view-link="all">Everything</a> shows them.</p>
 
   <main id="sections"></main>
 
@@ -201,15 +209,14 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
 <script>
 // y = yes, p = partly, n = no. lead: which tool is ahead on this row.
 const SECTIONS = [
-  { id: "cost", title: "Cost, licence and data", rows: [
+  { id: "cost", title: "Cost and licence", kind: "other", rows: [
     ["Price", "p", "Paid, one-time licence from aescripts.", "y", "Free and open source (MIT).", "lml"],
     ["Map data", "p", "Styled maps come from MapTiler Cloud: six months included, then a MapTiler subscription.", "y", "Open data only: OpenStreetMap, Natural Earth, Mapterhorn elevation, NASA, geoBoundaries. No subscription.", "lml"],
     ["After the data period", "p", "Styled maps, 3D buildings, multilingual auto labels and the water mask need the subscription; basic imagery such as Bing and CartoDB stays.", "y", "Nothing expires.", "lml"],
     ["Account and key", "p", "aescripts licence activation; a trial is available.", "y", "No account, no key, no trial.", "lml"],
-    ["Without internet", "p", "Natural Earth search works offline; map imagery is fetched online.", "y", "The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work.", "lml"],
     ["Disk space", "y", "Small install; tiles are cached as you work.", "y", "Online about 50 MB, detail kept as maps need it; Light about 175 MB; Full about 2.1 GB to work offline.", "tie"],
   ]},
-  { id: "picture", title: "Picture and camera", rows: [
+  { id: "picture", title: "Picture and camera", kind: "feature", rows: [
     ["Basemap", "p", "Raster tiles placed as layers; zoom levels cross-fade over a short blend.", "y", "Every frame is rendered at its exact camera: no tile steps, no zoom cross-fades, no shrinking labels.", "lml"],
     ["Fly-to", "p", "Zoom out, pan, zoom in, in visible phases.", "y", "One continuous zoom-and-pan curve (van Wijk–Nuij) from globe to street.", "lml"],
     ["Globe", "n", "Flat Web Mercator only.", "y", "A turning globe with atmosphere that becomes the flat map by zoom 8.", "lml"],
@@ -220,16 +227,16 @@ const SECTIONS = [
     ["Your layers on the map", "y", "Pin layers to a place; an anchor layer lets overlays follow the map.", "y", "Attach your artwork to a place; a matched AE camera keeps 3D layers on the ground.", "tie"],
     ["Renaming comps", "p", "Rename map comps from the panel; a Repair button fixes broken expressions.", "y", "Links use layer controls, so a rename breaks nothing.", "lml"],
   ]},
-  { id: "labels", title: "Labels", rows: [
+  { id: "labels", title: "Labels", kind: "feature", rows: [
     ["Auto labels", "y", "One click, with collision checks and fades.", "y", "Placed over the whole timeline with collision checks, a minimum time on screen and no flicker.", "tie"],
     ["Label languages", "y", "Many languages through MapTiler's multilingual data.", "y", "Local script with an English subtitle, offline; search in 26 languages.", "tie"],
     ["Label templates", "y", "Any comp becomes a template with {property} fields.", "y", "Any comp becomes a template with {property} fields, plus a flag per country and keep-out zones.", "tie"],
     ["Names along a curve", "n", "Not available.", "y", "Street and river names bend along their line.", "lml"],
   ]},
-  { id: "data", title: "Data and drawing", rows: [
-    ["File import", "y", "GeoJSON, KML/KMZ, GPX, TCX, CSV, shapefile.", "y", "GeoJSON, KML/KMZ, GPX, CSV, shapefile.", "tie"],
+  { id: "data", title: "Data and drawing", kind: "feature", rows: [
+    ["File import", "y", "GeoJSON, KML/KMZ, GPX, TCX, CSV, shapefile.", "y", "GeoJSON, KML/KMZ, GPX, TCX (an activity's laps as one track), CSV, shapefile.", "tie"],
     ["OpenStreetMap features", "y", "Overpass search over the current view.", "y", "Overpass search over the preview area, free.", "tie"],
-    ["Feature browser", "y", "Filter, merge, subtract, mesh, points in polygons.", "y", "Filter in words, merge, cut, break apart, count points, connection lines.", "tie"],
+    ["Feature browser", "y", "Filter, merge, subtract, mesh, points in polygons.", "y", "Filter in words, merge, cut out (subtract), break apart, count points, connection lines (every pair, nearest or from a hub), the borders between areas as lines.", "tie"],
     ["Numbers on the map", "y", "Data-driven shape styles; heatmap, choropleth and circle styles.", "y", "Colours, bubbles, spikes, heat, flows as arcs, prism maps in 3D, legend and bar chart.", "lml"],
     ["Data over time", "y", "Array values animate over the comp.", "y", "Years animate, with a line or area chart that follows.", "tie"],
     ["Live CSV and scripting", "y", "ExtendScript API with CSV watch.", "y", "Scripting API with CSV watch.", "tie"],
@@ -242,10 +249,13 @@ const SECTIONS = [
     ["Inset, scale bar, north arrow", "y", "Included as scripts.", "y", "Built-in tools; the inset is a real second map.", "tie"],
     ["Linked maps", "y", "One map comp can follow another.", "y", "One map can take another's camera.", "tie"],
   ]},
-  { id: "platform", title: "Platform and support", rows: [
+  { id: "anywhere", title: "Maps anywhere", kind: "feature", rows: [
+    ["Without internet", "p", "Natural Earth search works offline; map imagery is fetched online.", "y", "The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work.", "lml"],
+    ["Street detail anywhere", "y", "Any city at street level, online, with the subscription.", "y", "Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use.", "tie"],
+  ]},
+  { id: "platform", title: "Platform and support", kind: "other", rows: [
     ["After Effects versions", "y", "Back to CC 2015 (see the compatibility tab on aescripts).", "p", "2024 or newer.", "gl"],
     ["macOS", "y", "Windows and macOS.", "p", "Experimental: not yet run in After Effects on a Mac; CI builds, tests and runs the installer on macOS.", "gl"],
-    ["Street detail anywhere", "y", "Any city at street level, online, with the subscription.", "y", "Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use.", "tie"],
     ["Support", "y", "aescripts support tickets and years of tutorials.", "p", "GitHub issues and Discussions, a FAQ, a Self-test that fills in the report, a 40-chapter manual and video tutorials; one developer.", "gl"],
   ]},
 ];
@@ -256,7 +266,7 @@ const cell = (cls, who, s, t) =>
   `<div class="cell ${cls}"><i class="dot ${s}" role="img" aria-label="${label[s]}"></i><span class="who">${who}</span><span>${esc(t)}</span></div>`;
 
 document.getElementById("sections").innerHTML = SECTIONS.map(sec => `
-  <section id="${sec.id}">
+  <section id="${sec.id}" data-kind="${sec.kind}">
     <h2>${sec.title}</h2>
     <div class="grid">
       <div class="row head"><div>Feature</div><div class="h-gl">GEOlayers 3</div><div class="h-lml">LazyMapLayers</div></div>
@@ -270,28 +280,56 @@ document.getElementById("sections").innerHTML = SECTIONS.map(sec => `
     </div>
   </section>`).join("");
 
-const all = SECTIONS.flatMap(s => s.rows);
-const n = k => all.filter(r => r[5] === k).length;
-document.getElementById("count-lml").textContent = `Ahead on ${n("lml")} of ${all.length} rows`;
-document.getElementById("count-gl").textContent = `Ahead on ${n("gl")} of ${all.length} rows · ${n("tie")} rows even`;
+// The view (everything, or the features only) and the filter (who is ahead) together decide what shows.
+let view = "all";
+let filter = "all";
 
-function applyFilter(f) {
-  document.querySelectorAll(".chips button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.filter === f)));
+function showCounts() {
+  const rows = SECTIONS.filter(s => view === "all" || s.kind === "feature").flatMap(s => s.rows);
+  const n = k => rows.filter(r => r[5] === k).length;
+  const unit = view === "features" ? "features" : "rows";
+  document.getElementById("count-lml").textContent = `Ahead on ${n("lml")} of ${rows.length} ${unit}`;
+  document.getElementById("count-gl").textContent = `Ahead on ${n("gl")} of ${rows.length} ${unit} · ${n("tie")} even`;
+}
+
+function apply() {
+  document.querySelectorAll("#views button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.view === view)));
+  document.querySelectorAll("#filters button").forEach(b => b.setAttribute("aria-pressed", String(b.dataset.filter === filter)));
+  document.querySelectorAll('.summary li[data-kind="other"]').forEach(li => { li.hidden = view === "features"; });
+  document.getElementById("view-note").hidden = view !== "features";
   document.querySelectorAll("section").forEach(sec => {
+    const inView = view === "all" || sec.dataset.kind === "feature";
+    sec.hidden = !inView;
     let shown = 0;
     sec.querySelectorAll(".row[data-lead]").forEach(r => {
-      const on = f === "all" || r.dataset.lead === f;
+      const on = filter === "all" || r.dataset.lead === filter;
       r.hidden = !on;
       if (on) shown++;
     });
     sec.querySelector(".empty").hidden = shown > 0;
   });
-  try { localStorage.setItem("lml-vs-gl-filter", f); } catch (e) {}
+  showCounts();
+  try { localStorage.setItem("lml-vs-gl-filter", filter); localStorage.setItem("lml-vs-gl-view", view); } catch (e) {}
 }
-document.querySelectorAll(".chips button").forEach(b => b.addEventListener("click", () => applyFilter(b.dataset.filter)));
-let saved = "all";
-try { saved = localStorage.getItem("lml-vs-gl-filter") || "all"; } catch (e) {}
-applyFilter(["all", "lml", "gl", "tie"].includes(saved) ? saved : "all");
+
+function setView(v, fromHash) {
+  view = v === "features" ? "features" : "all";
+  // The address names the view, so a link can open the features only.
+  if (!fromHash) history.replaceState(null, "", view === "features" ? "#features" : location.pathname + location.search);
+  apply();
+}
+
+document.querySelectorAll("#views button").forEach(b => b.addEventListener("click", () => setView(b.dataset.view)));
+document.querySelectorAll("[data-view-link]").forEach(a => a.addEventListener("click", e => { e.preventDefault(); setView(a.dataset.viewLink); }));
+document.querySelectorAll("#filters button").forEach(b => b.addEventListener("click", () => { filter = b.dataset.filter; apply(); }));
+window.addEventListener("hashchange", () => setView(location.hash === "#features" ? "features" : "all", true));
+
+let savedFilter = "all";
+let savedView = "all";
+try { savedFilter = localStorage.getItem("lml-vs-gl-filter") || "all"; savedView = localStorage.getItem("lml-vs-gl-view") || "all"; } catch (e) {}
+filter = ["all", "lml", "gl", "tie"].includes(savedFilter) ? savedFilter : "all";
+view = location.hash === "#features" ? "features" : location.hash === "#all" ? "all" : savedView === "features" ? "features" : "all";
+apply();
 </script>
 </body>
 </html>

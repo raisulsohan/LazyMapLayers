@@ -53,7 +53,8 @@ Tick features (or **Tick all** for everything the list shows), then:
 | **Break apart** | exactly 1 | Splits one outline into its separate parts, largest first: a mainland away from its islands |
 | **Cut out** | 2 or more | Takes the other ticked shapes out of the **first**: a shape inside becomes a hole, a shape across its edge is clipped off, and the first may fall into pieces |
 | **Count points** | 1 or more | Counts the imported points inside each, as a property called `inside` you can sort and filter on |
-| **Connect** | 2 or more | A line between the ticked features, all drawing on together from the current time. With **nearest** set to a number, each joins only that many nearest neighbours; 0 joins every pair |
+| **Connect** | 2 or more | A line between the ticked features, all drawing on together from the current time. With **nearest** set to a number, each joins only that many nearest neighbours; 0 joins every pair. With **From the first** ticked, the lines run from the first ticked feature in the list to each of the others, and **nearest** is not used |
+| **Borders** | 2 or more | The borders the ticked areas share, as one shape layer of open lines that follow the map, without the outer edge. It draws on when **Shape layers draw on** is ticked in the Highlight sheet ([chapter 14](14-highlights.md)). Areas share a border when they come from the same list: countries, one country's provinces, its districts |
 
 ![The 14 countries over 100 million people, highlighted](media/15-highlighted.png)
 
@@ -87,6 +88,10 @@ changed.
 - **Which districts hold the most shops**: import a CSV of shop locations, list the districts, tick
   all, **Count points**, sort by `inside`, **Largest first**.
 - **A network map**: tick the cities' countries, **Connect** with 2 nearest.
+- **Flights out of a hub**: tick the hub's country first in the list (sort so it comes first), then
+  the others, tick **From the first**, **Connect**.
+- **The states of a country as lines**: Provinces, pick the country, **Tick all**, **Borders**; put a
+  highlight of the whole country under it for the fill.
 
 ## Related
 

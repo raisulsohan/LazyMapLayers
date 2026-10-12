@@ -1,8 +1,9 @@
 // A map feature as an editable After Effects shape layer: the outline is thinned to the expression
 // budget, every ring becomes a closed path that follows the camera, and fill, stroke and an optional
-// draw-on are ordinary shape layer properties.
+// draw-on are ordinary shape layer properties. The borders between areas come as open paths in one
+// layer the same way.
 
-import { shapeLevelExpressions, shapePathExpressions, shapeRings, SHAPE_FINE_POINTS, SHAPE_MAX_POINTS, SHAPE_MAX_RINGS } from "../../core/ae/shapeExpressions.ts";
+import { shapeLevelExpressions, shapeLineExpressions, shapeLines, shapePathExpressions, shapeRings, SHAPE_FINE_POINTS, SHAPE_MAX_POINTS, SHAPE_MAX_RINGS } from "../../core/ae/shapeExpressions.ts";
 import { simplifyFeature } from "../../core/geo/sharedBorders.ts";
 import { hexToRgb } from "../../core/style/themes.ts";
 import type { TerrainSetting } from "../../core/style/terrain.ts";
@@ -83,4 +84,61 @@ export async function addFeatureShape(mapId: string, feature: ShapeFeature, styl
     ]
   });
   return { ...made, points: rings.reduce((n, ring) => n + ring.length, 0), rings: rings.length };
+}
+
+/** Lifts every point onto the ground of 3D terrain, when the map has an elevation pack. */
+async function onGround(sets: number[][][], terrain: TerrainSetting | null | undefined): Promise<number[][][]> {
+  const sampler = samplerFor(terrain);
+  if (!sampler) return sets;
+  try {
+    const elevations = await sampler.elevations(sets.flat().map((p) => ({ lat: p[0], lng: p[1] })));
+    let at = 0;
+    return sets.map((line) => line.map((p) => [p[0], p[1], p[2], elevations[at++]]));
+  } finally {
+    sampler.close();
+  }
+}
+
+export type BorderLines = {
+  /** Layer name, without the "Borders: " prefix. */
+  name: string;
+  /** The lines as [line][point][lng, lat], as core's bordersBetween gives them. */
+  lines: number[][][];
+};
+
+/**
+ * The borders between areas as one editable shape layer: an open path per line, a stroke and no
+ * fill, drawing on together when asked. The longest lines are kept when there are more than a layer
+ * can carry.
+ */
+export async function addBorderShape(mapId: string, borders: BorderLines, style: ShapeStyle): Promise<{ layers: string[]; expressionErrors: string[]; paths: number; dropped: number }> {
+  const info = await callHost<Info>("renderInfo", { mapId });
+  const scale = info.height / 1080;
+  const kept = shapeLines(borders.lines);
+  if (!kept.lines.length) throw new Error(`"${borders.name}" has no border lines`);
+  const lines = await onGround(kept.lines, style.terrain);
+  const made = await callHostWithJobFile<{ layers: string[]; expressionErrors: string[] }>("addOverlays", {
+    mapId,
+    undoName: "Add border lines",
+    items: [
+      {
+        type: "shape",
+        kind: "borders",
+        name: `Borders: ${borders.name}`,
+        partName: "Line",
+        paths: shapeLineExpressions(lines),
+        fill: null,
+        stroke: { color: hexToRgb(style.color), width: Math.max(0.5, style.outline) * scale, dash: 0 },
+        trimKeys:
+          style.drawFrames && style.drawFrames > 0
+            ? [
+                [style.startFrame ?? 0, 0],
+                [(style.startFrame ?? 0) + style.drawFrames, 100]
+              ]
+            : null,
+        data: null
+      }
+    ]
+  });
+  return { ...made, paths: lines.length, dropped: kept.dropped };
 }

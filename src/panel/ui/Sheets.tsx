@@ -49,7 +49,7 @@ import { addDataBubbles, addDataChart, addDataCopies, addDataHeat, addDataLegend
 import { addCircleArea, combineKm, findOsm, growHighlights, mergeHighlights, osmKindId, osmMessage, osmSheetOpen, osmText } from "../store.ts";
 import { featureCountry, featureFilterText, featurePicks, featureScope, featureSheetOpen, featureSort, featureText, featureView, goToFeature, highlightPickedFeatures, mergePickedFeatures, pickEveryFeature, shapePickedFeatures, toggleFeaturePick } from "../store.ts";
 import { buildSatelliteArea, changeSatelliteSheet, satelliteSheet } from "../store.ts";
-import { connectPickedFeatures, countPointsInPicked, cutPickedFeatures, explodePickedFeatures, meshNeighbours } from "../store.ts";
+import { bordersOfPicked, connectPickedFeatures, countPointsInPicked, cutPickedFeatures, explodePickedFeatures, meshFromFirst, meshNeighbours } from "../store.ts";
 import { pickTableToWatch, stopWatchingTable, watchedTable } from "../store.ts";
 import type { FeatureScope } from "../features.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
@@ -1342,9 +1342,16 @@ export function FeatureSheetView(): JSX.Element | null {
           Connect
         </button>
         <label class="num-field" title="Each place joins only this many of its nearest neighbours; 0 joins every pair">
-          <input type="number" min={0} max={8} step={1} data-id="mesh-neighbours" value={meshNeighbours.value} disabled={busy.value} onChange={(e) => (meshNeighbours.value = Math.max(0, Math.min(8, Number((e.target as HTMLInputElement).value) || 0)))} />
+          <input type="number" min={0} max={8} step={1} data-id="mesh-neighbours" value={meshNeighbours.value} disabled={busy.value || meshFromFirst.value} onChange={(e) => (meshNeighbours.value = Math.max(0, Math.min(8, Number((e.target as HTMLInputElement).value) || 0)))} />
           <span class="muted">nearest</span>
         </label>
+        <label class="check" title="Connect runs a line from the first ticked feature in the list to each of the others, and nothing else: flights out of a hub">
+          <input type="checkbox" data-id="mesh-from-first" checked={meshFromFirst.value} disabled={busy.value} onChange={(e) => (meshFromFirst.value = (e.target as HTMLInputElement).checked)} />
+          <span>From the first</span>
+        </label>
+        <button class="small-button" data-id="feature-borders" disabled={busy.value || picks.length < 2} title="The borders the ticked areas share, as one shape layer of lines that follow the map: the lines between a country's provinces, without its coast" onClick={() => void bordersOfPicked()}>
+          Borders
+        </button>
       </div>
       <div class="sheet-row">
         <button class="small-button" data-id="feature-pick-all" disabled={!view.rows.length} title="Ticks everything in the list, or unticks it" onClick={() => pickEveryFeature()}>

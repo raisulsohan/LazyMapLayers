@@ -1,27 +1,29 @@
 // Reads a file the user picked and turns it into lines, places and areas:
 //   GPX, KML       through @tmcw/togeojson (it needs a DOM document, which the panel has)
+//   TCX            the same, with its laps joined into one track (core's joinLaps)
 //   KMZ            a zip with a KML inside (fflate)
 //   CSV, TSV, TXT  a table of places or track points (papaparse, then core's importTable)
 //   ZIP, SHP       a zipped shapefile, or a lone .shp (shpjs; a .prj inside the zip is honoured)
 //   GeoJSON, JSON  as they are
 
-import { gpx, kml } from "@tmcw/togeojson";
+import { gpx, kml, tcx } from "@tmcw/togeojson";
 import { unzipSync } from "fflate";
 import Papa from "papaparse";
 import { combine, parseDbf, parseShp } from "shpjs";
-import { importGeoJson, type Imported } from "../../core/data/importLines.ts";
+import { importGeoJson, joinLaps, type Imported } from "../../core/data/importLines.ts";
 import { readDataTable, type DataTable } from "../../core/data/dataTable.ts";
 import { importTable, MAX_TABLE_ROWS } from "../../core/data/importTable.ts";
 
-export const IMPORT_ACCEPT = ".gpx,.kml,.kmz,.geojson,.json,.csv,.tsv,.txt,.zip,.shp";
+export const IMPORT_ACCEPT = ".gpx,.tcx,.kml,.kmz,.geojson,.json,.csv,.tsv,.txt,.zip,.shp";
 /** Larger files are refused: they would stall the panel while parsing. */
 export const MAX_IMPORT_BYTES = 60 * 1048576;
 
 const extensionOf = (name: string) => (name.split(".").pop() ?? "").toLowerCase();
 
-function xmlToGeoJson(text: string, kind: "gpx" | "kml", fileName: string): unknown {
+function xmlToGeoJson(text: string, kind: "gpx" | "tcx" | "kml", fileName: string): unknown {
   const document = new DOMParser().parseFromString(text, "text/xml");
   if (document.getElementsByTagName("parsererror").length) throw new Error(`${fileName} is not valid XML`);
+  if (kind === "tcx") return joinLaps(tcx(document));
   return kind === "gpx" ? gpx(document) : kml(document);
 }
 
@@ -84,7 +86,7 @@ export async function importFile(file: File): Promise<ImportedFile> {
     let data: unknown;
     if (extension === "kmz" || extension === "zip") data = zipToGeoJson(new Uint8Array(await file.arrayBuffer()), file.name);
     else if (extension === "shp") data = combine([parseShp(await file.arrayBuffer(), undefined), undefined]);
-    else if (extension === "gpx" || extension === "kml") data = xmlToGeoJson(await file.text(), extension, file.name);
+    else if (extension === "gpx" || extension === "tcx" || extension === "kml") data = xmlToGeoJson(await file.text(), extension, file.name);
     else {
       try {
         data = JSON.parse(await file.text());

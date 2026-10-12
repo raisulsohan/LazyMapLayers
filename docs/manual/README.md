@@ -38,8 +38,8 @@ The short version of all this is the [guide](../GUIDE.md). This manual is the lo
 12. [Routes](12-routes.md): Arrow, Comet, Dashed
 13. [Attaching your own layers](13-attach.md)
 14. [Highlights](14-highlights.md): countries, provinces, districts, shape layers, merge, grow, shrink, circles
-15. [The feature browser](15-feature-browser.md): search, filter, sort, break apart, cut out, edit, count, connect
-16. [Importing files](16-import.md): GPX, KML, KMZ, GeoJSON, CSV, shapefile
+15. [The feature browser](15-feature-browser.md): search, filter, sort, break apart, cut out, edit, count, connect, borders
+16. [Importing files](16-import.md): GPX, TCX, KML, KMZ, GeoJSON, CSV, shapefile
 17. [Your own drawing with the Pen tool](17-your-own-drawing.md)
 18. [Finding things on OpenStreetMap](18-openstreetmap.md)
 19. [Saving the map as GeoJSON](19-save-geojson.md)

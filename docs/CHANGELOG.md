@@ -1,5 +1,19 @@
 # Changelog
 
+## Unreleased
+
+- **TCX files.** The import button reads TCX files from Garmin and other watches and bike computers.
+  The laps of an activity come in as one track, with its times, so **Recorded pace** works on it as
+  on a GPX track; the laps' distance and time are properties of the line.
+- **Connect from the first.** In the feature browser, **From the first** makes **Connect** run a
+  line from the first ticked feature to each of the others and nothing else: flights out of a hub,
+  offices around a head office. The lines draw on outwards from the hub.
+- **Borders.** A new button in the feature browser draws the borders the ticked areas share as one
+  shape layer of lines that follow the map: tick a country's provinces and get the lines between
+  them without the coast, or tick a region of countries for the borders inside it. The lines draw
+  on together when **Shape layers draw on** is ticked, and the layer is restyled like any shape
+  layer (D105).
+
 ## 1.2.0 — street detail anywhere, routes on roads (2026-10-12)
 
 - **Street detail anywhere, without pressing Download.** Fly into any city on the World basemap and

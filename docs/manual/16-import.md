@@ -11,6 +11,7 @@ that draw on, places as pins, areas as highlights, and lines as a camera path.
 | File | What comes in |
 |---|---|
 | **GPX** (`.gpx`) | Tracks and routes as lines (with their times), waypoints as places |
+| **TCX** (`.tcx`) | An activity from a watch or a bike computer: its laps as one line, with its times |
 | **KML**, **KMZ** (`.kml`, `.kmz`) | From Google Earth or My Maps: paths as lines, polygons as areas, placemarks as places |
 | **GeoJSON** (`.geojson`, `.json`) | LineStrings as lines, Polygons as areas, Points as places, with their properties |
 | **Shapefile** (a `.zip` with the `.shp`, `.dbf` and `.prj`, or a `.shp`) | Lines, areas and points with their attributes |

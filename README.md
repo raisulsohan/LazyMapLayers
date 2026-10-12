@@ -217,7 +217,8 @@ Dhaka to Chittagong with an arrow, say:
 - **A feature browser.** Every country, province, district or imported shape in one list: search
   it, sort it by any property, filter it in words (`population > 200000000`), then highlight what
   is left, add it as shape layers, merge it, break it apart, cut one shape out of another, count
-  the points inside each, or join them all with connection lines.
+  the points inside each, join them all with connection lines (or from one hub), or draw the
+  borders they share as lines.
 - **An inset map that is a real map.** A locator in the corner, as many zooms wider as you ask,
   with a box on it that moves and turns with the big map on every frame. The inset takes its own
   look, its own names and its own render, because it is another map in the same scene.
@@ -265,7 +266,7 @@ Dhaka to Chittagong with an arrow, say:
   comp as an editable After Effects shape layer: real paths that follow the map, with a fill, a
   stroke and an optional draw-on.
 - **Search.** Countries, provinces, districts and cities in 26 languages, or coordinates, offline.
-- **Import.** GPX, KML, KMZ, GeoJSON, CSV and shapefiles: routes that draw on (at the recorded pace
+- **Import.** GPX, TCX, KML, KMZ, GeoJSON, CSV and shapefiles: routes that draw on (at the recorded pace
   of a GPS track if you like), a traveller that rides the line, pins for places, areas to highlight,
   and camera moves along a line.
 - **Auto labels in batches.** Names arrive a few at a time with progress and cancel; three densities.

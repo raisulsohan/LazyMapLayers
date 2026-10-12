@@ -1,4 +1,4 @@
-// Turns imported GeoJSON (also what GPX and KML files become) into the two things the panel works
+// Turns imported GeoJSON (also what GPX, TCX and KML files become) into the two things the panel works
 // with: lines (routes, tracks, borders of areas) and places (points with a name).
 
 import type { LngLat } from "../geo/mercator.ts";
@@ -111,6 +111,48 @@ export function trackTimes(rawTimes: unknown, rawCount: number, first: number[],
   }
   if (!(leaves[leaves.length - 1] > 0)) return undefined;
   return leaves.some((s, i) => s > times[i]) ? { times, leaves } : { times };
+}
+
+/**
+ * A TCX file (from a watch or a bike computer) as one track. togeojson gives one feature per lap, so a
+ * run with a lap every kilometre would come in as ten short routes; here the laps are joined in the
+ * order they were recorded, into one line with one time per point when every lap carries its times.
+ * The laps' distance and time are added up as properties, and a course's name is kept. A file with
+ * one lap, or with no lines, comes back as it is.
+ */
+export function joinLaps(collection: unknown): unknown {
+  const c = collection as { type?: string; features?: { geometry?: { type?: string; coordinates?: unknown }; properties?: Record<string, unknown> | null }[] };
+  if (!c || c.type !== "FeatureCollection" || !Array.isArray(c.features)) return collection;
+  const laps = c.features.filter((f) => f?.geometry?.type === "LineString" || f?.geometry?.type === "MultiLineString");
+  if (laps.length < 2) return collection;
+  const coordinates: unknown[] = [];
+  const times: unknown[] = [];
+  let timed = true;
+  let distanceMeters = 0;
+  let totalTimeSeconds = 0;
+  let name: string | undefined;
+  for (const lap of laps) {
+    const multi = lap.geometry!.type === "MultiLineString";
+    const parts = (multi ? lap.geometry!.coordinates : [lap.geometry!.coordinates]) as unknown[];
+    const properties = lap.properties ?? {};
+    parts.forEach((part, i) => {
+      const points = Array.isArray(part) ? part : [];
+      const partTimes = timesOf(properties, multi ? i : 0);
+      if (Array.isArray(partTimes) && partTimes.length === points.length) times.push(...partTimes);
+      else timed = false;
+      coordinates.push(...points);
+    });
+    if (typeof properties.distanceMeters === "number") distanceMeters += properties.distanceMeters;
+    if (typeof properties.totalTimeSeconds === "number") totalTimeSeconds += properties.totalTimeSeconds;
+    if (!name && typeof properties.name === "string" && properties.name.trim()) name = properties.name.trim();
+  }
+  const properties: Record<string, unknown> = { laps: laps.length };
+  if (name) properties.name = name;
+  if (distanceMeters > 0) properties.distanceMeters = Math.round(distanceMeters * 10) / 10;
+  if (totalTimeSeconds > 0) properties.totalTimeSeconds = Math.round(totalTimeSeconds * 10) / 10;
+  if (timed && times.length) properties.coordinateProperties = { times };
+  const others = c.features.filter((f) => !laps.includes(f));
+  return { type: "FeatureCollection", features: [{ type: "Feature", properties, geometry: { type: "LineString", coordinates } }, ...others] };
 }
 
 function timesOf(properties: Record<string, unknown> | null | undefined, part: number): unknown {

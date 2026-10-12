@@ -887,6 +887,37 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D105 — TCX import, Connect from a hub, and the borders between areas (2026-10-12)
+
+- **Why.** The File import and Feature browser rows of COMPARISON.md: GEOlayers 3 reads TCX, and its
+  feature browser has a mesh that runs lines one to all as well as all to all, and one that turns the
+  borders of neighbouring areas into lines. Subtract was already here as **Cut out** (D83).
+- **TCX.** Read by `tcx()` of @tmcw/togeojson, already approved for GPX and KML, so no new package.
+  togeojson gives one feature per lap, and a watch laps every kilometre by default, so a 10 km run
+  would arrive as ten routes. `joinLaps` in core (`src/core/data/importLines.ts`) joins the laps in
+  file order into one line, keeps one time per point only when every lap has them (so the recorded
+  pace never pairs a time with the wrong point), and adds up the laps' distance and time. A file
+  with one lap comes through unchanged.
+- **From the first.** `connectionMesh` takes a `hub`: only pairs that include it, each line starting
+  at the hub so the trim draws outwards. The panel's hub is the first ticked feature in the list, as
+  **Cut out** already uses the first; `nearest` is ignored then.
+- **Borders.** `bordersBetween` in `src/core/geo/shapeOps.ts` puts the areas into one topology
+  (topojson-server, quantised at 1e6 like the history colours, D93) and takes `mesh` with the filter
+  a ≠ b: every arc two different areas use, once, and no outer edge. It finds a border only where the
+  outlines share their points, which the bundled countries, provinces and districts do because each
+  set is thinned as one topology (D24, D27, D30); an import and a country rarely share points, and
+  the log says so instead of guessing with a tolerance that would draw lines along coasts.
+  `joinLines` walks the arcs end to end into fewer, longer lines (a walk goes on through a junction
+  where three meet), because every line is an expression evaluated on every frame.
+- **One shape layer.** The lines go into one shape layer (kind `borders`), an open path per line with
+  a stroke, no fill and one Trim Paths for the group, through the same `addShape` host call as the
+  feature shapes, so it follows the map, lies on 3D terrain and is restyled by hand. Budgets: 120
+  paths and 1,500 points (`BORDER_MAX_PATHS`, `BORDER_MAX_POINTS`), the longest lines kept first and
+  the points shared out by length. India's 36 states make 38 lines, the United States 57, France's
+  101 departments 96; a set with more lines loses its shortest and the log says how many.
+- **Tested.** Unit tests for the hub, `joinLines`, `bordersBetween` (a row of squares, a three-way
+  junction, areas apart), `shapeLines` and `joinLaps`. Not yet run in After Effects.
+
 ## D104 — Ready for the Mac: CI on both systems, a Self-test in the panel, a report in one step (2026-10-12)
 
 - **Why.** The last phase of PLAN §10 (phase 15), for the macOS and Support rows of COMPARISON.md.

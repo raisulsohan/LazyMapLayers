@@ -74,7 +74,7 @@ import { addChart, addLineChart, removeChart } from "./overlays/chart.ts";
 import { addMinimap, addNorthArrow, addScaleBar, removeFurniture, removeMinimap, type FurnitureKind } from "./overlays/furniture.ts";
 import { featureKeys, filterFeatures, parseFilter, type FeatureRow, applyFeatureEdits, editFeature, typedValue, type FeatureEdits } from "../core/data/featureList.ts";
 import { featureCentre, featurePolygons, featureRows, type FeatureScope, type FeatureSources } from "./features.ts";
-import { cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
+import { bordersBetween, cutHole, explodeArea, pointsInside } from "../core/geo/shapeOps.ts";
 import { addMesh } from "./overlays/mesh.ts";
 import { importCsvText } from "./data/importFile.ts";
 import { importEarthStudio } from "./earthStudio.ts";
@@ -89,7 +89,7 @@ import { labelDesigns, type LabelDesign } from "./labels/labelDesigns.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
 import { addLegend, removeLegend } from "./overlays/legend.ts";
-import { addFeatureShape } from "./overlays/shapeFeature.ts";
+import { addBorderShape, addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, pointOf, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { openUrl } from "./cep.ts";
 import { readPrefs, writePrefs } from "./prefs.ts";
@@ -2331,6 +2331,40 @@ export const countPointsInPicked = () =>
     );
   });
 
+/**
+ * The borders the ticked areas share, as one shape layer of lines that follow the map: the lines
+ * between a country's provinces, or inside a region of countries, without the outer edge.
+ */
+export const bordersOfPicked = () =>
+  run("features", async () => {
+    const picks = pickedFeatures();
+    const entry = (await readMaps()).find((m) => m.mapId === selectedId.value);
+    if (!entry || picks.length < 2) {
+      log(entry ? "tick at least two neighbouring areas to draw the borders between them" : "create or select a map first", "muted");
+      return;
+    }
+    const sources = featureSources();
+    const parts = picks.map((row) => ({ row, polygons: featurePolygons(row, sources) })).filter((part): part is { row: FeatureRow; polygons: AreaGeometry } => !!part.polygons);
+    if (parts.length < 2) {
+      log("this build has outlines for fewer than two of those", "fail");
+      return;
+    }
+    const lines = bordersBetween(parts.map((part) => part.polygons));
+    if (!lines.length) {
+      log("none of the ticked areas shares a border with another (areas from different lists, such as an import and a country, rarely do)", "fail");
+      return;
+    }
+    const style = currentLayerStyle.value;
+    const name = combinedName(parts.map((part) => part.row.name));
+    const made = await addBorderShape(
+      entry.mapId,
+      { name, lines },
+      { color: style.accent, fill: 0, outline: style.stroke, startFrame: currentMapFrame(entry), drawFrames: shapeDrawOn.value ? Math.round(4 * entry.frameRate) : 0, terrain: terrain.value }
+    );
+    if (made.expressionErrors.length) log(`border expression problems: ${made.expressionErrors.join("; ")}`, "fail");
+    else log(`the borders between ${parts.length} areas added as one shape layer of ${made.paths} ${made.paths === 1 ? "line" : "lines"}${made.dropped ? ` (${made.dropped} short ones left out)` : ""}. Restyle it like any shape layer`, "ok");
+  });
+
 /** A line between every pair of ticked features, drawing on together: a network map. */
 export const connectPickedFeatures = () =>
   run("features", async () => {
@@ -2356,7 +2390,8 @@ export const connectPickedFeatures = () =>
       theme: currentTheme.value,
       style: currentLayerStyle.value,
       terrain: terrain.value,
-      neighbours: meshNeighbours.value > 0 ? meshNeighbours.value : undefined
+      neighbours: meshNeighbours.value > 0 ? meshNeighbours.value : undefined,
+      hub: meshFromFirst.value ? 0 : undefined
     });
     if (made.expressionErrors.length) log(`connection expression problems: ${made.expressionErrors.join("; ")}`, "fail");
     else log(`${made.lines} ${made.lines === 1 ? "line" : "lines"} drawn between ${places.length} places, all drawing on from ${entry.time.toFixed(2)} s${made.dropped ? `; ${made.dropped} left out` : ""}`, made.lines ? "ok" : "muted");
@@ -2364,6 +2399,8 @@ export const connectPickedFeatures = () =>
 
 /** How many nearest neighbours each place joins; 0 joins every pair. */
 export const meshNeighbours = signal(0);
+/** Lines run from the first ticked feature to each of the others, as flights out of a hub. */
+export const meshFromFirst = signal(false);
 
 /**
  * Live numbers: the table is read from a file on disk, and the panel re-reads it whenever that file

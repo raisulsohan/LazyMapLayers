@@ -1,6 +1,6 @@
 import { test } from "node:test";
 import assert from "node:assert/strict";
-import { connectionMesh, cutHole, explodeArea, MAX_MESH_LINES, pointsInside } from "../../src/core/geo/shapeOps.ts";
+import { bordersBetween, connectionMesh, cutHole, explodeArea, joinLines, MAX_MESH_LINES, pointsInside } from "../../src/core/geo/shapeOps.ts";
 import { areaKm2 } from "../../src/core/geo/combine.ts";
 
 /** A square of `size` degrees with its bottom-left corner at (lng, lat). */
@@ -103,4 +103,89 @@ test("a crowd of places never makes more lines than a scene can carry", () => {
   assert.equal(mesh.lines.length, MAX_MESH_LINES);
   assert.equal(mesh.dropped, (40 * 39) / 2 - MAX_MESH_LINES);
   assert.equal(connectionMesh([{ lat: 1, lng: 1 }]).lines.length, 0);
+});
+
+test("from a hub, every line starts at the hub and nothing else is joined", () => {
+  const places = [
+    { lat: 0, lng: 5 },
+    { lat: 0, lng: 0 },
+    { lat: 0, lng: 1 },
+    { lat: 0, lng: 9 }
+  ];
+  const fromHub = connectionMesh(places, { hub: 0, neighbours: 1, steps: 4 });
+  assert.equal(fromHub.lines.length, 3, "one line to each other place; neighbours is not used");
+  assert.ok(fromHub.lines.every((line) => line.from === 0 && line.to !== 0));
+  // The line leaves from the hub, so it draws on outwards.
+  for (const line of fromHub.lines) assert.ok(Math.abs(line.points[0].lng - 5) < 1e-9, `starts at ${line.points[0].lng}`);
+  // A hub in the middle of the list.
+  const middle = connectionMesh(places, { hub: 2, steps: 4 });
+  assert.equal(middle.lines.length, 3);
+  assert.ok(middle.lines.every((line) => line.from === 2));
+  assert.ok(middle.lines.every((line) => Math.abs(line.points[0].lng - 1) < 1e-9));
+  // A long one is still left out by length.
+  assert.equal(connectionMesh(places, { hub: 0, maxKm: 600, steps: 4 }).lines.length, 3);
+  assert.equal(connectionMesh(places, { hub: 0, maxKm: 500, steps: 4 }).lines.length, 2);
+});
+
+test("lines that meet end to end become one, turned round where needed", () => {
+  const joined = joinLines([
+    [
+      [0, 0],
+      [1, 0]
+    ],
+    [
+      [2, 0],
+      [1, 0]
+    ],
+    [
+      [2, 0],
+      [3, 0]
+    ],
+    [
+      [10, 10],
+      [11, 10]
+    ]
+  ]);
+  assert.equal(joined.length, 2);
+  const long = joined.find((line) => line.length === 4)!;
+  const xs = long.map((p) => p[0]);
+  assert.ok(JSON.stringify(xs) === "[0,1,2,3]" || JSON.stringify(xs) === "[3,2,1,0]", JSON.stringify(xs));
+  assert.equal(joinLines([[[0, 0]]]).length, 0, "a single point is no line");
+});
+
+test("the borders neighbours share come as lines, without their outer edge", () => {
+  // Three squares in a row: two borders between them, each 10 degrees long.
+  const a = [[square(0, 0, 10)]];
+  const b = [[square(10, 0, 10)]];
+  const c = [[square(20, 0, 10)]];
+  const lines = bordersBetween([a, b, c]);
+  assert.equal(lines.length, 2);
+  for (const line of lines) {
+    const lngs = new Set(line.map((p) => Math.round(p[0] * 1e4) / 1e4));
+    assert.equal(lngs.size, 1, "a border runs along one meridian");
+    assert.ok([10, 20].includes([...lngs][0]));
+    const lats = line.map((p) => p[1]).sort((x, y) => x - y);
+    assert.ok(Math.abs(lats[0]) < 1e-4 && Math.abs(lats[lats.length - 1] - 10) < 1e-4, "the whole edge, end to end");
+  }
+  // Two squares under a wide one that has a point where they meet: three borders meet at that point,
+  // and one walk goes on through it, so they come as two lines instead of three.
+  const top = [
+    [
+      [
+        [0, 10],
+        [10, 10],
+        [20, 10],
+        [20, 30],
+        [0, 30],
+        [0, 10]
+      ]
+    ]
+  ];
+  const tee = bordersBetween([a, b, top]);
+  assert.equal(tee.length, 2);
+  assert.equal(tee.reduce((n, line) => n + line.length, 0), 3 + 2, "four border points, the junction in both lines");
+  // Areas that stand apart, or only one area, share nothing.
+  assert.equal(bordersBetween([big, apart]).length, 0);
+  assert.equal(bordersBetween([big]).length, 0);
+  assert.equal(bordersBetween([big, []]).length, 0);
 });

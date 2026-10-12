@@ -3,8 +3,8 @@
 Two map panels for After Effects, compared row by row: what each costs, how the picture is made,
 what it can draw, and where each one is still ahead.
 
-**LazyMapLayers 1.2** (12 Oct 2026) · **GEOlayers 3** as documented up to v1.19 · compared 12 Oct 2026.
-A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](comparison/lazymaplayers-vs-geolayers.html)
+**LazyMapLayers 1.2** (12 Oct 2026; TCX import, Connect from a hub and Borders come in the next version) · **GEOlayers 3** as documented up to v1.19 · compared 12 Oct 2026.
+A page version with filters and a features-only view is in [comparison/lazymaplayers-vs-geolayers.html](comparison/lazymaplayers-vs-geolayers.html)
 (download it and open it in a browser).
 
 ✅ yes · ◐ partly · ❌ no. Of 37 rows, LazyMapLayers is ahead on 17, GEOlayers 3 on 3, and 17 are even.
@@ -17,7 +17,43 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | you want 3D terrain and compositing passes without extra plugins | |
 | you tell data stories (flows, prisms) or history (borders by year) | |
 
-## Cost, licence and data
+## Features only
+
+What each panel can make and do, without price, licence, map data terms, disk space, the After Effects versions, macOS and support. Of 29 features, LazyMapLayers is ahead on 13, GEOlayers 3 on 0, and 16 are even. The page has the same view under **Features only** ([lazymaplayers-vs-geolayers.html#features](comparison/lazymaplayers-vs-geolayers.html#features)); every row is told in full in the sections below.
+
+| Feature | GEOlayers 3 | LazyMapLayers | Ahead |
+|---|:---:|:---:|---|
+| Basemap | ◐ | ✅ | LazyMapLayers |
+| Fly-to | ◐ | ✅ | LazyMapLayers |
+| Globe | ❌ | ✅ | LazyMapLayers |
+| Camera pitch | ◐ | ✅ | LazyMapLayers |
+| 3D terrain | ◐ | ✅ | LazyMapLayers |
+| 3D buildings | ✅ | ✅ | Even |
+| Compositing | ◐ | ✅ | LazyMapLayers |
+| Your layers on the map | ✅ | ✅ | Even |
+| Renaming comps | ◐ | ✅ | LazyMapLayers |
+| Auto labels | ✅ | ✅ | Even |
+| Label languages | ✅ | ✅ | Even |
+| Label templates | ✅ | ✅ | Even |
+| Names along a curve | ❌ | ✅ | LazyMapLayers |
+| File import | ✅ | ✅ | Even |
+| OpenStreetMap features | ✅ | ✅ | Even |
+| Feature browser | ✅ | ✅ | Even |
+| Numbers on the map | ✅ | ✅ | LazyMapLayers |
+| Data over time | ✅ | ✅ | Even |
+| Live CSV and scripting | ✅ | ✅ | Even |
+| Arrows | ✅ | ✅ | Even |
+| Routes on roads | ✅ | ✅ | Even |
+| Imagery sources | ✅ | ✅ | Even |
+| Free satellite picture | ◐ | ✅ | LazyMapLayers |
+| Historical borders | ❌ | ✅ | LazyMapLayers |
+| Google Earth Studio camera | ❌ | ✅ | LazyMapLayers |
+| Inset, scale bar, north arrow | ✅ | ✅ | Even |
+| Linked maps | ✅ | ✅ | Even |
+| Without internet | ◐ | ✅ | LazyMapLayers |
+| Street detail anywhere | ✅ | ✅ | Even |
+
+## Cost and licence
 
 | | GEOlayers 3 | LazyMapLayers | Ahead |
 |---|---|---|---|
@@ -25,7 +61,6 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | **Map data** | ◐ Styled maps come from MapTiler Cloud: six months included, then a MapTiler subscription. | ✅ Open data only: OpenStreetMap, Natural Earth, Mapterhorn elevation, NASA, geoBoundaries. No subscription. | LazyMapLayers |
 | **After the data period** | ◐ Styled maps, 3D buildings, multilingual auto labels and the water mask need the subscription; basic imagery such as Bing and CartoDB stays. | ✅ Nothing expires. | LazyMapLayers |
 | **Account and key** | ◐ aescripts licence activation; a trial is available. | ✅ No account, no key, no trial. | LazyMapLayers |
-| **Without internet** | ◐ Natural Earth search works offline; map imagery is fetched online. | ✅ The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work. | LazyMapLayers |
 | **Disk space** | ✅ Small install; tiles are cached as you work. | ✅ Online about 50 MB, detail kept as maps need it; Light about 175 MB; Full about 2.1 GB to work offline. | Even |
 
 ## Picture and camera
@@ -55,9 +90,9 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 
 | | GEOlayers 3 | LazyMapLayers | Ahead |
 |---|---|---|---|
-| **File import** | ✅ GeoJSON, KML/KMZ, GPX, TCX, CSV, shapefile. | ✅ GeoJSON, KML/KMZ, GPX, CSV, shapefile. | Even |
+| **File import** | ✅ GeoJSON, KML/KMZ, GPX, TCX, CSV, shapefile. | ✅ GeoJSON, KML/KMZ, GPX, TCX (an activity's laps as one track), CSV, shapefile. | Even |
 | **OpenStreetMap features** | ✅ Overpass search over the current view. | ✅ Overpass search over the preview area, free. | Even |
-| **Feature browser** | ✅ Filter, merge, subtract, mesh, points in polygons. | ✅ Filter in words, merge, cut, break apart, count points, connection lines. | Even |
+| **Feature browser** | ✅ Filter, merge, subtract, mesh, points in polygons. | ✅ Filter in words, merge, cut out (subtract), break apart, count points, connection lines (every pair, nearest or from a hub), the borders between areas as lines. | Even |
 | **Numbers on the map** | ✅ Data-driven shape styles; heatmap, choropleth and circle styles. | ✅ Colours, bubbles, spikes, heat, flows as arcs, prism maps in 3D, legend and bar chart. | LazyMapLayers |
 | **Data over time** | ✅ Array values animate over the comp. | ✅ Years animate, with a line or area chart that follows. | Even |
 | **Live CSV and scripting** | ✅ ExtendScript API with CSV watch. | ✅ Scripting API with CSV watch. | Even |
@@ -70,13 +105,19 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | **Inset, scale bar, north arrow** | ✅ Included as scripts. | ✅ Built-in tools; the inset is a real second map. | Even |
 | **Linked maps** | ✅ One map comp can follow another. | ✅ One map can take another's camera. | Even |
 
+## Maps anywhere
+
+| | GEOlayers 3 | LazyMapLayers | Ahead |
+|---|---|---|---|
+| **Without internet** | ◐ Natural Earth search works offline; map imagery is fetched online. | ✅ The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work. | LazyMapLayers |
+| **Street detail anywhere** | ✅ Any city at street level, online, with the subscription. | ✅ Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use. | Even |
+
 ## Platform and support
 
 | | GEOlayers 3 | LazyMapLayers | Ahead |
 |---|---|---|---|
 | **After Effects versions** | ✅ Back to CC 2015 (see the compatibility tab on aescripts). | ◐ 2024 or newer. | GEOlayers |
 | **macOS** | ✅ Windows and macOS. | ◐ Experimental: not yet run in After Effects on a Mac; CI builds, tests and runs the installer on macOS. | GEOlayers |
-| **Street detail anywhere** | ✅ Any city at street level, online, with the subscription. | ✅ Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use. | Even |
 | **Support** | ✅ aescripts support tickets and years of tutorials. | ◐ GitHub issues and Discussions, a FAQ, a Self-test that fills in the report, a 40-chapter manual and video tutorials; one developer. | GEOlayers |
 
 ## How this was put together

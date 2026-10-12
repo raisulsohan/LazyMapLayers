@@ -1,12 +1,14 @@
 // What a designer does to shapes once they are picked: break a multi-part outline into its parts,
-// cut one area out of another, count the points that fall inside an area, and draw the lines between
-// a set of places. Everything here is plain geometry, so the panel can show the result before it
-// builds a single layer.
+// cut one area out of another, count the points that fall inside an area, draw the lines between
+// a set of places, and draw the borders a set of areas shares. Everything here is plain geometry, so
+// the panel can show the result before it builds a single layer.
 
 import { areaKm2, cleanPolygons, centreOf, type Polygons } from "./combine.ts";
 import { distanceMeters, greatCircle, type RoutePoint } from "./greatCircle.ts";
 import { pointInPolygons } from "./pointInPolygon.ts";
 import { difference, intersection } from "polyclip-ts";
+import { mesh } from "topojson-client";
+import { topology } from "topojson-server";
 
 export type LngLat = { lat: number; lng: number };
 
@@ -98,6 +100,11 @@ export type MeshOptions = {
   steps?: number;
   /** How high the arc rises over the ground, as a share of the line's length (0 for flat). */
   arc?: number;
+  /**
+   * The place (its index in the list) every line starts from: flights out of a hub, offices from a
+   * head office. Each other place is joined to it once and to nothing else; `neighbours` is not used.
+   */
+  hub?: number;
 };
 
 export type MeshLine = { from: number; to: number; km: number; points: RoutePoint[] };
@@ -106,21 +113,25 @@ export type MeshLine = { from: number; to: number; km: number; points: RoutePoin
 export const MAX_MESH_LINES = 200;
 
 /**
- * The lines between a set of places: every pair, or each place to its nearest neighbours. Pairs come
- * shortest first, so the cap keeps the links that read as neighbours rather than the ones that cross
- * the frame.
+ * The lines between a set of places: every pair, each place to its nearest neighbours, or every place
+ * from one hub. Pairs come shortest first, so the cap keeps the links that read as neighbours rather
+ * than the ones that cross the frame. A hub's lines start at the hub, so they draw on outwards.
  */
 export function connectionMesh(places: LngLat[], options: MeshOptions = {}): { lines: MeshLine[]; dropped: number } {
   const usable = places.filter((place) => Number.isFinite(place.lat) && Number.isFinite(place.lng));
+  const hubPlace = options.hub !== undefined ? places[options.hub] : undefined;
+  const hub = hubPlace ? usable.indexOf(hubPlace) : -1;
   const pairs: { from: number; to: number; km: number }[] = [];
   for (let i = 0; i < usable.length; i++) {
     for (let j = i + 1; j < usable.length; j++) {
-      pairs.push({ from: i, to: j, km: distanceMeters(usable[i], usable[j]) / 1000 });
+      if (hub >= 0 && i !== hub && j !== hub) continue;
+      const from = j === hub ? j : i;
+      pairs.push({ from, to: from === i ? j : i, km: distanceMeters(usable[i], usable[j]) / 1000 });
     }
   }
   pairs.sort((a, b) => a.km - b.km);
   const maxKm = options.maxKm ?? Infinity;
-  const neighbours = options.neighbours;
+  const neighbours = hub >= 0 ? undefined : options.neighbours;
   const counts = new Map<number, number>();
   const wanted: typeof pairs = [];
   let dropped = 0;
@@ -153,4 +164,67 @@ export function connectionMesh(places: LngLat[], options: MeshOptions = {}): { l
     points: greatCircle(usable[pair.from], usable[pair.to], steps, arc > 0 ? pair.km * 1000 * arc : 0)
   }));
   return { lines, dropped };
+}
+
+/**
+ * Lines that meet end to end joined into longer ones ([line][point][lng, lat]), turning one round
+ * where needed: fewer, longer lines are fewer paths in After Effects, and each draws on as one stroke.
+ * Where three or more lines meet, one walk goes on through and the others start there.
+ */
+export function joinLines(lines: number[][][]): number[][][] {
+  const usable = lines.filter((line) => line.length >= 2);
+  const key = (point: number[]) => `${point[0]},${point[1]}`;
+  const ends = new Map<string, number[]>();
+  usable.forEach((line, i) => {
+    for (const point of [line[0], line[line.length - 1]]) {
+      const list = ends.get(key(point)) ?? [];
+      list.push(i);
+      ends.set(key(point), list);
+    }
+  });
+  const used = new Uint8Array(usable.length);
+  /** Extends a line at its last point with unused lines that start or end there. */
+  const extend = (line: number[][]) => {
+    for (;;) {
+      const tail = line[line.length - 1];
+      const next = (ends.get(key(tail)) ?? []).find((i) => !used[i]);
+      if (next === undefined) return;
+      used[next] = 1;
+      const piece = usable[next];
+      const forward = key(piece[0]) === key(tail);
+      const points = forward ? piece : piece.slice().reverse();
+      for (let i = 1; i < points.length; i++) line.push(points[i]);
+    }
+  };
+  const out: number[][][] = [];
+  for (let start = 0; start < usable.length; start++) {
+    if (used[start]) continue;
+    used[start] = 1;
+    const line = usable[start].map((point) => [point[0], point[1]]);
+    extend(line);
+    line.reverse();
+    extend(line);
+    out.push(line);
+  }
+  return out;
+}
+
+/**
+ * The borders a set of areas shares, as lines ([line][point][lng, lat]): the border between two
+ * neighbours once, the outer edge of the set and its coasts left out. The lines between a country's
+ * provinces over one plain fill, or the borders inside a region of countries.
+ *
+ * A border is shared where the two outlines run through the same points, as neighbours from one set
+ * do: the countries, provinces and districts of this build are thinned together (D24, D27, D30), so their
+ * borders match point for point. Areas from different sets rarely do.
+ */
+export function bordersBetween(list: Polygons[]): number[][][] {
+  const features = list
+    .map((polygons, i) => ({ type: "Feature" as const, id: i, properties: {}, geometry: { type: "MultiPolygon" as const, coordinates: cleanPolygons(polygons) } }))
+    .filter((feature) => feature.geometry.coordinates.length > 0);
+  if (features.length < 2) return [];
+  // A fine grid keeps the points neighbours share as one arc between them.
+  const topo = topology({ areas: { type: "FeatureCollection", features } as GeoJSON.FeatureCollection }, 1e6);
+  const shared = mesh(topo, topo.objects.areas, (a, b) => a !== b);
+  return joinLines(shared.coordinates.map((line) => line.map((point) => [point[0], point[1]])));
 }

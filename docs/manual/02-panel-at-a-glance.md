@@ -47,7 +47,7 @@ The left half puts things **on** the map:
 | 4 | Route | A line between two places that draws on | 12 |
 | 5 | Attach | Pins **your own** layers (an icon, a photo, a precomp) to a place | 13 |
 | 6 | Highlight | Fills countries, provinces or districts with colour | 14 |
-| 7 | Import | GPX, KML, KMZ, GeoJSON, CSV or a zipped shapefile | 16 |
+| 7 | Import | GPX, TCX, KML, KMZ, GeoJSON, CSV or a zipped shapefile | 16 |
 | 8 | Your own drawing | Turns a Pen tool path you drew into a route or an area | 17 |
 | 9 | Numbers | Colours the map from a table (CSV) | 28 |
 | 10 | OpenStreetMap | Finds rivers, parks, airports, buildings… in the area you see | 18 |

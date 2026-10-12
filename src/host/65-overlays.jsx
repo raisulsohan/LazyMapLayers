@@ -382,7 +382,8 @@ LML.overlays.addArrow = function (args) {
  * with an even-odd fill (so holes stay holes) and a stroke. Everything is an ordinary shape layer
  * property, so the layer can be restyled and animated in After Effects by hand afterwards.
  * args: { mapId, kind, name, paths: [expression], fill: { color, opacity } | null,
- *         stroke: { color, width, dash } | null, trimKeys?, opacityKeys?, glow?, data? }
+ *         stroke: { color, width, dash } | null, trimKeys?, opacityKeys?, glow?, data?,
+ *         partName? (what each path is called when there are several; "Ring" by default) }
  */
 LML.overlays.addShape = function (args) {
     var mapLayer = LML.pins.findMapLayer(args.mapId);
@@ -396,7 +397,7 @@ LML.overlays.addShape = function (args) {
     var contents = group.property("ADBE Vectors Group");
     for (var i = 0; i < args.paths.length; i++) {
         var shape = contents.addProperty("ADBE Vector Shape - Group");
-        shape.name = args.paths.length > 1 ? "Ring " + (i + 1) : "Path";
+        shape.name = args.paths.length > 1 ? (args.partName || "Ring") + " " + (i + 1) : "Path";
         LML.pins.setExpression(shape.property("ADBE Vector Shape"), args.paths[i], errors, args.name + " ring " + (i + 1));
     }
     if (args.fill) {

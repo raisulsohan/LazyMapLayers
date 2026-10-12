@@ -1,9 +1,11 @@
 // A map feature (a country, a province, a district, an area of your own) as an editable After Effects
 // shape layer: one closed path per ring, each projected by the same camera maths as pins and routes,
-// so the outline sits on the rendered map at every frame. Fill and stroke are ordinary shape layer
-// properties, so the layer can be styled and animated in After Effects like any other.
+// so the outline sits on the rendered map at every frame. The borders between areas come the same
+// way as open paths. Fill and stroke are ordinary shape layer properties, so the layer can be styled
+// and animated in After Effects like any other.
 
 import { referenceOf, routePathExpression } from "./labelExpressions.ts";
+import { lineLengthKm, simplifyLine } from "../geo/simplify.ts";
 import { compTransformSource, projectionPrelude } from "./projectionExpression.ts";
 
 export const SHAPE_MARKER = "// LazyMapLayers shape";
@@ -40,6 +42,39 @@ export function shapeRings(polygons: number[][][][], groundAt?: (lng: number, la
 /** One closed path expression per ring. */
 export function shapePathExpressions(rings: number[][][]): string[] {
   return rings.map((ring) => routePathExpression(ring, { closed: true, marker: SHAPE_MARKER }));
+}
+
+/** Open paths a layer of border lines may hold: every one is its own expression (the 101 departments of France make 96). */
+export const BORDER_MAX_PATHS = 120;
+/** Points a layer of border lines keeps across all its paths. */
+export const BORDER_MAX_POINTS = 1500;
+
+/**
+ * Open lines ([line][point][lng, lat], such as the borders between areas) as point arrays for the
+ * path expressions: [lat, lng, altitude m, ground elevation m]. The longest lines are kept first, up
+ * to `maxPaths`, and the points are shared out by length, so a long border keeps its shape and a stub
+ * between two junctions keeps its two ends. `dropped` counts the lines left out.
+ */
+export function shapeLines(lines: number[][][], maxPoints = BORDER_MAX_POINTS, maxPaths = BORDER_MAX_PATHS): { lines: number[][][]; dropped: number } {
+  const usable = lines
+    .filter((line) => line.length >= 2)
+    .map((line) => {
+      const points = line.map(([lng, lat]) => ({ lng, lat }));
+      return { points, km: lineLengthKm(points) };
+    })
+    .sort((a, b) => b.km - a.km);
+  const kept = usable.slice(0, maxPaths);
+  const total = kept.reduce((n, line) => n + line.km, 0) || 1;
+  const out = kept.map((line) => {
+    const share = Math.max(2, Math.floor((maxPoints * line.km) / total));
+    return simplifyLine(line.points, share).map((p) => [p.lat, p.lng, 0, 0]);
+  });
+  return { lines: out, dropped: usable.length - kept.length };
+}
+
+/** One open path expression per line. */
+export function shapeLineExpressions(lines: number[][][]): string[] {
+  return lines.map((line) => routePathExpression(line, { marker: SHAPE_MARKER }));
 }
 
 /** Points the fine level of a shape layer keeps: only projected while the map is zoomed in. */
