@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **Self-test, and a report in one step.** Maps > About > **Self-test** checks LazyMapLayers in your own
+  After Effects in a few seconds: the host script, one rendered frame, a map comp made and removed
+  again in one undo step (your project is left as it was), a pin and a 3D pin against the camera
+  maths, and the map data on this computer. **Report a problem** runs it first, puts the report on the
+  clipboard and opens the issue form with your versions filled in: paste and submit. Nothing is sent
+  before you submit, and your home folder is written as `~` in the report (D104, SF1).
+- **Installer.** A quote typed at the Full, Light or Online question no longer stops the Windows
+  installer.
+- **For contributors.** Every change is checked on Windows and macOS by GitHub Actions: unit tests,
+  typecheck, both builds, the ES3 checks and the installers run against a test home folder
+  (`tools/installer-test.mjs`); `tools/fetch-natural-earth.mjs` fetches the Natural Earth files the
+  data scripts read. Discussions are open, with issue forms and a [FAQ](FAQ.md).
 - **More imagery of your own.** The Look sheet's address field now also takes a **WMS** address:
   the panel asks the service what it offers and lists its layers and formats, and draws the one you
   pick tile by tile, with the service's credit filled in. **Folder…** takes a folder of

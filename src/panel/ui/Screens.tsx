@@ -8,6 +8,7 @@ import { compSize } from "../preview.ts";
 import { DEFAULT_FOLLOW, type FollowOptions } from "../../core/ae/followExpressions.ts";
 import { followMap } from "../store.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
+import { runSelfTest, selfTestRun } from "../store.ts";
 import { buildNumbersSample, clearStreetDetail, hostInfo, osmCache, refreshOsmCache, reportProblem, scriptingOn, setScriptingOn, setStreetDetailOn, setUpdatesOn, streetDetailOn, updatesOn } from "../store.ts";
 import { earthStudioPins, importEarthStudioFile } from "../store.ts";
 import { openUrl } from "../cep.ts";
@@ -84,10 +85,29 @@ export function MapsScreen(): JSX.Element {
           <button class="small-button" data-id="about-website" onClick={() => openUrl("https://raisulsohan.com")} title="Raisul Sohan's site">
             raisulsohan.com
           </button>
-          <button class="small-button" data-id="about-report" disabled={busy.value} onClick={() => void reportProblem()} title="Writes a report with the panel's last messages to your LazyMapLayers folder and opens a new issue on GitHub for you to paste it into. Nothing is sent by itself.">
+        </div>
+        <div class="field-row">
+          <button class="small-button" data-id="about-self-test" disabled={busy.value} onClick={() => void runSelfTest()} title="A few seconds of checks in this After Effects: the host script, one rendered frame, a map comp made and removed again in one undo step, a pin and a 3D pin against the camera maths, and the map data on this computer. Your project is left as it was. Nothing is sent.">
+            Self-test
+          </button>
+          <button class="small-button" data-id="about-report" disabled={busy.value} onClick={() => void reportProblem()} title="Writes a report with the Self-test (run first if it has not run yet) and the panel's last messages to your LazyMapLayers folder, puts it on the clipboard and opens a new issue on GitHub with your versions filled in: paste the report there and submit. Nothing is sent by itself.">
             Report a problem
           </button>
         </div>
+        {selfTestRun.value && (
+          <div class="self-test" data-id="self-test-result">
+            <div class={`self-test-verdict ${/^FAIL/.test(selfTestRun.value.verdict) ? "fail" : /warnings/.test(selfTestRun.value.verdict) ? "warn" : "ok"}`}>Self-test: {selfTestRun.value.verdict}</div>
+            {selfTestRun.value.checks.map((c) => (
+              <div key={c.id} class="self-test-row" data-id={`self-test-${c.id}`}>
+                <span class={`self-test-mark ${c.status}`}>{c.status.toUpperCase()}</span>
+                <span>
+                  {c.name}
+                  <span class="muted small"> · {c.detail}</span>
+                </span>
+              </div>
+            ))}
+          </div>
+        )}
         <label class="check" title="One request to GitHub's release list a day, sending nothing but the request. Off, the panel never goes online by itself.">
           <input type="checkbox" data-id="about-updates" checked={updatesOn.value} onChange={(e) => setUpdatesOn((e.target as HTMLInputElement).checked)} />
           Look for new versions once a day

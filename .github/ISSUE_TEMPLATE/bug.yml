@@ -1,0 +1,43 @@
+name: Something does not work
+description: A problem with the panel, a render or the installer, on Windows or a Mac. The panel fills most of this in for you.
+title: "Problem: "
+labels: ["bug"]
+body:
+  - type: markdown
+    attributes:
+      value: |
+        The quickest way: in the panel, **Maps > About > Report a problem**. It runs the Self-test, puts the report on your clipboard and opens this form with your versions filled in. Paste the report into the last box and submit. Nothing was sent before you submit.
+
+        On a Mac? Reports are very welcome, also when everything works: macOS is experimental until testers say how it does.
+  - type: input
+    id: versions
+    attributes:
+      label: Versions
+      description: After Effects and LazyMapLayers (Maps > About shows both)
+      placeholder: After Effects 26.5 · LazyMapLayers 1.1.2
+    validations:
+      required: true
+  - type: input
+    id: system
+    attributes:
+      label: System
+      placeholder: Windows 11 (10.0.26100, x64) or macOS 15 (Darwin 24.1.0, arm64)
+  - type: input
+    id: self-test
+    attributes:
+      label: Self-test result
+      description: The Self-test's one line (Maps > About > Self-test)
+      placeholder: PASS, 5 of 5
+  - type: textarea
+    id: what
+    attributes:
+      label: What you did, and what you expected
+      description: The steps, what happened, and what should have happened. A screenshot helps.
+    validations:
+      required: true
+  - type: textarea
+    id: report
+    attributes:
+      label: The report
+      description: Paste the problem report here (Ctrl+V or Cmd+V). The panel also wrote it to problem-report.txt in your LazyMapLayers folder.
+      render: text

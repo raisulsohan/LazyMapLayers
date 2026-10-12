@@ -1,0 +1,16 @@
+name: An idea
+description: Something LazyMapLayers should do. It stays free, with no account or key, so sources must allow free commercial use.
+title: "Idea: "
+labels: ["enhancement"]
+body:
+  - type: textarea
+    id: idea
+    attributes:
+      label: What should it do?
+    validations:
+      required: true
+  - type: textarea
+    id: why
+    attributes:
+      label: What would you make with it?
+      description: The shot or the job it is for. A link to an example helps.

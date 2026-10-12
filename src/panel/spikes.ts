@@ -62,6 +62,7 @@ import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
 import { buildBlueMarble, buildRelief } from "./imagery/buildImagery.ts";
 import { extensionRoot } from "./cep.ts";
+import { runSelfTestTest } from "./selfTestTests.ts";
 
 export type SpikeLog = (line: string, kind?: "ok" | "fail" | "muted") => void;
 
@@ -694,6 +695,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.AR1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`AR1 failed: ${results.AR1_error}`, "fail");
+    }
+  }
+
+  if (wants("SF1")) {
+    try {
+      results.SF1_selfTest = await runSelfTestTest(log);
+    } catch (error) {
+      results.SF1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SF1 failed: ${results.SF1_error}`, "fail");
     }
   }
 

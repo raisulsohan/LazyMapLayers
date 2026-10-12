@@ -78,6 +78,8 @@ echo.
 set "PICK="
 set /p "PICK=Type 1, 2 or 3 and press Enter (Enter alone: %DEFAULT%): "
 if not defined PICK set "PICK=%DEFAULT%"
+rem A quote typed by mistake would break the comparisons below; it is not a choice anyway.
+set "PICK=%PICK:"=%"
 set "MODE="
 if "%PICK%"=="1" if "%HAS_FULL%"=="1" set "MODE=full"
 if "%PICK%"=="2" if "%HAS_LIGHT%"=="1" set "MODE=light"

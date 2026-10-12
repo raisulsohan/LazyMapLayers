@@ -1,7 +1,9 @@
 // A newer release, and a problem report. The update check is one request to GitHub's release list,
 // once a day, sending nothing but the request itself; it can be turned off. The problem report is a
-// text file the user reads and pastes himself: nothing leaves the computer on its own.
+// text file the user reads and pastes himself: nothing leaves the computer on its own (D56). Since
+// D104 it carries the Self-test report and goes to the clipboard as well, for the issue form to take.
 
+import { withoutHome } from "../core/support/selfTest.ts";
 import { isNewer } from "../core/version.ts";
 import { fs, hostEnvironment, os, path, userDataDir } from "./cep.ts";
 import { httpsGet } from "./net.ts";
@@ -46,8 +48,8 @@ export async function newerVersion(current: string, now = Date.now()): Promise<U
   return latest;
 }
 
-/** What a problem report holds, and where it is written. */
-export function writeProblemReport(lines: string[], versions: string): { file: string; text: string } {
+/** What a problem report holds (the Self-test report with it, when one has run), and where it is written. The home folder is written as ~. */
+export function writeProblemReport(lines: string[], versions: string, selfTest?: string | null): { file: string; text: string } {
   const env = hostEnvironment();
   const tail = (file: string, count: number) => {
     try {
@@ -67,20 +69,38 @@ export function writeProblemReport(lines: string[], versions: string): { file: s
     "What I did, and what I expected:",
     "(write it here)",
     "",
+    ...(selfTest ? selfTest.split("\n") : ["Self-test: not run (Maps > About > Self-test)"]),
+    "",
     "The panel's last messages:",
     ...lines.slice(-40).map((line) => `  ${line}`),
     "",
     "The panel's log file (last lines):",
     ...tail(panelLog, 60).map((line) => `  ${line}`)
   ].join("\n");
+  const safe = withoutHome(text, os().homedir());
   const file = path().join(userDataDir(), "problem-report.txt");
   fs().mkdirSync(userDataDir(), { recursive: true });
-  fs().writeFileSync(file, text, "utf8");
-  return { file, text };
+  fs().writeFileSync(file, safe, "utf8");
+  return { file, text: safe };
 }
 
-/** The page for a new issue, with the versions filled in and room for the report. */
-export function issueUrl(versions: string): string {
-  const body = `**Versions:** ${versions}\n\n**What I did, and what I expected:**\n\n\n**Paste the problem report here** (the panel wrote it to your LazyMapLayers folder as problem-report.txt):\n\n`;
-  return `${ISSUES_URL}?title=${encodeURIComponent("Problem: ")}&body=${encodeURIComponent(body)}`;
+/**
+ * Puts text on the clipboard, for the issue form's report box. A hidden text area and the copy
+ * command work in CEP's Chromium without asking for a permission; false when the copy was refused.
+ */
+export function copyText(text: string): boolean {
+  const area = document.createElement("textarea");
+  area.value = text;
+  area.setAttribute("readonly", "");
+  area.style.position = "fixed";
+  area.style.left = "-9999px";
+  document.body.appendChild(area);
+  try {
+    area.select();
+    return document.execCommand("copy");
+  } catch {
+    return false;
+  } finally {
+    area.remove();
+  }
 }

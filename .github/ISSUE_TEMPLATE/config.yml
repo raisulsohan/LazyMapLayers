@@ -1,0 +1,8 @@
+blank_issues_enabled: true
+contact_links:
+  - name: A question
+    url: https://github.com/raisulsohan/LazyMapLayers/discussions/categories/q-a
+    about: Ask in Discussions, where the answer stays for the next person.
+  - name: The FAQ
+    url: https://github.com/raisulsohan/LazyMapLayers/blob/main/docs/FAQ.md
+    about: The questions that come up most, answered.

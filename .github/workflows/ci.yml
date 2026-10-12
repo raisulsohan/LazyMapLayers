@@ -1,0 +1,80 @@
+# LazyMapLayers CI (DECISIONS D104): the checks a change must pass, on Windows and on a Mac.
+# Nothing is signed here; the signing key never leaves the development PC.
+name: CI
+
+on:
+  push:
+    branches: [main]
+  pull_request:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  check:
+    name: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [windows-latest, macos-latest]
+    runs-on: ${{ matrix.os }}
+    timeout-minutes: 30
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: npm
+
+      - run: npm ci
+
+      # The Natural Earth zips the bundled data is made from (about 69 MB), kept between runs.
+      - name: Natural Earth list
+        shell: bash
+        run: node tools/fetch-natural-earth.mjs --list > .ne-list.txt
+      - uses: actions/cache@v4
+        with:
+          path: .cache/ne
+          key: natural-earth-${{ hashFiles('.ne-list.txt') }}
+      - name: Fetch Natural Earth
+        run: node tools/fetch-natural-earth.mjs
+
+      - name: Prepare the bundled data
+        run: |
+          node tools/prepare-natural-earth.ts
+          node tools/prepare-world-overlays.ts
+          node tools/prepare-admin1.ts
+          node tools/prepare-countries.ts
+          node tools/prepare-country-codes.ts
+
+      - name: Unit tests
+        run: npm test
+
+      - name: Typecheck
+        run: npm run typecheck
+
+      - name: Development build
+        run: npm run build:dev
+
+      # cscript (Windows Script Host, an ES3 engine like ExtendScript) exists only on Windows. The Mac
+      # runs the Node half of the expression check; the ES3 halves read text the build writes the
+      # same on both systems, so the Windows job's answer holds for the Mac too.
+      - name: ES3 checks (Windows)
+        if: runner.os == 'Windows'
+        run: |
+          npm run check:host
+          npm run check:expressions
+      - name: Expression fixtures (macOS; the ES3 half runs on Windows)
+        if: runner.os == 'macOS'
+        run: node tools/expression-fixtures.ts
+
+      - name: Release build
+        shell: bash
+        run: node tools/build.mjs --out "$RUNNER_TEMP/release/com.sohan.LazyMapLayers"
+
+      - name: Installer test
+        shell: bash
+        run: node tools/installer-test.mjs --staged "$RUNNER_TEMP/release/com.sohan.LazyMapLayers"

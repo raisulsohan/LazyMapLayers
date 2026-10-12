@@ -492,4 +492,6 @@ adds one small credit text layer to the scene; keep it, or put the credit in you
 - You duplicated a scene: the copy gets a map of its own the next time the panel looks (the log says
   so). It shows the same frames until you render it. Ctrl+Z puts it back as a shared copy, and the
   panel leaves it that way.
-- Anything else: Maps > About > **Report a problem**, and paste the report into the issue it opens.
+- Anything else: Maps > About > **Report a problem**. It runs the **Self-test** first (a few seconds;
+  your project is left as it was), puts the report on the clipboard and opens the issue form with your
+  versions filled in: paste the report and submit. More answers are in the [FAQ](FAQ.md).

@@ -64,6 +64,13 @@ run **Fix a blank panel.bat** (Windows) and restart After Effects.
 move the preview over Paris or Tokyo, click **Download this area…**, name the region `paris` or
 `tokyo`, and build the sample again.
 
+**Help and reports.** Questions go to [Discussions](https://github.com/raisulsohan/LazyMapLayers/discussions),
+answers to common ones are in the [FAQ](docs/FAQ.md). To report a problem in one step: **Maps > About >
+Report a problem** runs the Self-test, puts the report on your clipboard and opens the issue form;
+paste and submit. **Mac testers wanted:** LazyMapLayers is tested on Windows; if you have a Mac with
+After Effects 2024 or newer, install it, press *Report a problem* and tell us how it went, even when
+everything works.
+
 ## A flight, offline
 
 ![LazyMapLayers demo: with no internet, a flight from the globe to Bangladesh with its rivers, roads and districts, a solid border, a pin and labels, the look changed from Midnight to Satellite to Atlas, then down to Dhaka at city level](docs/demo/lazymaplayers-demo.gif)

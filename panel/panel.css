@@ -1042,3 +1042,56 @@ select.compact {
 .feature-editor .num-field span:first-child {
   min-width: 64px;
 }
+
+/* The Self-test's results under About (D104). */
+.self-test {
+  display: flex;
+  flex-direction: column;
+  gap: 3px;
+  padding: 6px 8px;
+  border: 1px solid var(--line);
+  border-radius: var(--radius);
+  background: var(--raised);
+  user-select: text;
+}
+
+.self-test-verdict {
+  font-weight: 600;
+}
+
+.self-test-verdict.ok {
+  color: var(--good);
+}
+
+.self-test-verdict.warn {
+  color: var(--warn);
+}
+
+.self-test-verdict.fail {
+  color: var(--bad);
+}
+
+.self-test-row {
+  display: flex;
+  gap: 6px;
+  align-items: baseline;
+}
+
+.self-test-mark {
+  flex: 0 0 34px;
+  font-family: Consolas, monospace;
+  font-size: 10px;
+}
+
+.self-test-mark.pass,
+.self-test-mark.info {
+  color: var(--good);
+}
+
+.self-test-mark.warn {
+  color: var(--warn);
+}
+
+.self-test-mark.fail {
+  color: var(--bad);
+}

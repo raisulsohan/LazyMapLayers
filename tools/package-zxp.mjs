@@ -37,6 +37,7 @@ import { tmpdir } from "node:os";
 import { dirname, join, resolve } from "node:path";
 import { fileURLToPath } from "node:url";
 import { walk, writeZip } from "./zip.mjs";
+import { copyInstallers, stagedProblems } from "./installer-files.mjs";
 
 const root = resolve(dirname(fileURLToPath(import.meta.url)), "..");
 const VERSION = JSON.parse(readFileSync(join(root, "package.json"), "utf8")).version;
@@ -216,33 +217,8 @@ function stage() {
   /* A production build: minified, no source maps, no debug port file. */
   execFileSync(process.execPath, [join(root, "tools", "build.mjs"), "--out", staging], { cwd: root, stdio: "inherit" });
 
-  for (const needed of [
-    "CSXS/manifest.xml", "LICENSE",
-    "panel/index.html", "panel/panel.css", "panel/panel.js", "panel/maplibre-gl.css",
-    "panel/maplibre-worker.js", "panel/encode-worker.js",
-    "host/lazymaplayers.jsx",
-    "data/natural-earth.pmtiles", "data/borders.geojson", "data/labels.json",
-    "data/admin1-index.json", "data/admin1/BGD.json", "data/countries/BGD.json",
-  ]) {
-    if (!existsSync(join(staging, needed))) fail(`${needed} is missing from the build.`);
-  }
-  if (existsSync(join(staging, ".debug"))) fail("the build contains a .debug file; release builds must not open a debug port.");
-  const manifest = readFileSync(join(staging, "CSXS", "manifest.xml"), "utf8");
-  if (!manifest.includes(`ExtensionBundleVersion="${VERSION}"`)) fail(`the manifest does not carry version ${VERSION}.`);
-
-  /* Adobe's signature check replaces symlinks as it verifies, and needs rights
-     the user may not have, which shows up as a blank panel. Allow none. */
-  const links = [];
-  (function scan(dir) {
-    for (const entry of readdirSync(dir, { withFileTypes: true })) {
-      const path = join(dir, entry.name);
-      if (entry.isSymbolicLink()) links.push(path);
-      else if (entry.isDirectory()) scan(path);
-    }
-  })(staging);
-  if (links.length) {
-    fail(`the panel contains symlinks, which break signed installs:\n    ${links.join("\n    ")}`);
-  }
+  const problems = stagedProblems(staging, VERSION);
+  if (problems.length) fail(problems.join("\n    "));
 
   log("[2/6]", `staged ${count(staging)} panel files`);
 }
@@ -356,20 +332,7 @@ function assemble() {
   mkdirSync(payload, { recursive: true });
   cpSync(zxp, join(payload, zxpName));
 
-  /* cmd.exe misreads a .bat with Unix line endings, and bash misreads a
-     .command with Windows ones, so each is rewritten with the endings its
-     shell needs rather than copied as it is. */
-  for (const name of readdirSync(join(root, "tools", "installer"))) {
-    const from = join(root, "tools", "installer", name);
-    const to = join(payload, name);
-    if (/\.(bat|cmd|txt)$/i.test(name)) {
-      writeFileSync(to, readFileSync(from, "utf8").replace(/\r?\n/g, "\r\n"));
-    } else if (/\.(command|sh)$/i.test(name)) {
-      writeFileSync(to, readFileSync(from, "utf8").replace(/\r\n/g, "\n"));
-    } else {
-      cpSync(from, to);
-    }
-  }
+  copyInstallers(root, payload);
   log("[5/6]", `assembled the download folder (${count(payload)} files)`);
 }
 

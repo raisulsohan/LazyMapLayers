@@ -93,7 +93,9 @@ import { addFeatureShape } from "./overlays/shapeFeature.ts";
 import { compSize, compView, countryAt, pointOf, previewMap, setCompSize, setPreviewImport, setPreviewStyle, showCompView } from "./preview.ts";
 import { openUrl } from "./cep.ts";
 import { readPrefs, writePrefs } from "./prefs.ts";
-import { issueUrl, newerVersion, RELEASES_URL, writeProblemReport, type Update } from "./updates.ts";
+import { copyText, ISSUES_URL, newerVersion, RELEASES_URL, writeProblemReport, type Update } from "./updates.ts";
+import { runSelfTest as gatherSelfTest, thisSystem, type SelfTestRun } from "./selfTest.ts";
+import { issueFormUrl } from "../core/support/issueForm.ts";
 import { downloadRegion, listRegions, planRegion, safeRegionName, type RegionInfo } from "./regions.ts";
 import { downloadTerrain, listTerrainPacks, planTerrain, type TerrainPackInfo } from "./terrain.ts";
 import { samplerFor } from "./elevation.ts";
@@ -3813,12 +3815,49 @@ export const dismissUpdate = (): void => {
 
 export const openUpdate = (): void => openUrl(updateAvailable.value?.url ?? RELEASES_URL);
 
-/** Writes a problem report next to the panel's data and opens a new issue with the versions filled in. */
+/** The newest Self-test of this session (D104), shown under About and carried by the problem report. */
+export const selfTestRun = signal<SelfTestRun | null>(null);
+
+async function selfTestNow(): Promise<SelfTestRun> {
+  if (jobs.value.some((job) => job.status === "running")) throw new Error("a render is running; run the Self-test when it has finished");
+  progress.value = { label: "Self-test", done: 0, total: 4 };
+  const result = await gatherSelfTest((label, done) => (progress.value = { label: `Self-test: ${label}`, done, total: 4 }));
+  selfTestRun.value = result;
+  log(`Self-test: ${result.verdict}. The report is in ${result.file}`, /^FAIL/.test(result.verdict) ? "fail" : /warnings/.test(result.verdict) ? "warn" : "ok");
+  return result;
+}
+
+/** Runs the Self-test in this After Effects: a frame, a map comp made and removed in one undo step, the pins, the offline data. */
+export const runSelfTest = () =>
+  run("Self-test", async () => {
+    await selfTestNow();
+  });
+
+/**
+ * A report in one step (D56, D104): the Self-test first when none has run since the panel opened, then
+ * the problem report written next to the panel's data and put on the clipboard, and the issue form
+ * opened with the versions, the system and the Self-test's line filled in.
+ * The user pastes the report and submits; nothing is sent before that.
+ */
 export const reportProblem = () =>
   run("problem report", async () => {
-    const report = writeProblemReport(logLines.value.map((line) => line.text), hostInfo.value);
-    openUrl(issueUrl(hostInfo.value));
-    log(`the problem report is at ${report.file}: paste it into the issue that opened in your browser`, "ok");
+    let test = selfTestRun.value;
+    if (!test) {
+      try {
+        test = await selfTestNow();
+      } catch (error) {
+        fail("Self-test", error);
+      }
+    }
+    const report = writeProblemReport(logLines.value.map((line) => line.text), hostInfo.value, test?.report);
+    const copied = copyText(report.text);
+    openUrl(issueFormUrl(ISSUES_URL, { versions: hostInfo.value || "LazyMapLayers (the host did not answer)", system: test?.system ?? thisSystem(), selfTest: test?.verdict ?? "not run" }));
+    log(
+      copied
+        ? `the problem report is on the clipboard (and in ${report.file}): paste it into the form that opened in your browser, then submit`
+        : `the problem report is in ${report.file}: copy it into the form that opened in your browser, then submit`,
+      "ok"
+    );
   });
 
 export function startStore(): () => void {

@@ -887,6 +887,73 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D104 — Ready for the Mac: CI on both systems, a Self-test in the panel, a report in one step (2026-10-12)
+
+- **Why.** The last phase of PLAN §10 (phase 15), for the macOS and Support rows of COMPARISON.md.
+  D90 ships macOS as experimental because there is no Mac here, so what Mac users report decides what
+  changes; a report that says "it does not work" without the host, the system, the install and what
+  failed cannot be acted on, and the Mac installer and the build had never run on a Mac at all.
+- **CI on Windows and macOS.** `.github/workflows/ci.yml` runs on every push and pull request to
+  `main`, and by hand, on `windows-latest` and `macos-latest` (Apple silicon): `npm ci`; the Natural
+  Earth zips (`tools/fetch-natural-earth.mjs`: the 26 files the prepare scripts read, about 69 MB from
+  naciscdn.org, kept in the Actions cache by their list, so they are fetched again only when the list
+  changes) and the bundled data prepared from them (about 25 seconds); the unit tests; the typecheck;
+  the development build and the release build (minified, into a folder of its own, its files checked
+  as `tools/package-zxp.mjs` checks them); the ES3 checks; and the installer test. Nothing is signed
+  there: the signing key never leaves the development PC, so CI holds no secret.
+- **ES3 on macOS.** `cscript` is Windows Script Host, which macOS does not have. On the Mac the Node
+  half of the expression check still runs (every generated expression evaluated in a modern engine and
+  written out as fixtures); the JScript half and the host script check are skipped there and run in
+  the Windows job. They read only text the build writes the same on both systems, so their answer
+  holds for the Mac as well; an ES3 parser in Node would be a package (hard rule 8) for no new answer.
+- **The installer test.** `tools/installer-test.mjs` builds the download folder as the release does
+  (the installers copied with the line endings each shell needs, by the same code as
+  `tools/package-zxp.mjs`, now in `tools/installer-files.mjs`), with an unsigned `.zxp` of the release
+  build and two tiny packs that hold the files the installers look for. It zips it with the release's
+  zip writer and unpacks it with the system's own tool (`ditto -x -k`, what Archive Utility uses, on
+  the Mac; the .NET unzip on Windows), so the `.command` file's executable mode is checked as a user
+  receives it. Then it runs the installers with the home folder (macOS: `HOME`) or the roaming folder
+  (Windows: `APPDATA`) pointed at a test folder, answering on standard input: Full; Light over it (the
+  world files replaced, downloads kept); Online after Full (the copied world files removed, downloads
+  kept); a developer link where the panel goes, replaced without touching what it points at; the
+  uninstaller keeping the data and then removing it. After each step it checks every place and file.
+  The `.command` runs on macOS, the `.bat` on Windows.
+- **The Self-test.** Maps > About > **Self-test** runs a short set of checks in the user's own After
+  Effects and project, in about five seconds, and shows each with its result:
+  1. *The host script.* It answers, its version is the panel's, After Effects is 2024 (24.0) or newer;
+     the project's expression engine is noted.
+  2. *A one-frame render.* The panel's own renderer (WebGL 2, the GPU named) draws one frame of the
+     world map, Natural Earth and the installed world under it, and writes it as a PNG into
+     `<user data>/self-test/`.
+  3. *A map comp, made and removed in one undo group.* One host call, inside one undo group
+     ("LazyMapLayers: Self-test"), makes a map comp with its scene and camera controls by the code New
+     map uses, imports the frame into it and lets After Effects sample a pixel of it (`sampleImage`),
+     adds the matched 3D camera, a pin and a 3D pin, reads where they are, and then removes every
+     item the call made (the items whose ids were not in the project before it), and opens the comp
+     that was open before. The project is left as it was; the one undo step it leaves changes nothing.
+  4. *A pin matches the camera.* The pin's position and the 3D pin seen through After Effects' camera
+     (`toComp`) against the camera maths in core: under half a pixel, as P1 and C1 ask.
+  5. *The offline data.* What the installer copied (`offline/pack.json`: Full, Light, or nothing for
+     Online), every file that kind promises present with a readable PMTiles header, Natural Earth in
+     the panel's own folder, and the user data folder writable.
+  The checks' logic is in core (`core/support/selfTest.ts`): the expected pin positions, each verdict,
+  the install's kind, the name of the system from the platform and its release (Darwin 24 is macOS
+  15), the report's text, and the home folder written as `~` so no user name is in it.
+- **A report in one step.** The problem report (D56) now carries the newest Self-test report; when
+  none has run since the panel opened, **Report a problem** runs it first. The report is written to the
+  user data folder as before and also copied to the clipboard, and the bug form opens with the
+  versions, the system and the Self-test's one line (for example "PASS, 5 of 5") filled in through the address. The user pastes the report into
+  its box and submits. The address carries only those three short lines, never a path or the log, and
+  nothing reaches GitHub until the user submits.
+- **Where users talk.** GitHub Discussions turned on (2026-10-12, Sohan's go-ahead; GitHub's default
+  categories, Q&A for questions). Two issue forms in `.github/ISSUE_TEMPLATE/`: a bug (which a Mac
+  user fills in the same way) and a feature request; blank issues stay possible, and the chooser points questions to Discussions
+  and to `docs/FAQ.md`. The FAQ is written from what the installer tests and the in-AE tests actually
+  ran into, as there are no issues yet, and grows from real issues and questions. The README asks for
+  Mac testers and says how to report in one step.
+- **Not done.** No Mac run still (D90 holds until a tester's report says otherwise); no crash upload
+  and nothing sent by itself (D56 holds).
+
 ## D103 — More imagery of the user's own: WMS, tile folders and MBTiles (2026-10-12)
 
 - **Why.** The last imagery row of COMPARISON.md (PLAN §10, phase 14). D59 took any XYZ, WMTS or

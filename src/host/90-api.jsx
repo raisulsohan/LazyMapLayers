@@ -2,13 +2,25 @@
  * Functions the panel may call through LML.call(name, argsJson).
  */
 LML.api.ping = function () {
+    var engine = null;
+    try {
+        engine = app.project.expressionEngine;
+    } catch (e) {
+        engine = null;
+    }
     return {
         lml: LML.version,
         appVersion: app.version,
         buildName: app.buildName,
         language: app.isoLanguage,
-        projectFile: app.project.file ? app.project.file.fsName : null
+        projectFile: app.project.file ? app.project.file.fsName : null,
+        expressionEngine: engine
     };
+};
+
+/** The Self-test's part in After Effects (D104): one undo group of its own, and everything it made removed again. */
+LML.api.selfTest = function (args) {
+    return LML.selfTest.run(args);
 };
 
 /** The comp a new map would go into (the active comp, unless it is a map comp itself), or null. */
