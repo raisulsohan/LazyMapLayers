@@ -24,6 +24,7 @@ import { runDiagnostics } from "./diagnostics.ts";
 import { runDistrictTest } from "./districtTests.ts";
 import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
+import { runArrowTest } from "./arrowTests.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
@@ -658,6 +659,15 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.RT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`RT1 failed: ${results.RT1_error}`, "fail");
+    }
+  }
+
+  if (wants("AR1")) {
+    try {
+      results.AR1_arrow = await runArrowTest(log);
+    } catch (error) {
+      results.AR1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`AR1 failed: ${results.AR1_error}`, "fail");
     }
   }
 

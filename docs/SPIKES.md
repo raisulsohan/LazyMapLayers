@@ -39,6 +39,7 @@ that go online run only when they are named.
 | LB2 | The label template: colour, size, halo, capitals, dots, a style picked up from a layer, and the names already placed restyled (capitals on and off again) | PASS |
 | LB3 | Keep-out zones: 42 names in the lower third become 0, and only while the zone holds | PASS |
 | RT1 | Imported routes, travellers and recorded pace | PASS |
+| AR1 | The arrow rig: the head on the tip (against the traveller on the same keys), the line stopping behind it, the taper, and the controls on the layer (both ends, no head, flowing dashes) | PASS 2026-10-12: head 0.000 px from the traveller, turned the same way |
 | SL1 | Outlines as editable shape layers: the drawn shape covers the rendered country to 98 % | PASS |
 | AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back; a layer copied onto three places, each copy sized by its number and on its place to the pixel, the original untouched | PASS |
 | ST1 | The style of the generated layers, and the callout font | PASS |

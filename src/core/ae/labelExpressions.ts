@@ -205,13 +205,41 @@ export const TRAVELLER_EFFECTS = { map: "Map", progress: "Progress", rotate: "Ro
  * behind the globe.
  */
 export function travellerExpressions(points: number[][]): { position: string; rotation: string; opacity: string } {
+  const path = `${routeRunSource(points, { fromComp: false })}var d = total * effect(${JSON.stringify(TRAVELLER_EFFECTS.progress)})(1).value / 100;
+`;
+  return {
+    position: `${TRAVELLER_MARKER} position (generated)
+${path}var c = lmlAt(d);
+[c[0], c[1]];`,
+    rotation: `${TRAVELLER_MARKER} rotation (generated)
+${path}var w = Math.max(total * 0.004, 0.5);
+var a = lmlAt(Math.max(0, d - w)), b = lmlAt(Math.min(total, d + w));
+var r = value;
+if (effect(${JSON.stringify(TRAVELLER_EFFECTS.rotate)})(1).value > 0 && Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]) > 0.0001) {
+  r = value + Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
+}
+r;`,
+    opacity: `${TRAVELLER_MARKER} opacity (generated)
+${path}var o = value;
+if (first < 0) o = 0;
+o;`
+  };
+}
+
+/**
+ * The start of an expression that walks a route as it is drawn on screen in this frame: the same
+ * polyline as routePathExpression builds (hidden points collapse onto visible neighbours, the whole
+ * line on one world copy), in comp pixels as `line`, with its running length `run`, its length `total`,
+ * `first` (the first visible point, -1 when all are hidden) and `lmlAt(d)`, the comp point at a
+ * distance along it. Trim Paths counts along the route layer's path the same way. With fromComp on,
+ * `lmlFromComp` turns a comp point into the layer's own space as well.
+ */
+export function routeRunSource(points: number[][], options: { fromComp?: boolean } = {}): string {
   const round = (v: number, digits: number) => Math.round(v * 10 ** digits) / 10 ** digits;
   const line = withContinuousLongitudes(points);
   const data = JSON.stringify(line.map((p) => (p.length > 3 ? [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1), round(p[3], 1)] : [round(p[0], 6), round(p[1], 6), round(p[2] ?? 0, 1)])));
-  // The same polyline as routePathExpression builds (hidden points collapse onto visible neighbours,
-  // the whole line on one world copy), in comp pixels, with its running length.
-  const path = `var map = effect(${JSON.stringify(TRAVELLER_EFFECTS.map)})(1);
-${projectionPrelude()}${compTransformSource({ fromComp: false })}var pts = ${data};
+  return `var map = effect(${JSON.stringify(TRAVELLER_EFFECTS.map)})(1);
+${projectionPrelude()}${compTransformSource({ fromComp: options.fromComp })}var pts = ${data};
 var ref = ${num(referenceOf(line))};
 var projected = [], first = -1, i = 0;
 for (i = 0; i < pts.length; i++) {
@@ -247,23 +275,5 @@ function lmlAt(d) {
   if (span > 0) t = (d - run[lo]) / span;
   return [line[lo][0] + (line[hi][0] - line[lo][0]) * t, line[lo][1] + (line[hi][1] - line[lo][1]) * t];
 }
-var d = total * effect(${JSON.stringify(TRAVELLER_EFFECTS.progress)})(1).value / 100;
 `;
-  return {
-    position: `${TRAVELLER_MARKER} position (generated)
-${path}var c = lmlAt(d);
-[c[0], c[1]];`,
-    rotation: `${TRAVELLER_MARKER} rotation (generated)
-${path}var w = Math.max(total * 0.004, 0.5);
-var a = lmlAt(Math.max(0, d - w)), b = lmlAt(Math.min(total, d + w));
-var r = value;
-if (effect(${JSON.stringify(TRAVELLER_EFFECTS.rotate)})(1).value > 0 && Math.abs(b[0] - a[0]) + Math.abs(b[1] - a[1]) > 0.0001) {
-  r = value + Math.atan2(b[1] - a[1], b[0] - a[0]) * 180 / Math.PI;
-}
-r;`,
-    opacity: `${TRAVELLER_MARKER} opacity (generated)
-${path}var o = value;
-if (first < 0) o = 0;
-o;`
-  };
 }

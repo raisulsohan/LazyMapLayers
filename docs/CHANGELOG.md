@@ -2,6 +2,12 @@
 
 ## Unreleased
 
+- **Arrow rig.** A route can now be drawn as an arrow: tick **Arrow rig** on the Route sheet or for
+  an imported line. The line tapers from its tail and ends in a head that always sits on its tip,
+  under any camera, and stops just behind the point. Width, taper, head size and style (triangle,
+  chevron or none), a head at both ends, dashes that flow, an outline and the colours are controls on
+  the layer, so you key them in After Effects. **Tail** makes an arrow that travels along the route.
+
 - **A new logo.** A map pin holding an After Effects keyframe, over the motion path the map
   travels: a map that animates, in one mark. The panel shows it as its icon, and the README and its
   top picture carry it. The masters, the sizes and how to use them are in `docs/brand/`.

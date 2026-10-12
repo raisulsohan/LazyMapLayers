@@ -10,6 +10,7 @@ import path from "node:path";
 import { fileURLToPath } from "node:url";
 import { cameraRigExpressions, groundFrameFor, pin3dPositionExpression } from "../src/core/ae/cameraRig.ts";
 import { followExpressions } from "../src/core/ae/followExpressions.ts";
+import { arrowRigExpressions } from "../src/core/ae/arrowRig.ts";
 import { anchoredPositionExpression, curvedLabelPathExpression, leaderPathExpression, routePathExpression, streetLabelExpressions, travellerExpressions } from "../src/core/ae/labelExpressions.ts";
 import { float32, pinExpressions } from "../src/core/ae/pinExpressions.ts";
 import { lodPathExpression, shapePathExpressions, shapeRings } from "../src/core/ae/shapeExpressions.ts";
@@ -49,6 +50,32 @@ function add(name: string, code: string, env: Env, tolerance = 1e-7) {
   const expected = fake.flatten(fake.run(code, env));
   if (expected.some((v) => typeof v === "number" && !Number.isFinite(v))) throw new Error(`${name}: non-finite result`);
   fixtures.push({ name, code, env, expected, tolerance });
+}
+
+/** Every expression of an arrow along a route, with random controls (the colour links only read a control). */
+function addArrow(name: string, route: number[][], map: Env["map"], comp: Env["comp"], i: number) {
+  const arrow = arrowRigExpressions(route, comp.height / 1080);
+  const own = {
+    Map: "MAP" as const,
+    Progress: float32(random() * 110 - 5),
+    Tail: float32(i % 3 === 0 ? random() * 60 : 0),
+    Width: float32(1 + random() * 12),
+    "Tail Width": float32(random() * 120),
+    "Taper Length": float32(random() * 100),
+    "Head Size": float32(random() * 250),
+    "Head Style": 1 + (i % 3),
+    "Both Ends": i % 2,
+    Dash: i % 4 === 0 ? 0 : float32(random() * 30),
+    Gap: float32(random() * 30),
+    "Dash Speed": float32(random() * 80 - 40),
+    "Outline Width": i % 2 ? 0 : float32(random() * 5)
+  };
+  const env = (value: unknown) => ({ own, map, comp, value, time: 1.5 });
+  for (const [part, code] of Object.entries(arrow)) {
+    if (part === "color" || part === "outlineColor") continue;
+    const value = part === "path" || part === "headPath" ? null : part.endsWith("Position") ? [0, 0] : 100;
+    add(`arrow ${part} ${name}`, code, env(value), part.endsWith("Rotation") ? 1e-5 : 1e-7);
+  }
 }
 
 function randomView(globe: boolean): View {
@@ -156,6 +183,7 @@ for (const globe of [false, true]) {
     add(`traveller position ${kind} ${i}`, traveller.position, { own: travellerOwn, map, comp, value: [0, 0] });
     add(`traveller rotation ${kind} ${i}`, traveller.rotation, { own: travellerOwn, map, comp, value: 10 }, 1e-5);
     add(`traveller opacity ${kind} ${i}`, traveller.opacity, { own: travellerOwn, map, comp, value: 90 });
+    addArrow(`${kind} ${i}`, route, map, comp, i);
 
     // A feature as a shape layer: one closed path per ring, with a hole inside the outer ring, and the
     // rings on 3D terrain every third time.

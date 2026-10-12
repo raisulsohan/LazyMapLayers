@@ -334,6 +334,11 @@ Rendered at 1080p and 4K. This is the first "wow" release (0.1).
 | 8 — Data visualisation and extras | DONE 2026-09-26 (categories and numbers over the years with a year counter, D79; line and area charts that follow the map, D80; 2026-09-27 prism maps, D84, DT3): a CSV joined to countries, states and provinces and drawn as a choropleth with a legend (D40); the same numbers as bubbles whose area stands for the value, as one editable layer, with their sizes in the legend (D41, DT1). The values written on the map as text layers of their own kind, which Auto labels leaves alone (D41). Flows: one great-circle arc per row of a from/to/amount table, width by amount, arrows riding, places found by the search (D46, FL1), each arc in the colour of its step of the ramp when asked (D49). Every place with a number as its own shape layer, filled and stroked by that number (D65, DT1). Spikes: a triangle per place rising up the frame, its height standing for the value, as one layer, with the legend showing three heights (D50, DT1). Heat: the places' warmth summed and drawn by the renderer as its own pass, in the ramp's colours (D51, HT1). All five map types of the plan are in. The same numbers as a bar chart precomp, longest first, each bar growing in turn (D66, DT1) |
 | 9 — Polish and 1.0 | DONE 2026-10-09, released as 1.0 with the map data for working offline down to city level (D91). Since 2026-09-24: a table of numbers watched on disk, so a map follows a file that keeps changing (D70, U1); a scripting API through a request folder, off by default, with docs/SCRIPTING.md and an ExtendScript helper (D71, U1); an inset locator map with a box that follows the big map's frame, itself a map with its own look and render (D68, MF1); a scale bar that measures itself from the map on every frame and a north arrow that turns with it, both in any corner, in metric or imperial (D67, MF1). Earlier 2026-09-23: a once-a-day check of the release list with a switch to turn it off, and a problem report the user pastes into a new issue (D56, U1). A second sample, a data map of every country by population from the bundled data (U1). Performance budgets written down with their measurements and enforced by the tests where a number can be checked (docs/PERFORMANCE.md). 2026-09-26: the guide opens with a five-minute map, and docs/QUALITY.md shows every item of the quality bar with the sample and the test that show it. 2026-10-09: macOS ships as experimental, without a run on a Mac (D90). The installer test, on the development PC switched to a user's setup (docs/RELEASING.md): a signed zip from main installed by its own installer over the development link and again over a release install, the panel opening with the signature check on, the world flight sample built and rendered in a project on the Legacy expression engine, Fly here and Alt+click; it found two panel bugs, both fixed (a sheet taller than the panel out of reach, an empty basemap list). Not tried: Auto labels in another language. 2026-10-09 also: the release carries the map data for working offline, about 1.9 GB - the world's OpenStreetMap to zoom 9 under every map, elevation to zoom 6, the satellite and relief pictures and the districts of every country - built by tools/build-offline-pack.ts and copied in by the installers (D91, OW1). Done |
 | 10 — Historical borders | DONE 2026-10-10 (§9), released in 1.1.0: the pack is built - 56 years, 13.9 MB, with British India in 1945 and Ceylon before 1948 corrected and 1947 and 1971 made by LazyMapLayers (D92). The history-1 release is published. 2026-10-10: the Look sheet downloads the pack and picks a year; the year's shapes, coloured by ruling power with neighbours apart, its borders and names replace today's countries in the preview and the render, with the credit (D93). HB1 passes in After Effects. Also 2026-10-10: the History Year slider on the map layer, keyed from the Look sheet's Move to, cross-fading through every year it passes, with a year layer that counts it (D94); HB1 passes with it. Then the past in the Highlight tool (a shape, or Shift+click a whole power) and in the search, and one name per ruling power in the pack, history-2, published, HB1 passes (D95). The past in Auto labels, names following the slider, and in the feature browser (D96). Done |
+| 11 — Arrow rig | DONE 2026-10-12 (§10): a route drawn as one arrow layer, tapered, with a head on its tip and every look a control on the layer, on the Route sheet and for imported lines (D100, AR1) |
+| 12 — Street detail on demand, and a light install | PLANNED (§10) |
+| 13 — Routes on roads | PLANNED (§10) |
+| 14 — More imagery sources | PLANNED (§10) |
+| 15 — macOS readiness and support | PLANNED (§10) |
 
 ## 9. After 1.0: historical borders
 
@@ -397,3 +402,78 @@ drawing is built).
 **Tests.** Unit tests for the build (shared borders stay identical, the corrections apply, every
 manifest entry has a file) and for the cross-fade weights; HB1 in After Effects renders 1815 and 1914
 over the same view and finds a known colony in its ruling power's colour.
+
+## 10. After 1.1: closing the gaps
+
+**Goal.** [COMPARISON.md](COMPARISON.md) lists eight rows where GEOlayers 3 is still ahead. Each one is
+closed here in a way that keeps hard rule 1 (no account, key, trial or subscription). Settled with
+Sohan on 2026-10-12:
+
+- **After Effects 2024 or newer stays.** Older versions are not a goal (the row stays as it is).
+- **No Esri, Bing or Google imagery** (D2 holds). The imagery row closes with formats and open sources.
+- **One phase per session.** Each phase starts in a new session. The session that finishes a phase
+  ends with the prompt for the next one, and the effort level it needs, in the chat.
+
+| Phase | Rows it closes | Effort |
+|---|---|---|
+| 11 — Arrow rig | Arrows | high |
+| 12 — Street detail on demand, and a light install | Street detail anywhere, Disk space | xhigh |
+| 13 — Routes on roads | Routes on roads | xhigh |
+| 14 — More imagery sources | Imagery sources | high |
+| 15 — macOS readiness and support | macOS, Support (partly: only a Mac and time close them fully) | high |
+
+**Phase 11 — Arrow rig**
+- A route can be drawn as an arrow: one shape layer whose line and head belong together. One
+  Progress slider moves the tip, and the head always sits on it, under any camera, on the globe and
+  on terrain (the traveller's maths, D45, in the layer's own space).
+- Controls on the layer, all keyable: Progress, Tail (where the line starts, for an arrow that
+  travels), Width, Tail Width and Taper Length (After Effects' own stroke taper), Head Size, Head
+  Style (triangle, chevron, none), Both Ends, Dash, Gap, Dash Speed (dashes that flow), Outline Width,
+  Color and Outline Color.
+- The line stops behind the head, so its edges never show past the point.
+- In the panel: an **Arrow rig** choice on the Route tool and on imported lines.
+- Done when the expressions pass in both engines (`npm run check:expressions`), unit tests cover the
+  maths, and an in-AE test (AR1) adds an arrow, moves Progress and finds the head on the tip.
+
+**Phase 12 — Street detail on demand, and a light install**
+- When a map's camera goes past zoom 9 and the computer is online, the panel works out which
+  OpenStreetMap tiles the frames need (the camera path is known in core) and fetches only those from
+  the Protomaps planet build by range requests, into the user data folder. No Download button is
+  needed; the download stays the way to prepare an area for working offline.
+- Offline, the panel says which frames lack detail instead of rendering them empty.
+- The installer offers **Full** (today's 1.9 GB pack), **Light** (Natural Earth, the world to zoom 6
+  and coarse elevation, about 100 MB) and **Online** (nothing extra; everything is fetched and kept
+  as it is used).
+- Done when a Light install renders a fly-to into a city's streets without pressing Download, the
+  frames match the same render from a downloaded region, and the frames come again offline.
+
+**Phase 13 — Routes on roads**
+- An own router in core: the road network around the route comes from Overpass (all roads near both
+  ends, major roads in between on long trips), A* finds the path, and the result is an ordinary route
+  line (the existing route, traveller, arrow rig and camera moves all work on it).
+- Modes: car (one-way streets respected), bicycle, on foot. The road data is cached on disk and
+  credited like any OpenStreetMap feature (D38).
+- A public routing service (OSRM or Valhalla) as an option only if its terms allow it, with a
+  D-entry first.
+- Done when a car route from Dhaka to Chittagong follows the national highway, a walk across a city
+  stays on its streets, both come again offline from the cache, and unit tests cover the graph and
+  the search.
+
+**Phase 14 — More imagery sources**
+- WMS addresses, a folder of `{z}/{x}/{y}` tiles and MBTiles files as imagery of the user's own,
+  next to XYZ, WMTS and PMTiles (D59). MBTiles is SQLite: a small read-only reader in core, or a
+  D-entry for a package.
+- More national open orthophoto services in the catalogue (D60), each with its licence checked and
+  recorded.
+- Done when each new format draws in the preview and the render with its credit, and every catalogue
+  entry has its licence on record.
+
+**Phase 15 — macOS readiness and support**
+- A GitHub Actions run on macOS and Windows: unit tests, typecheck, build, and the Mac installer
+  scripts in a test home folder.
+- A **Self-test** in the panel: a short set of in-AE checks the user runs in their own After
+  Effects, which writes a report the problem report (D56) can carry. Mac users can then report in
+  one step.
+- GitHub Discussions, issue templates, a FAQ built from real issues, and a call for Mac testers.
+- Done when the CI run is green on both systems and a Self-test report is attached to a problem
+  report from the panel.

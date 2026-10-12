@@ -5,6 +5,7 @@
 // holds and fades out between two frames.
 
 import { leaderPathExpression, anchoredPositionExpression, routePathExpression, travellerExpressions } from "../../core/ae/labelExpressions.ts";
+import { arrowRigExpressions, defaultArrowControls, HEAD_STYLES } from "../../core/ae/arrowRig.ts";
 import { cometTailKeys } from "../../core/ae/trimKeys.ts";
 import { paceKeys, type TimedLine } from "../../core/geo/pace.ts";
 import { prepareRouteLine } from "../../core/geo/routeLine.ts";
@@ -24,6 +25,26 @@ type Info = { width: number; height: number; frameRate: number };
 /** The look of the layers the panel generates; without one, the default look's. */
 const styleOf = (style: LayerStyle | undefined) => style ?? resolveLayerStyle(themeById(null));
 
+/**
+ * The route line as an arrow rig (one layer, the line and its head, every look a control on it), in
+ * place of a plain path item: the same name, data, keys and glow, so camera moves still find the route.
+ */
+function arrowItem(path: Record<string, unknown>, points: number[][], look: LayerStyle, scale: number, width: number, dash: number): Record<string, unknown> {
+  const stroke = path.stroke as { color: number[] };
+  return {
+    type: "arrow",
+    kind: path.kind,
+    name: path.name,
+    data: path.data,
+    expressions: arrowRigExpressions(points, scale),
+    headStyles: HEAD_STYLES,
+    controls: defaultArrowControls(width, stroke.color, styleRgb(look.panel), dash),
+    progressKeys: path.trimKeys,
+    linearKeys: path.linearKeys,
+    glow: path.glow
+  };
+}
+
 export type RouteOptions = {
   name?: string;
   startFrame: number;
@@ -39,6 +60,8 @@ export type RouteOptions = {
   comet?: boolean;
   /** An arrow that travels along the route and turns with it. */
   traveller?: boolean;
+  /** The line itself as an arrow rig: a tapered line with a head on its tip, every look a control on the layer. */
+  rig?: boolean;
   /** Dash length in 1080-line pixels; 0 for a solid line. */
   dash?: number;
   /** The map's terrain: with an elevation pack the route follows the ground of 3D terrain. */
@@ -56,7 +79,7 @@ async function groundOf(terrain: TerrainSetting | null | undefined, points: LngL
   }
 }
 
-export async function addRoute(mapId: string, from: LngLat, to: LngLat, options: RouteOptions): Promise<{ layers: string[]; expressionErrors: string[] }> {
+export async function addRoute(mapId: string, from: LngLat, to: LngLat, options: RouteOptions): Promise<{ layers: string[]; expressionErrors: string[]; warnings?: string[] }> {
   const info = await callHost<Info>("renderInfo", { mapId });
   const scale = info.height / 1080;
   const route = greatCircle(from, to, options.points ?? 96, options.arc ?? 0.08);
@@ -81,6 +104,7 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
       glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
     }
   ];
+  if (options.rig) items[0] = arrowItem(items[0], route.map((p, i) => [p.lat, p.lng, p.altitude, ground[i]]), look, scale, (options.width ?? look.stroke) * scale, (options.dash ?? 0) * scale);
   if (options.comet) {
     items.push({
       type: "path",
@@ -106,7 +130,7 @@ export async function addRoute(mapId: string, from: LngLat, to: LngLat, options:
       size: 16 * scale
     });
   }
-  return callHostWithJobFile("addOverlays", { mapId, undoName: "Add route", items });
+  return callHostWithJobFile("addOverlays", { mapId, undoName: options.rig ? "Add arrow" : "Add route", items });
 }
 
 /** Expressions project every point on every frame, so long tracks are thinned to this many points. */
@@ -120,6 +144,8 @@ export type RouteLineOptions = {
   width?: number;
   /** Adds an arrow that travels along the line while it draws on. */
   traveller?: boolean;
+  /** The line itself as an arrow rig (see RouteOptions.rig). */
+  rig?: boolean;
   /** A bright head that runs along the line and fades out behind it, over the drawn line. */
   comet?: boolean;
   /** Dash length in 1080-line pixels (the gap matches it); 0 for a solid line. */
@@ -138,7 +164,7 @@ export type RouteLineOptions = {
  * Any line (an imported track, a road, an area's outline) as a route layer that follows the map and
  * draws on with Trim Paths, with an optional traveller that runs along it at the same pace.
  */
-export async function addRouteLine(mapId: string, line: LngLat[], options: RouteLineOptions): Promise<{ layers: string[]; expressionErrors: string[]; points: number; keys: number }> {
+export async function addRouteLine(mapId: string, line: LngLat[], options: RouteLineOptions): Promise<{ layers: string[]; expressionErrors: string[]; warnings?: string[]; points: number; keys: number }> {
   const info = await callHost<Info>("renderInfo", { mapId });
   const scale = info.height / 1080;
   const prepared = prepareRouteLine(line, { maxPoints: ROUTE_MAX_POINTS, geodesic: !options.outline });
@@ -167,6 +193,7 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       glow: look.glow ? { radius: 18 * scale, intensity: 0.8 } : null
     }
   ];
+  if (options.rig) items[0] = arrowItem(items[0], points, look, scale, (options.width ?? look.stroke) * scale, (options.dash ?? 0) * scale);
   if (options.comet) {
     // The same path trimmed at both ends: a short bright piece that chases the tip of the line.
     items.push({
@@ -195,7 +222,7 @@ export async function addRouteLine(mapId: string, line: LngLat[], options: Route
       size: 16 * scale
     });
   }
-  const made = await callHostWithJobFile<{ layers: string[]; expressionErrors: string[] }>("addOverlays", { mapId, undoName: "Add route", items });
+  const made = await callHostWithJobFile<{ layers: string[]; expressionErrors: string[]; warnings?: string[] }>("addOverlays", { mapId, undoName: options.rig ? "Add arrow" : "Add route", items });
   return { ...made, points: light.length, keys: keys.length };
 }
 

@@ -262,6 +262,8 @@ export const flightSeconds = signal(6);
 export const routeComet = signal(false);
 /** An arrow that rides a click-made route (imported lines have their own Draw + arrow button). */
 export const routeArrow = signal(false);
+/** New routes are drawn as an arrow rig: a tapered line with a head on its tip, every look a control on the layer. */
+export const routeRig = signal(false);
 /** New routes are drawn as a dashed line. */
 export const routeDashed = signal(false);
 /** Dash length in 1080-line pixels when a route is dashed. */
@@ -887,8 +889,10 @@ export const confirmToolSheet = () =>
       // "Route: Dhaka to Chittagong" when both ends are on a named place.
       const ends = [placeNameAt(sheet.from), placeNameAt(sheet.to)];
       const routeName = ends[0] && ends[1] ? uniquePlaceName(`${ends[0]} to ${ends[1]}`) : `Route ${pinCounter++}`;
-      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: routeName, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, traveller: routeArrow.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
-      log(`added "${routeName}", a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : ""}`, made.expressionErrors.length ? "fail" : "ok");
+      const made = await addRoute(entry.mapId, sheet.from, sheet.to, { name: routeName, startFrame: start, endFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, traveller: routeArrow.value, rig: routeRig.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
+      const rig = routeRig.value ? ", as an arrow rig (taper, head, dashes and colours are controls on the layer)" : "";
+      log(`added "${routeName}", a route that draws on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${rig}${routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : ""}`, made.expressionErrors.length ? "fail" : "ok");
+      for (const warning of made.warnings ?? []) log(warning, "muted");
     }
     toolSheet.value = null;
   });
@@ -999,10 +1003,11 @@ export const drawImportedLine = (line: ImportedLine, seconds: number, traveller:
     const start = currentMapFrame(entry);
     const frames = Math.max(1, Math.round(seconds * entry.frameRate));
     const pace = recordedPace && line.times ? { points: line.points, times: line.times, leaves: line.leaves } : undefined;
-    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
+    const made = await addRouteLine(entry.mapId, line.points, { name: `Route: ${line.name}`, startFrame: start, endFrame: start + frames, traveller, outline: line.closed, pace, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, rig: routeRig.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
     const thinned = made.points < line.points.length ? ` (${line.points.length} points thinned to ${made.points})` : "";
     const paced = pace ? ` at its recorded pace (${made.keys} keys, long stops shortened)` : "";
-    log(`"${line.name}" draws on from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
+    const rig = routeRig.value ? " as an arrow rig" : "";
+    log(`"${line.name}" draws on${rig} from ${entry.time.toFixed(2)} s over ${seconds} s${paced}${traveller ? ", with an arrow travelling along it (parent your own artwork to the Traveller layer)" : ""}${thinned}`, made.expressionErrors.length ? "fail" : "ok");
   });
 
 export const pinImportedPlaces = (places: ImportedPlace[]) =>

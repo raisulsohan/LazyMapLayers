@@ -92,8 +92,10 @@ the place - "Pin: Dhaka". A 3D pin lies on the ground under the matched 3D camer
 
 **Route**: click two places. The sheet has the duration, **Arrow** (a Traveller layer rides the line
 and turns with it - parent your own plane to it), **Comet** (a bright head runs along the line as it
-draws) and **Dashed**. The route draws on from the current time; the layer is named "Dhaka to
-Chittagong".
+draws), **Dashed** and **Arrow rig** (the line itself becomes an arrow: it tapers from the tail and
+ends in a head on its tip; Progress, Tail, Width, Tail Width, Taper Length, Head Size, Head Style,
+Both Ends, Dash, Gap, Dash Speed, Outline Width and the colours are controls on the layer). The route
+draws on from the current time; the layer is named "Dhaka to Chittagong".
 
 **Attach**: select your own layers in After Effects - an icon, a photo, a precomp - then click a
 place. They get a pin's controls (Latitude, Longitude, Elevation, Scale with map, Rotate with map)
@@ -112,8 +114,8 @@ geoBoundaries; the size is shown first). In the sheet:
   preview's centre (**Circle here**). Each is a new area you can highlight, add as a shape, or save.
 
 **Import**: GPX, KML, KMZ, GeoJSON, CSV, or a zipped shapefile. For each line: **Fit** (frame it),
-**Draw** or **Draw + arrow** (a route that draws on, with an arrow riding it; **Comet**, **Dashed**
-and, for a GPS track with times, **Recorded pace** are switches above) or **Camera** (shots along
+**Draw** or **Draw + arrow** (a route that draws on, with an arrow riding it; **Comet**, **Dashed**,
+**Arrow rig** and, for a GPS track with times, **Recorded pace** are switches above) or **Camera** (shots along
 it). Places become pins; areas can be
 highlighted. A CSV of places with a name column becomes pins; a CSV of names and numbers opens the
 Numbers sheet instead.

@@ -887,6 +887,42 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D100 — The arrow rig (2026-10-12)
+
+- **Why.** The first of the rows in COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 11):
+  a route with an arrow was a line plus a Traveller layer (D45), with no taper and no head size or
+  style, and a head that is its own layer can drift from the line's tip when the two are retimed apart.
+- **Decision.** **Arrow rig** draws the route line as one shape layer: a Line group (the route's own
+  path, two strokes and Trim Paths), a Head and a Tail Head group. Every look is an Expression
+  Control on the layer (`src/core/ae/arrowRig.ts` names them): Progress, Tail, Width, Tail Width,
+  Taper Length, Head Size, Head Style (a Dropdown Menu Control: Triangle, Chevron, None), Both Ends,
+  Dash, Gap, Dash Speed, Outline Width, Color and Outline Color. The strokes, the taper, the dashes,
+  the trims and the heads only read those controls through expressions.
+- **The head on the tip.** The heads use the traveller's maths (`routeRunSource`, shared with
+  `travellerExpressions`), turned into the layer's own space: the route as drawn on screen in that
+  frame, measured the way Trim Paths measures it. Progress drives both the head and Trim End, so they
+  cannot part.
+- **The line stops behind the head.** A triangle hides the line from where it is as wide as the line
+  (at most 90 % of the head's length back); a chevron's stroke covers half the line's width; with no
+  head the line runs to the tip. The line has butt ends for this. A head fades in over its own length
+  as the arrow starts, and an arrow shorter than its head draws no line.
+- **Solid without removing dashes.** Dash 0 reads as a 100,000 px dash with no gap, so the dash
+  properties stay on the stroke and a designer can key Dash up from 0. Every dash property of a
+  stroke exists from the start but hidden, Offset too: it takes an expression only after
+  `addProperty("ADBE Vector Stroke Offset")` shows it (found by AR1).
+- **Taper.** After Effects' own stroke taper (Start Width and Start Length, in percent), found by
+  match name and, failing that, by name. Without it the line keeps one width and the panel says so.
+- **The layer stays a route.** Its kind is `route` with the two ends in its tag, so camera moves along
+  the route, the GeoJSON export (the Line group's path) and the style pick-up work unchanged. The
+  Arrow rig switch sits after Dashed, so the numbered pictures of the Route sheet stay right.
+- **Not in this step.** Flows (D46) keep their arcs and travellers: a flow table can reach hundreds of
+  arcs, and every arrow evaluates the route nine times a frame.
+- **Tested.** Unit tests (`tests/core/arrowRig.test.ts`) for the head on the tip, the line's stop,
+  the fades, the shapes and the controls; every expression in both engines
+  (`npm run check:expressions`); AR1 in After Effects 2026: the head 0.000 px from a traveller on the
+  same keys and turned the same way, the line ending just behind it, the taper at 35 % over the whole
+  line, both ends, no head and flowing dashes.
+
 ## D99 — The Keyframe pin logo, and an icon for the panel (2026-10-11)
 
 - **Why.** The old mark (a white folded map with a pin on an emerald-to-sky tile) said "a map app"

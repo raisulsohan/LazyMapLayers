@@ -70,7 +70,7 @@ import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { changeLookDetails, lookDetails } from "../store.ts";
 import type { LabelDensity } from "../../core/style/lookDetails.ts";
-import { routeArrow, routeComet, routeDashed } from "../store.ts";
+import { routeArrow, routeComet, routeDashed, routeRig } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
 import { useState } from "preact/hooks";
 
@@ -1034,6 +1034,10 @@ export function ImportSheetView(props: { pickFile: () => void }): JSX.Element | 
           <input type="checkbox" data-id="route-dashed" checked={routeDashed.value} onChange={(e) => (routeDashed.value = (e.target as HTMLInputElement).checked)} />
           <span>Dashed</span>
         </label>
+        <label class="check" title="Draws the line as an arrow: it tapers from the tail and ends in a head that stays on its tip. Taper, head size and style, both ends, flowing dashes, outline and colours are controls on the layer, ready to key.">
+          <input type="checkbox" data-id="route-rig" checked={routeRig.value} onChange={(e) => (routeRig.value = (e.target as HTMLInputElement).checked)} />
+          <span>Arrow rig</span>
+        </label>
         {data.lines.some((line) => line.times) && (
           <label class="check" title="Lines that were recorded with times (GPS tracks, flight logs) draw on at the pace of the recording: fast where it was fast, slow where it was slow, with long stops shortened. Off: an even pace.">
             <input type="checkbox" data-id="recorded-pace" checked={recordedPace} onChange={(e) => setRecordedPace((e.target as HTMLInputElement).checked)} />
@@ -1573,6 +1577,10 @@ export function ToolSheetView(): JSX.Element | null {
           <label class="check" title="Draws the line dashed instead of solid.">
             <input type="checkbox" data-id="tool-route-dashed" checked={routeDashed.value} onChange={(e) => (routeDashed.value = (e.target as HTMLInputElement).checked)} />
             <span>Dashed</span>
+          </label>
+          <label class="check" title="Draws the line as an arrow: it tapers from the tail and ends in a head that stays on its tip. Taper, head size and style, both ends, flowing dashes, outline and colours are controls on the layer, ready to key.">
+            <input type="checkbox" data-id="tool-route-rig" checked={routeRig.value} onChange={(e) => (routeRig.value = (e.target as HTMLInputElement).checked)} />
+            <span>Arrow rig</span>
           </label>
         </div>
       )}

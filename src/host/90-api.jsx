@@ -76,6 +76,7 @@ LML.api.addOverlays = function (args) {
     return LML.withUndo(args.undoName || "Add overlays", function () {
         var results = [];
         var errors = [];
+        var warnings = [];
         if (args.replaceKinds) {
             for (var k = 0; k < args.replaceKinds.length; k++) LML.overlays.removeKind({ mapId: args.mapId, kind: args.replaceKinds[k] });
         }
@@ -89,12 +90,16 @@ LML.api.addOverlays = function (args) {
             if (item.type === "path") result = LML.overlays.addPath(item);
             else if (item.type === "shape") result = LML.overlays.addShape(item);
             else if (item.type === "traveller") result = LML.overlays.addTraveller(item);
+            else if (item.type === "arrow") result = LML.overlays.addArrow(item);
             else if (item.type === "box") result = LML.overlays.addBox(item);
             else result = LML.overlays.addText(item);
             for (var e = 0; e < result.expressionErrors.length; e++) errors.push(result.expressionErrors[e]);
+            if (result.warnings) {
+                for (var w = 0; w < result.warnings.length; w++) warnings.push(result.warnings[w]);
+            }
             results.unshift(result.name);
         }
-        return { layers: results, expressionErrors: errors };
+        return { layers: results, expressionErrors: errors, warnings: warnings };
     });
 };
 
