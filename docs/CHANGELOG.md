@@ -2,6 +2,18 @@
 
 ## Unreleased
 
+- **More imagery of your own.** The Look sheet's address field now also takes a **WMS** address:
+  the panel asks the service what it offers and lists its layers and formats, and draws the one you
+  pick tile by tile, with the service's credit filled in. **Folder…** takes a folder of
+  `{z}/{x}/{y}` tiles from your computer (gdal2tiles, QGIS or drone software), and **MBTiles…** an
+  MBTiles file of pictures (QGIS, GDAL, MapTiler, TileMill); the panel works out the zooms, the area,
+  the tile size and the credit itself, and neither needs the internet. Everything draws over the
+  ground and under the lines, in the preview and the render, like any imagery of your own.
+- **Seven more open aerial services** under **Open services**: North Rhine-Westphalia, Bavaria,
+  Brandenburg and Berlin, Berlin's true orthophotos 2024, Lower Saxony, Thuringia and Flanders, each
+  with its licence and credit, all free for commercial use.
+- Picking a satellite area you built now draws it at once (it did nothing before).
+
 - **Street detail anywhere, without pressing Download.** Fly into any city on the World basemap and
   its streets, buildings and names are there: the panel works out which OpenStreetMap tiles the frames
   need and fetches only those (a fly-to into a city is a few megabytes), keeps them, and draws them as

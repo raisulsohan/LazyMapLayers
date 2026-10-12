@@ -887,6 +887,88 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D103 — More imagery of the user's own: WMS, tile folders and MBTiles (2026-10-12)
+
+- **Why.** The last imagery row of COMPARISON.md (PLAN §10, phase 14). D59 took any XYZ, WMTS or
+  PMTiles address; a designer also meets imagery as a WMS address (most national and city services
+  publish one), as a folder of tiles a program wrote (gdal2tiles, QGIS, drone software), and as an
+  MBTiles file (QGIS, GDAL, MapTiler, TileMill). D2 stays: no Esri, Bing or Google.
+- **One setting, more kinds of address.** The map still carries one `OwnImagery` (D59), its `url`
+  telling the kind apart (`core/style/ownImagery.ts`): a web tile template, a `.pmtiles` archive, a
+  satellite area (D73), and now a WMS GetMap template, a folder template on this computer
+  (`D:\Tiles\{z}\{x}\{y}.png`, `{-y}` for rows counted from the south) or an `.mbtiles` file. The
+  setting gains `bounds` (west, south, east, north), so nothing is asked outside what the source
+  covers. Everything after the source is as before: the imagery group, so the base, land and water
+  passes and never a matte; the opacity; the credit on the credit line and in the scene.
+- **WMS: Web Mercator only, tile by tile.** The panel asks the address for its GetCapabilities
+  (version 1.3.0 asked, 1.1.1 understood), and core reads the answer with a small XML reader of its
+  own (`core/data/xml.ts`, no DOM in core) into the GetMap address, the formats and the named layers,
+  each with what it inherits from the layers around it (coordinate systems, bounds, attribution,
+  scales). Only a layer offered in Web Mercator (EPSG:3857, or one of its older names: 900913,
+  102100, 102113, 3785) can be picked: the panel does not reproject pictures. The GetMap address
+  becomes a tile template with MapLibre's `{bbox-epsg-3857}` (the tile's box in metres), the tile's
+  size as WIDTH and HEIGHT, the layer, the default style and the format; the address's own
+  parameters (a MapServer `map=`, a key) are kept. PNG is chosen when offered (transparent where the
+  service has no picture), JPEG otherwise; the user can pick any listed format. The layer's scale
+  limits become the first and last zoom (a scale denominator at zoom z is 559,082,264 / 2^z for
+  256-pixel tiles), its bounds the source's bounds, its Attribution title the credit, and the log
+  repeats the service's access constraints and fees, which are the user's to keep.
+- **A folder of tiles.** The user picks a folder (or types its path); the panel lists it and core
+  works out the layout: zoom folders, the picture format from the files, the zooms from the folder
+  names, the bounds from the tiles of the lowest zoom. A `tilemapresource.xml` beside the zoom
+  folders means gdal2tiles' TMS rows (counted from the south), so the template gets `{-y}`; the user
+  can change it in the address.
+- **MBTiles: our own reader, no package.** An MBTiles file is an SQLite database, and SQLite for the
+  panel would mean a native module or a WebAssembly build (hard rule 8, and a native module per
+  After Effects platform). Reading is far smaller than SQLite: `core/tiles/sqlite.ts` reads the file
+  format (the header, pages, table and index B-trees, overflow pages, records, the schema) through a
+  function that reads bytes at an offset, so only the pages a tile needs are read from disk;
+  `core/tiles/mbtiles.ts` finds a tile in both layouts raster tiles come in: a `tiles` table (with or
+  without an index on its zoom, column and row), and the `map` and `images` tables behind a `tiles`
+  view (mbutil, TileMill, GDAL); Planetiler's compact layout holds only vector tiles. Rows are TMS, as the
+  specification says (a `scheme` of `xyz` in the metadata is honoured). The metadata gives the
+  format, the zooms, the bounds and the attribution (its HTML stripped) for the credit. Vector tiles
+  (`pbf`) are refused, with the reason: raster only. A file still being written (a non-empty `-wal`
+  beside it) is refused until the program writing it closes it, because its newest pages are not in
+  the file yet. A table without a rowid is refused.
+- **Drawn through one protocol.** Folder and MBTiles tiles reach MapLibre through `lmllocal://`
+  (`panel/imagery/localTiles.ts`), read with Node on demand, in the preview and the render alike; a
+  tile the source does not have is drawn transparent, so the map shows through. A render's cache
+  key holds the file's size and time, so a changed file draws again. Neither needs the network.
+- **More of the catalogue (D60), checked one by one on 2026-10-12.** Each address was asked for its
+  capabilities by the new reader and for a tile over a city at zoom 12 and 17 (a real JPEG came back
+  every time), and each licence was read where the publisher states it. Seven WMS services join the
+  ten: North Rhine-Westphalia (Datenlizenz Deutschland - Zero 2.0, stated in the service's own
+  capabilities), Bavaria (CC BY 4.0, stated there, from zoom 8 as its scales say), Brandenburg with
+  Berlin (Datenlizenz Deutschland - Namensnennung 2.0, credit "© GeoBasis-DE/LGB" and "© Geoportal
+  Berlin" as the capabilities ask), Berlin's true orthophotos 2024 (Zero 2.0), Lower Saxony (CC BY
+  4.0, credit "LGLN" with the year the data was taken), Thuringia (CC BY 4.0, "© GDI-Th", from zoom
+  9) and Flanders (the Flemish Open Data Licence v1.2 named in Digitaal Vlaanderen's release of the
+  mosaic: any lawful use, commercial included, with the source named). Each entry now carries the
+  date it was checked and, for these regions, the area it covers. **Left out, and why:** Queensland
+  (its own service says CC BY-SA and holds Planet imagery under all rights reserved), New South Wales
+  (the catalogue says CC BY 3.0, the service holds imagery © AAM and Jacobs, and the publisher's
+  document links a no-derivatives licence), Hong Kong (a logo on the map face, and commercial use not
+  settled in what could be read), Taiwan and Wallonia (no licence stated for the layer itself), Saxony
+  (dl-de/by-2-0 in the national catalogue, but the service answered one request in three), Poland,
+  Slovakia and Portugal (no connection from here in two tries), Croatia (no Web Mercator), Slovenia and
+  Hamburg (the addresses tried answered 404). A service that changes stays reachable through the
+  address field.
+- **A writer for the tests.** `core/tiles/sqliteWrite.ts` writes a small SQLite file (tables only,
+  no indexes): the in-AE test makes its MBTiles file with it, and the unit tests hold both it and
+  the reader to SQLite itself (`node:sqlite`, test-only, with `PRAGMA integrity_check`).
+- **Tested.** Unit tests for the XML reader, the capabilities of 1.3.0 and 1.1.1 answers (inheritance,
+  aliases, scale hints, exceptions), the GetMap template, the folder layout, and the SQLite reader on
+  files SQLite wrote: page sizes from 512 to 65,536 bytes, B-trees of several levels, tiles that
+  overflow, indexes found and not, the view layouts, UTF-16 text, the WAL flag. OI1 is extended: the
+  test serves a WMS (capabilities and GetMap) on this computer and writes a TMS tile folder and an
+  MBTiles file to disk, and each draws in the preview and over land and sea in the render, out of
+  the mattes, with its credit. OI1 passed in After Effects 2026 on 2026-10-12: the WMS answered 58
+  GetMap requests, every one a whole Web Mercator tile of 256 pixels in EPSG:3857 with the layer and
+  format picked; the TMS folder came the right way up, the 512-pixel MBTiles file was found to be
+  512, and each colour filled land and sea in the base pass and the preview while the land matte
+  stayed clean.
+
 ## D102 — Routes on roads: our own router over OpenStreetMap (2026-10-12)
 
 - **Why.** A row of COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 13): its routes can

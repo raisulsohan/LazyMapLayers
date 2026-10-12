@@ -45,7 +45,7 @@ offline (D101).
 | AT1 | Your own layers attached to a place: 0.008 px, and Unlink puts them back; a layer copied onto three places, each copy sized by its number and on its place to the pixel, the original untouched | PASS |
 | ST1 | The style of the generated layers, and the callout font | PASS |
 | DT1 | Numbers on the map: the join (countries, states, downloaded districts), the colours in the rendered pixels, bubbles and spikes 0.000 px off their places, the numbers as text layers, and the legend | PASS |
-| OI1 | Imagery of the user's own: tiles served on this computer drawn over land and sea in the base pass, blended at half opacity, kept out of the mattes, credited | PASS |
+| OI1 | Imagery of the user's own: tiles served on this computer drawn over land and sea in the base pass, blended at half opacity, kept out of the mattes, credited; since D103 also a WMS served here (capabilities, a Web Mercator layer picked, GetMap tile by tile), a TMS tile folder and a 512-pixel MBTiles file written to disk by the test, each in the render and the preview with its credit | PASS (2026-10-12) |
 | HT1 | Heat: weighted points rendered as their own pass, warm at the points, nothing away from them, the heaviest the warmest, the layer named after the column, and a three-step legend | PASS |
 | LK1 | A look of your own in the rendered pixels (sea 58,13,82 for #3a0d52), and a look from a picture | PASS |
 | MF1 | The map's furniture: a scale bar that measures itself every frame, a north arrow that turns with the map, a graticule | PASS |

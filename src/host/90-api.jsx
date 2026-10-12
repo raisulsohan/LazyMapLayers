@@ -480,3 +480,9 @@ LML.api.pickFolder = function (args) {
     var folder = Folder.selectDialog((args && args.prompt) || "Choose a folder");
     return folder ? folder.fsName : null;
 };
+
+/** A file the user chooses, as a path only (the panel reads it), or null. args: { title, filter } */
+LML.api.pickFile = function (args) {
+    var file = File.openDialog((args && args.title) || "Choose a file", (args && args.filter) || undefined);
+    return file ? file.fsName : null;
+};

@@ -4,6 +4,7 @@
 import { nodeRequire } from "./cep.ts";
 
 type NodeHttps = typeof import("node:https");
+type NodeHttp = typeof import("node:http");
 type NodeZlib = typeof import("node:zlib");
 
 export type HttpResponse = {
@@ -49,9 +50,12 @@ export function isOfflineError(error: unknown): boolean {
   return ["ENOTFOUND", "EAI_AGAIN", "ECONNREFUSED", "ECONNRESET", "ETIMEDOUT", "ENETUNREACH", "EHOSTUNREACH", "ENETDOWN"].includes(code) || /^timeout fetching/.test(error instanceof Error ? error.message : "");
 }
 
-/** A request that follows redirects (up to 5) and gives up after a minute without an answer. */
+/**
+ * A request that follows redirects (up to 5) and gives up after a minute without an answer. Plain
+ * http is taken too, for a WMS of the user's own that has no https (D103).
+ */
 export function httpsRequest(url: string, options: HttpOptions = {}, redirects = 0): Promise<HttpResponse> {
-  const https = nodeRequire<NodeHttps>("https");
+  const https = /^http:/i.test(url) ? nodeRequire<NodeHttp>("http") : nodeRequire<NodeHttps>("https");
   return new Promise((resolve, reject) => {
     if (options.signal?.aborted) return reject(new Error("cancelled"));
     if (blocked) return reject(Object.assign(new Error(`getaddrinfo ENOTFOUND ${new URL(url).hostname} (the network is blocked for a test)`), { code: "ENOTFOUND" }));

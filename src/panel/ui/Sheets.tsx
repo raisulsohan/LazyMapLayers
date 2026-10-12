@@ -55,11 +55,12 @@ import type { FeatureScope } from "../features.ts";
 import { changeLabelTemplate, currentLabelTemplate, keepOut, keepOutFromLayers, labelTemplateFollows, pickUpLabelStyle, removeKeepOut, toggleKeepOutPreset } from "../store.ts";
 import { changeLabelDesign, currentLabelDesign, labelDesignId, labelDesignList, refreshLabelDesigns } from "../store.ts";
 import { changeLook, currentTheme, lookFollowsTheme, lookFromImage, lookOverride, openLookFile, saveLook } from "../store.ts";
-import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, shareWithAllMaps, useImageryService } from "../store.ts";
+import { changeOwnImagery, maps as projectMaps, ownImagery, ownImageryDraft, pickImageryFile, pickImageryFolder, reopenWms, shareWithAllMaps, useImageryService, useWmsLayer, wmsChoice } from "../store.ts";
 import { IMAGERY_SERVICES } from "../../core/style/imageryCatalogue.ts";
 import { addMapMinimap, addMapNorthArrow, addMapScaleBar, minimapCorner, minimapZoomOut, northCorner, northLetter, removeMapFurniture, removeMapMinimap, scaleBarCorner, scaleBarUnits } from "../store.ts";
 import { openSatelliteSheet, removeSatelliteArea, satellitePacks, useSatelliteArea } from "../store.ts";
-import { satelliteNameOf } from "../../core/style/ownImagery.ts";
+import { imageryKind, satelliteNameOf } from "../../core/style/ownImagery.ts";
+import { wmsTemplateInfo } from "../../core/imagery/wms.ts";
 import type { ScaleUnits } from "../../core/ae/mapFurniture.ts";
 import { addHistoryYear, animateHistory, changeHistory, downloadHistory, history, historySlider, historyVersion, holdHistory } from "../store.ts";
 import { sliderYearLabel } from "../../core/history/historyStyle.ts";
@@ -111,6 +112,50 @@ function ThemeSwatch(props: { theme: Theme }): JSX.Element {
 }
 
 /** The map's look: six themes that colour the world map, regions, the globe's haze and new labels. */
+
+/** The layer and format of the map's WMS (D103): from its capabilities once read, else a button to read them. */
+function WmsLayerRow(): JSX.Element | null {
+  const own = ownImagery.value;
+  const info = own ? wmsTemplateInfo(own.url) : null;
+  if (!info) return null;
+  const choice = wmsChoice.value && wmsChoice.value.base === info.address ? wmsChoice.value : null;
+  if (!choice) {
+    return (
+      <div class="sheet-row import-row">
+        <span class="grow muted small">WMS layer {info.layer} · {info.format}</span>
+        <button class="small-button" data-id="own-wms-layers" disabled={busy.value} title="Asks the service again for its layers and formats" onClick={() => void reopenWms()}>
+          Layers…
+        </button>
+      </div>
+    );
+  }
+  return (
+    <div class="sheet-row import-row">
+      <label class="num-field grow" title="The layers the service offers; one not offered in Web Mercator (EPSG:3857) cannot be drawn">
+        <span>Layer</span>
+        <select data-id="own-wms-layer" value={info.layer} disabled={busy.value} onChange={(e) => void useWmsLayer((e.target as HTMLSelectElement).value, info.format)}>
+          {choice.capabilities.layers.map((layer) => (
+            <option key={layer.name} value={layer.name} disabled={!layer.crs}>
+              {layer.title}
+              {layer.title !== layer.name ? ` (${layer.name})` : ""}
+              {layer.crs ? "" : " · not in Web Mercator"}
+            </option>
+          ))}
+        </select>
+      </label>
+      <label class="num-field" title="PNG is clear where the service has no picture; JPEG is smaller">
+        <select data-id="own-wms-format" value={info.format} disabled={busy.value} onChange={(e) => void useWmsLayer(info.layer, (e.target as HTMLSelectElement).value)}>
+          {choice.capabilities.formats.filter((format) => format.startsWith("image/")).map((format) => (
+            <option key={format} value={format}>
+              {format}
+            </option>
+          ))}
+        </select>
+      </label>
+    </div>
+  );
+}
+
 export function LookSheetView(): JSX.Element | null {
   if (!lookSheetOpen.value) return null;
   void imageryVersion.value;
@@ -309,8 +354,15 @@ export function LookSheetView(): JSX.Element | null {
       <div class="muted small">historical-basemaps · {pastPack?.license ?? "GPL-3.0"}</div>
       <div class="section-title">Imagery of your own</div>
       <div class="sheet-row import-row">
-        <input class="grow" type="text" data-id="own-url" placeholder="https://…/{z}/{x}/{y}.png, or a .pmtiles file on the web" value={ownImageryDraft.value} disabled={busy.value} title="Any XYZ tile address or PMTiles archive on the web, with your own key if it needs one. Drawn over the ground and under the lines, in the preview and the render; tiles are fetched while previewing and rendering." onInput={(e) => (ownImageryDraft.value = (e.target as HTMLInputElement).value)} onChange={(e) => void changeOwnImagery({ url: (e.target as HTMLInputElement).value })} />
+        <input class="grow" type="text" data-id="own-url" placeholder="https://…/{z}/{x}/{y}.png, a WMS or .pmtiles address, or a tile folder" value={ownImageryDraft.value} disabled={busy.value} title="Any XYZ tile address, a WMS address (its layers are listed), or a PMTiles archive on the web, with your own key if it needs one; or a folder of {z}/{x}/{y} tiles or an .mbtiles file on this computer. Drawn over the ground and under the lines, in the preview and the render." onInput={(e) => (ownImageryDraft.value = (e.target as HTMLInputElement).value)} onChange={(e) => void changeOwnImagery({ url: (e.target as HTMLInputElement).value })} />
+        <button class="small-button" data-id="own-folder" disabled={busy.value} title="A folder of {z}/{x}/{y} tiles on this computer, as gdal2tiles, QGIS or drone software write them" onClick={() => void pickImageryFolder()}>
+          Folder…
+        </button>
+        <button class="small-button" data-id="own-mbtiles" disabled={busy.value} title="An MBTiles file of pictures on this computer (QGIS, GDAL, MapTiler, TileMill)" onClick={() => void pickImageryFile()}>
+          MBTiles…
+        </button>
       </div>
+      {ownImagery.value && imageryKind(ownImagery.value.url) === "wms" && <WmsLayerRow />}
       {ownImagery.value && (
         <div class="sheet-row import-row">
           <input class="grow" type="text" data-id="own-attribution" placeholder="The credit the source asks for" value={ownImagery.value.attribution} disabled={busy.value} title="Goes on the map's credit line and into the scene's credit layer" onChange={(e) => void changeOwnImagery({ attribution: (e.target as HTMLInputElement).value })} />
@@ -343,7 +395,7 @@ export function LookSheetView(): JSX.Element | null {
           </select>
         </label>
       </div>
-      <div class="muted small">Its terms are yours to keep. Nothing is bundled: a national orthophoto service, a provider with your key, tiles you made.</div>
+      <div class="muted small">Its terms are yours to keep. Nothing is bundled: a national orthophoto service, a WMS, a provider with your key, tiles you made in a folder or an MBTiles file.</div>
       <div class="sheet-row import-row">
         <span title="Shaded slopes from real elevation data, sharp at any zoom. An elevation pack is downloaded once for an area (open data through Mapterhorn) and then works offline.">Terrain</span>
         <select

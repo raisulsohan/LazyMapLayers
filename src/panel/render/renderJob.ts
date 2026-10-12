@@ -9,7 +9,8 @@ import { HIGHLIGHT_PASS, PASS_INFO, highlightPassId, isHighlightPass, rendersFor
 import { DATA_CODE, normaliseDataFill, type DataFill } from "../../core/style/dataFill.ts";
 import { HEAT_CODE, normaliseHeat, type HeatSetting } from "../../core/style/heat.ts";
 import { applyLookDetails, normaliseDetails, type LookDetails } from "../../core/style/lookDetails.ts";
-import { normaliseOwnImagery, type OwnImagery } from "../../core/style/ownImagery.ts";
+import { localPathOf, normaliseOwnImagery, type OwnImagery } from "../../core/style/ownImagery.ts";
+import { localStamp } from "../imagery/localTiles.ts";
 import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from "../../core/style/highlights.ts";
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
@@ -165,13 +166,14 @@ export function onDemandSources(style: StyleSpecification): DetailSource[] {
   return out;
 }
 
-function dataFingerprint(basemap: BasemapSource, terrain: TerrainSetting | null): string {
-  return keyOf(
-    [...archivesOf(basemap), ...(terrain ? [terrainArchivePath(terrain.pack)] : [])].map((file) => {
-      const stat = fs().statSync(file);
-      return { file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) };
-    })
-  );
+function dataFingerprint(basemap: BasemapSource, terrain: TerrainSetting | null, own: OwnImagery | null): string {
+  const files = [...archivesOf(basemap), ...(terrain ? [terrainArchivePath(terrain.pack)] : [])].map((file) => {
+    const stat = fs().statSync(file);
+    return { file: file.toLowerCase(), size: stat.size, modified: Math.round(stat.mtimeMs) };
+  });
+  // Imagery from a folder or an MBTiles file on this computer: a changed source draws again (D103).
+  const local = own && localPathOf(own.url) ? localStamp(own.url) : null;
+  return keyOf(local === null ? files : [...files, { own: local }]);
 }
 
 function toView(a: number[], animations: string[]): AnimatedView {
@@ -323,7 +325,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const styleKey = (s: StyleSpecification) => keyOf({ ...s, sources: Object.fromEntries(Object.entries(s.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE && id !== HEAT_SOURCE)), layers: s.layers.filter((l) => layerGroup(l) !== "highlight") });
   const context: FrameKeyContext = {
     style: styleKey(style),
-    data: dataFingerprint(spec.basemap, terrain),
+    data: dataFingerprint(spec.basemap, terrain, normaliseOwnImagery(spec.own)),
     width: geometry.width,
     height: geometry.height,
     supersample: geometry.supersample,

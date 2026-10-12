@@ -35,7 +35,10 @@ import { dataShapes, DEFAULT_DATA_SHAPES, MAX_DATA_SHAPES } from "../core/style/
 import { formatValue } from "../core/style/valueScale.ts";
 import { DEFAULT_HEAT, describeHeat, heatPoints, normaliseHeat, type HeatSetting } from "../core/style/heat.ts";
 import { DEFAULT_DETAILS, normaliseDetails, type LookDetails } from "../core/style/lookDetails.ts";
-import { describeOwnImagery, isTileAddress, normaliseOwnImagery, type OwnImagery } from "../core/style/ownImagery.ts";
+import { countsRowsFromSouth, describeOwnImagery, imageryKind, localPathOf, normaliseOwnImagery, ownImageryFromWms, type OwnImagery } from "../core/style/ownImagery.ts";
+import { defaultFormat, wmsTemplateInfo, type WmsCapabilities } from "../core/imagery/wms.ts";
+import { inspectMbtiles, inspectTileFolder } from "./imagery/localTiles.ts";
+import { readWmsCapabilities } from "./imagery/wmsService.ts";
 import { imageryService, ownImageryFromService } from "../core/style/imageryCatalogue.ts";
 import type { LegendCorner } from "../core/style/legend.ts";
 import { RAMPS, type RampId, type ScaleMethod } from "../core/style/valueScale.ts";
@@ -225,6 +228,8 @@ export const lookDetails = signal<LookDetails>(DEFAULT_DETAILS);
 export const ownImagery = signal<OwnImagery | null>(null);
 /** The address as typed, so a half-typed one is not lost. */
 export const ownImageryDraft = signal("");
+/** A WMS whose capabilities were read, so the sheet can offer its layers and formats (D103); `base` is the address its templates start with. */
+export const wmsChoice = signal<{ address: string; capabilities: WmsCapabilities; base: string } | null>(null);
 /** The look the map really draws with. */
 export const currentTheme = computed(() => applyLook(themeById(themeId.value), lookOverride.value));
 export const lookFollowsTheme = computed(() => lookFollows(lookOverride.value));
@@ -2607,14 +2612,12 @@ export const useSatelliteArea = (name: string) =>
       log(`there is no satellite area called "${name}"`, "fail");
       return;
     }
-    await changeOwnImagery({
-      url: satelliteAddress(name),
-      attribution: pack.attribution ?? `${SENTINEL_CREDIT}`,
-      opacity: 1,
-      tileSize: 256,
-      minZoom: pack.minZoom,
-      maxZoom: pack.maxZoom
-    });
+    // Set here, not through changeOwnImagery: that runs as an action of its own, and one action
+    // does not start inside another.
+    const setting = normaliseOwnImagery({ url: satelliteAddress(name), attribution: pack.attribution ?? `${SENTINEL_CREDIT}`, opacity: 1, tileSize: 256, minZoom: pack.minZoom, maxZoom: pack.maxZoom });
+    await setOwnImagery(setting);
+    wmsChoice.value = null;
+    if (setting) drawsLog(setting);
   });
 
 export const removeSatelliteArea = (name: string) =>
@@ -2625,7 +2628,7 @@ export const removeSatelliteArea = (name: string) =>
       fail("removing the satellite area", error);
       return;
     }
-    if (ownImagery.value && satelliteNameOf(ownImagery.value.url) === name) await changeOwnImagery({ url: "" });
+    if (ownImagery.value && satelliteNameOf(ownImagery.value.url) === name) await setOwnImagery(null);
     await refreshSatellitePacks();
     log(`the satellite area "${name}" is off this computer`, "ok");
   });
@@ -3270,22 +3273,131 @@ export const changeLookDetails = (next: Partial<LookDetails>) =>
     }
   });
 
+/** Draws the preview again from the selected map's settings (after a test drew something else in it). */
+export const refreshPreview = () => setPreviewStyle(basemap.value, projection.value, look());
+
+/** Puts a setting on the map (or none) and shows it; the callers say what it is in the log. */
+async function setOwnImagery(next: OwnImagery | null): Promise<void> {
+  ownImagery.value = next;
+  ownImageryDraft.value = next?.url ?? "";
+  if (selectedId.value) {
+    await callHost("setMapSettings", { mapId: selectedId.value, ownImagery: next });
+    await readMaps();
+  }
+}
+
+const drawsLog = (setting: OwnImagery) => log(`the map draws ${describeOwnImagery(setting)}; its terms are yours to keep, and the credit goes on the credit line${setting.attribution ? "" : " (type the credit the source asks for)"}`, "ok");
+
+/**
+ * A new address: a web tile template, a PMTiles archive or a satellite area as before (the other
+ * settings kept); a WMS address is asked what it offers; a folder or an .mbtiles file on this computer
+ * is read for its zooms, area, tile size and credit (D103).
+ */
+async function useImageryAddress(text: string, prefer?: { layer: string; format: string }): Promise<void> {
+  const current = ownImagery.value;
+  const local = localPathOf(text);
+  const kind = imageryKind(text);
+  if (local && (kind === "mbtiles" || (!kind && /\.mbtiles$/i.test(local)))) {
+    const found = await inspectMbtiles(local);
+    const setting = normaliseOwnImagery({ opacity: current?.opacity ?? 1, ...found.setting });
+    if (!setting) throw new Error(`${local} cannot be drawn`);
+    await setOwnImagery(setting);
+    wmsChoice.value = null;
+    log(`${found.name ? `"${found.name}", ` : ""}${found.format ?? "pictures"}, zoom ${setting.minZoom ?? 0} to ${setting.maxZoom ?? "?"}, ${setting.tileSize}-pixel tiles${found.indexed ? "" : " (no index: its keys were read once)"}`);
+    drawsLog(setting);
+    return;
+  }
+  if (local && (kind === "folder" || !kind)) {
+    const found = inspectTileFolder(local);
+    const setting = normaliseOwnImagery({ opacity: current?.opacity ?? 1, attribution: "", ...found });
+    if (!setting) throw new Error(`${local} cannot be drawn`);
+    await setOwnImagery(setting);
+    wmsChoice.value = null;
+    log(`${setting.url}: zoom ${setting.minZoom ?? 0} to ${setting.maxZoom}, ${setting.tileSize}-pixel tiles${countsRowsFromSouth(setting.url) ? ", rows counted from the south (tilemapresource.xml)" : ""}`);
+    drawsLog(setting);
+    return;
+  }
+  if (kind) {
+    const setting = normaliseOwnImagery({ ...(current ?? {}), bounds: null, url: text });
+    await setOwnImagery(setting);
+    if (kind !== "wms") wmsChoice.value = null;
+    if (setting) drawsLog(setting);
+    return;
+  }
+  if (!/^https?:\/\/\S+$/i.test(text)) throw new Error("that is not an address the panel can draw: give https://…/{z}/{x}/{y}…, a WMS address, a .pmtiles file, or a folder of tiles or an .mbtiles file on this computer");
+  // Neither a tile template nor an archive: perhaps a WMS.
+  let host = text;
+  try {
+    host = new URL(text).host;
+  } catch {
+    // The address will do.
+  }
+  log(`asking ${host} what it offers (WMS GetCapabilities)…`);
+  const capabilities = await readWmsCapabilities(text);
+  const usable = capabilities.layers.filter((layer) => layer.crs);
+  if (!usable.length) throw new Error(`none of its ${capabilities.layers.length} layers is offered in Web Mercator (EPSG:3857); the panel does not reproject pictures`);
+  const format = prefer && capabilities.formats.includes(prefer.format) ? prefer.format : defaultFormat(capabilities.formats);
+  if (!format) throw new Error(`it offers no picture format the panel can draw (${capabilities.formats.join(", ") || "none listed"})`);
+  wmsChoice.value = { address: text, capabilities, base: "" };
+  log(`${capabilities.title || host}: ${usable.length} of ${capabilities.layers.length} layers in Web Mercator. Access constraints: ${capabilities.access || "none stated"}; fees: ${capabilities.fees || "none stated"}. The terms are yours to keep`);
+  await applyWmsLayer((usable.find((layer) => layer.name === prefer?.layer) ?? usable[0]).name, format);
+}
+
+/** One layer of the WMS whose capabilities were read, in one format. */
+async function applyWmsLayer(name: string, format: string): Promise<void> {
+  const choice = wmsChoice.value;
+  const layer = choice?.capabilities.layers.find((l) => l.name === name);
+  if (!choice || !layer) throw new Error(`the WMS has no layer called ${name}`);
+  if (!layer.crs) throw new Error(`the layer "${layer.title}" is not offered in Web Mercator (EPSG:3857); the panel does not reproject pictures`);
+  const setting = ownImageryFromWms(choice.capabilities, choice.address, layer, format, ownImagery.value?.tileSize ?? 256, ownImagery.value?.opacity ?? 1);
+  if (!setting) throw new Error("the GetMap address is not one the panel can draw");
+  wmsChoice.value = { ...choice, base: wmsTemplateInfo(setting.url)?.address ?? "" };
+  await setOwnImagery(setting);
+  drawsLog(setting);
+}
+
 /** Sets, changes or clears the user's own tiles; an empty address switches them off. */
 export const changeOwnImagery = (next: Partial<OwnImagery>) =>
   run("own imagery", async () => {
     const current = ownImagery.value;
     const url = (next.url ?? current?.url ?? "").trim();
-    if (url && !isTileAddress(url)) {
-      log("that is not a tile address: it needs https://…/{z}/{x}/{y}… or a .pmtiles file on the web", "fail");
+    if (!url) {
+      await setOwnImagery(null);
+      wmsChoice.value = null;
+      log("the map draws its own data again", "ok");
       return;
     }
-    ownImagery.value = url ? normaliseOwnImagery({ ...(current ?? {}), ...next, url }) : null;
-    ownImageryDraft.value = ownImagery.value?.url ?? "";
-    if (selectedId.value) {
-      await callHost("setMapSettings", { mapId: selectedId.value, ownImagery: ownImagery.value });
-      await readMaps();
+    if (next.url !== undefined && url !== current?.url) {
+      await useImageryAddress(url);
+      return;
     }
-    log(ownImagery.value ? `the map draws ${describeOwnImagery(ownImagery.value)}; its terms are yours to keep, and the credit goes on the credit line` : "the map draws its own data again", "ok");
+    const setting = normaliseOwnImagery({ ...(current ?? {}), ...next, url });
+    await setOwnImagery(setting);
+    if (setting) drawsLog(setting);
+  });
+
+/** Another layer or format of the WMS the sheet lists. */
+export const useWmsLayer = (name: string, format: string) => run("WMS", () => applyWmsLayer(name, format));
+
+/** Asks the map's WMS again for its layers, keeping the layer and format it draws. */
+export const reopenWms = () =>
+  run("WMS", async () => {
+    const info = ownImagery.value ? wmsTemplateInfo(ownImagery.value.url) : null;
+    if (info) await useImageryAddress(info.address, { layer: info.layer, format: info.format });
+  });
+
+/** A folder of {z}/{x}/{y} tiles the user picks. */
+export const pickImageryFolder = () =>
+  run("own imagery", async () => {
+    const folder = await callHost<string | null>("pickFolder", { prompt: "A folder of {z}/{x}/{y} tiles (the folder that holds the zoom folders)" });
+    if (folder) await useImageryAddress(folder);
+  });
+
+/** An MBTiles file the user picks. */
+export const pickImageryFile = () =>
+  run("own imagery", async () => {
+    const file = await callHost<string | null>("pickFile", { title: "An MBTiles file of pictures", filter: process.platform === "win32" ? "MBTiles:*.mbtiles,All files:*.*" : undefined });
+    if (file) await useImageryAddress(file);
   });
 
 /** One of the open services the panel knows: its address, credit and zooms, in one go. */
@@ -3293,12 +3405,8 @@ export const useImageryService = (id: string) =>
   run("own imagery", async () => {
     const service = imageryService(id);
     if (!service) return;
-    ownImagery.value = normaliseOwnImagery(ownImageryFromService(service));
-    ownImageryDraft.value = ownImagery.value?.url ?? "";
-    if (selectedId.value) {
-      await callHost("setMapSettings", { mapId: selectedId.value, ownImagery: ownImagery.value });
-      await readMaps();
-    }
+    await setOwnImagery(normaliseOwnImagery(ownImageryFromService(service)));
+    wmsChoice.value = null;
     log(`the map draws ${service.name} (${service.country}): ${service.licence}; credit "${service.attribution}" goes on the credit line. Terms: ${service.terms}`, "ok");
   });
 

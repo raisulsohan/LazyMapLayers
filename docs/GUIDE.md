@@ -190,12 +190,17 @@ Terracotta, Arctic, Emerald), **Shaded relief**, the **sky** above the horizon, 
 - **Use for every map**: the other maps in the project take this look, its details, the layer style,
   relief, sky and imagery.
 - **Imagery of your own**: any XYZ tile address (`https://…/{z}/{x}/{y}.png`, with your own key if
-  it needs one) or a PMTiles archive on the web, drawn over the ground and under every line, with
-  an opacity and the credit the source asks for. The source's terms are yours to keep; tiles are
-  fetched while previewing and rendering. **Open services** lists aerial pictures governments
-  publish for anyone to use (the United States, the Netherlands, Switzerland, France, Japan, Spain,
-  Austria, Czechia, Luxembourg, Estonia), each with its licence; picking one fills the address and
-  the credit.
+  it needs one), a WMS address or a PMTiles archive on the web, drawn over the ground and under every
+  line, with an opacity and the credit the source asks for. For a WMS the panel lists the layers and
+  formats the service offers; only layers offered in Web Mercator (EPSG:3857) can be drawn. **Folder…**
+  takes a folder of `{z}/{x}/{y}` tiles on your computer (rows counted from the south when a
+  `tilemapresource.xml` sits beside the zoom folders, as gdal2tiles writes them), and **MBTiles…** an
+  MBTiles file of pictures; the zooms, the area, the tile size and the file's own credit are read
+  from them. The source's terms are yours to keep; web tiles are fetched while previewing and
+  rendering. **Open services** lists aerial pictures governments publish for anyone to use (the
+  United States, the Netherlands, Switzerland, France, Japan, Spain, Austria, Czechia, Luxembourg,
+  Estonia, and North Rhine-Westphalia, Bavaria, Brandenburg and Berlin, Berlin, Lower Saxony,
+  Thuringia and Flanders), each with its licence; picking one fills the address and the credit.
 - **Pins, routes and callouts**: the colour, line width and glow of the layers this map makes, or
   picked up from a selected layer.
 - **Inset map**: **Add inset map** puts a small locator in the corner you pick, **Wider by** as
