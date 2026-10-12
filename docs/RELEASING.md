@@ -65,7 +65,7 @@ user has, then switch it back. Close After Effects before each step.
 1. **`1 Install the release for testing.bat`**
    - Saves the current setup (the link and every PlayerDebugMode value) to
      `%LOCALAPPDATA%\LazyMapLayers release test\state.json`.
-   - Unzips the newest release zip into `%TEMP%` and opens the folder.
+   - Unzips the newest full release zip (never the `-light` one) into `%TEMP%` and opens the folder.
    - Then double-click **Install LazyMapLayers.bat** there, as a user would.
 2. **Try the release** in After Effects:
    - [ ] Window > Extensions > LazyMapLayers opens, and the log says "LazyMapLayers X.Y.Z".

@@ -146,7 +146,8 @@ function Find-Zip {
     }
     foreach ($candidate in $dirs) {
         if (-not (Test-Path -LiteralPath $candidate)) { continue }
-        $zip = Get-ChildItem -LiteralPath $candidate -Filter "LazyMapLayers-v*.zip" | Sort-Object LastWriteTime -Descending | Select-Object -First 1
+        # The full zip, never the light one written after it (D101): the full zip offers all three choices.
+        $zip = Get-ChildItem -LiteralPath $candidate -Filter "LazyMapLayers-v*.zip" | Where-Object { $_.Name -notlike "*-light.zip" } | Sort-Object LastWriteTime -Descending | Select-Object -First 1
         if ($zip) { return $zip.FullName }
     }
     return $null

@@ -1,30 +1,6 @@
 # Changelog
 
-## Unreleased
-
-- **Self-test, and a report in one step.** Maps > About > **Self-test** checks LazyMapLayers in your own
-  After Effects in a few seconds: the host script, one rendered frame, a map comp made and removed
-  again in one undo step (your project is left as it was), a pin and a 3D pin against the camera
-  maths, and the map data on this computer. **Report a problem** runs it first, puts the report on the
-  clipboard and opens the issue form with your versions filled in: paste and submit. Nothing is sent
-  before you submit, and your home folder is written as `~` in the report (D104, SF1).
-- **Installer.** A quote typed at the Full, Light or Online question no longer stops the Windows
-  installer.
-- **For contributors.** Every change is checked on Windows and macOS by GitHub Actions: unit tests,
-  typecheck, both builds, the ES3 checks and the installers run against a test home folder
-  (`tools/installer-test.mjs`); `tools/fetch-natural-earth.mjs` fetches the Natural Earth files the
-  data scripts read. Discussions are open, with issue forms and a [FAQ](FAQ.md).
-- **More imagery of your own.** The Look sheet's address field now also takes a **WMS** address:
-  the panel asks the service what it offers and lists its layers and formats, and draws the one you
-  pick tile by tile, with the service's credit filled in. **Folder…** takes a folder of
-  `{z}/{x}/{y}` tiles from your computer (gdal2tiles, QGIS or drone software), and **MBTiles…** an
-  MBTiles file of pictures (QGIS, GDAL, MapTiler, TileMill); the panel works out the zooms, the area,
-  the tile size and the credit itself, and neither needs the internet. Everything draws over the
-  ground and under the lines, in the preview and the render, like any imagery of your own.
-- **Seven more open aerial services** under **Open services**: North Rhine-Westphalia, Bavaria,
-  Brandenburg and Berlin, Berlin's true orthophotos 2024, Lower Saxony, Thuringia and Flanders, each
-  with its licence and credit, all free for commercial use.
-- Picking a satellite area you built now draws it at once (it did nothing before).
+## 1.2.0 — street detail anywhere, routes on roads (2026-10-12)
 
 - **Street detail anywhere, without pressing Download.** Fly into any city on the World basemap and
   its streets, buildings and names are there: the panel works out which OpenStreetMap tiles the frames
@@ -32,13 +8,12 @@
   a downloaded region would. The preview fetches as you move it. Offline, a render draws what the
   computer holds and names the frames that lack their detail; render again online and only those
   frames are drawn again. **Street detail from the internet** under Maps > About turns the fetching
-  off. A World map keeps its basemap after **Download this area** and draws the area from it offline.
-
+  off. A World map keeps its basemap after **Download this area** and draws the area from it offline
+  (D101, SD1).
 - **A light install.** The installer asks how much map data to keep: **Full** (the 2 GB of before),
   **Light** (the world to zoom 6 and coarse elevation, about 120 MB) or **Online** (nothing; detail
-  comes as maps need it and is kept). A light zip of about 160 MB is there for whoever does not want
+  comes as maps need it and is kept). A light zip of about 150 MB is there for whoever does not want
   to download 2 GB. Maps look the same whichever you pick.
-
 - **Routes on roads.** The Route sheet has **Follow: Arc, Car, Bicycle, On foot**. With a road
   choice the route follows the real streets and highways from OpenStreetMap instead of an arc: a car
   keeps to one-way streets and stays off closed roads, a bicycle keeps off motorways, a walker takes
@@ -47,17 +22,40 @@
   ordinary route layer, so Arrow, Comet, Dashed and Arrow rig work on it, and **Camera** adds shots
   that move along it. The log gives its length, its time at free-flowing speeds and the roads it uses.
   The roads are kept on your computer (a few megabytes per route), so the same route comes again
-  offline. LazyMapLayers finds the way itself: no routing service, account or key.
-
+  offline. LazyMapLayers finds the way itself: no routing service, account or key (D102, RR1).
 - **Arrow rig.** A route can now be drawn as an arrow: tick **Arrow rig** on the Route sheet or for
   an imported line. The line tapers from its tail and ends in a head that always sits on its tip,
   under any camera, and stops just behind the point. Width, taper, head size and style (triangle,
   chevron or none), a head at both ends, dashes that flow, an outline and the colours are controls on
-  the layer, so you key them in After Effects. **Tail** makes an arrow that travels along the route.
-
+  the layer, so you key them in After Effects. **Tail** makes an arrow that travels along the route
+  (D100, AR1).
+- **More imagery of your own.** The Look sheet's address field now also takes a **WMS** address:
+  the panel asks the service what it offers and lists its layers and formats, and draws the one you
+  pick tile by tile, with the service's credit filled in. **Folder…** takes a folder of
+  `{z}/{x}/{y}` tiles from your computer (gdal2tiles, QGIS or drone software), and **MBTiles…** an
+  MBTiles file of pictures (QGIS, GDAL, MapTiler, TileMill); the panel works out the zooms, the area,
+  the tile size and the credit itself, and neither needs the internet. Everything draws over the
+  ground and under the lines, in the preview and the render, like any imagery of your own (D103, OI1).
+- **Seven more open aerial services** under **Open services**: North Rhine-Westphalia, Bavaria,
+  Brandenburg and Berlin, Berlin's true orthophotos 2024, Lower Saxony, Thuringia and Flanders, each
+  with its licence and credit, all free for commercial use.
+- **Self-test, and a report in one step.** Maps > About > **Self-test** checks LazyMapLayers in your own
+  After Effects in a few seconds: the host script, one rendered frame, a map comp made and removed
+  again in one undo step (your project is left as it was), a pin and a 3D pin against the camera
+  maths, and the map data on this computer. **Report a problem** runs it first, puts the report on the
+  clipboard and opens the issue form with your versions filled in: paste and submit. Nothing is sent
+  before you submit, and your home folder is written as `~` in the report (D104, SF1). Questions go to
+  the new [Discussions](https://github.com/raisulsohan/LazyMapLayers/discussions), and common answers
+  are in the [FAQ](FAQ.md).
+- **Fixed.** Picking a satellite area you built now draws it at once (it did nothing before). A quote
+  typed at the Full, Light or Online question no longer stops the Windows installer.
 - **A new logo.** A map pin holding an After Effects keyframe, over the motion path the map
   travels: a map that animates, in one mark. The panel shows it as its icon, and the README and its
   top picture carry it. The masters, the sizes and how to use them are in `docs/brand/`.
+- **For contributors.** Every change is checked on Windows and macOS by GitHub Actions: unit tests,
+  typecheck, both builds, the ES3 checks and the installers run against a test home folder
+  (`tools/installer-test.mjs`); `tools/fetch-natural-earth.mjs` fetches the Natural Earth files the
+  data scripts read. Issue forms for bugs and ideas.
 
 ## 1.1.2 — empires never share a colour (2026-10-10)
 

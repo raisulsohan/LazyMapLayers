@@ -137,9 +137,9 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
     <h1><span class="lml">LazyMapLayers</span><span class="vs">vs</span><span class="gl">GEOlayers&nbsp;3</span></h1>
     <p class="lede">Two map panels for After Effects, compared row by row: what each costs, how the picture is made, what it can draw, and where each one is still ahead.</p>
     <div class="versions">
-      <span><b>LazyMapLayers 1.1.2</b> · 10 Oct 2026</span>
+      <span><b>LazyMapLayers 1.2</b> · 12 Oct 2026</span>
       <span><b>GEOlayers 3</b> · as documented up to v1.19</span>
-      <span>Compared 11 Oct 2026</span>
+      <span>Compared 12 Oct 2026</span>
     </div>
     <div class="scalebar" aria-hidden="true"><div class="bar"><span></span><span></span><span></span><span></span></div><span>0 · 500 km</span></div>
   </header>
@@ -150,7 +150,7 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
       <p class="count" id="count-lml"></p>
       <ul>
         <li>the budget is zero and nothing may expire</li>
-        <li>you work without internet</li>
+        <li>you work without internet, or want street detail anywhere with no subscription</li>
         <li>you need a globe, one smooth flight to street level, and crisp frames at every zoom</li>
         <li>you want 3D terrain and compositing passes without extra plugins</li>
         <li>you tell data stories (flows, prisms) or history (borders by year)</li>
@@ -161,8 +161,6 @@ section h2 { font: 700 26px/1.2 var(--display); margin: 0 0 14px; text-wrap: bal
       <p class="count" id="count-gl"></p>
       <ul>
         <li>you work on a Mac, or on After Effects older than 2024</li>
-        <li>you need routes that follow real roads</li>
-        <li>you want street-level detail anywhere, straight away, online</li>
         <li>you want Esri or Bing imagery built in</li>
         <li>you want paid support and a long track record</li>
       </ul>
@@ -208,8 +206,8 @@ const SECTIONS = [
     ["Map data", "p", "Styled maps come from MapTiler Cloud: six months included, then a MapTiler subscription.", "y", "Open data only: OpenStreetMap, Natural Earth, Mapterhorn elevation, NASA, geoBoundaries. No subscription.", "lml"],
     ["After the data period", "p", "Styled maps, 3D buildings, multilingual auto labels and the water mask need the subscription; basic imagery such as Bing and CartoDB stays.", "y", "Nothing expires.", "lml"],
     ["Account and key", "p", "aescripts licence activation; a trial is available.", "y", "No account, no key, no trial.", "lml"],
-    ["Without internet", "p", "Natural Earth search works offline; map imagery is fetched online.", "y", "The 1.9 GB download carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts.", "lml"],
-    ["Disk space", "y", "Small install; tiles are cached as you work.", "p", "About 2.5 GB with the offline data.", "gl"],
+    ["Without internet", "p", "Natural Earth search works offline; map imagery is fetched online.", "y", "The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work.", "lml"],
+    ["Disk space", "y", "Small install; tiles are cached as you work.", "y", "Online about 50 MB, detail kept as maps need it; Light about 175 MB; Full about 2.1 GB to work offline.", "tie"],
   ]},
   { id: "picture", title: "Picture and camera", rows: [
     ["Basemap", "p", "Raster tiles placed as layers; zoom levels cross-fade over a short blend.", "y", "Every frame is rendered at its exact camera: no tile steps, no zoom cross-fades, no shrinking labels.", "lml"],
@@ -235,9 +233,9 @@ const SECTIONS = [
     ["Numbers on the map", "y", "Data-driven shape styles; heatmap, choropleth and circle styles.", "y", "Colours, bubbles, spikes, heat, flows as arcs, prism maps in 3D, legend and bar chart.", "lml"],
     ["Data over time", "y", "Array values animate over the comp.", "y", "Years animate, with a line or area chart that follows.", "tie"],
     ["Live CSV and scripting", "y", "ExtendScript API with CSV watch.", "y", "Scripting API with CSV watch.", "tie"],
-    ["Arrows", "y", "A dedicated arrow rig: taper, dashes, head size.", "p", "Routes with an arrowhead and a traveller layer.", "gl"],
-    ["Routes on roads", "y", "Driving routes from a routing service.", "n", "Great-circle, straight, imported or Pen-drawn routes; no road routing.", "gl"],
-    ["Imagery sources", "y", "Esri, Bing, CartoDB, any XYZ or WMS server, local tile folders.", "p", "Any XYZ or PMTiles address; ten open government services listed.", "gl"],
+    ["Arrows", "y", "A dedicated arrow rig: taper, dashes, head size.", "y", "An arrow rig on any route: taper, a head on the tip (triangle, chevron or none), both ends, flowing dashes, an outline, each a keyable control.", "tie"],
+    ["Routes on roads", "y", "Driving routes from a routing service.", "y", "By car, bicycle or on foot over OpenStreetMap's roads, found by its own router: no service, account or key, and kept for offline use.", "tie"],
+    ["Imagery sources", "y", "Esri, Bing, CartoDB, any XYZ or WMS server, local tile folders.", "y", "Any XYZ, WMTS, WMS or PMTiles address, local tile folders and MBTiles files; 17 open government services listed. No Esri or Bing built in.", "tie"],
     ["Free satellite picture", "p", "Bing aerial; MapTiler satellite with the subscription.", "y", "Sentinel-2 at 10 m a pixel, built cloud-free, no account.", "lml"],
     ["Historical borders", "n", "Not available.", "y", "56 moments from 123,000 BC to 2010, with a keyable History Year slider.", "lml"],
     ["Google Earth Studio camera", "n", "Not available.", "y", "Imported frame by frame from Earth Studio's JSON.", "lml"],
@@ -246,9 +244,9 @@ const SECTIONS = [
   ]},
   { id: "platform", title: "Platform and support", rows: [
     ["After Effects versions", "y", "Back to CC 2015 (see the compatibility tab on aescripts).", "p", "2024 or newer.", "gl"],
-    ["macOS", "y", "Windows and macOS.", "p", "Experimental: not yet run on a Mac.", "gl"],
-    ["Street detail anywhere", "y", "Any city at street level, online, with the subscription.", "p", "Past zoom 9, download the area first (free).", "gl"],
-    ["Support", "y", "aescripts support tickets and years of tutorials.", "p", "GitHub issues and a 40-chapter manual; one developer.", "gl"],
+    ["macOS", "y", "Windows and macOS.", "p", "Experimental: not yet run in After Effects on a Mac; CI builds, tests and runs the installer on macOS.", "gl"],
+    ["Street detail anywhere", "y", "Any city at street level, online, with the subscription.", "y", "Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use.", "tie"],
+    ["Support", "y", "aescripts support tickets and years of tutorials.", "p", "GitHub issues and Discussions, a FAQ, a Self-test that fills in the report, a 40-chapter manual and video tutorials; one developer.", "gl"],
   ]},
 ];
 

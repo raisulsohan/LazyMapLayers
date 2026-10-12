@@ -3,19 +3,19 @@
 Two map panels for After Effects, compared row by row: what each costs, how the picture is made,
 what it can draw, and where each one is still ahead.
 
-**LazyMapLayers 1.1.2** (10 Oct 2026) · **GEOlayers 3** as documented up to v1.19 · compared 11 Oct 2026.
+**LazyMapLayers 1.2** (12 Oct 2026) · **GEOlayers 3** as documented up to v1.19 · compared 12 Oct 2026.
 A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](comparison/lazymaplayers-vs-geolayers.html)
 (download it and open it in a browser).
 
-✅ yes · ◐ partly · ❌ no. Of 37 rows, LazyMapLayers is ahead on 17, GEOlayers 3 on 8, and 12 are even.
+✅ yes · ◐ partly · ❌ no. Of 37 rows, LazyMapLayers is ahead on 17, GEOlayers 3 on 3, and 17 are even.
 
 | Pick LazyMapLayers when | Pick GEOlayers 3 when |
 |---|---|
 | the budget is zero and nothing may expire | you work on a Mac, or on After Effects older than 2024 |
-| you work without internet | you need routes that follow real roads |
-| you need a globe, one smooth flight to street level, and crisp frames at every zoom | you want street-level detail anywhere, straight away, online |
-| you want 3D terrain and compositing passes without extra plugins | you want Esri or Bing imagery built in |
-| you tell data stories (flows, prisms) or history (borders by year) | you want paid support and a long track record |
+| you work without internet, or want street detail anywhere with no subscription | you want Esri or Bing imagery built in |
+| you need a globe, one smooth flight to street level, and crisp frames at every zoom | you want paid support and a long track record |
+| you want 3D terrain and compositing passes without extra plugins | |
+| you tell data stories (flows, prisms) or history (borders by year) | |
 
 ## Cost, licence and data
 
@@ -25,8 +25,8 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | **Map data** | ◐ Styled maps come from MapTiler Cloud: six months included, then a MapTiler subscription. | ✅ Open data only: OpenStreetMap, Natural Earth, Mapterhorn elevation, NASA, geoBoundaries. No subscription. | LazyMapLayers |
 | **After the data period** | ◐ Styled maps, 3D buildings, multilingual auto labels and the water mask need the subscription; basic imagery such as Bing and CartoDB stays. | ✅ Nothing expires. | LazyMapLayers |
 | **Account and key** | ◐ aescripts licence activation; a trial is available. | ✅ No account, no key, no trial. | LazyMapLayers |
-| **Without internet** | ◐ Natural Earth search works offline; map imagery is fetched online. | ✅ The 1.9 GB download carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts. | LazyMapLayers |
-| **Disk space** | ✅ Small install; tiles are cached as you work. | ◐ About 2.5 GB with the offline data. | GEOlayers |
+| **Without internet** | ◐ Natural Earth search works offline; map imagery is fetched online. | ✅ The Full install (a 2 GB download) carries OpenStreetMap for the world to zoom 9, elevation, satellite and relief pictures, and every country's districts; street detail fetched once stays for offline work. | LazyMapLayers |
+| **Disk space** | ✅ Small install; tiles are cached as you work. | ✅ Online about 50 MB, detail kept as maps need it; Light about 175 MB; Full about 2.1 GB to work offline. | Even |
 
 ## Picture and camera
 
@@ -61,9 +61,9 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | **Numbers on the map** | ✅ Data-driven shape styles; heatmap, choropleth and circle styles. | ✅ Colours, bubbles, spikes, heat, flows as arcs, prism maps in 3D, legend and bar chart. | LazyMapLayers |
 | **Data over time** | ✅ Array values animate over the comp. | ✅ Years animate, with a line or area chart that follows. | Even |
 | **Live CSV and scripting** | ✅ ExtendScript API with CSV watch. | ✅ Scripting API with CSV watch. | Even |
-| **Arrows** | ✅ A dedicated arrow rig: taper, dashes, head size. | ◐ Routes with an arrowhead and a traveller layer. | GEOlayers |
-| **Routes on roads** | ✅ Driving routes from a routing service. | ❌ Great-circle, straight, imported or Pen-drawn routes; no road routing. | GEOlayers |
-| **Imagery sources** | ✅ Esri, Bing, CartoDB, any XYZ or WMS server, local tile folders. | ◐ Any XYZ or PMTiles address; ten open government services listed. | GEOlayers |
+| **Arrows** | ✅ A dedicated arrow rig: taper, dashes, head size. | ✅ An arrow rig on any route: taper, a head on the tip (triangle, chevron or none), both ends, flowing dashes, an outline, each a keyable control. | Even |
+| **Routes on roads** | ✅ Driving routes from a routing service. | ✅ By car, bicycle or on foot over OpenStreetMap's roads, found by its own router: no service, account or key, and kept for offline use. | Even |
+| **Imagery sources** | ✅ Esri, Bing, CartoDB, any XYZ or WMS server, local tile folders. | ✅ Any XYZ, WMTS, WMS or PMTiles address, local tile folders and MBTiles files; 17 open government services listed. No Esri or Bing built in. | Even |
 | **Free satellite picture** | ◐ Bing aerial; MapTiler satellite with the subscription. | ✅ Sentinel-2 at 10 m a pixel, built cloud-free, no account. | LazyMapLayers |
 | **Historical borders** | ❌ Not available. | ✅ 56 moments from 123,000 BC to 2010, with a keyable History Year slider. | LazyMapLayers |
 | **Google Earth Studio camera** | ❌ Not available. | ✅ Imported frame by frame from Earth Studio's JSON. | LazyMapLayers |
@@ -75,9 +75,9 @@ A page version with filters is in [comparison/lazymaplayers-vs-geolayers.html](c
 | | GEOlayers 3 | LazyMapLayers | Ahead |
 |---|---|---|---|
 | **After Effects versions** | ✅ Back to CC 2015 (see the compatibility tab on aescripts). | ◐ 2024 or newer. | GEOlayers |
-| **macOS** | ✅ Windows and macOS. | ◐ Experimental: not yet run on a Mac. | GEOlayers |
-| **Street detail anywhere** | ✅ Any city at street level, online, with the subscription. | ◐ Past zoom 9, download the area first (free). | GEOlayers |
-| **Support** | ✅ aescripts support tickets and years of tutorials. | ◐ GitHub issues and a 40-chapter manual; one developer. | GEOlayers |
+| **macOS** | ✅ Windows and macOS. | ◐ Experimental: not yet run in After Effects on a Mac; CI builds, tests and runs the installer on macOS. | GEOlayers |
+| **Street detail anywhere** | ✅ Any city at street level, online, with the subscription. | ✅ Any city at street level, online: only the tiles the frames need are fetched, free, and kept for offline use. | Even |
+| **Support** | ✅ aescripts support tickets and years of tutorials. | ◐ GitHub issues and Discussions, a FAQ, a Self-test that fills in the report, a 40-chapter manual and video tutorials; one developer. | GEOlayers |
 
 ## How this was put together
 

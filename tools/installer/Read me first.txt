@@ -1,5 +1,5 @@
 ============================================================
-  LAZYMAPLAYERS 1.1.2
+  LAZYMAPLAYERS 1.2.0
   Free map animation for After Effects: globe to street level,
   3D terrain, your own looks, labels, routes, highlights,
   data maps, rendered frame-exact
@@ -13,7 +13,7 @@ WHAT YOU NEED
   - A graphics card with WebGL 2 (any card from the last
     ten years)
   - Free disk space for the map data you choose to keep:
-    about 2.5 GB (Full), 200 MB (Light) or 60 MB (Online),
+    about 2.1 GB (Full), 175 MB (Light) or 50 MB (Online),
     and room for the street detail your maps fetch
 
 
@@ -129,9 +129,14 @@ MAKING YOUR OWN MAP
                    map; Alt+Shift+click for a 3D pin). The layer
                    is named after the place ("Pin: Dhaka").
   Callout          a leader line with a title box next to a place.
-  Route            a great-circle line between two places, with
-                   an arrow that rides it, a comet head, or dashes;
-                   named after its ends ("Dhaka to Chittagong").
+  Route            a great-circle line between two places, or
+                   "Follow: Car, Bicycle, On foot" for the real
+                   roads (found offline again once made), with an
+                   arrow that rides it, a comet head, dashes, or
+                   an "Arrow rig": one tapered arrow whose head
+                   stays on its tip, every look a control on the
+                   layer. Named after its ends ("Dhaka to
+                   Chittagong").
   Highlight        click countries, provinces or districts on the
                    map; each renders as its own layer above the
                    basemap. Districts are downloaded per country
@@ -180,13 +185,15 @@ MAKING YOUR OWN MAP
                    "Details" turns the lines and roads heavier or
                    lighter and draws fewer or more names.
                    "Imagery of your own" draws tiles from any
-                   XYZ or PMTiles address on the web (your own
-                   key if it needs one), under the lines, with
-                   the credit you type. Its terms are yours.
+                   XYZ, WMS or PMTiles address on the web (your
+                   own key if it needs one), a folder of tiles
+                   or an MBTiles file, under the lines, with its
+                   credit. Its terms are yours.
                    "Open services" lists free government aerial
                    pictures (USA, Netherlands, Switzerland,
                    France, Japan, Spain, Austria, Czechia,
-                   Luxembourg, Estonia) with their licences.
+                   Luxembourg, Estonia, Flanders and six German
+                   states) with their licences.
                    "Your own colours" sets the sea, the land, the
                    lines and the names, and works the rest of the
                    map out from them. "From a picture" takes the
@@ -302,12 +309,16 @@ SUPPORT
   The full guide, sheet by sheet:
   https://github.com/raisulsohan/LazyMapLayers/blob/main/docs/GUIDE.md
 
-  Maps list > About > "Report a problem" writes a report with
-  the panel's last messages to your LazyMapLayers folder and
-  opens a new issue on GitHub for you to paste it into. Nothing
-  is sent by itself. The panel looks at the release list once a
-  day and says when a newer version is out; the switch to turn
-  that off is next to it.
+  Maps list > About > "Self-test" checks LazyMapLayers in your
+  own After Effects in a few seconds. "Report a problem" runs
+  it, writes a report with the panel's last messages, puts it
+  on the clipboard and opens a new issue on GitHub with your
+  versions filled in: paste and submit. Nothing is sent by
+  itself. Questions:
+  https://github.com/raisulsohan/LazyMapLayers/discussions
+  The panel looks at the release list once a day and says when
+  a newer version is out; the switch to turn that off is next
+  to it.
 
   Raisul Sohan
   lettertosohan@gmail.com

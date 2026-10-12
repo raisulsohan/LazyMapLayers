@@ -15,6 +15,19 @@ Protomaps build (37.8 MB, 57 requests) and the satellite pack from the imagery-1
 described under S6. D1 without regions now flies to Paris from above, as the panel's sample button does,
 instead of into empty streets.
 
+Release 1.2.0, 2026-10-12, on the minified build with the full offline pack in the user data folder
+(RELEASING step 3): R1 (first render 252 ms a frame), G2, E1 (40/40 and 20/20 in 3D, over a Paris region
+downloaded again from build 20261012, 37.8 MB), X1 (worst 1.2e-10), D1 and D1L (900 frames, 313
+expressions in the Legacy engine, none broken, every compared frame equal), AR1 (head 0.000 px from the
+tip), OI1, OW1 (the same shares as on 2026-10-09), SF1 (its first run, 5 of 5 on both engines), and online
+SD1 (build 20261012: 66 tiles, 2.8 MB, no frame lacking, 108 frames equal to the region's) and RR1 (236.8
+km, 97.8 % on N1; 3.59 km on foot) all pass. Then the signed zips installed as a user installs them
+(through Explorer, outside any development setup): Full over the signed 1.1.2, Light over it
+(`offline/world.pmtiles` 45.1 MB, regions and pictures kept) and Full again; on the Light install the
+signed panel, driven through its scripting API, answered 1.2.0 and rendered a street-level map of
+Nairobi with 8 street tiles fetched and nothing downloaded first. Installed sizes: Full 2.09 GB, Light
+173 MB, Online 46 MB.
+
 The run before, 2026-09-23, after D49-D61 (spikes, heat, district joins, layer copies, the readout, look details,
 the update check, label restyling, the heat legend, imagery of the user's own): H1, P1, C1, E1, X1, R1, G2, D1,
 SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1, ST1, DT1, LK1, FL1, HT1, OI1 and U1 all pass on the dev build.
@@ -57,7 +70,7 @@ offline (D101).
 | LB5 | Names inside Paris from the region's own tiles: districts, landmarks, stations, parks, the Seine and 18 streets, street and river names bent along their line on a mask path (a sharp corner keeps a straight turned name), reading left to right at their middle at both ends of a turning move and turning with the map, kept when placed again | PASS |
 | LB6 | Oceans on a turning globe: a globe turned from the South Atlantic to the Pacific with the world's names names the Atlantic, Indian and Pacific Oceans, with no two names overlapping at 24 moments | PASS |
 | DT2 | Categories and years: blocs in their palette colours to the pixel; Bangladesh in its 2000 colour on the first frame and its 2020 colour on the last, Nepal between its years, all 25 frames drawn; the year layer counting 2000, 2010, 2020; an area chart whose time follows the slider and whose areas hold the points of their year | PASS |
-| SF1 | The Self-test (D104) through the About button's code, on both expression engines: every check passes, the project holds the same items, one Undo takes back the Self-test and nothing else, and the problem report carries its report with the home folder as ~ | see the status board |
+| SF1 | The Self-test (D104) through the About button's code, on both expression engines: every check passes, the project holds the same items, one Undo takes back the Self-test and nothing else, and the problem report carries its report with the home folder as ~ | PASS 2026-10-12 (its first run in After Effects): 5 of 5 on both engines, 23 items before and after, one Undo takes it back |
 | DT3 | Prism maps: the same numbers rendered flat and raised over a tilted South Asia; the raised data pass covers 176,514 pixels against 67,169 flat, a prism stands above India where the flat map has nothing, and the prisms render on the globe | PASS |
 | DR1 | A drawn path becomes a route: a curved Pen path in a moved, scaled and turned group on a turned layer and a mask on a solid, read at 1 s while the camera moves, come back as Dhaka to Chittagong (within 1e-6 degrees, the curve kept) and an area around Dhaka; the route made from them lies on the drawing at 1 s (0.0002 px) and on the map at 0 s (0.0007 px); a line on a globe comes back as Dhaka to Tokyo; nothing selected gives a message | PASS |
 | FO1 | One map follows another: an overview in the corner of a comp follows a flight from Dhaka to Delhi two zoom steps out with its own tilt (0 off at five moments), renders as animated, refuses to be followed back and lets go cleanly; the flight's camera copied into another comp with its easing (0 off), and the follower's copied a key per frame | PASS |
@@ -72,6 +85,24 @@ offline (D101).
 | GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
 | HB1 | Online when the pack is missing: historical borders (D92, D93). Installs the pack from the history-1 release, renders South Asia in 1914, 1945, 1947 and 1971 with a look that has country colours and one without, and reads British India in the colour of the United Kingdom, India and Pakistan apart with East Bengal in Pakistan's colour, Bangladesh in its own, neighbours never in one colour, the Bay of Bengal still sea; the borders draw-on draws the past's borders. Then the History Year slider (D94): 1945 to 1947 cross-faded at three points, and a real map keyed from 1945 to 1947, read back, rendered (25 frames), central India British, halfway and India, the year layer counting 1945, 1946, 1947. Frames in `HB1-frames`. 2026-10-10: pack installed in 1.7 s, 28 places read right; the fade reads 1945 British, 1946 halfway (rgb 222,210,164 between 243,201,165 and 201,219,163), 1947 India; the keyed map renders all 25 frames with the same three colours at frames 0, 12 and 24, and the year layer counts 1945, 1946, 1947; 0 problems. Then for D95: history-1 updated to history-2 from its release in 1.8 s, and the British Raj of 1914 rendered as a highlight on today's map, central India rgba 255,93,115,255 and Nepal clear. Then for D96: Auto labels on a map of 1947 name India, Pakistan, Burma, Nepal and Bhutan and none of today's countries; keyed from 1945 to 1947, the British Raj shows early (85) and is gone late, India the other way, Nepal, Bhutan and Burma throughout; the feature browser's Past lists the 144 named shapes of 1914; 0 problems | PASS |
+
+## SF1 — The Self-test in After Effects: PASS (2026-10-12)
+
+Its first run in After Effects, on the minified 1.2.0 build, with the full offline pack in the user
+data folder.
+
+- **Both engines.** The Self-test through the About button's code: PASS, 5 of 5, in 1.9 s with
+  JavaScript expressions and 2.0 s on the Legacy ExtendScript engine; the project held the same 23
+  items before and after each run.
+- **The checks.** The host script answers 1.2.0 in After Effects 26.5x89; a 640x360 frame renders in
+  165 to 179 ms (RTX 3070); the map comp is made and removed in one undo group, After Effects drawing
+  the imported frame within 0/255; the pin and the 3D pin seen through the camera both lie 0.000 px
+  from the camera maths; the offline data reads as a Full install to zoom 9, 7 files readable.
+- **Undo.** With a marker comp made in its own step just before, the first Undo takes back the
+  Self-test and leaves the project as it was, and the second takes the marker.
+- **The report.** The problem report carries the Self-test report and never the home folder (the user
+  name appears 0 times in either file), the issue address holds only the form and three short fields,
+  and the report reached the clipboard.
 
 ## RR1 — Routes on roads: PASS (2026-10-12)
 
