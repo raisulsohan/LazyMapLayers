@@ -15,9 +15,10 @@ install and a first flight; this is the rest.
 5. **Render** for full quality. The comp holds one footage item per pass; the pins, the route and the
    names stay editable.
 
-Next: download the area you are working in (**Download this area…**) for its streets, buildings and
-the names inside it; colour the map with a table of numbers (the Numbers sheet); or plan the camera
-move shot by shot (the Shots tab).
+Next: fly into any city: past zoom 9 its streets, buildings and the names inside it come by
+themselves when the computer is online (**Download this area…** keeps an area for working offline);
+colour the map with a table of numbers (the Numbers sheet); or plan the camera move shot by shot (the
+Shots tab).
 
 ## How the panel thinks
 
@@ -39,8 +40,9 @@ line in their comment; it never touches a layer without one unless you attach it
   flight sample** (globe, borders, a flight to Paris, a route to Tokyo) and **Build the numbers
   sample** (every country by its population, with spikes and a legend). Under **About**: the
   version, the releases page, **Report a problem** (writes a report to your LazyMapLayers folder and
-  opens a new issue for you to paste it into; nothing is sent by itself) and the switch for the
-  once-a-day look at the release list.
+  opens a new issue for you to paste it into; nothing is sent by itself), the switch for the
+  once-a-day look at the release list, and **Street detail from the internet** with how much of it
+  this computer keeps (**Size**, **Clear**).
 - **Map settings** (the sliders icon): the map's name, the basemap (World, or a downloaded area),
   and **Globe**.
 - **Preview** and **Render**: half resolution and fast, or full quality with the Render tab's
@@ -363,9 +365,12 @@ Chittagong, switch **Arrow** on, **Add route**. Auto labels for the names. **Pre
 **Colour again**. **Add spikes** or **Add bubbles**, **Add legend** bottom left. Change the ramp and
 watch the layer follow. **Render**.
 
-**A city at street level.** Move the preview over the city, **Download this area** at zoom 15, name
-it. Map settings > Basemap: the area (or leave World: downloaded areas layer over it by themselves).
-Tilt the preview; buildings rise. Look > Terrain > Download for the mountains.
+**A city at street level.** On the World basemap, fly the preview into the city: online, its
+streets, buildings and names come as the view needs them. Tilt the preview; buildings rise. A render
+fetches only the tiles its frames need first, then draws. To work there without the internet later,
+**Download this area** at zoom 15 and name it; the map stays on World and draws the area from the
+download (or pick the area under Basemap to draw it as a region of its own). Look > Terrain >
+Download for the mountains.
 
 **Your own look.** Look > Your own colours: pick the sea and the land from your film's stills, or
 **From a picture** with a still. Save the look; open it in the next project.
@@ -396,8 +401,16 @@ what you typed to OpenStreetMap's search (Nominatim) and nothing else, and keeps
 
 ## Data, downloads and credits
 
-Everything a map needs from the globe down to a city comes with the download and works offline; the
-installer puts it on your computer:
+The installer asks how much map data this computer should keep:
+
+- **Full** (about 2 GB): everything in the list below; every map works offline down to city level.
+- **Light** (about 120 MB): the world's OpenStreetMap to zoom 6 and elevation to zoom 5. Closer
+  detail comes from the internet as maps need it, and is kept.
+- **Online** (nothing more): all detail closer than the world map comes from the internet as maps
+  need it, and is kept.
+
+Whatever the choice, maps look the same: what a Light or Online install fetches is the same
+OpenStreetMap the Full one carries. With the Full data, the installer puts on your computer:
 
 - **The world map** (Natural Earth, with the provinces of every country): coastlines, borders, place
   names and, out to zoom 6, the globe and the continents.
@@ -415,15 +428,27 @@ The historical borders (historical-basemaps, GNU GPL 3.0) are one more download 
 13.9 MB, kept in the same data folder; a render that shows them, or highlights a state of the past,
 credits them.
 
-Only finer detail is downloaded, when you ask, with the size shown first: street-level OpenStreetMap
-for an area (the free Protomaps planet build), finer elevation for an area (Mapterhorn), a Sentinel-2
-picture of an area, any OpenStreetMap search (Overpass), and street or address search. All of it
-lives in `%APPDATA%\LazyMapLayers` (Windows) or `~/Library/Application Support/LazyMapLayers` (macOS),
-where `offline/CREDITS.txt` lists the sources of the data that came with the download.
+**Street detail on demand.** When a map comes closer than the data on the computer reaches (past zoom
+9 with the Full data, past 6 with Light), the panel works out which OpenStreetMap tiles the frames
+need and fetches only those from the free Protomaps planet build, by byte ranges of one file: a fly-to
+into a city is typically a few megabytes. They are kept in `osm-cache` in the data folder and never
+fetched twice; a downloaded area is read from its own file. The switch **Street detail from the
+internet** (Maps > About) turns the fetching off; nothing else is sent. Offline, a render draws what
+the computer holds and names the frames that lack their detail ("frames 151-250 (6.0-10.0 s) lack
+street detail"); render again online and only those frames are drawn again. The preview fetches as you
+move it, and offline it shows what the computer holds.
+
+Finer detail of other kinds is downloaded when you ask, with the size shown first: an area of
+OpenStreetMap kept for working offline (**Download this area**), finer elevation for an area
+(Mapterhorn), a Sentinel-2 picture of an area, any OpenStreetMap search (Overpass), and street or
+address search. A Light or Online install downloads the satellite and relief pictures and the
+districts the same way, from the Look and Highlight sheets. All of it lives in
+`%APPDATA%\LazyMapLayers` (Windows) or `~/Library/Application Support/LazyMapLayers` (macOS), where
+`offline/CREDITS.txt` lists the sources of the data that came with the download.
 
 The panel never sends anything about you or your project. Rendering OpenStreetMap data (a view close
-enough for the offline world, or a downloaded area), district boundaries or terrain adds one small
-credit text layer to the scene; keep it, or put the credit in your end titles.
+enough for the offline world or street detail, or a downloaded area), district boundaries or terrain
+adds one small credit text layer to the scene; keep it, or put the credit in your end titles.
 
 ## What it does not do yet
 

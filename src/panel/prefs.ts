@@ -1,5 +1,6 @@
 // The panel's own preferences, kept in the user data folder (settings that belong to the person, not
-// to a map): whether new versions are looked for, and what was last seen.
+// to a map): whether new versions are looked for, and what was last seen; whether street detail is
+// fetched as maps need it (D101).
 
 import { fs, isInCep, path, userDataDir } from "./cep.ts";
 
@@ -14,9 +15,11 @@ export type Prefs = {
   dismissedVersion: string | null;
   /** Let other scripts drive the panel through the request folder (docs/SCRIPTING.md). Off by default. */
   scripting: boolean;
+  /** Fetch the OpenStreetMap tiles a map needs past what is installed (D101). On by default. */
+  streetDetail: boolean;
 };
 
-export const DEFAULT_PREFS: Prefs = { updates: true, lastUpdateCheck: null, latestKnown: null, dismissedVersion: null, scripting: false };
+export const DEFAULT_PREFS: Prefs = { updates: true, lastUpdateCheck: null, latestKnown: null, dismissedVersion: null, scripting: false, streetDetail: true };
 
 const file = () => path().join(userDataDir(), "settings.json");
 
@@ -31,7 +34,8 @@ export function normalisePrefs(raw: unknown): Prefs {
     lastUpdateCheck: typeof source.lastUpdateCheck === "string" ? source.lastUpdateCheck : null,
     latestKnown: known,
     dismissedVersion: typeof source.dismissedVersion === "string" ? source.dismissedVersion : null,
-    scripting: source.scripting === true
+    scripting: source.scripting === true,
+    streetDetail: source.streetDetail !== false
   };
 }
 

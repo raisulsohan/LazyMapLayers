@@ -21,8 +21,9 @@ SH1, TH1, SAT1, HL1, LB1, LB2, LB3, RT1, SL1, AT1, ST1, DT1, LK1, FL1, HT1, OI1 
 
 ## The in-AE tests, and what each one settles
 
-Every one of these runs inside After Effects through `npm run ae:spikes -- --only <ID>`. The five
-that go online run only when they are named.
+Every one of these runs inside After Effects through `npm run ae:spikes -- --only <ID>`. The ones
+that go online run only when they are named, and every other test keeps street detail on demand
+offline (D101).
 
 | Id | What it settles | Result |
 |---|---|---|
@@ -64,10 +65,40 @@ that go online run only when they are named.
 | DU1 | A duplicated scene gets its own map: new id, map comp and footage on the same frames, pins moved with it, the two render apart, the unrendered copy keeps its frames through the original's clean-up, Undo is left alone (fails on the old clean-up rule) | PASS |
 | RD1 | Renders on disk: a map rendered before its project was saved keeps its folder and names the project; Remove takes only what nothing can reach (fails six ways on the old code) | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool, with the prism switch, the pen button and Follow the camera of (0.9) | PASS |
+| SD1 | Online: street detail on demand on a light install (D101). A fly-to from Bangladesh into Dhaka's streets renders with nothing downloaded; its frames match a downloaded region's where the region is fully in; offline, the same move renders again from the cache; offline with an empty cache, or with only the world kept, the frames short of detail are named and drawn with what is there. Needs the light pack (`tools/build-offline-pack.ts --light`) | PASS 2026-10-12 (second run; its offline frames held to S6's noise afterwards, see below): 66 tiles (2.8 MB) fetched, 0 frames lacking; 108 frames equal to the region's |
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
 | GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
 | HB1 | Online when the pack is missing: historical borders (D92, D93). Installs the pack from the history-1 release, renders South Asia in 1914, 1945, 1947 and 1971 with a look that has country colours and one without, and reads British India in the colour of the United Kingdom, India and Pakistan apart with East Bengal in Pakistan's colour, Bangladesh in its own, neighbours never in one colour, the Bay of Bengal still sea; the borders draw-on draws the past's borders. Then the History Year slider (D94): 1945 to 1947 cross-faded at three points, and a real map keyed from 1945 to 1947, read back, rendered (25 frames), central India British, halfway and India, the year layer counting 1945, 1946, 1947. Frames in `HB1-frames`. 2026-10-10: pack installed in 1.7 s, 28 places read right; the fade reads 1945 British, 1946 halfway (rgb 222,210,164 between 243,201,165 and 201,219,163), 1947 India; the keyed map renders all 25 frames with the same three colours at frames 0, 12 and 24, and the year layer counts 1945, 1946, 1947; 0 problems. Then for D95: history-1 updated to history-2 from its release in 1.8 s, and the British Raj of 1914 rendered as a highlight on today's map, central India rgba 255,93,115,255 and Nepal clear. Then for D96: Auto labels on a map of 1947 name India, Pakistan, Burma, Nepal and Bhutan and none of today's countries; keyed from 1945 to 1947, the British Raj shows early (85) and is gone late, India the other way, Nepal, Bhutan and Burma throughout; the feature browser's Past lists the 144 named shapes of 1914; 0 problems | PASS |
+
+## SD1 — Street detail on demand on a light install: PASS (2026-10-12)
+
+The light pack (world to zoom 6, cut from the full pack) and an empty tile cache in a test folder stand
+in for a fresh Light install; downloaded regions are left out of the tile chain. A shot list flies
+from Bangladesh at zoom 5.5 into Dhaka's streets at zoom 15.2 (tilt 45, then an orbit), 214 frames
+at 960x540. Two runs, both on build 20261011:
+
+- **Online, nothing downloaded.** The frames need 71 tiles past the light pack's zoom 6; 66 were
+  fetched (2.8 MB, the rest are the pack's own), and the whole render took 18 to 20 s. No frame lacked
+  a tile, and MapLibre asked for no tile the plan had not listed (core's covering matches MapLibre's).
+  The last frame differs from the light pack alone on 100 % of the picture.
+- **Against a downloaded region.** A region round the street-level frames (324 tiles, 10.4 MB, the
+  same build) fades in from zoom 11.07 to 11.87. All 108 frames past that, lying inside it, are equal
+  to the street detail frames: 0 pixels apart by more than 2/255.
+- **Offline, from the cache.** With every request failing as without a connection, a second map with
+  the same move renders 201 frames (13 held frames share one render, as online): nothing fetched,
+  nothing lacking. The frames equal the online ones up to the renderer's own noise: 4 frames (run 2)
+  and 6 frames (run 1) have a few pixels beyond 2/255, at most 21 pixels and one pixel at 5/255,
+  nearly all below zoom 7 where no street tile is drawn - the coast glow with multisampling of S6.
+  The first run held them to 2/255 and failed on it; the check now allows S6's noise (one pixel in
+  10,000 beyond 2/255, no step over 8/255) and run 2's frames are inside it.
+- **Offline, empty cache.** "frames 52-214 (2.0-8.6 s) lack street detail (this computer is
+  offline)": the first named frame is the first past zoom 7. They are drawn with the light pack: 220
+  colours at zoom 8; at street level the pack has nothing more than the ground.
+- **Offline, the world kept.** With only the world's zooms 7 to 9 in the cache (19 tiles), 129 frames
+  from the first past zoom 10 are named, and every one is drawn with that world detail instead of the
+  light pack (346 colours at zoom 11, 99.6 % of the picture apart from the pack's). The first run had
+  drawn such frames with the pack alone; the three levels of D101 came from it.
 
 ## OW1 — The offline world under every map: PASS (2026-10-09)
 

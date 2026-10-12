@@ -25,6 +25,8 @@ import { runDistrictTest } from "./districtTests.ts";
 import { runTerrainSpike, runTerrainTest } from "./terrainTests.ts";
 import { runRouteTests } from "./routeTests.ts";
 import { runArrowTest } from "./arrowTests.ts";
+import { runStreetDetailTest } from "./streetDetailTests.ts";
+import { setStreetDetailOverride } from "./osmTiles.ts";
 import { runAttachTest } from "./attachTests.ts";
 import { runShapeTest } from "./shapeTests.ts";
 import { runDataTest } from "./dataTests.ts";
@@ -101,6 +103,9 @@ function frameDifference(a: Uint8Array, b: Uint8Array, width: number) {
 
 export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<string, unknown>> {
   const wants = (id: string) => !only || only.includes(id);
+  // Street detail on demand stays offline in every test but SD1 (D101): frames past what is installed
+  // draw as they did before it, so the other tests keep their meaning.
+  setStreetDetailOverride(false);
   const results: Record<string, unknown> = {
     startedAt: new Date().toISOString(),
     host: hostEnvironment(),
@@ -604,6 +609,16 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.DT1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`DT1 failed: ${results.DT1_error}`, "fail");
+    }
+  }
+
+  // Online: only when it is named. Street detail on demand on a light install (D101).
+  if (only && only.includes("SD1")) {
+    try {
+      results.SD1_streetDetail = await runStreetDetailTest(log);
+    } catch (error) {
+      results.SD1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`SD1 failed: ${results.SD1_error}`, "fail");
     }
   }
 

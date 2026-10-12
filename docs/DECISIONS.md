@@ -887,6 +887,68 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D101 — Street detail on demand, and three ways to install (2026-10-12)
+
+- **Why.** Two rows of COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 12): street detail
+  past zoom 9 needed a region downloaded first, and the install took about 2.5 GB with its data.
+- **One pyramid, several places it can be.** The basemap's OpenStreetMap detail is one tile pyramid,
+  the Protomaps planet build. A tile is read from the first place that has it: the installed world
+  (`offline/world.pmtiles`, to its own top zoom W), a downloaded region on disk whose bounds and zooms
+  hold it, the tile cache (`<user data>/osm-cache/<z>/<x>/<y>.mvt`, one file per tile as the planet
+  stores it, an empty file for a tile the planet does not have), and only then the planet itself by
+  range requests. (The panel looks in the cache before the regions: a stat of one small file is cheaper
+  than a region's index, and both hold the same planet's tiles.) Fetched tiles stay in the cache;
+  nothing is fetched twice.
+- **Core knows which tiles a frame needs.** `src/core/tiles/coveringTiles.ts` is MapLibre 6.10's tile
+  choice written again over our camera maths: the frustum with its far plane at MapLibre's horizon,
+  its plane and box test per tile, tiles of lower zoom in the distance past 60° of pitch or with 3D
+  terrain, world copies. `src/core/tiles/streetDetail.ts` runs it for every frame (every motion blur
+  sample) and every source drawn on demand, from the zoom where the source's first layer shows: the
+  world detail (from zoom 6, tiles to 9) and the street detail (from zoom 9, tiles to 15). Frames on a
+  globe below zoom 8 and frames with 3D terrain take one more ring of tiles, because MapLibre chooses
+  those from a curved surface or from the elevation.
+- **Street detail is drawn as a region.** The same layers in the same order as a downloaded region
+  (`protomapsStyle`), the same water rule (polygons from zoom 13), the world's lines handing over to it
+  as to a region. It fades in from zoom 9 to 9.8, the earliest D13 allows: its tiles cover every frame
+  by construction, so there is no edge of a patch to hide. Only maps on the World basemap draw it; a
+  map on downloaded regions draws them as before. One difference from a region: over a satellite
+  picture or the user's own tiles it brings only its lines and names and the picture stays, as the
+  offline world does over a picture (D91); a region still covers pictures.
+- **A render.** The panel reads the camera, core lists the tiles, the panel fetches the missing ones
+  (a progress stage with cancel, merged ranges, the planet's directories kept on disk), then renders.
+  Frames whose tiles are all here draw with the detail. A frame that lacks some (offline, the switch
+  off, a failed request) draws with what this computer holds, at the best of three levels: the world's
+  detail without the streets when its zoom 7 to 9 tiles are here (`detailLevels` in core), else only
+  what is installed, exactly as before this change. The render names those frames and their seconds:
+  never a frame short of its detail without a word. Each frame's data key carries its own tiles, so
+  when the tiles arrive only the frames that lacked them draw again.
+- **The preview** fetches a missing tile as the view needs it (four at a time) when online and the
+  switch is on; offline it shows what the computer holds.
+- **The switch.** About > **Street detail from the internet**, on by default like the update check
+  (D56). The requests go to build-metadata.protomaps.dev (the list of builds) and build.protomaps.com
+  (byte ranges of the planet file): no account, no key, nothing sent but the ranges. The cache keeps
+  one planet build while the server still offers it; when it is gone, new tiles come from the newest
+  build (tiles of two builds can then meet, as a region downloaded later already does).
+- **Three ways to install.** The installers ask: **Full** (the 1.9 GB pack of D91), **Light** (the
+  world's OpenStreetMap to zoom 6, 43 MB, and elevation to zoom 5, 78 MB: about 120 MB, cut from the
+  full pack by `tools/build-offline-pack.ts --light`, so its tiles are the same bytes) or **Online**
+  (nothing; the world past zoom 6 and the streets are fetched as maps need them). Natural Earth is in
+  the panel itself, so every install draws the whole world offline to zoom 6. A light or online
+  install fetches the world's zooms its pack does not hold through the same cache, so its frames match
+  a full install's. The full zip carries both packs; a light zip carries only the light one.
+  Satellite and relief pictures and districts stay downloads from the Look and Highlight sheets.
+- **Downloads.** **Download this area** stays the way to prepare an area for working offline. A World
+  map now keeps the World basemap after a download and reads the area's tiles from the region file;
+  a map on regions switches to the new region as before.
+- **Tested.** Unit tests: the covering against MapLibre's own choice for recorded views (flat,
+  turned, tilted to 85°, near the antimeridian), the needs and the lacking frames of a fly-to, frame
+  ranges in words, and a planet fetch from an archive in memory (directories walked once, ranges
+  merged, missing tiles remembered). SD1 in After Effects: a light install (the light pack and an empty
+  cache in a test folder) renders a fly-to into Dhaka's streets with nothing downloaded; its frames
+  where a region of the same streets is fully in match that region's render; offline the same frames
+  come again from the cache, equal; offline with an empty cache the frames past zoom 9 are named and
+  drawn with the light pack.
+
 ## D100 — The arrow rig (2026-10-12)
 
 - **Why.** The first of the rows in COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 11):

@@ -14,12 +14,19 @@ export type RegionInfo = { name: string; file: string; sizeBytes: number; bbox: 
 
 const BUILD_LIST = "https://build-metadata.protomaps.dev/builds.json";
 
-export async function newestPlanetBuild(): Promise<{ url: string; key: string; version: string }> {
+/** The planet builds Protomaps offers now, oldest first. */
+export async function planetBuilds(): Promise<{ key: string; version: string }[]> {
   const response = await httpsGet(BUILD_LIST);
   if (response.status !== 200) throw new Error(`Protomaps build list: HTTP ${response.status}`);
-  const builds = JSON.parse(new TextDecoder().decode(response.body)) as { key: string; version: string }[];
+  return JSON.parse(new TextDecoder().decode(response.body)) as { key: string; version: string }[];
+}
+
+export const planetUrl = (key: string) => `https://build.protomaps.com/${key}`;
+
+export async function newestPlanetBuild(): Promise<{ url: string; key: string; version: string }> {
+  const builds = await planetBuilds();
   const newest = builds[builds.length - 1];
-  return { url: `https://build.protomaps.com/${newest.key}`, key: newest.key, version: newest.version };
+  return { url: planetUrl(newest.key), key: newest.key, version: newest.version };
 }
 
 export function rangeReader(url: string): RangeReader {

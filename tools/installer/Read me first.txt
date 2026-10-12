@@ -12,8 +12,9 @@ WHAT YOU NEED
   - Adobe After Effects 2024 or newer
   - A graphics card with WebGL 2 (any card from the last
     ten years)
-  - About 2.5 GB of free disk space: the map data for working
-    offline comes with the panel
+  - Free disk space for the map data you choose to keep:
+    about 2.5 GB (Full), 200 MB (Light) or 60 MB (Online),
+    and room for the street detail your maps fetch
 
 
 ------------------------------------------------------------
@@ -24,8 +25,19 @@ INSTALL
   3. Windows: double-click  "Install LazyMapLayers.bat"
      macOS:   double-click  "Install LazyMapLayers (macOS).command"
               (if macOS refuses, right-click it and choose Open)
-  4. Wait for "Installed", then press a key.
-  5. Start After Effects and open:
+  4. Choose how much map data to keep (type 1, 2 or 3):
+       1  Full    about 2 GB: the world down to city level,
+                  elevation, satellite pictures, districts.
+                  Everything works without the internet.
+       2  Light   about 120 MB: the world to country level and
+                  coarse elevation.
+       3  Online  nothing more.
+     With Light and Online, closer detail comes from the
+     internet as your maps need it, and is kept. Maps look
+     the same whichever you pick. (The light download offers
+     only Light and Online.)
+  5. Wait for "Installed", then press a key.
+  6. Start After Effects and open:
        Window > Extensions > LazyMapLayers
 
   The panel is signed, so nothing else needs installing and
@@ -48,10 +60,12 @@ YOUR FIRST MAP IN A MINUTE
   every country coloured by its population, spikes for the
   numbers and a legend. Take it apart, then bring your own CSV.
 
-  For the street-level ending, move the preview over Paris,
-  click the download button (arrow, top right), name it  paris ,
-  and do the same for Tokyo ( tokyo ). Then build the sample
-  again.
+  Online, the flights go down to street level by themselves:
+  the panel fetches the streets they need. Offline, they stop
+  above the cities; to keep Paris and Tokyo for working
+  offline, move the preview over each, click the download
+  button (arrow, top right) and name them  paris  and  tokyo ,
+  then build the sample again.
 
 
 ------------------------------------------------------------
@@ -89,7 +103,8 @@ MAKING YOUR OWN MAP
                    zoom, right-drag to rotate and tilt. The line
                    at the bottom says what is under the pointer:
                    the place, district, province and country.
-  Basemap          World (offline) or downloaded regions.
+  Basemap          World (street detail comes as maps need it)
+                   or downloaded regions.
   Globe            a planet at low zoom that becomes the flat
                    map by zoom 8.
   Search           a country, province, district, city or
@@ -208,8 +223,10 @@ TERRAIN
 ------------------------------------------------------------
 MAP DATA AND DOWNLOADS
 ------------------------------------------------------------
-  Everything below comes with the panel and works without
-  the internet; the installer copies it to your computer:
+  With Full, everything below comes with the panel and works
+  without the internet; the installer copies it to your
+  computer (Light copies the world to zoom 6 and elevation to
+  zoom 5 of it):
     - The world map (Natural Earth) and the provinces of every
       country.
     - OpenStreetMap for the whole world down to city level
@@ -221,10 +238,17 @@ MAP DATA AND DOWNLOADS
       "world" pack in the Look sheet.
     - The districts of every country (geoBoundaries, open
       data), for highlights, numbers and search.
-  Only finer detail is downloaded, when you ask, with the size
+  Street detail comes by itself: when a map comes closer than
+  the data on this computer reaches, the panel fetches only the
+  OpenStreetMap tiles its frames need (a few megabytes for a
+  flight into a city) and keeps them. Maps list > About >
+  "Street detail from the internet" turns that off. Offline, a
+  render names the frames that lack their detail.
+  Other finer detail is downloaded when you ask, with the size
   shown first:
-    - Street-level OpenStreetMap for an area (the download
-      button): streets, buildings, the names inside a city.
+    - An area of OpenStreetMap kept for working offline (the
+      download button): streets, buildings, the names inside a
+      city.
     - Finer elevation for an area: Look sheet.
     - A satellite picture of an area from Sentinel-2, and
       searches for streets and addresses.

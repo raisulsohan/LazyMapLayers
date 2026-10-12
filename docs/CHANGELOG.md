@@ -2,6 +2,19 @@
 
 ## Unreleased
 
+- **Street detail anywhere, without pressing Download.** Fly into any city on the World basemap and
+  its streets, buildings and names are there: the panel works out which OpenStreetMap tiles the frames
+  need and fetches only those (a fly-to into a city is a few megabytes), keeps them, and draws them as
+  a downloaded region would. The preview fetches as you move it. Offline, a render draws what the
+  computer holds and names the frames that lack their detail; render again online and only those
+  frames are drawn again. **Street detail from the internet** under Maps > About turns the fetching
+  off. A World map keeps its basemap after **Download this area** and draws the area from it offline.
+
+- **A light install.** The installer asks how much map data to keep: **Full** (the 2 GB of before),
+  **Light** (the world to zoom 6 and coarse elevation, about 120 MB) or **Online** (nothing; detail
+  comes as maps need it and is kept). A light zip of about 160 MB is there for whoever does not want
+  to download 2 GB. Maps look the same whichever you pick.
+
 - **Arrow rig.** A route can now be drawn as an arrow: tick **Arrow rig** on the Route sheet or for
   an imported line. The line tapers from its tail and ends in a head that always sits on its tip,
   under any camera, and stops just behind the point. Width, taper, head size and style (triangle,

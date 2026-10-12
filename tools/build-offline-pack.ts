@@ -13,16 +13,22 @@
 //
 //   node tools/build-offline-pack.ts [--only world,terrain,imagery,districts] [--out <folder>]
 //     [--world-zoom 9] [--terrain-zoom 6] [--bbox west,south,east,north] [--countries BGD,NPL]
+//   node tools/build-offline-pack.ts --light [--from <full pack>] [--out <folder>]
 //
 // --bbox and --countries make a small pack for trying the tool. The large archives stream straight to
 // disk, and a run that stopped continues where it was when the tool is started again. Ask Sohan before
 // running it for the whole world: that downloads about 2.2 GB.
+//
+// --light writes the Light pack the installers offer beside the full one (DECISIONS D101) into
+// .cache/offline/light: the world's OpenStreetMap to zoom 6 and elevation to zoom 5, about 120 MB. It is
+// cut from the full pack on this computer (.cache/offline/pack, or --from), so its tiles are the very
+// bytes of the full pack and nothing is downloaded; without a full pack it downloads them (about 120 MB).
 
 import fs from "node:fs";
 import path from "node:path";
 import crypto from "node:crypto";
 import { fileURLToPath } from "node:url";
-import { mergeRanges, planExtract, type ExtractPlan, type RangeReader } from "../src/core/pmtiles/extract.ts";
+import { mergeRanges, planExtract, runExtract, type ExtractPlan, type RangeReader } from "../src/core/pmtiles/extract.ts";
 import { archiveHead, entriesForTiles } from "../src/core/pmtiles/writer.ts";
 import { IMAGERY_INFO, type ImageryPack } from "../src/core/imagery/packInfo.ts";
 import { buildBoundarySet, isoOfCountry, type BoundarySetInfo } from "../src/core/data/boundarySet.ts";
@@ -33,11 +39,16 @@ const arg = (name: string) => {
   const i = process.argv.indexOf(`--${name}`);
   return i > 0 ? process.argv[i + 1] : undefined;
 };
-const out = path.resolve(arg("out") ?? path.join(root, ".cache", "offline", "pack"));
+const light = process.argv.includes("--light");
+const out = path.resolve(arg("out") ?? path.join(root, ".cache", "offline", light ? "light" : "pack"));
+const lightFrom = path.resolve(arg("from") ?? path.join(root, ".cache", "offline", "pack"));
+/** The Light pack: the world to zoom 6, elevation to zoom 5 (D101). */
+const LIGHT_WORLD_ZOOM = 6;
+const LIGHT_TERRAIN_ZOOM = 5;
 const work = path.join(path.dirname(out), "work");
 const only = new Set((arg("only") ?? "world,terrain,imagery,districts").split(","));
-const worldZoom = Number(arg("world-zoom") ?? 9);
-const terrainZoom = Number(arg("terrain-zoom") ?? 6);
+const worldZoom = Number(arg("world-zoom") ?? (light ? LIGHT_WORLD_ZOOM : 9));
+const terrainZoom = Number(arg("terrain-zoom") ?? (light ? LIGHT_TERRAIN_ZOOM : 6));
 const [west, south, east, north] = (arg("bbox") ?? "-180,-85.051129,180,85.051129").split(",").map(Number);
 const bbox = { west, south, east, north };
 const countryFilter = arg("countries")?.split(",").map((c) => c.trim().toUpperCase());
@@ -381,7 +392,72 @@ async function buildDistricts(pack: Record<string, unknown>, credits: Credit[]):
   });
 }
 
+/** Cuts the first zooms of a full-pack archive into a smaller one, byte for byte the same tiles. */
+async function cutArchive(label: string, from: string, maxZoom: number, file: string, note: Record<string, unknown>): Promise<{ bytes: number; tiles: number; maxZoom: number }> {
+  const fd = fs.openSync(from, "r");
+  let archive: Uint8Array;
+  let plan: ExtractPlan;
+  try {
+    // Read the local archive the way the extractor reads a remote one.
+    const read: RangeReader = async (offset, length) => {
+      const bytes = new Uint8Array(length);
+      const n = fs.readSync(fd, bytes, 0, length, offset);
+      return n === length ? bytes : bytes.subarray(0, n);
+    };
+    plan = await planExtract(read, bbox, 0, maxZoom);
+    archive = await runExtract(plan, read);
+  } finally {
+    fs.closeSync(fd);
+  }
+  fs.mkdirSync(path.dirname(file), { recursive: true });
+  fs.writeFileSync(`${file}.part`, archive);
+  fs.renameSync(`${file}.part`, file);
+  log(`${label}: ${plan.tiles.length} tiles to zoom ${plan.maxZoom} cut from ${from}: ${mb(archive.length)} (${JSON.stringify(note)})`);
+  return { bytes: archive.length, tiles: plan.tiles.length, maxZoom: plan.maxZoom };
+}
+
+/** The Light pack: cut from the full pack when it is here, else downloaded like the full one. */
+async function buildLight(): Promise<void> {
+  fs.mkdirSync(path.join(out, "offline"), { recursive: true });
+  const fullWorld = path.join(lightFrom, "offline", "world.pmtiles");
+  const fullTerrain = path.join(lightFrom, "terrain", "world.pmtiles");
+  const fullPack = path.join(lightFrom, "offline", "pack.json");
+  const pack: Record<string, unknown> = { v: 1, kind: "light" };
+  const credits: Credit[] = [];
+  if (fs.existsSync(fullWorld) && fs.existsSync(fullTerrain) && fs.existsSync(fullPack)) {
+    const full = JSON.parse(fs.readFileSync(fullPack, "utf8")) as { world?: { source?: string; schema?: string }; terrain?: { source?: string } };
+    const world = await cutArchive("world", fullWorld, worldZoom, path.join(out, "offline", "world.pmtiles"), { from: "the full pack", source: full.world?.source });
+    const terrain = await cutArchive("terrain", fullTerrain, terrainZoom, path.join(out, "terrain", "world.pmtiles"), { from: "the full pack", source: full.terrain?.source });
+    pack.world = { source: full.world?.source, schema: full.world?.schema, maxZoom: world.maxZoom, tiles: world.tiles, bytes: world.bytes, cutFrom: "the full pack" };
+    pack.terrain = { source: full.terrain?.source, maxZoom: terrain.maxZoom, tiles: terrain.tiles, bytes: terrain.bytes, cutFrom: "the full pack" };
+    const build = /\/([^/]+)\.pmtiles$/.exec(full.world?.source ?? "")?.[1] ?? "unknown";
+    credits.push({
+      what: `The world map to zoom ${world.maxZoom} (offline/world.pmtiles)`,
+      text: `© OpenStreetMap contributors, available under the Open Database License (ODbL 1.0): https://www.openstreetmap.org/copyright\nTiles from the Protomaps basemap planet build ${build} (schema ${full.world?.schema ?? "?"}): https://protomaps.com`
+    });
+    credits.push({ what: `Elevation for the whole world to zoom ${terrain.maxZoom} (terrain/world.pmtiles)`, text: "© Mapterhorn: https://mapterhorn.com" });
+  } else {
+    log(`no full pack in ${lightFrom}: downloading the light pack (about 120 MB)`);
+    await buildWorld(pack, credits);
+    await buildTerrain(pack, credits);
+    for (const credit of credits) credit.what = credit.what.replace("to zoom 9", `to zoom ${worldZoom}`).replace("to zoom 6", `to zoom ${terrainZoom}`);
+    pack.kind = "light";
+  }
+  pack.built = new Date().toISOString();
+  pack.bbox = [bbox.west, bbox.south, bbox.east, bbox.north];
+  pack.credits = credits;
+  fs.writeFileSync(path.join(out, "offline", "pack.json"), JSON.stringify(pack, null, 2));
+  const lines = ["LazyMapLayers offline data (Light): where it comes from", "", "Natural Earth (the bundled world map, names and outlines): public domain, https://www.naturalearthdata.com", ""];
+  for (const credit of credits) lines.push(credit.what, credit.text, "");
+  lines.push("Closer than this, the panel fetches OpenStreetMap tiles from the Protomaps planet build as maps need them, and keeps them (About > Street detail from the internet).", "");
+  fs.writeFileSync(path.join(out, "offline", "CREDITS.txt"), lines.join("\n"));
+  let total = 0;
+  for (const file of ["offline/world.pmtiles", "terrain/world.pmtiles", "offline/pack.json", "offline/CREDITS.txt"]) total += fs.statSync(path.join(out, file)).size;
+  log(`light pack: ${out} holds ${mb(total)}`);
+}
+
 async function main(): Promise<void> {
+  if (light) return buildLight();
   fs.mkdirSync(path.join(out, "offline"), { recursive: true });
   const packFile = path.join(out, "offline", "pack.json");
   let pack: Record<string, unknown> = {};

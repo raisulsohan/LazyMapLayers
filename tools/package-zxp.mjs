@@ -5,6 +5,7 @@
  *   node tools/package-zxp.mjs --cert     make the signing certificate (once)
  *   node tools/package-zxp.mjs            build, sign and package, with the offline map data
  *   node tools/package-zxp.mjs --no-offline   the panel alone (a quick test build, not a release)
+ *   node tools/package-zxp.mjs --no-light     the full zip without the light pack and no light zip
  *
  * Adobe's own ZXPSignCmd does the signing; tools/get-zxpsigncmd.mjs fetches it
  * into tools/vendor/. The key that signs it sits in the repository folder but
@@ -21,6 +22,11 @@
  * names another folder). It goes into the zip as "offline-data", next to the
  * installers, which copy it into the user data folder; it is never part of the
  * signed .zxp, so a panel update does not have to carry it again.
+ *
+ * Since D101 the installers ask how much data to keep: Full, Light or Online. The full zip carries
+ * the light pack too ("light-data", from tools/build-offline-pack.ts --light into .cache/offline/light,
+ * or LAZYMAPLAYERS_LIGHT_PACK), and a second, small zip carries only the light pack
+ * (LazyMapLayers-vX.Y-light.zip), for whoever does not want to download 2 GB.
  */
 import { execFileSync } from "node:child_process";
 import { createHash, randomBytes } from "node:crypto";
@@ -295,6 +301,26 @@ const OFFLINE_FILES = [
 /* GitHub refuses release assets of 2 GiB or more. */
 const ASSET_LIMIT = 2 * 1024 * 1024 * 1024;
 
+const LIGHT_PACK = resolve(process.env.LAZYMAPLAYERS_LIGHT_PACK || join(root, ".cache", "offline", "light"));
+const LIGHT_FILES = ["offline/world.pmtiles", "offline/pack.json", "offline/CREDITS.txt", "terrain/world.pmtiles"];
+
+/** The light pack to ship beside the full one (D101), or null; a release refuses one that is incomplete or not light. */
+function lightPack() {
+  if (has("--no-offline") || has("--no-light")) return null;
+  const missing = LIGHT_FILES.filter((file) => !existsSync(join(LIGHT_PACK, file)));
+  if (missing.length) {
+    fail(`the light pack in ${LIGHT_PACK} lacks ${missing.join(", ")}.
+` +
+      "    Build it with node tools/build-offline-pack.ts --light (cut from the full pack, nothing downloaded), or pass --no-light.");
+  }
+  const pack = JSON.parse(readFileSync(join(LIGHT_PACK, "offline", "pack.json"), "utf8"));
+  const [west, south, east, north] = pack.bbox ?? [];
+  if (pack.kind !== "light" || !(west <= -179.9 && east >= 179.9 && south <= -85 && north >= 85)) {
+    fail(`the light pack in ${LIGHT_PACK} is not a light pack of the whole world (${JSON.stringify({ kind: pack.kind, bbox: pack.bbox })}).`);
+  }
+  return LIGHT_PACK;
+}
+
 /** The offline data to ship, or null for a panel-only build; a release refuses a pack that is incomplete or a test area. */
 function offlinePack() {
   if (has("--no-offline")) return null;
@@ -349,23 +375,29 @@ function assemble() {
 
 function zip() {
   mkdirSync(downloads, { recursive: true });
-  /* One LazyMapLayers zip there at a time; older versions stay on GitHub's
-     releases page. Every other product's zip in the folder is left alone. */
+  /* One LazyMapLayers release there at a time (its full and light zips); older
+     versions stay on GitHub's releases page. Every other product's zip in the
+     folder is left alone. */
   for (const old of readdirSync(downloads)) {
-    if (/^LazyMapLayers-v[\d.]+\.zip$/.test(old)) rmSync(join(downloads, old), { force: true });
+    if (/^LazyMapLayers-v[\d.]+(-light)?\.zip$/.test(old)) rmSync(join(downloads, old), { force: true });
   }
-  const out = join(downloads, zipName);
   /* Built here rather than with Compress-Archive, which writes nested paths
-     with backslashes (see tools/zip.mjs). */
-  const files = walk(payload, `${PRODUCT}/`);
-  /* The offline data streams straight from the pack folder into the zip. */
-  if (offline) files.push(...walk(offline, `${PRODUCT}/offline-data/`));
-  const bytes = writeZip(out, files);
-  const sha256 = sha256Of(out);
-  log("[6/6]", `${out} (${(bytes / 1024 / 1024).toFixed(1)} MB${offline ? ", with the offline map data" : ", the panel alone"})`);
-  console.log(`        SHA-256 ${sha256}`);
-  if (bytes >= ASSET_LIMIT) console.log(`        [!] ${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB: GitHub takes release assets under 2 GB only.`);
-  return out;
+     with backslashes (see tools/zip.mjs). The map data streams straight from
+     the pack folders into the zip. */
+  const write = (name, packs, what) => {
+    const out = join(downloads, name);
+    const files = walk(payload, `${PRODUCT}/`);
+    for (const [pack, folder] of packs) files.push(...walk(pack, `${PRODUCT}/${folder}/`));
+    const bytes = writeZip(out, files);
+    const sha256 = sha256Of(out);
+    log("[6/6]", `${out} (${(bytes / 1024 / 1024).toFixed(1)} MB, ${what})`);
+    console.log(`        SHA-256 ${sha256}`);
+    if (bytes >= ASSET_LIMIT) console.log(`        [!] ${(bytes / 1024 / 1024 / 1024).toFixed(2)} GB: GitHub takes release assets under 2 GB only.`);
+    return out;
+  };
+  const main = write(zipName, [...(offline ? [[offline, "offline-data"]] : []), ...(light ? [[light, "light-data"]] : [])], offline ? `with the offline map data${light ? " and the light pack" : ""}` : light ? "with the light pack" : "the panel alone");
+  const lightZip = offline && light ? write(zipName.replace(/\.zip$/, "-light.zip"), [[light, "light-data"]], "with the light pack only") : null;
+  return { main, lightZip };
 }
 
 /* ------------------------------------------------------------------- main */
@@ -378,20 +410,23 @@ if (has("--cert")) {
 }
 
 const offline = offlinePack();
+const light = lightPack();
 stage();
 sign(tool);
 verify(tool);
 assemble();
-const out = zip();
+const { main: out, lightZip } = zip();
 /* Leave one file behind, not a folder of half-built pieces. */
 rmSync(work, { recursive: true, force: true });
 
 console.log(`
-Done. One file to give people:
+Done. ${lightZip ? "Two files" : "One file"} to give people:
 
-  ${out}
+  ${out}${lightZip ? `
+  ${lightZip}   (the light download)` : ""}
 
 They unzip it and double-click "Install LazyMapLayers.bat" (Windows) or
 "Install LazyMapLayers (macOS).command". No extension manager, no debug mode${offline ? `,
-and the map data for working offline comes with it` : ""}.
+and the installer asks how much map data to keep (Full, Light or Online)` : light ? `,
+and the installer asks how much map data to keep (Light or Online)` : ""}.
 `);

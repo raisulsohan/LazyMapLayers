@@ -39,7 +39,9 @@ function DiskLine(): JSX.Element {
   );
 }
 
-const STAGE_LABELS = { camera: "Reading camera", planning: "Checking cache", rendering: "Rendering", importing: "Importing" } as const;
+const STAGE_LABELS = { camera: "Reading camera", detail: "Fetching street detail", planning: "Checking cache", rendering: "Rendering", importing: "Importing" } as const;
+
+const megabytes = (bytes: number) => (bytes / 1048576).toFixed(1);
 
 export function RenderTab(): JSX.Element {
   const settings = renderSettings.value;
@@ -125,7 +127,9 @@ export function RenderTab(): JSX.Element {
               <div class="progress">
                 <div class="bar" style={{ width: `${Math.round((100 * job.progress.done) / Math.max(1, job.progress.total))}%` }} />
                 <span>
-                  {STAGE_LABELS[job.progress.stage]} {job.progress.done}/{job.progress.total} · {job.progress.rendered} rendered · {job.progress.reused} reused
+                  {job.progress.stage === "detail"
+                    ? `${STAGE_LABELS.detail} ${megabytes(job.progress.done)}/${megabytes(job.progress.total)} MB`
+                    : `${STAGE_LABELS[job.progress.stage]} ${job.progress.done}/${job.progress.total} · ${job.progress.rendered} rendered · ${job.progress.reused} reused`}
                 </span>
               </div>
             )}

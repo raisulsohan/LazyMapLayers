@@ -27,12 +27,24 @@
    delete a part of the pack to build that part fresh (a newer Protomaps build, say). Then, with the
    pack copied into the user data folder (`robocopy .cache\offline\pack %APPDATA%\LazyMapLayers /E`),
    run `npm run ae:spikes -- --only OW1`.
+
+   Then the light pack (DECISIONS D101), cut from the full one on this computer, nothing downloaded:
+
+   ```
+   node --max-old-space-size=4096 tools/build-offline-pack.ts --light
+   ```
+
+   It writes `.cache/offline/light` (about 121 MB: the world to zoom 6, elevation to zoom 5). SD1 renders
+   street detail on demand over it: `npm run ae:spikes -- --only SD1` (online, about 25 MB, ask first).
 6. **Package.** Run `node tools/package-zxp.mjs`. It builds into a temporary folder, so `dist/` is not
-   touched, then signs with a timestamp, verifies, and writes `LazyMapLayers-vX.Y.zip` to
-   `D:\GitHub\00. Install from here`, with the offline data pack streamed in as `offline-data/`. It
-   replaces the older LazyMapLayers zip there and prints the SHA-256. It refuses a pack that is
-   incomplete or covers only a test area, and warns when the zip reaches 2 GB, which GitHub does not
-   take as a release asset. `--no-offline` packages the panel alone, for a quick test build.
+   touched, then signs with a timestamp, verifies, and writes two zips to
+   `D:\GitHub\00. Install from here`: `LazyMapLayers-vX.Y.zip` with the offline data pack streamed in as
+   `offline-data/` and the light pack as `light-data/` (the installer asks Full, Light or Online), and
+   `LazyMapLayers-vX.Y-light.zip` with the light pack alone (Light or Online). It replaces the older
+   LazyMapLayers zips there and prints each SHA-256. It refuses a pack that is incomplete or covers only
+   a test area, and warns when a zip reaches 2 GB, which GitHub does not take as a release asset (1.1.2's
+   full zip was 1.985 GB; the light pack adds 0.121 GB). `--no-light` leaves the light pack and its zip
+   out; `--no-offline` packages the panel alone, for a quick test build.
    - The first time on a machine, run `node tools/package-zxp.mjs --cert`, or restore the backed-up
      `Signing key (do not share)` folder. Keep the same key for every release.
    - ZXPSignCmd lives in `tools/vendor/`. Get it with `node tools/get-zxpsigncmd.mjs`.
@@ -40,8 +52,9 @@
 8. **Publish**, only with Sohan's go-ahead:
    - Commit and push as Raisul Sohan.
    - Create a GitHub release with tag `vX.Y.Z` and title "LazyMapLayers X.Y".
-   - Write notes with three sections: Download & install, What's new, and the SHA-256.
-   - Attach the zip as the release asset.
+   - Write notes with three sections: Download & install (the full zip, or the light one for a small
+     download), What's new, and the SHA-256 of each zip.
+   - Attach both zips as release assets.
 
 ## Test a release on the development PC
 
@@ -62,9 +75,12 @@ user has, then switch it back. Close After Effects before each step.
      template, that project may use the Legacy ExtendScript expression engine.
    - [ ] **Render** finishes, and the comp plays the globe, the flight to Paris, the route and Tokyo.
    - [ ] **Auto labels** with another language, **Fly here**, and Alt+click all work.
-   - [ ] The installer said it copied the map data, and `%APPDATA%\LazyMapLayers\offline\world.pmtiles`
-     is there. Fly the preview to any country at zoom 8: rivers, roads and borders show with the
-     network cable out.
+   - [ ] The installer asked Full, Light or Online. With Full it said it copied the map data, and
+     `%APPDATA%\LazyMapLayers\offline\world.pmtiles` is there. Fly the preview to any country at zoom 8:
+     rivers, roads and borders show with the network cable out.
+   - [ ] Installed again with Light: `offline\world.pmtiles` is about 45 MB. Online, fly the preview
+     into a city's streets: they come in a second or two. Render a fly-to into them: the log names no
+     frame without detail. With the network cable out, render it on a second map: the same frames.
 3. **`2 Turn on the signature check.bat`** (optional but recommended)
    - Sets PlayerDebugMode to 0, so After Effects checks signatures as on a user's computer.
    - Start After Effects: the panel must open, not blank.

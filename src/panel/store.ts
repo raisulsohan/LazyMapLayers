@@ -98,10 +98,11 @@ import { HISTORY_CREDIT } from "../core/history/historyPack.ts";
 import { HISTORY_PACK } from "../core/history/packInfo.ts";
 import { downloadHistoryPack, historyManifest, historyYearInfo, loadHistoryYear, type LoadedYear } from "./data/history.ts";
 import { searchHistory, shapeAt, targetAt, type HistoryTarget } from "../core/history/historyFind.ts";
-import { describeSpec, renderQueue, type QueueJob } from "./render/renderQueue.ts";
+import { describeSpec, lackingReason, renderQueue, type QueueJob } from "./render/renderQueue.ts";
 import { isoOfCountry } from "../core/data/boundarySet.ts";
+import { clearOsmCache, forgetOsmArchives, installedWorld, onOsmOffline, osmCacheSize, osmOnline, resetOsmOffline } from "./osmTiles.ts";
 
-export type LogKind = "ok" | "fail" | "muted";
+export type LogKind = "ok" | "fail" | "muted" | "warn";
 export type LogLine = { text: string; kind?: LogKind };
 
 export type MapEntry = {
@@ -1697,18 +1698,20 @@ export const buildSample = () =>
   run("sample", async () => {
     const wanted = ["paris-wide", "paris", "tokyo-wide", "tokyo"].filter((name) => regions.value.some((r) => r.name === name));
     progress.value = { label: "Building the world flight sample", done: 0, total: 1 };
+    // Online, street detail comes as the flight needs it (D101), so both flights go down to the streets.
+    const streets = osmOnline();
     const demo = await buildWorldFlight(
       {
         basemap: wanted.length ? { kind: "regions", names: wanted } : { kind: "world" },
-        // Without a city's own region the flight stops above it: at city level when the offline world is
-        // installed (D91), higher up otherwise, where the world map still has detail.
-        firstZoom: wanted.includes("paris") ? undefined : aboveCityZoom(),
-        secondZoom: wanted.includes("tokyo") ? undefined : aboveCityZoom()
+        // Without a city's own region or street detail the flight stops above it: at city level when the
+        // full offline world is installed (D91), higher up otherwise, where the world map still has detail.
+        firstZoom: wanted.includes("paris") || streets ? undefined : aboveCityZoom(),
+        secondZoom: wanted.includes("tokyo") || streets ? undefined : aboveCityZoom()
       },
       (line) => log(`sample: ${line}`, "muted")
     );
     const missing = ["paris", "tokyo"].filter((name) => !wanted.includes(name));
-    if (missing.length) log(`sample: download regions named ${missing.join(" and ")} (Download this area) and build it again to fly down to street level`, "muted");
+    if (missing.length && !streets) log(`sample: connect to the internet (street detail comes by itself) or download regions named ${missing.join(" and ")}, then build it again to fly down to street level`, "muted");
     log(`world flight sample built in "${demo.sceneName}": render it to see the basemap`, demo.expressionErrors.length ? "fail" : "ok");
     screen.value = "main";
     await refreshMaps(true);
@@ -3542,7 +3545,13 @@ export const startRegionDownload = () =>
     await downloadRegion(name, sheet.planned, (done, total) => (progress.value = { label: "Downloading", done, total }));
     log(`downloaded region "${name}" (${mb(sheet.planned.plan.tileBytes)}) · © OpenStreetMap contributors`, "ok");
     regionSheet.value = null;
+    forgetOsmArchives();
     await refreshRegions();
+    // A World map keeps its basemap: it draws the area from the region file now, also offline (D101).
+    if (basemap.value.kind === "world") {
+      log(`World maps draw "${name}" by themselves now, without the internet; pick it under Basemap to draw it as a region of its own`, "muted");
+      return;
+    }
     const source: BasemapSource = { kind: "region", name };
     basemap.value = source;
     setPreviewStyle(source, projection.value);
@@ -3596,6 +3605,33 @@ export const setScriptingOn = (on: boolean): void => {
   log("scripts can drive the panel: leave a request in the api folder inside your LazyMapLayers folder (docs/SCRIPTING.md)", "ok");
 };
 
+/** About > Street detail from the internet (D101). */
+export const streetDetailOn = signal(readPrefs().streetDetail);
+/** What the tile cache of street detail holds, read when the About screen asks. */
+export const osmCache = signal<{ tiles: number; bytes: number } | null>(null);
+
+export const setStreetDetailOn = (on: boolean): void => {
+  streetDetailOn.value = on;
+  writePrefs({ streetDetail: on });
+  resetOsmOffline();
+  setPreviewStyle(basemap.value, projection.value, look());
+  log(on ? "street detail comes from the internet as maps need it (OpenStreetMap through Protomaps)" : "street detail from the internet is off: maps draw what this computer holds, and renders name the frames that lack detail", "muted");
+};
+
+export function refreshOsmCache(): void {
+  if (!isInCep()) return;
+  osmCache.value = osmCacheSize();
+}
+
+export const clearStreetDetail = () =>
+  run("clear street detail", async () => {
+    const before = osmCacheSize();
+    clearOsmCache();
+    osmCache.value = { tiles: 0, bytes: 0 };
+    setPreviewStyle(basemap.value, projection.value, look());
+    log(`removed ${before.tiles} street detail tiles (${mb(before.bytes)}); they come again when a map needs them online`, "ok");
+  });
+
 export const updatesOn = signal(readPrefs().updates);
 
 export const setUpdatesOn = (on: boolean): void => {
@@ -3645,6 +3681,9 @@ export function startStore(): () => void {
   void refreshMaps(true);
   void refreshRegions();
   void refreshTerrainPacks();
+  const world = installedWorld();
+  log(world ? `map data on this computer: the world to zoom ${world.maxZoom}${world.maxZoom < 9 ? " (Light install)" : ""}; street detail ${streetDetailOn.value ? "comes from the internet as maps need it" : "from the internet is off"}` : `no offline map data installed (Online install): the world past zoom 6 and street detail ${streetDetailOn.value ? "come from the internet as maps need them" : "need the internet, which is off in About"}`, "muted");
+  const stopOffline = onOsmOffline(() => log("this computer seems to be offline: maps show the map data on this computer, and street detail comes when it is online again", "warn"));
   void refreshSatellitePacks();
   renderQueue.load();
   jobs.value = [...renderQueue.jobs];
@@ -3654,6 +3693,8 @@ export function startStore(): () => void {
     const { job, result } = event;
     if (job.status === "done" && result) {
       log(`${job.mapName}: ${describeSpec(job.spec)} · ${job.summary}`, "ok");
+      const detail = result.streetDetail;
+      if (detail?.lackingText) log(`${job.mapName}: ${detail.lackingText} lack street detail (${lackingReason(detail.why)}); they show the map data on this computer. Render again when online and only those frames are drawn again`, "warn");
       if (result.imported.attribution.state === "added") log("added a data credit layer (© OpenStreetMap contributors) to the scene; keep it, or credit OpenStreetMap in your video", "muted");
       void refreshMaps();
     } else if (job.status === "failed") log(`${job.mapName}: render failed: ${job.error}`, "fail");
@@ -3668,6 +3709,7 @@ export function startStore(): () => void {
   const stopImportOverlay = effect(() => setPreviewImport(importSheetOpen.value ? imported.value : null));
   return () => {
     stopQueue();
+    stopOffline();
     stopImportOverlay();
     window.removeEventListener("focus", onFocus);
   };

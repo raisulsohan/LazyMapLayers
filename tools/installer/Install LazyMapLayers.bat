@@ -48,22 +48,82 @@ if not exist "%DEST%\CSXS\manifest.xml" (
   goto :fail
 )
 
-rem The map data for working without the internet: the whole world to
-rem zoom 9, elevation, satellite pictures and every country's districts.
+rem The map data. The full download carries two packs: offline-data (the
+rem whole world to zoom 9, elevation, satellite pictures and every country's
+rem districts) and light-data (the world to zoom 6 and coarse elevation). The
+rem light download carries only light-data. Online keeps neither: the panel
+rem fetches the detail maps need from the internet, and keeps it.
+set "DATA=%APPDATA%\LazyMapLayers"
+set "HAS_FULL=0"
+set "HAS_LIGHT=0"
+if exist "offline-data\offline\world.pmtiles" set "HAS_FULL=1"
+if exist "light-data\offline\world.pmtiles" set "HAS_LIGHT=1"
+set "MODE=online"
+if "%HAS_FULL%%HAS_LIGHT%"=="00" goto :copy_data
+set "DEFAULT=2"
+if "%HAS_FULL%"=="1" set "DEFAULT=1"
+echo.
+echo How much map data should this computer keep?
+echo.
+if "%HAS_FULL%"=="1" echo   1  Full     about 2 GB: the world down to city level, elevation,
+if "%HAS_FULL%"=="1" echo              satellite pictures and every country's districts.
+if "%HAS_FULL%"=="1" echo              Everything works without the internet.
+if "%HAS_LIGHT%"=="1" echo   2  Light    about 120 MB: the world to country level and coarse
+if "%HAS_LIGHT%"=="1" echo              elevation. Closer detail comes from the internet as
+if "%HAS_LIGHT%"=="1" echo              your maps need it, and is kept.
+echo   3  Online   nothing more: all detail comes from the internet as
+echo              your maps need it, and is kept.
+echo.
+:ask_mode
+set "PICK="
+set /p "PICK=Type 1, 2 or 3 and press Enter (Enter alone: %DEFAULT%): "
+if not defined PICK set "PICK=%DEFAULT%"
+set "MODE="
+if "%PICK%"=="1" if "%HAS_FULL%"=="1" set "MODE=full"
+if "%PICK%"=="2" if "%HAS_LIGHT%"=="1" set "MODE=light"
+if "%PICK%"=="3" set "MODE=online"
+if not defined MODE (
+  echo That is not one of the choices above.
+  goto :ask_mode
+)
+
+:copy_data
 rem Robocopy skips files that are already there and unchanged, so installing
-rem again is quick. Exit codes below 8 mean success.
-if exist "offline-data" (
+rem again is quick, and it replaces the world files of another choice made
+rem before. Exit codes below 8 mean success.
+if "%MODE%"=="full" (
   echo.
   echo Copying the map data for working offline ^(about 2 GB^)
-  echo         to %APPDATA%\LazyMapLayers
+  echo         to %DATA%
   echo This takes a minute or two.
-  robocopy "offline-data" "%APPDATA%\LazyMapLayers" /E /NFL /NDL /NJH /NJS /NP /R:2 /W:2 >nul
+  robocopy "offline-data" "%DATA%" /E /NFL /NDL /NJH /NJS /NP /R:2 /W:2 >nul
   if errorlevel 8 (
     echo [!] The map data could not be copied completely. Check that the disk
     echo     has about 2 GB free, then run this again. The panel itself is installed.
     goto :fail_data
   )
   echo The map data is in place.
+)
+if "%MODE%"=="light" (
+  echo.
+  echo Copying the light map data ^(about 120 MB^)
+  echo         to %DATA%
+  robocopy "light-data" "%DATA%" /E /NFL /NDL /NJH /NJS /NP /R:2 /W:2 >nul
+  if errorlevel 8 (
+    echo [!] The map data could not be copied completely. Check that the disk
+    echo     has about 150 MB free, then run this again. The panel itself is installed.
+    goto :fail_data
+  )
+  echo The map data is in place.
+)
+rem Online after a full or light install: the world files that install
+rem copied go, so they no longer take the space. Downloads are kept.
+if "%MODE%"=="online" if exist "%DATA%\offline\pack.json" (
+  echo.
+  echo Removing the offline world map an earlier install copied to
+  echo         %DATA%
+  del /q "%DATA%\offline\world.pmtiles" "%DATA%\offline\pack.json" "%DATA%\offline\CREDITS.txt" 2>nul
+  del /q "%DATA%\terrain\world.pmtiles" 2>nul
 )
 
 echo.
@@ -74,10 +134,22 @@ echo.
 echo   Open it:
 echo     After Effects  Window - Extensions - LazyMapLayers
 echo.
-if exist "offline-data" (
+if "%MODE%"=="full" (
   echo   It works without the internet: the world map down to city
   echo   level, elevation, satellite pictures and the districts of
-  echo   every country are on this computer now.
+  echo   every country are on this computer now. Closer than city
+  echo   level, street detail comes from the internet as maps need it.
+  echo.
+)
+if "%MODE%"=="light" (
+  echo   The world to country level and coarse elevation are on this
+  echo   computer. Closer detail comes from the internet as your maps
+  echo   need it, and is kept for working offline later.
+  echo.
+)
+if "%MODE%"=="online" (
+  echo   Map detail closer than country level comes from the internet
+  echo   as your maps need it, and is kept for working offline later.
   echo.
 )
 echo   Downloaded map regions and render caches from an earlier

@@ -8,7 +8,7 @@ import { compSize } from "../preview.ts";
 import { DEFAULT_FOLLOW, type FollowOptions } from "../../core/ae/followExpressions.ts";
 import { followMap } from "../store.ts";
 import { allRegions, basemap, buildSample, busy, changeBasemap, changeProjection, createMap, fail, maps, mb, openRegionSheet, projection, regions, renameMap, screen, selectMap, selected, selectedId, sourceKey, suggestName } from "../store.ts";
-import { buildNumbersSample, hostInfo, reportProblem, scriptingOn, setScriptingOn, setUpdatesOn, updatesOn } from "../store.ts";
+import { buildNumbersSample, clearStreetDetail, hostInfo, osmCache, refreshOsmCache, reportProblem, scriptingOn, setScriptingOn, setStreetDetailOn, setUpdatesOn, streetDetailOn, updatesOn } from "../store.ts";
 import { earthStudioPins, importEarthStudioFile } from "../store.ts";
 import { openUrl } from "../cep.ts";
 import { RELEASES_URL } from "../updates.ts";
@@ -92,6 +92,23 @@ export function MapsScreen(): JSX.Element {
           <input type="checkbox" data-id="about-updates" checked={updatesOn.value} onChange={(e) => setUpdatesOn((e.target as HTMLInputElement).checked)} />
           Look for new versions once a day
         </label>
+        <label class="check" title="When a map comes closer than this computer's map data reaches, the panel fetches only the OpenStreetMap tiles its frames need from the Protomaps planet build and keeps them, so they never come twice. It asks for byte ranges of the planet file and sends nothing else. Off, maps draw what this computer holds and a render names the frames that lack detail.">
+          <input type="checkbox" data-id="about-street-detail" checked={streetDetailOn.value} onChange={(e) => setStreetDetailOn((e.target as HTMLInputElement).checked)} />
+          Street detail from the internet
+        </label>
+        <div class="field-row">
+          <span class="muted small" data-id="about-street-cache">{osmCache.value ? `Street detail kept: ${osmCache.value.tiles} tiles, ${mb(osmCache.value.bytes)}` : "Street detail kept on this computer"}</span>
+          {!osmCache.value && (
+            <button class="small-button" data-id="about-street-cache-size" onClick={() => refreshOsmCache()} title="Counts the street detail tiles kept in your LazyMapLayers folder (osm-cache)">
+              Size
+            </button>
+          )}
+          {!!osmCache.value?.tiles && (
+            <button class="small-button" data-id="about-street-cache-clear" disabled={busy.value} onClick={() => void clearStreetDetail()} title="Removes the kept street detail tiles. Maps fetch them again when they need them online; offline, those streets are gone until then. Downloaded areas are not touched.">
+              Clear
+            </button>
+          )}
+        </div>
         <label class="check" title="Lets a script on this computer drive the panel: it leaves a request in the api folder inside your LazyMapLayers folder and the panel answers beside it. Only the calls listed in docs/SCRIPTING.md can be asked for. Off by default.">
           <input type="checkbox" data-id="about-scripting" checked={scriptingOn.value} onChange={(e) => setScriptingOn((e.target as HTMLInputElement).checked)} />
           Let scripts on this computer drive the panel

@@ -3,7 +3,7 @@
 // that was already cached, so it continues where it stopped.
 
 import { fs, isInCep, path, userDataDir } from "../cep.ts";
-import { MAP_GONE, RenderCancelled, runRenderJob, type RenderJobResult, type RenderJobSpec, type RenderProgress } from "./renderJob.ts";
+import { MAP_GONE, RenderCancelled, runRenderJob, type RenderJobResult, type RenderJobSpec, type RenderProgress, type StreetDetailReport } from "./renderJob.ts";
 
 export type QueueStatus = "queued" | "running" | "done" | "failed" | "cancelled" | "interrupted";
 
@@ -27,6 +27,23 @@ const KEEP_FINISHED = 12;
 
 function queueFile(): string {
   return path().join(userDataDir(), "render-queue.json");
+}
+
+/** Why frames were drawn without their street detail, in words for the render list and the log (D101). */
+export function lackingReason(why: string | null): string {
+  if (why === "offline") return "this computer is offline";
+  if (why === "off") return "street detail from the internet is off (About)";
+  if (why === "missing") return "the tiles could not be had";
+  return why ? `fetching failed: ${why}` : "";
+}
+
+/** The street detail part of a finished render's summary. */
+export function streetDetailSummary(report: StreetDetailReport | undefined): string {
+  if (!report) return "";
+  const fetched = report.fetched ? ` · street detail: ${report.fetched} tiles fetched (${(report.bytes / 1048576).toFixed(1)} MB)` : "";
+  const lacking = report.lackingText ? ` · ${report.lackingText} lack street detail (${lackingReason(report.why)}) and show what this computer holds; render again online and only those frames are drawn again` : "";
+  const unforeseen = report.unforeseen ? ` · ${report.unforeseen} tiles the frames asked for were not to be had` : "";
+  return `${fetched}${lacking}${unforeseen}`;
 }
 
 export function describeSpec(spec: RenderJobSpec): string {
@@ -203,7 +220,7 @@ export class RenderQueue {
           });
           job.status = "done";
           const seconds = (result.totalMs / 1000).toFixed(1);
-          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s${result.grewFrom !== undefined ? ` · the map was ${result.grewFrom.toFixed(1)} s and now runs to the end of its scene` : ""}${result.cameraLifted ? ` · the camera was inside the mountains in ${result.cameraLifted} frames (raise it or lower Terrain Height; pins drift there)` : ""}`;
+          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s${result.grewFrom !== undefined ? ` · the map was ${result.grewFrom.toFixed(1)} s and now runs to the end of its scene` : ""}${result.cameraLifted ? ` · the camera was inside the mountains in ${result.cameraLifted} frames (raise it or lower Terrain Height; pins drift there)` : ""}${streetDetailSummary(result.streetDetail)}`;
         } catch (error) {
           if (error instanceof RenderCancelled) {
             job.status = "cancelled";

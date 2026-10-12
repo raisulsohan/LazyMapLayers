@@ -11,7 +11,11 @@ const group = (name: LayerGroup) => ({ "lml:group": name });
 
 export const OSM_SOURCE = "osm";
 
-export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; buildings3d?: boolean; theme?: Theme } = {}): StyleSpecification {
+/**
+ * `source` is a pmtiles:// address (a region or the installed world), or the tile addresses of street
+ * detail on demand (D101) with the zooms they cover.
+ */
+export function protomapsStyle(source: string | { tiles: string[]; minzoom: number; maxzoom: number }, options: { labels?: boolean; buildings3d?: boolean; theme?: Theme } = {}): StyleSpecification {
   const labels = options.labels ?? true;
   const t = options.theme ?? themeById(null);
   const buildings3d = options.buildings3d ?? true;
@@ -26,7 +30,7 @@ export function protomapsStyle(pmtilesUrl: string, options: { labels?: boolean; 
     sources: {
       [OSM_SOURCE]: {
         type: "vector",
-        url: pmtilesUrl,
+        ...(typeof source === "string" ? { url: source } : source),
         attribution: "© OpenStreetMap contributors"
       }
     },

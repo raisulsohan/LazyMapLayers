@@ -14,8 +14,12 @@ import { normaliseAreas, normaliseHighlights, type Areas, type Highlight } from 
 import { SampleAccumulator } from "../../core/render/pixels.ts";
 import { frameKey, isStill, outputGeometry, sampleOffsets, type FrameKeyContext, type OutputGeometry, type RenderQuality, type RenderSettings } from "../../core/render/plan.ts";
 import { callHost, callHostWithJobFile, fs } from "../cep.ts";
-import { hasOfflineWorld, naturalEarthArchivePath, offlineWorldPath, regionArchivePath } from "../basemap/maplibreSetup.ts";
-import { basemapStyle, regionNames, terrainUsable, WORLD_DETAIL_FADE, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import { naturalEarthArchivePath, regionArchivePath } from "../basemap/maplibreSetup.ts";
+import { basemapStyle, regionNames, STREETS_SOURCE, terrainUsable, WORLD_DETAIL_FADE, type BasemapSource, type Marker } from "../basemap/basemapStyle.ts";
+import { OSM_PROTOCOL, fetchOsmTiles, hasOsmTile, installedWorld, streetDetailAllowed, takeOsmMisses, tileSource } from "../osmTiles.ts";
+import { isOfflineError } from "../net.ts";
+import { allNeeds, describeFrames, detailLevels, framesNeeds, sourceZooms, type DetailLevel, type DetailSource } from "../../core/tiles/streetDetail.ts";
+import type { StyleSpecification } from "maplibre-gl";
 import type { ThemeLike } from "../../core/style/themes.ts";
 import { normaliseTerrain, type TerrainSetting } from "../../core/style/terrain.ts";
 import { TERRAIN_CREDIT, terrainArchivePath } from "../terrain.ts";
@@ -62,9 +66,11 @@ export type RenderJobSpec = {
   own?: OwnImagery | null;
   /** Test markers drawn into the base pass as solid circles (radius in comp pixels). */
   markers?: Marker[];
+  /** Street detail on demand (D101): on unless false; false draws only what is installed, as before. */
+  streetDetail?: boolean;
 };
 
-export type RenderStage = "camera" | "planning" | "rendering" | "importing";
+export type RenderStage = "camera" | "detail" | "planning" | "rendering" | "importing";
 
 export type RenderProgress = {
   stage: RenderStage;
@@ -93,6 +99,25 @@ export type RenderJobResult = {
   cameraLifted: number;
   /** The map's old length in seconds, when the scene had been made longer and the map grew to reach its end. */
   grewFrom?: number;
+  /** Street detail on demand (D101): what the frames needed, what was fetched, and the frames that lack some. */
+  streetDetail?: StreetDetailReport;
+};
+
+export type StreetDetailReport = {
+  /** OpenStreetMap tiles the frames draw past what is installed. */
+  tiles: number;
+  /** Tiles fetched for this render (before it, and while MapLibre asked), and their bytes. */
+  fetched: number;
+  bytes: number;
+  /** Frames (0-based) drawn without their detail, with what the computer holds, and those frames in words. */
+  lacking: number[];
+  /** Those of them that still show the world's detail kept on this computer (only their streets lack). */
+  worldOnly: number[];
+  lackingText: string | null;
+  /** Why they lack it: "offline", "off" (About), or what went wrong. */
+  why: string | null;
+  /** Tiles MapLibre asked for that the plan had not foreseen and that could not be had. */
+  unforeseen: number;
 };
 
 /** The map of a render is gone: the project was closed, or the map layer was deleted. */
@@ -124,7 +149,20 @@ const OSM_CREDIT = "© OpenStreetMap contributors";
 const BOUNDARIES_CREDIT = "Boundaries: geoBoundaries";
 
 function archivesOf(basemap: BasemapSource): string[] {
-  return [naturalEarthArchivePath(), ...(hasOfflineWorld() ? [offlineWorldPath()] : []), ...regionNames(basemap).map((name) => regionArchivePath(name))];
+  const world = installedWorld();
+  return [naturalEarthArchivePath(), ...(world ? [world.file] : []), ...regionNames(basemap).map((name) => regionArchivePath(name))];
+}
+
+/** The sources of a style that read tiles on demand, with the zooms their layers show at (D101). */
+export function onDemandSources(style: StyleSpecification): DetailSource[] {
+  const out: DetailSource[] = [];
+  for (const [id, source] of Object.entries(style.sources)) {
+    const tiles = (source as { tiles?: string[]; maxzoom?: number }).tiles;
+    if (!tiles?.[0]?.startsWith(`${OSM_PROTOCOL}://`)) continue;
+    const zooms = sourceZooms(style.layers as { source?: unknown; minzoom?: number; maxzoom?: number }[], id);
+    if (zooms) out.push({ id, ...zooms, maxZoom: (source as { maxzoom?: number }).maxzoom ?? 14 });
+  }
+  return out;
 }
 
 function dataFingerprint(basemap: BasemapSource, terrain: TerrainSetting | null): string {
@@ -164,7 +202,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const { signal } = options;
   const started = performance.now();
   const settings = spec.settings;
-  const report = (p: RenderProgress) => options.onProgress?.(p);
+  const reportProgress = (p: RenderProgress) => options.onProgress?.(p);
 
   const missing = archivesOf(spec.basemap).filter((file) => !fs().existsSync(file));
   if (missing.length) throw new Error(`basemap data is missing: ${missing.join(", ")}`);
@@ -172,8 +210,8 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   const fitted = await callHost<{ grown: boolean; from?: number }>("fitMapToScene", { mapId: spec.mapId });
   const info = await callHost<RenderInfo>("renderInfo", { mapId: spec.mapId });
   const offsets = sampleOffsets(settings, { angle: info.shutterAngle, phase: info.shutterPhase });
-  report({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
-  const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => report({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
+  reportProgress({ stage: "camera", done: 0, total: info.frames, rendered: 0, reused: 0 });
+  const cameras = await readCameras(spec.mapId, info, offsets, signal, (done) => reportProgress({ stage: "camera", done, total: info.frames, rendered: 0, reused: 0 }));
 
   // A pack that is not on this computer renders flat rather than failing the job. With keyed terrain
   // sliders the style needs the terrain as soon as any frame lifts the ground.
@@ -188,7 +226,57 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     const pack = historyManifest()?.years.map((y) => y.year) ?? [];
     if (values.length && pack.length) historyYears = yearsForRange(pack, values.reduce((a, b) => Math.min(a, b)), values.reduce((a, b) => Math.max(a, b)));
   }
-  const style = applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), own: normaliseOwnImagery(spec.own), sky: spec.sky, terrain, history, historyYears }), normaliseDetails(spec.lookDetails));
+  const styleWith = (onDemand: boolean, streets = true) => applyLookDetails(basemapStyle(spec.basemap, { labels: settings.labels, markers: spec.markers, projection: info.projection, animations: info.animations, viewport: { width: info.width, height: info.height }, theme: spec.theme, relief: spec.relief, highlights: normaliseHighlights(spec.highlights), areas: normaliseAreas(spec.areas, normaliseHighlights(spec.highlights)), data: normaliseDataFill(spec.dataFill), heat: normaliseHeat(spec.heat), own: normaliseOwnImagery(spec.own), sky: spec.sky, terrain, history, historyYears, onDemand, streets }), normaliseDetails(spec.lookDetails));
+  // Street detail on demand (D101): core lists the tiles every frame draws past what is installed, the
+  // missing ones are fetched, and a frame that still lacks any draws with what this computer holds:
+  // the world's detail without the streets when that is here, else only what is installed.
+  const style = styleWith(spec.streetDetail !== false);
+  const detailSources = onDemandSources(style);
+  let needs: string[][] = [];
+  let worldNeeds: string[][] = [];
+  let levels: DetailLevel[] = [];
+  let report: StreetDetailReport | undefined;
+  const levelStyles: Record<DetailLevel, StyleSpecification | null> = { full: style, world: null, installed: null };
+  if (detailSources.length) {
+    const terrainOf = (view: AnimatedView) => (terrain ? (view.animation?.groundLevel ?? terrain.ground) * (view.animation?.terrainHeight ?? terrain.height) : 0);
+    const needsOf = (sources: DetailSource[]) => framesNeeds(cameras, { width: info.width, height: info.height }, sources, { projection: info.projection, terrain: !!terrain && terrain.height > 0, elevationOf: terrainOf });
+    worldNeeds = needsOf(detailSources.filter((s) => s.id !== STREETS_SOURCE));
+    const streetNeeds = needsOf(detailSources.filter((s) => s.id === STREETS_SOURCE));
+    needs = worldNeeds.map((keys, frame) => [...new Set([...keys, ...streetNeeds[frame]])].sort());
+    const all = allNeeds(needs);
+    const missing = all.filter((key) => !hasOsmTile(key));
+    report = { tiles: all.length, fetched: 0, bytes: 0, lacking: [], worldOnly: [], lackingText: null, why: null, unforeseen: 0 };
+    if (missing.length) {
+      // A render is asked for, so it tries the connection even if a request failed a moment ago.
+      if (!streetDetailAllowed()) report.why = "off";
+      else {
+        reportProgress({ stage: "detail", done: 0, total: 1, rendered: 0, reused: 0 });
+        try {
+          const fetched = await fetchOsmTiles(missing, { signal, onProgress: (done, total) => reportProgress({ stage: "detail", done, total, rendered: 0, reused: 0 }) });
+          report.fetched = fetched.fetched;
+          report.bytes = fetched.bytes;
+        } catch (error) {
+          if (signal?.aborted) throw new RenderCancelled();
+          report.why = isOfflineError(error) ? "offline" : error instanceof Error ? error.message : String(error);
+        }
+      }
+    }
+    levels = detailLevels(worldNeeds, streetNeeds, hasOsmTile);
+    if (levels.includes("world")) {
+      // With the full pack installed the world without streets is just what is installed.
+      const worldStyle = styleWith(true, false);
+      if (onDemandSources(worldStyle).length) levelStyles.world = worldStyle;
+      else levels = levels.map((level) => (level === "world" ? "installed" : level));
+    }
+    if (levels.includes("installed")) levelStyles.installed = styleWith(false);
+    report.lacking = levels.flatMap((level, frame) => (level === "full" ? [] : [frame]));
+    report.worldOnly = levels.flatMap((level, frame) => (level === "world" ? [frame] : []));
+    if (report.lacking.length) {
+      report.lackingText = describeFrames(report.lacking, info.frameRate);
+      report.why ??= "missing";
+    }
+  }
+  const levelOf = (frame: number): DetailLevel => levels[frame] ?? "full";
   const hasBuildings = style.layers.some((l) => layerGroup(l) === "buildings");
   const hasImagery = style.layers.some((l) => layerGroup(l) === "imagery");
   // A fully opaque background makes the base pass opaque; flattening it keeps files RGB and small.
@@ -230,15 +318,35 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     highlightStyleKeys.set(entry.pass, keyOf({ projection: style.projection, layers: entry.layers.map((layer) => ({ ...layer, id: "" })), areas: ownAreas, heat: entry.codes.includes(HEAT_CODE) ? normaliseHeat(spec.heat) : null }));
   }
   const labelOf = (pass: PassId) => highlightPasses.find((p) => p.pass === pass)?.label ?? PASS_INFO[pass as keyof typeof PASS_INFO].label;
+  // Without the highlights' layers, the polygons of highlighted areas, the provinces a data fill
+  // colours and the points of a heat map, which only the highlight passes draw.
+  const styleKey = (s: StyleSpecification) => keyOf({ ...s, sources: Object.fromEntries(Object.entries(s.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE && id !== HEAT_SOURCE)), layers: s.layers.filter((l) => layerGroup(l) !== "highlight") });
   const context: FrameKeyContext = {
-    // Without the highlights' layers, the polygons of highlighted areas, the provinces a data fill
-    // colours and the points of a heat map, which only the highlight passes draw.
-    style: keyOf({ ...style, sources: Object.fromEntries(Object.entries(style.sources).filter(([id]) => id !== AREAS_SOURCE && id !== DATA_SOURCE && id !== HEAT_SOURCE)), layers: style.layers.filter((l) => layerGroup(l) !== "highlight") }),
+    style: styleKey(style),
     data: dataFingerprint(spec.basemap, terrain),
     width: geometry.width,
     height: geometry.height,
     supersample: geometry.supersample,
     labels: settings.labels
+  };
+  // A frame drawn with street detail is keyed by the tiles it draws and where each was read from, so the
+  // frames that lacked a tile are drawn again once it is here, and only those.
+  const sourceOf = new Map<string, string | null>();
+  const levelContexts: Record<DetailLevel, FrameKeyContext | null> = {
+    full: context,
+    world: levelStyles.world ? { ...context, style: styleKey(levelStyles.world) } : null,
+    installed: levelStyles.installed ? { ...context, style: styleKey(levelStyles.installed) } : null
+  };
+  const contextOf = (frame: number): FrameKeyContext => {
+    const level = levelOf(frame);
+    const base = levelContexts[level]!;
+    const keys = level === "full" ? needs[frame] : level === "world" ? worldNeeds[frame] : [];
+    if (!keys?.length) return base;
+    const tiles = keys.map((key) => {
+      if (!sourceOf.has(key)) sourceOf.set(key, tileSource(key));
+      return `${key}=${sourceOf.get(key)}`;
+    });
+    return { ...base, data: keyOf({ data: context.data, tiles }) };
   };
   // The camera animation alone: equal stamps mean a preview and a final show the same move.
   const stamp = keyOf({ fps: info.frameRate, cameras: cameras.map((c) => [c[0].center.lat, c[0].center.lng, c[0].zoom, c[0].bearing, c[0].pitch]) });
@@ -247,7 +355,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   store.claimFor(info.projectFile ?? null);
 
   // Plan: the pass images each frame still needs. Frames sharing a key share one render.
-  report({ stage: "planning", done: 0, total: info.frames, rendered: 0, reused: 0 });
+  reportProgress({ stage: "planning", done: 0, total: info.frames, rendered: 0, reused: 0 });
   const keys: Record<string, string>[] = [];
   const scheduled = new Set<string>();
   const work: { frame: number; passes: PassId[] }[] = [];
@@ -256,9 +364,10 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     const timeMs = (frame * 1000) / info.frameRate;
     const frameKeys: Record<string, string> = {};
     const missing: PassId[] = [];
+    const frameContext = contextOf(frame);
     for (const pass of passes) {
       const ownStyle = highlightStyleKeys.get(pass);
-      const key = frameKey(ownStyle ? { ...context, style: ownStyle } : context, pass, cameras[frame], timeMs);
+      const key = frameKey(ownStyle ? { ...frameContext, style: ownStyle } : frameContext, pass, cameras[frame], timeMs);
       frameKeys[pass] = key;
       const id = `${pass}:${key}`;
       if (!scheduled.has(id) && !store.has(pass, key)) {
@@ -274,14 +383,19 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
   let rendered = 0;
   let renderMs = 0;
   let cameraLifted = 0;
-  if (work.length) {
+  // What MapLibre asks for from here on is counted: tiles the plan had not foreseen.
+  takeOsmMisses();
+  // Frames with their detail first, then those drawn with what this computer holds, each level with its own map.
+  for (const level of ["full", "world", "installed"] as const) {
+    const group = work.filter((item) => levelOf(item.frame) === level);
+    if (!group.length) continue;
     const pool = sharedEncodePool();
     const renderer = new FrameRenderer({
       width: info.width,
       height: info.height,
       pixelRatio: geometry.pixelRatio,
       supersample: geometry.supersample,
-      style,
+      style: levelStyles[level]!,
       antialias: geometry.canvasWidth * geometry.canvasHeight <= 40_000_000,
       terrain: terrain ? { ground: terrain.ground, height: terrain.height } : undefined
     });
@@ -290,7 +404,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     const renderStarted = performance.now();
     try {
       await renderer.init();
-      for (const item of work) {
+      for (const item of group) {
         if (signal?.aborted || writeError) break;
         const renders = rendersFor(item.passes, hasBuildings, hasImagery);
         const samples = isStill(cameras[item.frame]) ? [cameras[item.frame][0]] : cameras[item.frame];
@@ -323,20 +437,27 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
           )
         );
         rendered++;
-        report({ stage: "rendering", done: rendered + reused, total: info.frames, rendered, reused });
+        reportProgress({ stage: "rendering", done: rendered + reused, total: info.frames, rendered, reused });
       }
       await Promise.all(writes);
     } finally {
-      cameraLifted = renderer.cameraLifted;
+      cameraLifted += renderer.cameraLifted;
       renderer.destroy();
     }
-    renderMs = performance.now() - renderStarted;
+    renderMs += performance.now() - renderStarted;
     if (writeError) throw writeError;
     if (signal?.aborted) throw new RenderCancelled();
   }
   reused = info.frames - rendered;
+  // Every tile the plan listed for the frames drawn through lmlosm:// was here: what is missing now was
+  // not foreseen.
+  const unforeseen = takeOsmMisses();
+  if (report) {
+    report.fetched += unforeseen.fetched;
+    report.unforeseen = unforeseen.missing.length;
+  }
 
-  report({ stage: "importing", done: info.frames, total: info.frames, rendered, reused });
+  reportProgress({ stage: "importing", done: info.frames, total: info.frames, rendered, reused });
   const sequences = passes.map((pass) => ({
     pass,
     ...store.createSequence(
@@ -351,7 +472,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     stamp,
     sequences: sequences.map((s) => ({ pass: s.pass, label: labelOf(s.pass), kind: isHighlightPass(s.pass) ? "highlight" : PASS_INFO[s.pass as keyof typeof PASS_INFO].kind, firstFramePath: s.firstFramePath })),
     // The offline world is OpenStreetMap data too, once a frame comes close enough for it to show.
-    attribution: [regionNames(spec.basemap).length || spec.osmData || (hasOfflineWorld() && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", (history && hasHistoryPack()) || shown.some((h) => h.code.startsWith(`area:${HISTORY_ID_PREFIX}`)) ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
+    attribution: [regionNames(spec.basemap).length || spec.osmData || ((installedWorld() || detailSources.length) && cameras.some((samples) => samples.some((v) => v.zoom >= WORLD_DETAIL_FADE.from - 1))) ? OSM_CREDIT : "", shown.some((h) => h.code.startsWith(`area:${BOUNDARY_ID_PREFIX}`)) ? BOUNDARIES_CREDIT : "", terrain ? TERRAIN_CREDIT : "", (history && hasHistoryPack()) || shown.some((h) => h.code.startsWith(`area:${HISTORY_ID_PREFIX}`)) ? HISTORY_CREDIT : "", normaliseOwnImagery(spec.own)?.attribution ?? ""].filter(Boolean).join(" · ") || null,
     // Highlight layers of an earlier render that the map no longer has go away.
     highlightPasses: highlightPasses.map((p) => p.pass)
   });
@@ -380,6 +501,7 @@ export async function runRenderJob(spec: RenderJobSpec, options: { signal?: Abor
     stamp,
     storeRoot: store.root,
     cameraLifted,
-    ...(fitted.grown ? { grewFrom: fitted.from } : {})
+    ...(fitted.grown ? { grewFrom: fitted.from } : {}),
+    ...(report ? { streetDetail: report } : {})
   };
 }

@@ -27,6 +27,8 @@ import { basemapStyle, regionNames, type BasemapSource } from "./basemap/basemap
 import { ensureMaplibreWorker, regionArchivePath } from "./basemap/maplibreSetup.ts";
 import { fs, isInCep } from "./cep.ts";
 import type { HistorySetting } from "../core/history/historyStyle.ts";
+import { hasOsmTile, onOsmOffline, osmOnline, probeOsmOnline } from "./osmTiles.ts";
+import { STREET_FADE, STREET_MAX_ZOOM, WORLD_DETAIL_MAX_ZOOM, detailLevels, framesNeeds, type DetailLevel } from "../core/tiles/streetDetail.ts";
 
 export type PreviewEvents = {
   onView: (view: View) => void;
@@ -104,11 +106,41 @@ function withImportOverlay(style: StyleSpecification): StyleSpecification {
   };
 }
 
+/** How much street detail on demand the preview draws now (D101). */
+let detailShown: DetailLevel = "installed";
+
+/**
+ * Street detail in the preview: online (and with the switch on) its tiles are fetched as the view needs
+ * them. Offline the preview draws what this computer holds for the view, as a render does: all of it
+ * when every tile is here (a downloaded area, tiles fetched before), else the world's detail without the
+ * streets, else what is installed.
+ */
+function previewDetail(source: BasemapSource): DetailLevel {
+  if (osmOnline()) return "full";
+  const view = map ? toCompView(map) : null;
+  if (!view) return "installed";
+  const options = { projection: shown.projection };
+  const world = framesNeeds([[view]], comp, [{ id: "world", fromZoom: 6, maxZoom: WORLD_DETAIL_MAX_ZOOM }], options);
+  const streets = source.kind === "world" ? framesNeeds([[view]], comp, [{ id: "streets", fromZoom: STREET_FADE.from, maxZoom: STREET_MAX_ZOOM }], options) : [[]];
+  return detailLevels(world, streets, hasOsmTile)[0];
+}
+
 export function previewStyle(source: BasemapSource, projection: MapProjection, look: Look = { theme: null, relief: false }): StyleSpecification {
   if (!isInCep()) return withImportOverlay(BLANK_STYLE);
   const usable: BasemapSource = regionNames(source).every((name) => fs().existsSync(regionArchivePath(name))) ? source : { kind: "world" };
-  const style = scaleStyleSizes(applyLookDetails(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, data: look.data, heat: look.heat, countryHits: true, own: look.own, sky: look.sky, terrain: look.terrain, history: look.history }), normaliseDetails(look.details)), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
+  detailShown = previewDetail(usable);
+  const style = scaleStyleSizes(applyLookDetails(basemapStyle(usable, { labels: true, projection, viewport: comp, theme: look.theme, relief: look.relief, highlights: look.highlights, areas: look.areas, data: look.data, heat: look.heat, countryHits: true, own: look.own, sky: look.sky, terrain: look.terrain, history: look.history, onDemand: detailShown !== "installed", streets: detailShown === "full" }), normaliseDetails(look.details)), sizeFactor(), (layer) => layer.metadata?.["lml:group"] === "highlight");
   return withImportOverlay(style);
+}
+
+/** After a move while offline: draw street detail where it is all here, and look again whether the connection is back. */
+async function recheckDetail(): Promise<void> {
+  if (!map || !isInCep()) return;
+  if (!osmOnline() && !(await probeOsmOnline())) {
+    if (previewDetail(shown.source) !== detailShown) setPreviewStyle(shown.source, shown.projection, shown.look);
+    return;
+  }
+  if (detailShown !== "full") setPreviewStyle(shown.source, shown.projection, shown.look);
 }
 
 let styledFactor = 1;
@@ -208,7 +240,10 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
       // Dragging and scrolling carry the original input event; moves made by code do not.
       const data = e as unknown as { originalEvent?: unknown; lmlByUser?: boolean };
       events.onMoveEnd(toCompView(m), !!data.originalEvent || !!data.lmlByUser);
+      if (detailShown !== "full" || !osmOnline()) void recheckDetail();
     });
+    // Offline found while fetching: show what this computer holds.
+    stopOffline = onOsmOffline(() => setPreviewStyle(shown.source, shown.projection, shown.look));
     m.on("error", (e) => events.onError(String(e.error?.message ?? e)));
     m.on("click", (e) => events.onClick({ lat: e.lngLat.lat, lng: e.lngLat.lng }, e.originalEvent, { x: e.point.x, y: e.point.y }));
     m.on("mousemove", (e) => events.onHover({ lat: e.lngLat.lat, lng: e.lngLat.lng }, { x: e.point.x, y: e.point.y }));
@@ -221,10 +256,14 @@ export function initPreview(wrapNode: HTMLElement, boxNode: HTMLElement, events:
   return () => {
     observer?.disconnect();
     observer = null;
+    stopOffline?.();
+    stopOffline = null;
     map?.remove();
     map = null;
   };
 }
+
+let stopOffline: (() => void) | null = null;
 
 export const previewMap = () => map;
 

@@ -22,6 +22,7 @@ import {
   dataSheetOpen,
   dataTable,
   osmData,
+  streetDetailOn,
   ownImagery,
   osmSheetOpen,
   keyframeView,
@@ -52,6 +53,7 @@ import {
   view, importDrawing } from "../store.ts";
 import { themeById } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
+import { installedWorld } from "../osmTiles.ts";
 import { Icon, IconButton } from "./icons.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
@@ -362,8 +364,8 @@ export function App(): JSX.Element {
               }}
             />
           </div>
-          <div class="credit" title="Where the map data comes from. Rendering an OpenStreetMap region adds a credit layer to your scene.">
-            {[basemap.value.kind === "world" && !osmData.value ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, ownImagery.value?.attribution || null, "Natural Earth"].filter(Boolean).join(" · ")}
+          <div class="credit" title="Where the map data comes from. A render that draws OpenStreetMap data adds a credit layer to your scene.">
+            {[basemap.value.kind === "world" && !osmData.value && !streetDetailOn.value && !installedWorld() ? null : "© OpenStreetMap contributors", themeById(themeId.value).satellite && hasImagery("blue-marble") ? "NASA Blue Marble" : null, ownImagery.value?.attribution || null, "Natural Earth"].filter(Boolean).join(" · ")}
           </div>
           {v && (
             <div class="view-readout" title="Latitude, longitude · zoom · bearing · pitch of the frame">

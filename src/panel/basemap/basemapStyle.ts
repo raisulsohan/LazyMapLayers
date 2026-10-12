@@ -11,13 +11,16 @@
 import type { LayerSpecification, StyleSpecification } from "maplibre-gl";
 import type { MapProjection } from "../../core/camera/globe.ts";
 import { extensionRoot, fs, path } from "../cep.ts";
-import { hasOfflineWorld, naturalEarthArchivePath, offlineWorldPath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
+import { naturalEarthArchivePath, offlineWorldPath, regionArchivePath, registerLocalArchive } from "./maplibreSetup.ts";
+import { ensureOsmProtocol, installedWorld, osmTileUrl } from "../osmTiles.ts";
+import { hash64 } from "../../core/render/frameKey.ts";
+import { STREET_FADE, STREET_MAX_ZOOM, WORLD_DETAIL_MAX_ZOOM } from "../../core/tiles/streetDetail.ts";
 import { naturalEarthStyle, type WorldImagery } from "./naturalEarthStyle.ts";
 import { hasImagery, imageryPath } from "../imagery/packs.ts";
 import { hasSatellite, satellitePath } from "../imagery/sentinelBuild.ts";
 import { protomapsStyle } from "./protomapsStyle.ts";
 import { withProjection } from "./projection.ts";
-import { regionTiers, type ZoomRamp } from "../../core/tiles/regionFade.ts";
+import { regionTiers, type RegionTier, type ZoomRamp } from "../../core/tiles/regionFade.ts";
 import { hexToRgb, themeFrom, type Theme, type ThemeLike } from "../../core/style/themes.ts";
 import type { DataFill } from "../../core/style/dataFill.ts";
 import type { HeatSetting } from "../../core/style/heat.ts";
@@ -68,6 +71,14 @@ export type BasemapStyleOptions = {
   terrain?: TerrainSetting | null;
   /** Draw the offline world when it is installed (the default); false leaves it out, for comparisons. */
   offlineWorld?: boolean;
+  /**
+   * Street detail on demand (D101): the world detail to zoom 9 whatever the install holds, and on a World
+   * map the streets to zoom 15, drawn like a region, all read through the tile cache. Without it the map
+   * draws only what is installed, as before.
+   */
+  onDemand?: boolean;
+  /** With `onDemand`, false leaves the streets out and keeps the world detail (a frame that lacks its streets). */
+  streets?: boolean;
   /** The world of another year instead of today's countries (D92); ignored when the pack or year is missing. */
   history?: HistorySetting | null;
   /** The pack's years a keyed History Year slider passes through; each is drawn and cross-faded per frame. */
@@ -117,6 +128,11 @@ export const REGION_FADE = { from: 9, to: 9.8 } as const;
 export const WORLD_DETAIL_FADE = { from: 6, to: 7 } as const;
 /** The offline world's layers carry this name, like a region's carry the region's. */
 export const WORLD_DETAIL = "world";
+/** The source of the offline world's layers. */
+export const WORLD_DETAIL_SOURCE = "osm-world";
+/** Street detail on demand is drawn as a region of this name (D101). */
+export const STREETS = "streets";
+export const STREETS_SOURCE = "osm-streets";
 /** The world map's shaded relief (naturalEarthStyle), which goes over the offline world's ground. */
 const RELIEF_LAYER = "relief";
 /** Water kinds drawn as polygons from the offline world's low-zoom tiles: wide water reads well there,
@@ -231,8 +247,14 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
   if (options.own) world = withOwnImagery(world, options.own);
   let style = world;
   const regions = regionNames(basemap);
-  // The offline world goes under every map, the world map included, when the data pack is installed.
-  const detail = options.offlineWorld !== false && hasOfflineWorld();
+  // The offline world goes under every map, the world map included, when the data pack is installed;
+  // with street detail on demand it is there whatever the install holds (D101).
+  const installed = options.offlineWorld !== false ? installedWorld() : null;
+  const onDemand = !!options.onDemand && options.offlineWorld !== false;
+  const detail = !!installed || onDemand;
+  // Street detail on demand: a World map's streets, drawn as a region.
+  const streets = onDemand && options.streets !== false && basemap.kind === "world";
+  if (onDemand) ensureOsmProtocol();
   if (regions.length || detail) {
     const groupOf = (l: LayerSpecification) => (l as { metadata?: Record<string, unknown> }).metadata?.["lml:group"];
     const ground = (l: LayerSpecification) => (l.type === "background" || l.type === "fill" || l.type === "raster") && ["background", "land", "water", "imagery"].includes(String(groupOf(l)));
@@ -243,9 +265,25 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
       viewport
     );
     const tierOf = (name: string) => tiers[name] ?? { fadeIn: { from: REGION_FADE.from, to: REGION_FADE.to }, fadeOut: null };
+    // Every region drawn: the downloaded ones, or the streets of street detail on demand, which come in
+    // at the earliest a region may because their tiles cover every frame (D101).
+    type Drawn = { name: string; source: string | { tiles: string[]; minzoom: number; maxzoom: number }; sourceId: string; tier: RegionTier; maxZoom: number };
+    const drawn: Drawn[] = regions.map((name, index) => ({
+      name,
+      source: registerLocalArchive(name, regionArchivePath(name)),
+      // Several regions: one source each.
+      sourceId: index === 0 ? "osm" : `osm-${name}`,
+      tier: tierOf(name),
+      maxZoom: headers[index].header?.maxZoom ?? 15
+    }));
+    if (streets) drawn.push({ name: STREETS, source: { tiles: [osmTileUrl("streets")], minzoom: 0, maxzoom: STREET_MAX_ZOOM }, sourceId: STREETS_SOURCE, tier: { fadeIn: { ...STREET_FADE }, fadeOut: null }, maxZoom: STREET_MAX_ZOOM });
     // Natural Earth lines and labels give way where the first detail - the offline world, else a region - is complete.
     const earliest = (list: ZoomRamp[]) => (list.length ? list.reduce((a, b) => (b.to < a.to ? b : a)) : null);
-    const regionFade = earliest(regions.map((name) => tierOf(name).fadeIn));
+    const regionFade = earliest(drawn.map((region) => region.tier.fadeIn));
+    // A satellite picture or the user's own tiles stay under street detail on demand, which then adds only
+    // its lines and names (as the offline world does over a picture); a downloaded region still covers them.
+    const pictures = !!imagery.satelliteUrl || !!options.own;
+    const pictureFade = streets && pictures ? earliest(regions.map((name) => tierOf(name).fadeIn)) : regionFade;
     const worldFade = earliest([...(detail ? [WORLD_DETAIL_FADE] : []), ...(regionFade ? [regionFade] : [])])!;
     // Highlights are not part of the hand-over: they stay whole at every zoom, above the regions. Pictures
     // (satellite, relief, the user's tiles) give way to a region's detail only: the offline world draws
@@ -253,7 +291,7 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     const worldLayers = world.layers.map((layer) => {
       // The past has no detail to hand over to: its borders and names stay at every zoom.
       if (layer.type === "background" || layer.type === "fill" || groupOf(layer) === "highlight" || isHistoryLayer(layer)) return layer;
-      if (layer.type === "raster") return regionFade ? ({ ...rampOpacity(layer, regionFade.from, regionFade.to, false), maxzoom: regionFade.to } as LayerSpecification) : layer;
+      if (layer.type === "raster") return pictureFade ? ({ ...rampOpacity(layer, pictureFade.from, pictureFade.to, false), maxzoom: pictureFade.to } as LayerSpecification) : layer;
       return { ...rampOpacity(layer, worldFade.from, worldFade.to, false), maxzoom: worldFade.to } as LayerSpecification;
     });
     // A look that colours every country keeps its colours until they fade (7.5 to 9.5); the offline
@@ -267,8 +305,12 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     let light = world.light;
     // The offline world, under the downloaded regions: their ground covers it where they have detail.
     if (detail) {
-      const offline = protomapsStyle(registerLocalArchive("lml-offline-world", offlineWorldPath()), { labels: options.labels, theme });
-      const sourceId = "osm-world";
+      // The installed pack as it is when it reaches zoom 9 (or nothing more may be fetched); otherwise the
+      // same pyramid to zoom 9 through the tile cache, so a light or online install draws what a full one does.
+      const archiveKey = installed && installed.file === offlineWorldPath() ? "lml-offline-world" : `lml-offline-world-${hash64(installed?.file ?? "")}`;
+      const worldSource = installed && (!onDemand || installed.maxZoom >= WORLD_DETAIL_MAX_ZOOM) ? registerLocalArchive(archiveKey, installed.file) : { tiles: [osmTileUrl("world")], minzoom: 0, maxzoom: WORLD_DETAIL_MAX_ZOOM };
+      const offline = protomapsStyle(worldSource, { labels: options.labels, theme });
+      const sourceId = WORLD_DETAIL_SOURCE;
       // Over a satellite picture the picture is the ground: only lines and names come from the offline world.
       const satellite = !!imagery.satelliteUrl;
       for (const [id, source] of Object.entries(offline.sources)) sources[id === "osm" ? sourceId : id] = source;
@@ -287,17 +329,16 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
         detailLayers.push({ ...faded, id: `${layer.id}@${WORLD_DETAIL}`, source: sourceId } as LayerSpecification);
       }
     }
-    regions.forEach((name, index) => {
-      const region = protomapsStyle(registerLocalArchive(name, regionArchivePath(name)), { labels: options.labels, theme });
+    drawn.forEach(({ name, source: tiles, sourceId, tier, maxZoom }) => {
+      const region = protomapsStyle(tiles, { labels: options.labels, theme });
       light = region.light;
-      // Several regions: one source each, layer ids made unique.
-      const sourceId = index === 0 ? "osm" : `osm-${name}`;
       for (const [id, source] of Object.entries(region.sources)) sources[id === "osm" ? sourceId : id] = source;
-      const tier = tierOf(name);
-      const maxZoom = headers[index].header?.maxZoom ?? 15;
+      // Over a picture, street detail on demand brings only its lines and names.
+      const groundless = name === STREETS && pictures;
       for (const layer of region.layers) {
         if (layer.type === "background" || todaysBorder(layer)) continue;
         const group = groupOf(layer);
+        if (groundless && (group === "land" || group === "water")) continue;
         const polygons = layer.id === WATER_POLYGON_LAYER;
         if (polygons && maxZoom < REGION_WATER_MIN_ZOOM) continue;
         const fadeIn = polygons ? { from: Math.max(REGION_WATER_MIN_ZOOM, tier.fadeIn.from), to: Math.max(REGION_WATER_MIN_ZOOM + 0.5, tier.fadeIn.to) } : tier.fadeIn;
@@ -315,11 +356,11 @@ export function basemapStyle(basemap: BasemapSource, options: BasemapStyleOption
     const liftedPictures = detail
       ? world.layers
           .filter((layer) => layer.id === RELIEF_LAYER || layer.id === OWN_IMAGERY_LAYER)
-          .map((layer) => ({ ...rampWindow(layer, detailGroundFade, regionFade), id: `${layer.id}@${WORLD_DETAIL}` }) as LayerSpecification)
+          .map((layer) => ({ ...rampWindow(layer, detailGroundFade, pictureFade), id: `${layer.id}@${WORLD_DETAIL}` }) as LayerSpecification)
       : [];
     style = {
       ...world,
-      name: `${world.name} + ${[...(detail ? [WORLD_DETAIL] : []), ...regions].join(", ")}`,
+      name: `${world.name} + ${[...(detail ? [WORLD_DETAIL] : []), ...drawn.map((region) => region.name)].join(", ")}`,
       sources,
       light,
       // With the offline world: the ground of the world, then the offline world's ground with the shaded

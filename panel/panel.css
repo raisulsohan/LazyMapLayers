@@ -907,6 +907,10 @@ select.compact {
   color: var(--muted);
 }
 
+.log .warn {
+  color: var(--warn);
+}
+
 /* Thin scrollbars, like After Effects' own panels. */
 ::-webkit-scrollbar {
   width: 8px;
