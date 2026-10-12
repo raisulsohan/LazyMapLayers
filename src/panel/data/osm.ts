@@ -9,7 +9,7 @@
 
 import { osmFeatures, overpassQuery, type OsmBbox, type OsmFeature, type OverpassRequest } from "../../core/data/overpass.ts";
 import { fs, path, userDataDir } from "../cep.ts";
-import { httpsRequest } from "../net.ts";
+import { httpsRequest, tooLargeMessage } from "../net.ts";
 
 /** The public endpoints, in the order they are tried. */
 const ENDPOINTS = ["https://overpass-api.de/api/interpreter", "https://overpass.kumi.systems/api/interpreter"];
@@ -24,7 +24,7 @@ const GAP_MS = 2000;
 const folder = () => path().join(userDataDir(), "osm");
 
 /** A short, stable name for a query. */
-function hashOf(text: string): string {
+export function hashOf(text: string): string {
   let a = 0x811c9dc5;
   let b = 0x01000193;
   for (let i = 0; i < text.length; i++) {
@@ -101,25 +101,69 @@ export function checkBbox(bbox: OsmBbox): string | null {
   return null;
 }
 
-async function ask(query: string, signal?: AbortSignal): Promise<{ answer: unknown; bytes: number }> {
+export type OverpassOptions = {
+  signal?: AbortSignal;
+  /** Largest answer taken, unpacked (default 24 MB). */
+  maxBytes?: number;
+  /** How long Overpass may think before it answers, in ms. */
+  timeoutMs?: number;
+  /** Told when every endpoint was busy and the request waits this many seconds to be asked again. */
+  onBusy?: (seconds: number) => void;
+};
+
+/** When both endpoints are busy, the request is asked again after these waits (ms). */
+const BUSY_WAITS_MS = [5000, 15000];
+
+const pause = (ms: number, signal?: AbortSignal) =>
+  new Promise<void>((resolve, reject) => {
+    const timer = setTimeout(resolve, ms);
+    signal?.addEventListener(
+      "abort",
+      () => {
+        clearTimeout(timer);
+        reject(new Error("cancelled"));
+      },
+      { once: true }
+    );
+  });
+
+/**
+ * Asks Overpass, politely: one request at a time through the shared queue, the second endpoint when
+ * the first is busy, compressed on the way, and, when both are busy, again after a pause (a free
+ * service under load turns queries away for a few seconds). Gives back the answer's text and the bytes
+ * it cost. A computer without a connection fails at once.
+ */
+export async function askOverpass(query: string, options: OverpassOptions = {}): Promise<{ text: string; bytes: number }> {
+  const maxBytes = options.maxBytes ?? MAX_ANSWER_BYTES;
   let lastError: Error | null = null;
-  for (const endpoint of ENDPOINTS) {
-    try {
-      const response = await polite(() => httpsRequest(endpoint, { method: "POST", body: `data=${encodeURIComponent(query)}`, signal }));
-      if (response.status === 429 || response.status === 504) {
-        lastError = new Error(`OpenStreetMap is busy (${response.status})`);
-        continue;
+  for (let round = 0; ; round++) {
+    let busy = false;
+    for (const endpoint of ENDPOINTS) {
+      try {
+        const response = await polite(() => httpsRequest(endpoint, { method: "POST", body: `data=${encodeURIComponent(query)}`, signal: options.signal, gzip: true, maxBytes, timeoutMs: options.timeoutMs }));
+        if (response.status === 429 || response.status >= 500) {
+          lastError = new Error(`OpenStreetMap is busy (${response.status})`);
+          busy = true;
+          continue;
+        }
+        if (response.status !== 200) throw new Error(`OpenStreetMap answered ${response.status}`);
+        return { text: new TextDecoder().decode(response.body), bytes: response.transferred };
+      } catch (error) {
+        lastError = error instanceof Error ? error : new Error(String(error));
+        if (lastError.message === "cancelled") throw lastError;
+        if (lastError.message === tooLargeMessage(maxBytes)) throw new Error(`${lastError.message}: ask for less, or zoom in`);
       }
-      if (response.status !== 200) throw new Error(`OpenStreetMap answered ${response.status}`);
-      if (response.body.length > MAX_ANSWER_BYTES) throw new Error(`the answer is ${Math.round(response.body.length / 1048576)} MB: ask for less, or zoom in`);
-      const text = new TextDecoder().decode(response.body);
-      return { answer: JSON.parse(text), bytes: response.body.length };
-    } catch (error) {
-      lastError = error instanceof Error ? error : new Error(String(error));
-      if (lastError.message === "cancelled") throw lastError;
     }
+    if (!busy || round >= BUSY_WAITS_MS.length) break;
+    options.onBusy?.(BUSY_WAITS_MS[round] / 1000);
+    await pause(BUSY_WAITS_MS[round], options.signal);
   }
   throw lastError ?? new Error("OpenStreetMap could not be reached");
+}
+
+async function ask(query: string, signal?: AbortSignal): Promise<{ answer: unknown; bytes: number }> {
+  const { text, bytes } = await askOverpass(query, { signal });
+  return { answer: JSON.parse(text), bytes };
 }
 
 /** What OpenStreetMap holds for this search, from the folder when it is already there. */

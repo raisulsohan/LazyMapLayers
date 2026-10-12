@@ -4,8 +4,15 @@
 import { nodeRequire } from "./cep.ts";
 
 type NodeHttps = typeof import("node:https");
+type NodeZlib = typeof import("node:zlib");
 
-export type HttpResponse = { status: number; body: Uint8Array; headers: Record<string, string | string[] | undefined> };
+export type HttpResponse = {
+  status: number;
+  body: Uint8Array;
+  headers: Record<string, string | string[] | undefined>;
+  /** Bytes that came over the network (fewer than the body's when it arrived compressed). */
+  transferred: number;
+};
 
 export type HttpOptions = {
   headers?: Record<string, string>;
@@ -15,7 +22,16 @@ export type HttpOptions = {
   body?: string;
   signal?: AbortSignal;
   onProgress?: (receivedBytes: number, totalBytes: number | null) => void;
+  /** Asks for a gzip-compressed answer and unpacks it (text such as Overpass JSON shrinks about tenfold). */
+  gzip?: boolean;
+  /** An answer larger than this is refused, while it arrives and again once unpacked. */
+  maxBytes?: number;
+  /** How long the server may stay silent, in ms (default a minute; Overpass thinks before it answers). */
+  timeoutMs?: number;
 };
+
+/** The words for a refused answer; the caller's message says what to ask for instead. */
+export const tooLargeMessage = (bytes: number) => `the answer is over ${Math.round(bytes / 1048576)} MB`;
 
 let blocked = false;
 
@@ -43,6 +59,7 @@ export function httpsRequest(url: string, options: HttpOptions = {}, redirects =
     const headers = {
       "user-agent": "LazyMapLayers (After Effects extension)",
       ...(body ? { "content-type": "application/x-www-form-urlencoded", "content-length": String(body.length) } : {}),
+      ...(options.gzip ? { "accept-encoding": "gzip" } : {}),
       ...(options.headers ?? {})
     };
     const request = https.request(url, { method: options.method ?? "GET", headers: headers }, (response) => {
@@ -60,21 +77,32 @@ export function httpsRequest(url: string, options: HttpOptions = {}, redirects =
         chunks.push(chunk);
         received += chunk.length;
         options.onProgress?.(received, total);
+        if (options.maxBytes && received > options.maxBytes) request.destroy(new Error(tooLargeMessage(options.maxBytes)));
       });
       response.on("end", () => {
-        const body = new Uint8Array(received);
+        let body = new Uint8Array(received);
         let at = 0;
         for (const c of chunks) {
           body.set(c, at);
           at += c.length;
         }
-        resolve({ status, body, headers: response.headers });
+        const encoding = String(response.headers["content-encoding"] ?? "").toLowerCase();
+        try {
+          if (encoding === "gzip" || encoding === "deflate") {
+            const zlib = nodeRequire<NodeZlib>("zlib");
+            body = new Uint8Array(encoding === "gzip" ? zlib.gunzipSync(body) : zlib.inflateSync(body));
+          }
+        } catch (error) {
+          return reject(new Error(`the answer from ${new URL(url).hostname} could not be unpacked: ${error instanceof Error ? error.message : String(error)}`));
+        }
+        if (options.maxBytes && body.length > options.maxBytes) return reject(new Error(tooLargeMessage(options.maxBytes)));
+        resolve({ status, body, headers: response.headers, transferred: received });
       });
       response.on("error", reject);
     });
     const abort = () => request.destroy(new Error("cancelled"));
     options.signal?.addEventListener("abort", abort, { once: true });
-    request.setTimeout(60000, () => request.destroy(new Error(`timeout fetching ${url}`)));
+    request.setTimeout(options.timeoutMs ?? 60000, () => request.destroy(new Error(`timeout fetching ${url}`)));
     request.on("error", reject);
     request.on("close", () => options.signal?.removeEventListener("abort", abort));
     request.end(body ?? undefined);

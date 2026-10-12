@@ -66,10 +66,35 @@ offline (D101).
 | RD1 | Renders on disk: a map rendered before its project was saved keeps its folder and names the project; Remove takes only what nothing can reach (fails six ways on the old code) | PASS |
 | U1 | The real panel, driven through DevTools: every sheet and tool, with the prism switch, the pen button and Follow the camera of (0.9) | PASS |
 | SD1 | Online: street detail on demand on a light install (D101). A fly-to from Bangladesh into Dhaka's streets renders with nothing downloaded; its frames match a downloaded region's where the region is fully in; offline, the same move renders again from the cache; offline with an empty cache, or with only the world kept, the frames short of detail are named and drawn with what is there. Needs the light pack (`tools/build-offline-pack.ts --light`) | PASS 2026-10-12 (second run; its offline frames held to S6's noise afterwards, see below): 66 tiles (2.8 MB) fetched, 0 frames lacking; 108 frames equal to the region's |
+| RR1 | Online: routes on roads (D102). A car route from Dhaka to Chittagong and a walk from the Eiffel Tower to the Louvre, their roads fetched into an empty folder of the test's own; offline both again from it, and from answers made 40 days old; an empty folder offline gives the message; both drawn as route layers (an arrow rig with a traveller, a comet) with a camera move along each | PASS 2026-10-12: 236.8 km, 97.8 % on N1; 3.59 km on walkable ways over a Seine bridge; the camera within 51 m |
 | DS1, TR1, IM1, OSM1 | Online: districts, elevation packs, imagery packs, OpenStreetMap features | PASS |
 | GC1 | Online: OpenStreetMap search from the panel, Rue de Rivoli in Paris and Gulshan 2 in Dhaka a second apart, the same search answered again from the disk | PASS |
 | SN1 | Online: a Sentinel-2 satellite pack built for an area, 5 tiles of Dhaka in 6-14 s each | PASS |
 | HB1 | Online when the pack is missing: historical borders (D92, D93). Installs the pack from the history-1 release, renders South Asia in 1914, 1945, 1947 and 1971 with a look that has country colours and one without, and reads British India in the colour of the United Kingdom, India and Pakistan apart with East Bengal in Pakistan's colour, Bangladesh in its own, neighbours never in one colour, the Bay of Bengal still sea; the borders draw-on draws the past's borders. Then the History Year slider (D94): 1945 to 1947 cross-faded at three points, and a real map keyed from 1945 to 1947, read back, rendered (25 frames), central India British, halfway and India, the year layer counting 1945, 1946, 1947. Frames in `HB1-frames`. 2026-10-10: pack installed in 1.7 s, 28 places read right; the fade reads 1945 British, 1946 halfway (rgb 222,210,164 between 243,201,165 and 201,219,163), 1947 India; the keyed map renders all 25 frames with the same three colours at frames 0, 12 and 24, and the year layer counts 1945, 1946, 1947; 0 problems. Then for D95: history-1 updated to history-2 from its release in 1.8 s, and the British Raj of 1914 rendered as a highlight on today's map, central India rgba 255,93,115,255 and Nepal clear. Then for D96: Auto labels on a map of 1947 name India, Pakistan, Burma, Nepal and Bhutan and none of today's countries; keyed from 1945 to 1947, the British Raj shows early (85) and is gone late, India the other way, Nepal, Bhutan and Burma throughout; the feature browser's Past lists the 144 named shapes of 1914; 0 problems | PASS |
+
+## RR1 — Routes on roads: PASS (2026-10-12)
+
+The road answers go to `RR1-roads` in the spike folder, emptied first, so both routes are fetched
+from Overpass (overpass-api.de answered every query on the first try once the queries asked for 256
+MiB; the same morning it had turned the default 512 MiB away again and again, and the second
+endpoint answered 500).
+
+- **The drive.** Dhaka (23.7104 N, 90.4074 E) to Chittagong (22.3569 N, 91.7832 E) by car: three
+  areas, 2.3 MB over the network, 10,176 roads a car may use. 236.8 km, 2 h 53 min at free-flowing
+  speeds, 3,053 points; 231.5 km (97.8 %) on N1, across the Kanchpur, Meghna and Daudkandi bridges.
+  The ends lie 27 m and 2 m from their roads; every point between them is a point of a road a car may
+  use, and every step a step of that road. 31 s in all, nearly all of it Overpass.
+- **The walk.** The Eiffel Tower to the Louvre on foot: one band, 1.8 MB, 18,295 walkable ways.
+  3.59 km, 185 points, half of it along the Rue de l'Université, over the Seine on a bridge, every
+  point and step on a walkable way. 6 s.
+- **Offline.** With every request failing as without a connection, both come again from the folder
+  point for point (3 and 1 areas kept); with the answers made 40 days old, both come again from them
+  (3 and 1 old); with an empty folder the walk gives "OpenStreetMap cannot be reached and the roads
+  around both ends are not on this computer yet: make this route once online, and it comes again
+  offline".
+- **In After Effects.** The drive drawn as an arrow rig with a traveller (thinned to 300 points), the
+  walk with a comet: no expression errors, one route layer each with its ends in the tag. The camera
+  move the Route sheet's Camera switch adds stays within 51 m of the drive and 0.1 m of the walk.
 
 ## SD1 — Street detail on demand on a light install: PASS (2026-10-12)
 

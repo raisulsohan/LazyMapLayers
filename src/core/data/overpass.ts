@@ -67,7 +67,9 @@ export function overpassQuery(request: OverpassRequest): string {
     }
   }
   if (!lines.length) throw new Error("type a name, or pick what to look for");
-  return [`[out:json][timeout:${timeout}];`, "(", ...lines, ");", `out geom ${limit};`].join("\n");
+  // Half the memory Overpass grants by default, far more than a 24 MB answer takes: a busy server
+  // turns the default away and admits this (D102).
+  return [`[out:json][timeout:${timeout}][maxsize:268435456];`, "(", ...lines, ");", `out geom ${limit};`].join("\n");
 }
 
 type OsmPoint = { lat: number; lon: number };

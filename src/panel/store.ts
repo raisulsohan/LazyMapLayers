@@ -44,6 +44,9 @@ import { countryOfProvince, provinceJoinTargets, provincePoint } from "./data/ad
 import { areaKm2, centreOf, circleAround, combinedName, growArea, mergeAreas } from "../core/geo/combine.ts";
 import { osmGeoJson, osmKind, type OsmBbox, type OsmKind } from "../core/data/overpass.ts";
 import { checkBbox, searchOsm } from "./data/osm.ts";
+import { findRouteOnRoads } from "./data/roads.ts";
+import { roadModeInfo, type RoadMode } from "../core/routing/profiles.ts";
+import { durationText, mainRoads } from "../core/routing/search.ts";
 import { addZones, normaliseKeepOut, togglePreset, type KeepOutPreset, type KeepOutZone } from "../core/labels/keepOut.ts";
 import { labelTemplateFollowsLook, normaliseLabelTemplate, NO_LABEL_OVERRIDE, resolveLabelTemplate, templateFonts, type LabelTemplateOverride } from "../core/labels/labelTemplate.ts";
 import { followsTheLook, normaliseLayerStyle, NO_OVERRIDE, resolveLayerStyle, type LayerStyleOverride } from "../core/style/layerStyle.ts";
@@ -269,6 +272,11 @@ export const routeRig = signal(false);
 export const routeDashed = signal(false);
 /** Dash length in 1080-line pixels when a route is dashed. */
 export const ROUTE_DASH = 14;
+/** What a click-made route follows: the great-circle arc, or the roads for a car, a bicycle or a walker (D102). */
+export type RouteFollow = "arc" | RoadMode;
+export const routeFollow = signal<RouteFollow>("arc");
+/** A route on roads also adds shots that move the camera along it. */
+export const routeCamera = signal(false);
 export const labelLanguage = signal("local+en");
 /** How many names Auto labels may place: the most important ones come first. */
 export const LABEL_DENSITIES = { few: { label: "Few (up to 20)", max: 20 }, normal: { label: "Normal (up to 45)", max: 45 }, many: { label: "Many (up to 120)", max: 120 } } as const;
@@ -870,7 +878,42 @@ function currentMapFrame(entry: MapEntry): number {
   return Math.max(0, Math.round((entry.time - entry.layerStart) * entry.frameRate));
 }
 
-export const confirmToolSheet = () =>
+/** A line the camera can move along, for the shots a route on roads may add (the Shots tab's own code adds them). */
+export type AlongRoad = (line: { name: string; points: { lat: number; lng: number }[] }, seconds: number) => void;
+
+/**
+ * The Route tool's route on roads (D102): the roads come from OpenStreetMap (or the disk), core finds
+ * the way, and the line is drawn as an ordinary route layer, so the arrow, comet, dashes, arrow rig and a
+ * camera move along it all work.
+ */
+async function addRoadRoute(entry: MapEntry, sheet: { from: { lat: number; lng: number }; to: { lat: number; lng: number }; seconds: number }, start: number, frames: number, mode: RoadMode, alongRoad?: AlongRoad): Promise<void> {
+  const stopper = new AbortController();
+  const cancel = () => stopper.abort();
+  progress.value = { label: "OpenStreetMap roads", done: 0, total: 1, cancel };
+  const found = await findRouteOnRoads(sheet.from, sheet.to, mode, { signal: stopper.signal, onProgress: (label, done, total) => (progress.value = { label, done, total, cancel }) });
+  const route = found.route;
+  const words = roadModeInfo(mode).words;
+  const ends = [placeNameAt(sheet.from), placeNameAt(sheet.to)];
+  const name = ends[0] && ends[1] ? uniquePlaceName(`${ends[0]} to ${ends[1]} ${words}`) : `Route ${pinCounter++} ${words}`;
+  progress.value = { label: "Adding the route", done: 1, total: 1 };
+  const made = await addRouteLine(entry.mapId, route.points, { name, startFrame: start, endFrame: start + frames, traveller: routeArrow.value, terrain: terrain.value, style: currentLayerStyle.value, comet: routeComet.value, rig: routeRig.value, dash: routeDashed.value ? ROUTE_DASH : 0 });
+  // The roads are OpenStreetMap's: the map carries its credit, as for any feature from there (D38).
+  if (!osmData.value && selectedId.value === entry.mapId) {
+    osmData.value = true;
+    await callHost("setMapSettings", { mapId: entry.mapId, osmData: true });
+    await readMaps();
+  }
+  const via = mainRoads(route);
+  const source = found.fetched ? `roads of ${found.fetched} ${found.fetched === 1 ? "area" : "areas"} fetched (${mb(found.bytes)})` : found.stale ? "roads from this computer (OpenStreetMap could not be reached)" : "roads already on this computer";
+  const rig = routeRig.value ? ", as an arrow rig" : "";
+  const arrow = routeArrow.value ? ", with an arrow riding it (parent your own artwork to the Traveller layer)" : "";
+  log(`added "${name}": ${route.km < 10 ? route.km.toFixed(1) : Math.round(route.km)} km ${words}, about ${durationText(route.seconds)}${via ? `, mostly on ${via}` : ""}, drawing on from ${entry.time.toFixed(2)} s over ${sheet.seconds} s${rig}${arrow}; ${source} · © OpenStreetMap contributors`, made.expressionErrors.length ? "fail" : "ok");
+  for (const warning of made.warnings ?? []) log(warning, "muted");
+  if (Math.max(...route.snapKm) > 0.3) log(`the route starts and ends on the nearest road ${words}, ${route.snapKm.map((km) => km.toFixed(1)).join(" km and ")} km from the points you clicked`, "muted");
+  if (routeCamera.value && alongRoad) alongRoad({ name, points: route.points }, sheet.seconds);
+}
+
+export const confirmToolSheet = (alongRoad?: AlongRoad) =>
   run("add layer", async () => {
     const sheet = toolSheet.value;
     if (!sheet) return;
@@ -886,6 +929,8 @@ export const confirmToolSheet = () =>
       }
       const made = await addCallout(entry.mapId, sheet.place, sheet.title.trim(), sheet.subtitle.trim(), { inFrame: start, outFrame: start + frames, terrain: terrain.value, style: currentLayerStyle.value, template: currentLabelTemplate.value });
       log(`added a callout "${sheet.title.trim()}" from ${entry.time.toFixed(2)} s for ${sheet.seconds} s`, made.expressionErrors.length ? "fail" : "ok");
+    } else if (routeFollow.value !== "arc") {
+      await addRoadRoute(entry, sheet, start, frames, routeFollow.value, alongRoad);
     } else {
       // "Route: Dhaka to Chittagong" when both ends are on a named place.
       const ends = [placeNameAt(sheet.from), placeNameAt(sheet.to)];

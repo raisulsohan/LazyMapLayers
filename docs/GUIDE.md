@@ -99,6 +99,18 @@ ends in a head on its tip; Progress, Tail, Width, Tail Width, Taper Length, Head
 Both Ends, Dash, Gap, Dash Speed, Outline Width and the colours are controls on the layer). The route
 draws on from the current time; the layer is named "Dhaka to Chittagong".
 
+**Follow** picks the way the line takes. **Arc** (the default) is the shortest way over the globe,
+lifted like a flight. **Car**, **Bicycle** and **On foot** follow the roads: the panel asks
+OpenStreetMap for the roads around both places and the main roads between them, finds the quickest
+way (a car keeps to one-way streets and stays off closed roads, a bicycle keeps off motorways and
+prefers quieter roads, a walker uses footpaths and steps), and draws it as an ordinary route, so
+Arrow, Comet, Dashed and Arrow rig work on it. The log says how long it is, about how long it takes
+at free-flowing speeds, and which roads it mostly uses ("Dhaka to Chittagong by car: 237 km, about
+2 h 53 min, mostly on N1 (98 %)"). **Camera** adds shots that move the camera along it. The roads are
+kept on your computer, so the same route works again offline; a map with such a route carries the
+OpenStreetMap credit. A car route can span up to 1,500 km, a bicycle route 400 km, a walk 60 km
+(straight line); for longer journeys draw several routes in legs.
+
 **Attach**: select your own layers in After Effects - an icon, a photo, a precomp - then click a
 place. They get a pin's controls (Latitude, Longitude, Elevation, Scale with map, Rotate with map)
 and stay on the place while the camera moves; their own comment and any expression you wrote are
@@ -361,6 +373,11 @@ shots: Along route, 6 s, Cinematic; **Play**; **Apply to timeline**. Route tool:
 Chittagong, switch **Arrow** on, **Add route**. Auto labels for the names. **Preview**, then
 **Render**.
 
+**A drive along the highway.** Route tool: click Dhaka, then Chittagong; **Follow: Car**, **Arrow
+rig** and **Camera** on, 8 s, **Add route**. The route follows N1 through Comilla and over the Meghna
+bridge, and the Shots tab has a camera move along it: **Play**, then **Apply to timeline**. A walk
+across a city works the same way with **On foot**.
+
 **A data map.** Import `population.csv` (Country, Population). Check the join line under the columns,
 **Colour again**. **Add spikes** or **Add bubbles**, **Add legend** bottom left. Change the ramp and
 watch the layer follow. **Render**.
@@ -440,8 +457,9 @@ move it, and offline it shows what the computer holds.
 
 Finer detail of other kinds is downloaded when you ask, with the size shown first: an area of
 OpenStreetMap kept for working offline (**Download this area**), finer elevation for an area
-(Mapterhorn), a Sentinel-2 picture of an area, any OpenStreetMap search (Overpass), and street or
-address search. A Light or Online install downloads the satellite and relief pictures and the
+(Mapterhorn), a Sentinel-2 picture of an area, any OpenStreetMap search (Overpass), the roads of a
+route on roads (Overpass, a few megabytes per route, kept in `osm-roads`), and street or address
+search. A Light or Online install downloads the satellite and relief pictures and the
 districts the same way, from the Look and Highlight sheets. All of it lives in
 `%APPDATA%\LazyMapLayers` (Windows) or `~/Library/Application Support/LazyMapLayers` (macOS), where
 `offline/CREDITS.txt` lists the sources of the data that came with the download.

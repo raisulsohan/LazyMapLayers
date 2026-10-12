@@ -7,7 +7,7 @@ const bbox: OsmBbox = [45.8, 9.0, 46.2, 9.4];
 
 test("the query asks for what the user typed, in the area the preview shows", () => {
   const query = overpassQuery({ text: "Lake Como", kind: "water", bbox, limit: 30 });
-  assert.match(query, /^\[out:json\]\[timeout:25\];/);
+  assert.match(query, /^\[out:json\]\[timeout:25\]\[maxsize:268435456\];/);
   assert.match(query, /\["natural"="water"\]\["name"~"Lake Como",i\]\(45\.8,9,46\.2,9\.4\);/);
   assert.match(query, /out geom 30;$/);
   // Every kind filter is asked for, as way and as relation.

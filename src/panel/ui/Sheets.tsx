@@ -70,8 +70,24 @@ import { DEFAULT_SHADE, MAX_HEIGHT } from "../../core/style/terrain.ts";
 import { areaCode, changeRelief, changeTheme, drawImportedLine, fitLine, highlights, importSheetOpen, imported, pinImportedPlaces, reliefOn, selected, setHighlights, themeId, toggleAreaHighlight } from "../store.ts";
 import { changeLookDetails, lookDetails } from "../store.ts";
 import type { LabelDensity } from "../../core/style/lookDetails.ts";
-import { routeArrow, routeComet, routeDashed, routeRig } from "../store.ts";
+import { routeArrow, routeCamera, routeComet, routeDashed, routeFollow, routeRig, type RouteFollow } from "../store.ts";
 import { addRouteShot } from "../shots/shotsStore.ts";
+import { ROAD_MODES } from "../../core/routing/profiles.ts";
+
+/** What a click-made route can follow: the arc between the places, or the roads (D102). */
+const FOLLOW_CHOICES: { id: RouteFollow; name: string; hint: string }[] = [
+  { id: "arc", name: "Arc", hint: "The shortest way over the globe, lifted into an arc: for flights and for routes that need no roads." },
+  ...ROAD_MODES.map((mode) => ({
+    id: mode.id,
+    name: mode.name,
+    hint:
+      mode.id === "car"
+        ? "Follows the roads a car may take, one-way streets and closed roads respected. The roads come from OpenStreetMap and stay on this computer, so the same route comes again offline."
+        : mode.id === "bicycle"
+          ? "Follows roads, cycleways and paths a bicycle may take, keeping off motorways and preferring quieter roads. The roads come from OpenStreetMap and stay on this computer."
+          : "Follows streets, footpaths and steps, one-way streets walked both ways. The roads come from OpenStreetMap and stay on this computer."
+  }))
+];
 import { useState } from "preact/hooks";
 
 export const labelsSheetOpen = signal(false);
@@ -1584,8 +1600,24 @@ export function ToolSheetView(): JSX.Element | null {
           </label>
         </div>
       )}
+      {sheet.kind === "route" && (
+        <div class="sheet-row chips" data-id="route-follow">
+          <span class="muted">Follow</span>
+          {FOLLOW_CHOICES.map((choice) => (
+            <button key={choice.id} class={`chip ${routeFollow.value === choice.id ? "on" : ""}`} data-id={`route-follow-${choice.id}`} disabled={busy.value} title={choice.hint} onClick={() => (routeFollow.value = choice.id)}>
+              {choice.name}
+            </button>
+          ))}
+          {routeFollow.value !== "arc" && (
+            <label class="check" title="Also adds shots that move the camera along the route (Shots tab; Play shows it at once)">
+              <input type="checkbox" data-id="route-camera" checked={routeCamera.value} onChange={(e) => (routeCamera.value = (e.target as HTMLInputElement).checked)} />
+              <span>Camera</span>
+            </label>
+          )}
+        </div>
+      )}
       <div class="sheet-row">
-        <button class="primary" data-id="tool-sheet-add" disabled={busy.value} onClick={() => void confirmToolSheet()}>
+        <button class="primary" data-id="tool-sheet-add" disabled={busy.value} onClick={() => void confirmToolSheet((line, seconds) => addRouteShot(line, seconds))}>
           Add {sheet.kind}
         </button>
         <button onClick={() => (toolSheet.value = null)}>Cancel</button>

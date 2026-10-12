@@ -415,6 +415,17 @@ async function runUiScenario() {
   const routeLog = await panel.evaluate("window.lmlDebug.log().slice(-1)[0]");
   console.log(`U1 route with arrow: ${JSON.stringify(routeLog)}`);
   await panel.evaluate("(window.lmlDebug.store.routeArrow.value = false, true)");
+  // Routes on roads (D102): the sheet's Follow choices, and the Camera switch a road route offers (nothing goes online here; RR1 does).
+  await panel.evaluate(`(() => { window.lmlDebug.store.toolSheet.value = { kind: "route", from: { lat: 48.8584, lng: 2.2945 }, to: { lat: 48.8611, lng: 2.3358 }, seconds: 4 }; return true; })()`);
+  await sleep(300);
+  await click("route-follow-foot");
+  await sleep(200);
+  const follow = JSON.parse(await panel.evaluate(`JSON.stringify({ follow: window.lmlDebug.store.routeFollow.value, chips: [...${control("route-follow")}.querySelectorAll("button")].map((b) => b.textContent.trim()), camera: !!document.querySelector('[data-id="route-camera"]') })`));
+  console.log(`U1 route follow: ${JSON.stringify(follow)}`);
+  if (follow.follow !== "foot" || follow.chips.join() !== "Arc,Car,Bicycle,On foot" || !follow.camera) throw new Error(`the Route sheet's Follow choices: ${JSON.stringify(follow)}`);
+  await shot("07p-route-follow");
+  await click("route-follow-arc");
+  await panel.evaluate("(window.lmlDebug.store.toolSheet.value = null, true)");
   // A render job whose map is not in this project waits without a Resume button.
   await panel.evaluate(`(() => { const q = window.lmlDebug.queue; q.jobs.push({ id: "u1-stale", spec: { mapId: "nosuchmap000000", quality: "final", settings: window.lmlDebug.store.renderSettings.value, basemap: { kind: "world" } }, mapName: "Old project", status: "interrupted", progress: null, summary: null, error: "stopped when the panel closed", addedAt: Date.now(), finishedAt: null }); return true; })()`);
   await panel.evaluate("window.lmlDebug.store.readMaps().then(() => true)");

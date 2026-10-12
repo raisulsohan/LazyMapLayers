@@ -56,6 +56,7 @@ import { runOwnImageryTest } from "./ownImageryTests.ts";
 import { runCustomLookTest } from "./lookTests.ts";
 import { runKeepOutTest, runLabelTemplateTest } from "./labelTests.ts";
 import { runOsmTest } from "./osmTests.ts";
+import { runRoadTest } from "./roadTests.ts";
 import { runStyleTest } from "./styleTests.ts";
 import { runShotTests } from "./shotTests.ts";
 import { runHighlightTest, runImageryDownloadTest, runLabelTimingTest, runSatelliteTest, runThemeTests } from "./themeTests.ts";
@@ -647,6 +648,16 @@ export async function runSpikes(log: SpikeLog, only?: string[]): Promise<Record<
     } catch (error) {
       results.OSM1_error = error instanceof Error ? error.stack ?? error.message : String(error);
       log(`OSM1 failed: ${results.OSM1_error}`, "fail");
+    }
+  }
+
+  // Online: only when it is named. Routes on roads from OpenStreetMap (D102).
+  if (only && only.includes("RR1")) {
+    try {
+      results.RR1_roads = await runRoadTest(log);
+    } catch (error) {
+      results.RR1_error = error instanceof Error ? error.stack ?? error.message : String(error);
+      log(`RR1 failed: ${results.RR1_error}`, "fail");
     }
   }
 

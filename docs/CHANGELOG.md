@@ -15,6 +15,16 @@
   comes as maps need it and is kept). A light zip of about 160 MB is there for whoever does not want
   to download 2 GB. Maps look the same whichever you pick.
 
+- **Routes on roads.** The Route sheet has **Follow: Arc, Car, Bicycle, On foot**. With a road
+  choice the route follows the real streets and highways from OpenStreetMap instead of an arc: a car
+  keeps to one-way streets and stays off closed roads, a bicycle keeps off motorways, a walker takes
+  footpaths, steps and bridges. Dhaka to Chittagong by car runs 98 % on N1; a walk from the Eiffel
+  Tower to the Louvre stays on the pavements and crosses the Seine on a bridge. The route is an
+  ordinary route layer, so Arrow, Comet, Dashed and Arrow rig work on it, and **Camera** adds shots
+  that move along it. The log gives its length, its time at free-flowing speeds and the roads it uses.
+  The roads are kept on your computer (a few megabytes per route), so the same route comes again
+  offline. LazyMapLayers finds the way itself: no routing service, account or key.
+
 - **Arrow rig.** A route can now be drawn as an arrow: tick **Arrow rig** on the Route sheet or for
   an imported line. The line tapers from its tail and ends in a head that always sits on its tip,
   under any camera, and stops just behind the point. Width, taper, head size and style (triangle,

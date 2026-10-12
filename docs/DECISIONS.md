@@ -887,6 +887,84 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D102 — Routes on roads: our own router over OpenStreetMap (2026-10-12)
+
+- **Why.** A row of COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 13): its routes can
+  follow the roads, ours were a great-circle arc between two places (D45) or a line the user brought
+  (D22). A designer animating a drive, a ride or a walk needs the real way.
+- **Our own router, in core** (`src/core/routing/`). No routing service is needed: OpenStreetMap
+  holds the roads, Overpass hands them out (D38), and the search is ours.
+  - `areas.ts` plans what to ask for. Ends closer than 5 km: one area, a band along the way between
+    them a fifth of the distance wide on each side and as far past each end (at least 600 m), holding
+    every road the mode may use. Further: one area per end (every road within 1.5 km, and the linking
+    roads - tertiary and above, and cycleways for a bicycle - within 3 to 12 km) and one band along the
+    great circle between them, a quarter of the distance wide on each side (2 to 120 km), holding only
+    the major roads: tertiary and above up to 80 km, primary and above up to 500 km, motorways and
+    trunk roads beyond (a bicycle keeps secondary roads and cycleways, never motorways). Ends are
+    snapped to a grid first (about 500 m; the band's ends to 5 or 11 km on long routes), so nearby
+    clicks ask the same questions and find the same answers on disk. Too far for a mode (car 1,500
+    km, bicycle 400 km, on foot 60 km) is refused before anything is sent. The first plan used boxes
+    and a 20 km single area: a 3 km walk in Paris, where every pavement is its own way, came back as
+    53 MB; the band brings it to 12.5 MB.
+  - `profiles.ts` says what each mode may use and how fast. **Car**: motorways to service roads,
+    tracks only where motor vehicles are allowed outright; one-way streets, roundabouts and motorways
+    one way only; `access`, `vehicle`, `motor_vehicle` and `motorcar` read from the most general to
+    the most specific, `no` and `private` closed, `destination` and `delivery` open at three times the
+    cost; `use_sidepath` (a path of its own alongside) open at one and a half times, so the path wins
+    where it was asked for too and the road carries the route where it was not. Speeds by road class,
+    held under a signed `maxspeed` and slowed on unpaved surfaces: free-flow times, not traffic.
+    **Bicycle**: every road but motorways and motorroads, cycleways, paths and tracks, footways and
+    pedestrian streets where bicycles are allowed; one-way streets one way unless
+    `oneway:bicycle=no` or a contraflow cycleway; busy roads cost more. **On foot**: everything
+    walkable, steps included, one-way streets both ways, busy roads cost a little more. Ferries are
+    taken by every mode at their own speed, with a quarter of an hour to board.
+  - `graph.ts` builds the graph: a vertex where ways meet (shared node ids, or the same point when an
+    answer carries no ids) or end, an edge per stretch between them carrying its own points, length,
+    cost and road, ways that came in two answers taken once. The ends snap to the nearest road the
+    mode may use (at most 3 km away), preferring two roads that are connected at all.
+  - `search.ts` is A*: the cost is the time with the mode's preferences, the estimate the straight
+    distance at the fastest speed the graph holds, so the path found is the cheapest. The result is
+    the path's own points from snapped end to snapped end, its length, the time it takes, and the
+    roads it runs on, longest share first (so the panel can say "mostly N1").
+- **An ordinary route line.** The panel hands the points to `addRouteLine`: the same route layer as an
+  imported track (thinned to 300 points, D22), so Arrow, Comet, Dashed, the arrow rig (D100) and a
+  camera move along the line (the Route sheet's Camera switch adds the shots) all work unchanged.
+  The Route tool's sheet gets **Follow: Arc, Car, Bicycle, On foot**; Arc stays the default.
+- **Polite and offline afterwards** (`src/panel/data/roads.ts`): one request per area through the
+  same queue as D38 (one at a time, two seconds apart, the second endpoint when the first is busy),
+  asked for gzip-compressed (about a sixth of the bytes), an answer over 64 MB refused while it
+  arrives. Each query asks for half Overpass's default memory (256 MiB, several times what these
+  answers take): on 2026-10-12 the main server turned the default away as too busy again and again
+  and took this at once. When both endpoints are busy, the request is asked again after 5 and 15
+  seconds (D38's searches too); offline it fails at once. Answers stay in
+  `<user data>/osm-roads/` with their query: fresh for 30 days; older ones are still used when the
+  network fails, so a route comes again offline; the folder keeps at most 1 GB, the oldest going
+  first. A map with a road route carries `osmData`, so the credit shows and renders as for any
+  OpenStreetMap feature (D38).
+- **Public routing services: not built.** The OSRM demo server is limited to reasonable,
+  non-commercial use (Project-OSRM wiki, *Demo server*); the FOSSGIS servers that host OSRM and
+  Valhalla (routing.openstreetmap.de, valhalla1.openstreetmap.de) allow no heavy use and one request a
+  second, under fair-use terms that may be withdrawn. Our users make commercial videos, and hard rule
+  1 asks for free commercial use, so neither becomes an option. openrouteservice, GraphHopper and
+  Mapbox need keys or accounts (hard rule 1). A server of the user's own could come later as
+  bring-your-own, like imagery (D59).
+- **Not in this step.** Turn restrictions, barriers on nodes (gates, bollards), times of day, traffic,
+  stops between the ends (a route in legs is drawn as several routes), and routes across the 180th
+  meridian.
+- **Tested.** Unit tests for the plan of areas, the profiles, the graph and the search (A* against
+  Dijkstra on random grids with one-way streets, a block driven round against a one-way street and
+  walked straight, snapping onto the middle of a road, both ends on one road, ferries, the faster road
+  for a car and the quieter one for a bicycle). RR1 in After Effects 2026, online (only when named),
+  2026-10-12: Dhaka to Chittagong by car is 236.8 km, 97.8 % of it on N1 over the Kanchpur, Meghna
+  and Daudkandi bridges, from three areas (2.3 MB over the network, 10,176 roads, the search 35 ms);
+  the Eiffel Tower to the Louvre on foot is 3.59 km along the Rue de l'Université and over the Seine
+  on a bridge, every point and step on a walkable way (1.8 MB); offline both come again point for
+  point from the folder, and again from answers made 40 days old; offline with an empty folder the
+  panel says the roads are not on this computer yet. Drawn as an arrow rig with a traveller and with
+  a comet, both are ordinary route layers with their ends in the tag, and the camera move along the
+  drive stays within 51 m of it. OSM1 passes again with the smaller queries (Lago di Como, 10,060
+  points, 85 KB over the network).
+
 ## D101 — Street detail on demand, and three ways to install (2026-10-12)
 
 - **Why.** Two rows of COMPARISON.md where GEOlayers 3 is ahead (PLAN §10, phase 12): street detail
