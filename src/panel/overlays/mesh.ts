@@ -34,7 +34,7 @@ export async function addMesh(mapId: string, places: MeshPlace[], options: AddMe
   const scale = info.height / 1080;
   const look = options.style ?? resolveLayerStyle(themeFrom(options.theme));
   const limit = Math.max(1, Math.min(MAX_MESH_LAYERS, options.limit ?? MAX_MESH_LAYERS));
-  const mesh = connectionMesh(places, { neighbours: options.neighbours, maxKm: options.maxKm, steps: options.steps ?? 64, arc: options.arc ?? 0.06 });
+  const mesh = connectionMesh(places, { neighbours: options.neighbours, maxKm: options.maxKm, steps: options.steps ?? 64, arc: options.arc ?? 0.06, hub: options.hub });
   const kept = mesh.lines.slice(0, limit);
   const sampler = samplerFor(options.terrain);
   const keys: [number, number][] = [

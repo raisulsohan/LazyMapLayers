@@ -916,7 +916,12 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
   the points shared out by length. India's 36 states make 38 lines, the United States 57, France's
   101 departments 96; a set with more lines loses its shortest and the log says how many.
 - **Tested.** Unit tests for the hub, `joinLines`, `bordersBetween` (a row of squares, a three-way
-  junction, areas apart), `shapeLines` and `joinLaps`. Not yet run in After Effects.
+  junction, areas apart), `shapeLines` and `joinLaps`. In After Effects, FB1 now also draws the lines
+  from a hub (all three start on the same comp point), the borders of India's states (38 open paths,
+  stroke and no fill, every path evaluated without an error and inside the comp) and imports a TCX
+  file of two laps through the panel's own DOM parser (one line, six points, times to 50 s); it
+  passes, and SL1 still passes after the `partName` change to the shape host call. Writing FB1 found
+  that `addMesh` did not hand `hub` on to core, so the switch did nothing until then.
 
 ## D104 — Ready for the Mac: CI on both systems, a Self-test in the panel, a report in one step (2026-10-12)
 
