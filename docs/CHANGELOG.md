@@ -24,7 +24,8 @@
   Paris and Tokyo (D107).
 - **Full manual** beside the map's name at the top of the panel, **Created by Raisul Sohan** at the
   right end of the status line, and **Manual** under Maps > About open the manual on
-  raisulsohan.com in your browser.
+  raisulsohan.com in your browser. **Full manual** glows softly twice each time the panel opens, so
+  a user who is stuck knows where help is (not when the system asks for less motion).
 
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 

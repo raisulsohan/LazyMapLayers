@@ -190,6 +190,32 @@ select:focus {
   color: var(--accent);
 }
 
+/* Each time the panel loads, the link glows softly twice, once the panel has settled, so a user
+   who is stuck knows where help is; then it is quiet again. */
+.manual-link {
+  animation: manual-hello 1.6s ease-in-out 1.2s 2;
+}
+
+@keyframes manual-hello {
+  0%,
+  100% {
+    background: transparent;
+    color: #9a9a9a;
+    box-shadow: none;
+  }
+  50% {
+    background: var(--accent-soft);
+    color: var(--accent);
+    box-shadow: 0 0 0 1px rgba(54, 179, 255, 0.35), 0 0 10px rgba(54, 179, 255, 0.25);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .manual-link {
+    animation: none;
+  }
+}
+
 /* A very narrow panel keeps the book and lets the words go. */
 @media (max-width: 340px) {
   .manual-link span {
