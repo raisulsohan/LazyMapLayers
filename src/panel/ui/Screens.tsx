@@ -16,6 +16,9 @@ import { RELEASES_URL } from "../updates.ts";
 import { formatTime } from "../shots/shotsStore.ts";
 import { Icon, IconButton } from "./icons.tsx";
 
+/** The manual on raisulsohan.com, opened from About and from the credit on the status line. */
+export const MANUAL_URL = "https://raisulsohan.com/en/portfolio/lazymaplayers/documentation/manual/";
+
 function ScreenHeader(props: { title: string }): JSX.Element {
   return (
     <div class="bar header">
@@ -79,6 +82,9 @@ export function MapsScreen(): JSX.Element {
         <div class="section-title">About</div>
         <div class="muted small" data-id="about-versions">{hostInfo.value || "LazyMapLayers"}</div>
         <div class="field-row">
+          <button class="small-button" data-id="about-manual" onClick={() => openUrl(MANUAL_URL)} title="The manual: a chapter for every option, with pictures from After Effects (opens in your browser)">
+            Manual
+          </button>
           <button class="small-button" data-id="about-releases" onClick={() => openUrl(RELEASES_URL)} title="Every release, with what changed, on GitHub">
             Releases
           </button>

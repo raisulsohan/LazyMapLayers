@@ -80,6 +80,8 @@ Scroll to the bottom of the Maps screen:
 
 ![About](media/04-about.png)
 
+**Manual**, the first button under the versions, opens this manual in your browser (since 1.4.0).
+
 1. **Releases**: every version on GitHub, with what changed.
 2. **raisulsohan.com**: the author's site.
 3. **Report a problem**: writes a report with the panel's last messages and your versions to your

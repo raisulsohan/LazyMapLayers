@@ -59,7 +59,7 @@ import { Icon, IconButton, type IconName } from "./icons.tsx";
 import { ToolMenu } from "./ToolMenu.tsx";
 import { openUrl } from "../cep.ts";
 import { RenderTab } from "./RenderTab.tsx";
-import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
+import { BasemapPicker, MANUAL_URL, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
 import { AttachSheetView, DataSheetView, FeatureSheetView, HighlightSheetView, ImportSheetView, LabelsSheetView, LookSheetView, OsmSheetView, RegionSheetView, SatelliteSheetView, ToolSheetView, labelsSheetOpen, lookSheetOpen } from "./Sheets.tsx";
 import { IMPORT_ACCEPT } from "../data/importFile.ts";
@@ -257,8 +257,6 @@ function Strip(): JSX.Element {
     </div>
   );
 }
-
-const MANUAL_URL = "https://raisulsohan.com/en/portfolio/lazymaplayers/documentation/manual/";
 
 function StatusLine(): JSX.Element {
   const lines = logLines.value;

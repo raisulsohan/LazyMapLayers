@@ -18,8 +18,8 @@
   map in another project, an error) is spelled out under it, and the rest waits in the row's tooltip.
   A render whose map is in another project no longer shows as failed. **Renders on disk** moves to
   the bottom.
-- **Created by Raisul Sohan** at the right end of the status line opens the manual on
-  raisulsohan.com in your browser.
+- **Created by Raisul Sohan** at the right end of the status line, and **Manual** under Maps >
+  About, open the manual on raisulsohan.com in your browser.
 
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 
