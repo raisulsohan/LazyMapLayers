@@ -83,6 +83,19 @@ LML.api.removeLabels = function (args) {
     });
 };
 
+/**
+ * Keeps only the labels named in args.keep (label ids; their dots and subtitles stay with them) and
+ * removes the map's other Auto labels, in one undo step (D107).
+ */
+LML.api.keepLabels = function (args) {
+    var scene = LML.pins.findMapLayer(args.mapId).containingComp;
+    var keep = {};
+    for (var i = 0; i < args.keep.length; i++) keep[args.keep[i]] = true;
+    return LML.withUndo("Keep only the story's names", function () {
+        return { removed: LML.labels.removeTagged(scene, args.mapId, "label", keep) };
+    });
+};
+
 /** Several overlay layers (paths, boxes, texts) in one undo step: args.items = [{ type, ...args }]. */
 LML.api.addOverlays = function (args) {
     return LML.withUndo(args.undoName || "Add overlays", function () {

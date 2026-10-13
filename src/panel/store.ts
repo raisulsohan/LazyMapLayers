@@ -85,6 +85,8 @@ import type { ScaleUnits } from "../core/ae/mapFurniture.ts";
 import { copyToPlaces } from "./overlays/copies.ts";
 import { restyleLabels } from "./labels/restyleLabels.ts";
 import { repositionLabels } from "./labels/repositionLabels.ts";
+import { keepStoryNames } from "./labels/storyLabels.ts";
+import { STORY_RADIUS_KM } from "../core/labels/storyNames.ts";
 import { labelDesigns, type LabelDesign } from "./labels/labelDesigns.ts";
 import { formatBytes, removeOldLooseRenders, renderDiskReport, type RenderDiskReport } from "./render/renderDisk.ts";
 import { addValueLabels, removeValueLabels } from "./overlays/valueLabels.ts";
@@ -1735,6 +1737,17 @@ export const removeLabels = () =>
     if (!mapId) return;
     const result = await callHost<{ removed: number }>("removeLabels", { mapId });
     log(result.removed ? `removed ${result.removed} label layers (one undo step)` : "this map has no labels from Auto labels", result.removed ? "ok" : "muted");
+  });
+
+/** Keeps only the names of the places the map's routes, pins and callouts are about (D107). */
+export const keepStoryLabels = () =>
+  run("keep the story's names", async () => {
+    const mapId = selectedId.value;
+    if (!mapId) return;
+    const result = await keepStoryNames(mapId);
+    if (!result.places) log("this map has no route, pin or callout yet: add them first, then keep their names", "muted");
+    else if (!result.kept.length) log(`no name from Auto labels stands within ${STORY_RADIUS_KM} km of the map's routes, pins or callouts; nothing was removed`, "muted");
+    else log(`kept ${result.kept.join(", ")}; removed ${result.removed} other label layers (one undo step)`, "ok");
   });
 
 export const animateBorders = () =>

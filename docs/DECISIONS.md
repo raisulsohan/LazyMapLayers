@@ -887,6 +887,31 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D107 — Only the story's names (2026-10-13)
+
+- **Why.** Sohan, on the world flight sample: a flight from Paris to Tokyo needs the two names, but
+  Auto labels places about 140, and the only way to thin them was to find and delete layers by hand.
+  **Remove labels** takes all of them.
+- **Decision.** A button in the Auto labels sheet, **Only the story's names**, keeps the names of the
+  places the map is about and removes the map's other Auto labels in one undo step. Sohan chose the
+  scope (route ends and every pin, callout and attached layer) and removing over hiding (a clean
+  timeline; Undo or Place labels brings names back).
+- **Which places.** `storyPlaces` in `src/core/labels/storyNames.ts` reads what Save as GeoJSON
+  reads (`exportLayers`): the place of every pin, attached layer and callout, and the first and last
+  point baked into every route's path expression. A route whose expression was replaced by hand adds
+  nothing.
+- **Which names.** For each place, `namesToKeep` takes the names within 50 km and keeps one: the best
+  tier, then the nearest. Tier 0 is a city or town, 1 a country, 2 nature (seas, peaks), 3 a name
+  inside a city (it has no world record; its tag holds where it stands). The tiers matter because a
+  pin on a landmark stands closer to a district or a river than to its city: the Eiffel Tower keeps
+  Paris. 50 km holds a landmark in its city without reaching the next one. A name the world data no
+  longer knows has no place and is not kept.
+- **Safe ends.** No story place, or no name near any of them, removes nothing and says why (removing
+  every name is Remove labels). The host spares layers by label id, so a kept name keeps its dot and
+  its subtitle; a design label's copied comp goes with a removed layer as before.
+- **Tested.** Unit tests on real route expressions (the Paris to Tokyo flight keeps exactly Paris and
+  Tokyo; a city beats a closer district; a place far from every name keeps nothing).
+
 ## D106 — A calmer panel: two tool menus and a lighter Render tab (2026-10-13)
 
 - **Why.** A user compared the panel with GEOlayers 3 and found it hard and messy. The tool row held

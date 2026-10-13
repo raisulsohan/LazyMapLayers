@@ -165,7 +165,10 @@ another comp copies its camera instead (choose it again after you change that ca
 
 **Auto labels**: the names of countries, cities, seas, rivers and mountains over the whole timeline,
 in each place's own language (or one language, with or without an English line under it), as
-editable text layers that never overlap or flicker. **What to name** switches Countries, Cities,
+editable text layers that never overlap or flicker. **Only the story's names** keeps the names of the
+places the map is about - both ends of every route, every pin, callout and attached layer, each by
+the nearest city or town within 50 km - and removes the others in one undo step: a flight from Paris
+to Tokyo keeps Paris and Tokyo. **What to name** switches Countries, Cities,
 Seas and rivers, Mountains and deserts, and Streets and landmarks on and off. Water is written in
 italic in the colour of water, ranges and deserts in spaced capitals, a peak with a small triangle
 and its height. Over a downloaded area the names inside it come from its own data: districts,

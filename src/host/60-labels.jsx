@@ -41,12 +41,14 @@ LML.labels.markShape = function (contents, style) {
     if (circle) circle.property("ADBE Vector Ellipse Size").setValue([style.radius * 2, style.radius * 2]);
 };
 
-LML.labels.removeTagged = function (scene, mapId, kind) {
+/** Removes a map's tagged layers of one kind; with `keep` ({ labelId: true }), the ones it names stay. */
+LML.labels.removeTagged = function (scene, mapId, kind, keep) {
     var removed = 0;
     for (var i = scene.numLayers; i >= 1; i--) {
         var layer = scene.layer(i);
         var tag = LML.tag.read(layer);
         if (!tag || tag.kind !== kind || tag.mapId !== mapId) continue;
+        if (keep && tag.labelId && keep[tag.labelId] === true) continue;
         // A label built from a design owns its copied comp: it goes with the layer.
         var source = tag.part === "design" && layer.source instanceof CompItem ? layer.source : null;
         layer.locked = false;

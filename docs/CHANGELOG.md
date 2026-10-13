@@ -18,6 +18,10 @@
   map in another project, an error) is spelled out under it, and the rest waits in the row's tooltip.
   A render whose map is in another project no longer shows as failed. **Renders on disk** moves to
   the bottom.
+- **Only the story's names.** A new button in Auto labels keeps the names of the places the map is
+  about (both ends of every route, every pin, callout and attached layer, each by the nearest city
+  within 50 km) and removes every other label in one undo step: a flight from Paris to Tokyo keeps
+  Paris and Tokyo (D107).
 - **Created by Raisul Sohan** at the right end of the status line, and **Manual** under Maps >
   About, open the manual on raisulsohan.com in your browser.
 

@@ -19,6 +19,7 @@ import {
   toggleLabelKind,
   mb,
   removeLabels,
+  keepStoryLabels,
   regionSheet,
   regions,
   runAutoLabels,
@@ -1841,6 +1842,14 @@ export function LabelsSheetView(): JSX.Element | null {
           }}
         >
           Place labels
+        </button>
+        <button
+          data-id="keep-story-labels"
+          disabled={busy.value}
+          onClick={() => void keepStoryLabels()}
+          title="Keeps the names of the places this map is about - both ends of every route, every pin and callout (the city's name, within 50 km) - and removes every other label Auto labels made, in one undo step"
+        >
+          Only the story's names
         </button>
         <button disabled={busy.value} onClick={() => void removeLabels()} title="Removes every label Auto labels made for this map, in one undo step">
           Remove labels

@@ -20,6 +20,19 @@ editable **text layer**.
 **Running it again replaces the names it made before.** Change the camera, then place the names
 again. **Remove labels** takes them all off in one undo step.
 
+## Only the story's names
+
+A flight from Paris to Tokyo needs two names, not a hundred. **Only the story's names** keeps the
+names of the places the map is about and removes the rest, in one undo step:
+
+- both ends of every route,
+- every pin, 3D pin, callout and attached layer.
+
+Each of those places keeps the name of the nearest city or town within 50 km; where there is none, the
+nearest country, sea or name inside a city. A pin on the Eiffel Tower keeps **Paris**, not the
+district beside it. Add the routes and pins first, place the names, then click it. Edit > Undo
+brings every name back.
+
 ## What to name
 
 The chips at the top switch kinds on and off. At least one stays on.
