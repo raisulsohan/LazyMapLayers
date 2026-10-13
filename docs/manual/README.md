@@ -19,7 +19,7 @@ The short version of all this is the [guide](../GUIDE.md). This manual is the lo
 ## Part 1. Getting started
 
 1. [Installing, and opening the panel](01-install.md)
-2. [The panel at a glance](02-panel-at-a-glance.md): the header, the tool row, the preview, the strip, the status line, the keys
+2. [The panel at a glance](02-panel-at-a-glance.md): the header, the tool row and its menus, the preview, the strip, the status line, the keys
 3. [How the panel thinks](03-how-it-thinks.md): the map comp, its five camera controls, `LML:` tags, undo
 4. [The Maps screen](04-maps-screen.md): new map, the two samples, About
 5. [Map settings](05-map-settings.md): name, basemap, globe, following another map's camera

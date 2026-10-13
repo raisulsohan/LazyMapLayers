@@ -1,6 +1,6 @@
 # 22. The looks, and a look of your own
 
-**Look** (the palette in the tool row) sets how the map is drawn: twelve ready looks, your own
+**Look** (in the tool row) sets how the map is drawn: twelve ready looks, your own
 colours, a look taken from a picture, and how heavy the lines and how many the names. The same sheet
 holds the sky, relief, imagery, terrain and map furniture, which the next chapters cover.
 

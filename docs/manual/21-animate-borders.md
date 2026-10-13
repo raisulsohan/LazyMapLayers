@@ -9,7 +9,7 @@ the countries appear.
 ## Step by step
 
 1. Select the map and put the time indicator where the borders should start.
-2. Click **Animate borders** in the tool row (the square with a cross).
+2. Click **Add > Animate borders**.
 
    ![Animate borders](media/21-borders-button.png)
 

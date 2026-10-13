@@ -10,7 +10,7 @@ about the layer stays yours.
 
 1. Select a map in the panel.
 2. In After Effects, **select your layers** in the map's scene comp. One or many.
-3. Click **Attach** in the tool row (the paper clip). The sheet says how many usable layers are
+3. Click **Add > Attach your layers**. The sheet says how many usable layers are
    selected; press **Refresh** if you changed the selection after opening it.
 
    ![The Attach sheet: two layers selected](media/13-attach-sheet.png)

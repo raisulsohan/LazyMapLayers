@@ -2,7 +2,7 @@
 
 export async function run(s) {
   await s.newMap("Search", { center: { lat: 20, lng: 60 }, zoom: 2, bearing: 0, pitch: 0 }, { duration: 5 });
-  const results = { x: 0, y: 60, width: 520, height: 330 };
+  const results = { around: [".search", ".search-results"] };
   await s.type(`[data-id="search"]`, "Lagos");
   await new Promise((r) => setTimeout(r, 700));
   await s.shot("06-search-lagos", { clip: results });

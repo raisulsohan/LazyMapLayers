@@ -8,7 +8,7 @@ in After Effects. An outline can also become an editable **shape layer** that dr
 
 ## Highlight by clicking
 
-1. Click **Highlight** in the tool row (the check badge). The sheet opens:
+1. Click **Add > Highlight countries**. The sheet opens:
 
    ![The Highlight sheet](media/14-highlight-sheet.png)
 

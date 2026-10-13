@@ -10,7 +10,7 @@ a flight from space lands on its streets.
 
 1. Frame the area in the preview. **The smaller the area, the smaller the download**: zoom in until
    the city fills the preview.
-2. Click **Download this area** (the downward arrow at the right of the tool row).
+2. Click **Data > Download this area**.
 3. The sheet:
 
    ![Download the area in the preview](media/27-region-sheet.png)

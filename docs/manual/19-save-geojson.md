@@ -4,7 +4,7 @@
 the shape-layer outlines, the callouts and the areas you made. Use it to hand the geography of a
 piece to someone else, keep it with the project, open it in a GIS, or bring it into the next map.
 
-![Save as GeoJSON, at the end of the left half of the tool row](media/19-save-button.png)
+![Save as GeoJSON, at the end of the Data menu](media/19-save-button.png)
 
 ## Save
 

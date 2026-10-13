@@ -25,7 +25,7 @@ Names can be in any of 26 languages, an ISO code (`BR`, `BRA`), a state's short 
 ## Open it
 
 1. Select a map.
-2. Click **Numbers** in the tool row (the bar chart) and pick the CSV. (A CSV opened with **Import**
+2. Click **Data > Numbers on the map** and pick the CSV. (A CSV opened with **Import**
    that has names and numbers and no coordinates opens here too.)
 
    ![Numbers](media/28-numbers-tool.png)

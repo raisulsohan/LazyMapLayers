@@ -1,6 +1,6 @@
 # 18. Finding things on OpenStreetMap
 
-**OpenStreetMap** in the tool row asks OpenStreetMap what it holds **for the area the preview
+**Data > Find on OpenStreetMap** asks OpenStreetMap what it holds **for the area the preview
 shows**: a river, a lake, a park, an island, an airport, a district boundary, a building, a road. What
 it finds arrives **as an import**, so you can draw it as a route, highlight it, or add it as a shape
 layer. It is free for commercial work, with credit to OpenStreetMap.
@@ -11,7 +11,7 @@ layer. It is free for commercial work, with credit to OpenStreetMap.
 
 1. Frame the area in the preview. **The smaller the area, the faster and surer the answer**: the
    panel refuses to ask about the whole planet.
-2. Click **OpenStreetMap** in the tool row (the map with a magnifier). The sheet opens:
+2. Click **Data > Find on OpenStreetMap**. The sheet opens:
 
    ![Find on OpenStreetMap](media/18-osm-sheet.png)
 

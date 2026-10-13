@@ -11,7 +11,7 @@ opacity, parent things to them, or replace the dot with your own drawing.
 
 ## Where to find it
 
-The first two icons of the tool row: **Pin** and **3D pin**.
+The first two tools of the **Add** menu: **Pin** and **3D pin**.
 
 ![The Pin tool, switched on](media/10-pin-tool.png)
 
@@ -98,7 +98,7 @@ The dot is a shape group called **Marker** inside the layer. Everything about it
 ## Tips and pitfalls
 
 - **Nothing happens when I click the map.** The tool switched itself off after the last pin; click
-  **Pin** again, or use Alt+click. If the tool row is grey, select a map first.
+  **Pin** again, or use Alt+click. If the tools in **Add** are grey, select a map first.
 - **The pin jumps or slides.** It was moved by hand. Its Position is driven by an expression; move
   it with **Latitude** and **Longitude** instead.
 - **The pin disappears at the edge of the globe.** That is on purpose: it is behind the planet.

@@ -19,7 +19,7 @@ that draw on, places as pins, areas as highlights, and lines as a camera path.
 
 ## Import a file
 
-1. Click **Import** in the tool row (the upward arrow) and pick the file. Once a file is open, the
+1. Click **Data > Import a file…** and pick the file. Once a file is open, the
    same button shows and hides its sheet.
 
    ![Import](media/16-import-tool.png)

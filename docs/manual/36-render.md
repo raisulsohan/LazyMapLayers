@@ -26,7 +26,11 @@ many reused.
 
 ## The Render tab
 
-![The Render tab](media/36-render-tab.png)
+The settings sit folded at the top of the tab, as one line that says what they are, for example
+*2× supersampling · no motion blur · 2 passes*. Click **Settings** to open them; click it again to
+fold them away.
+
+![The Render tab, with the settings open](media/36-render-tab.png)
 
 ### Supersampling
 
@@ -63,9 +67,12 @@ Ideas: a glow on **Roads** only; a colour grade on **Water**; your own texture o
 
 ## The job list
 
-Every render is a job in the list:
+Every render is one row in the list: a mark for its state, the map, **Preview** or **Final**, and,
+once it is done, its frames and the time it took. Point at a row for the rest: the settings it used,
+and how many frames were drawn and how many reused. Anything that needs you, such as frames that
+lack street detail or an error, is spelled out under the row.
 
-![A preview job, done: how many frames were rendered and how many reused](media/36-preview-job.png)
+![A preview job, done](media/36-preview-job.png)
 
 ![A render running](media/36-rendering.png)
 
@@ -82,7 +89,7 @@ Renders keep going while you work in After Effects.
 
 ## Renders on disk
 
-**Renders on disk…** counts what the renders take:
+**Renders on disk…**, at the bottom of the tab, counts what the renders take:
 
 ![Renders on disk](media/36-disk.png)
 

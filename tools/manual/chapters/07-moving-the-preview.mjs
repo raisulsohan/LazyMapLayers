@@ -19,7 +19,7 @@ export async function run(s) {
   }, { clip });
   await s.shot("07-tilted", { mark: [".view-readout"] });
   // North up, then Alt+click it to look straight down as well.
-  await s.shot("07-compass", { mark: [".bar.strip button[title^='North']"], clip: { x: 0, y: 500, width: 520, height: 66 } });
+  await s.shot("07-compass", { mark: [".bar.strip button[title^='North']"], clip: { around: [".bar.strip"] } });
   await s.js(`(document.querySelector(".bar.strip button[title^='North']").click(), true)`);
   await new Promise((r) => setTimeout(r, 1200));
   await s.js(`(document.querySelector(".bar.strip button[title^='North']").dispatchEvent(new MouseEvent("click", { bubbles: true, altKey: true })), true)`);

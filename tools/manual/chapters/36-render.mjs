@@ -14,7 +14,7 @@ export async function run(s) {
   // The settings are folded to one line until opened (D106).
   await s.click("render-settings");
   await s.shot("36-render-tab", { mark: ["supersample", ".render-tab label.check", ".passes"] });
-  await s.shot("36-buttons", { mark: ["render-preview", "render"], clip: { x: 0, y: 0, width: 520, height: 64 }, badges: "below" });
+  await s.shot("36-buttons", { mark: ["render-preview", "render"], clip: { around: [".bar.header"] }, badges: "below" });
   await s.preview();
   await s.shot("36-preview-job", { mark: [".queue .job"] });
   // A final render with the Roads and Water passes and a land matte.

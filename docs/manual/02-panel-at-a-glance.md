@@ -9,7 +9,7 @@ does starts from one of eight areas. This chapter names each one, so the rest of
 | # | Area | What it is for |
 |---|---|---|
 | 1 | **Header** | The map you are working on, its settings, and the two render buttons |
-| 2 | **Tool row** | Everything you can put on a map, and the look of the map |
+| 2 | **Tool row** | The **Add** and **Data** menus, and the look of the map |
 | 3 | **Search** | Find a country, a province, a district, a city, or a `lat, lng` |
 | 4 | **Preview** | The exact frame the map will render. Moving it moves the camera |
 | 5 | **Readout** | Latitude, longitude, zoom, bearing and tilt of the frame |
@@ -35,39 +35,50 @@ buttons are replaced by **New map**.
 
 ## 2. The tool row
 
-The left half puts things **on** the map:
+The tool row holds two menus, **Add** and **Data**, and then three controls that set what the map
+**is**:
 
-![The left half of the tool row](media/02-tool-row.png)
-
-| # | Tool | What it does | Chapter |
-|---|---|---|---|
-| 1 | Pin | A dot that stays on a place while the camera moves | [10](10-pins.md) |
-| 2 | 3D pin | A pin that lies flat on the ground under the 3D camera | [10](10-pins.md) |
-| 3 | Callout | A leader line and a title box next to a place | 11 |
-| 4 | Route | A line between two places that draws on | 12 |
-| 5 | Attach | Pins **your own** layers (an icon, a photo, a precomp) to a place | 13 |
-| 6 | Highlight | Fills countries, provinces or districts with colour | 14 |
-| 7 | Import | GPX, TCX, KML, KMZ, GeoJSON, CSV or a zipped shapefile | 16 |
-| 8 | Your own drawing | Turns a Pen tool path you drew into a route or an area | 17 |
-| 9 | Numbers | Colours the map from a table (CSV) | 28 |
-| 10 | OpenStreetMap | Finds rivers, parks, airports, buildings… in the area you see | 18 |
-| 11 | Save as GeoJSON | Writes what is on the map back out to a file | 19 |
-
-The right half sets what the map **is**:
-
-![The right half of the tool row](media/02-tool-row-right.png)
+![The tool row](media/02-tool-row.png)
 
 | # | Control | What it does | Chapter |
 |---|---|---|---|
-| 1 | Auto labels | Names of countries, cities, seas and mountains as text layers | 20 |
-| 2 | Animate borders | Country borders draw on over four seconds | 21 |
-| 3 | 3D camera | An After Effects camera that matches the map, for your own 3D layers | 8 |
-| 4 | Look | Colours, relief, sky, imagery, terrain, scale bar, inset map | 22–26 |
-| 5 | Basemap | What the map is drawn from: the world, or an area you downloaded | 5 |
-| 6 | Download this area | Street-level detail for the area in the preview, kept offline | 27 |
-| 7 | Globe | A planet at low zoom that turns into the flat map by zoom 8 | 5 |
+| 1 | **Add** | Puts things **on** the map: pins, callouts, routes, highlights, your own layers, labels, borders, the 3D camera | below |
+| 2 | **Data** | Brings data **in** and takes it **out**: files, numbers, OpenStreetMap, your own drawing | below |
+| 3 | **Look** | Colours, relief, sky, imagery, terrain, scale bar, inset map | 22–26 |
+| 4 | Basemap | What the map is drawn from: the world, or an area you downloaded | 5 |
+| 5 | Globe | A planet at low zoom that turns into the flat map by zoom 8 | 5 |
 
-A tool that is lit (like the globe above) is on. Most tools are greyed out until a map exists.
+Click **Add** or **Data** to open its list; click a tool in the list to use it. The manual writes
+this as **Add > Pin**. Escape or a click anywhere else closes the list.
+
+![The Add menu](media/02-menu-add.png)
+
+| # | Tool | What it does | Chapter |
+|---|---|---|---|
+| 1 | Pin | A dot that stays on a place while the camera moves (or Alt+click the map) | [10](10-pins.md) |
+| 2 | 3D pin | A pin that lies flat on the ground under the 3D camera (or Alt+Shift+click) | [10](10-pins.md) |
+| 3 | Callout | A leader line and a title box next to a place | [11](11-callouts.md) |
+| 4 | Route | A line between two places that draws on | [12](12-routes.md) |
+| 5 | Highlight countries | Fills countries, provinces or districts with colour | [14](14-highlights.md) |
+| 6 | Attach your layers | Pins **your own** layers (an icon, a photo, a precomp) to a place | [13](13-attach.md) |
+| 7 | Auto labels | Names of countries, cities, seas and mountains as text layers | [20](20-auto-labels.md) |
+| 8 | Animate borders | Country borders draw on over four seconds | [21](21-animate-borders.md) |
+| 9 | 3D camera | An After Effects camera that matches the map, for your own 3D layers | [8](08-quick-camera.md) |
+
+![The Data menu](media/02-menu-data.png)
+
+| # | Tool | What it does | Chapter |
+|---|---|---|---|
+| 1 | Import a file | GPX, TCX, KML, KMZ, GeoJSON, CSV or a zipped shapefile | [16](16-import.md) |
+| 2 | Numbers on the map | Colours the map from a table (CSV) | [28](28-numbers-colour.md) |
+| 3 | Find on OpenStreetMap | Finds rivers, parks, airports, buildings… in the area you see | [18](18-openstreetmap.md) |
+| 4 | Your own drawing | Turns a Pen tool path you drew into a route or an area | [17](17-your-own-drawing.md) |
+| 5 | Download this area | Street-level detail for the area in the preview, kept offline | [27](27-download-area.md) |
+| 6 | Save as GeoJSON | Writes what is on the map back out to a file | [19](19-save-geojson.md) |
+
+While a tool waits for a click on the map, **Add** lights up and shows that tool's icon, so you can
+see what is armed with the list closed. A tick in the list marks what is on: the armed tool, an open
+sheet, or the 3D camera once the map has one. Most tools are greyed out until a map exists.
 
 ## 3. Search
 

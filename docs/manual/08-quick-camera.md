@@ -2,7 +2,7 @@
 
 For a single move, you do not need a shot list. The strip under the preview keys the camera
 straight from the preview: one view, one flight, or the map following your hand. The **3D camera**
-in the tool row matches an After Effects camera to the map.
+in the **Add** menu matches an After Effects camera to the map.
 
 ## Keyframe view
 
@@ -55,7 +55,7 @@ it off before you go exploring, or every move you make lands in the timeline.
 
 ![The 3D camera button, lit once the map has its camera](media/08-camera-on.png)
 
-**3D camera** (the camera icon in the tool row) adds an After Effects camera, **Map Camera**, that
+**Add > 3D camera** adds an After Effects camera, **Map Camera**, that
 matches the map frame by frame: same position, same zoom, same turn, same tilt. A 3D layer of your
 own, laid on the ground plane, stays glued to the map in perspective; the easy way to put one on a
 place is a **3D pin** ([chapter 10](10-pins.md)) with your artwork parented to it.

@@ -8,7 +8,7 @@ animates in by itself, stays on its place while the camera moves, and goes away 
 ## Add a callout
 
 1. Put the time indicator where the callout should appear.
-2. Click **Callout** in the tool row (the speech bubble). The bar says *Click the place the callout
+2. Click **Add > Callout**. The bar says *Click the place the callout
    points at*.
 
    ![The Callout tool](media/11-callout-tool.png)

@@ -10,7 +10,7 @@ editable **text layer**.
 ## Place the names
 
 1. Select the map and key its camera first: the names are placed for the camera you have.
-2. Click **Auto labels** in the tool row (the letter A). The sheet opens:
+2. Click **Add > Auto labels**. The sheet opens:
 
    ![The Auto labels sheet](media/20-labels-sheet.png)
 

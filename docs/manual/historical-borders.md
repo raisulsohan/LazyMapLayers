@@ -13,7 +13,7 @@ New in LazyMapLayers 1.1; the colours as in 1.1.2.
 
 The borders are a separate download, so the main install stays small.
 
-1. Open **Look** (the palette in the tool row) and scroll to **Historical borders**.
+1. Open **Look** (in the tool row) and scroll to **Historical borders**.
 2. **Download** (13.9 MB, once). The pack goes into your LazyMapLayers data folder and works offline
    from then on.
 

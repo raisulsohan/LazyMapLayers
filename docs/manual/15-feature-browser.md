@@ -4,7 +4,7 @@ The feature browser lists everything the panel can put on a map (every country, 
 districts of one country, the shapes of an imported file, the areas of this map) in one list you can
 search, filter, sort and act on together.
 
-Open it from the Highlight sheet: **Highlight** in the tool row > **Browse features…**
+Open it from the Highlight sheet: **Add > Highlight countries** > **Browse features…**
 
 ![The feature browser](media/15-browser.png)
 

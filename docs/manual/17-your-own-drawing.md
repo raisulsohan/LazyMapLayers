@@ -19,7 +19,7 @@ panel turns it into a route or an area that **follows the map** from then on, cu
    ![The drawing in After Effects: an open path (a cruise) and a closed one (a zone)](media/17-drawing-in-ae.png)
 
 2. Select the layer (or several) in the timeline.
-3. Click **Your own drawing** in the tool row (the pen).
+3. Click **Data > Your own drawing**.
 
 The drawing is read **where the camera is at the current time** and opens like an imported file:
 

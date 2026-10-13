@@ -10,7 +10,7 @@ const setDuration = (s, seconds) =>
 
 export async function run(s) {
   await s.newMap("Trans-Siberian", { center: { lat: 55, lng: 85 }, zoom: 2.9, bearing: 0, pitch: 0 }, { duration: 8 });
-  await s.shot("16-import-tool", { mark: ["tool-import"], clip: { x: 0, y: 34, width: 520, height: 64 } });
+  await s.shot("16-import-tool", { mark: ["tool-import"], clip: { around: [".bar.tools", ".menu"] } });
   await s.importFile(sample("trans-siberian.gpx"));
   await s.shot("16-import-sheet", { mark: ["import-sheet"] });
   // Draw + arrow at the recorded pace, over 7 s from 0.5 s.

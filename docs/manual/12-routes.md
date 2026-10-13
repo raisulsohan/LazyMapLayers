@@ -9,7 +9,7 @@ an **arrow** that rides it, a bright **comet** head, or **dashes**.
 ## Draw a route
 
 1. Put the time indicator where the line should start drawing.
-2. Click **Route** in the tool row. The bar says *Click where the route starts*.
+2. Click **Add > Route**. The bar says *Click where the route starts*.
 
    ![The Route tool](media/12-route-tool.png)
 

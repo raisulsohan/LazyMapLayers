@@ -292,10 +292,41 @@ export async function openSession() {
     },
 
     /**
+     * The panel-wide band that holds these elements (data-ids or CSS selectors; open menus count),
+     * for a shot's `clip: { around: [...] }`, so a clip follows the layout instead of fixed pixels.
+     */
+    async region(targets, { pad = 6, below = false } = {}) {
+      const box = await js(`(() => {
+        let top = Infinity, bottom = -Infinity;
+        for (const m of ${JSON.stringify(targets)}) {
+          let list = [...document.querySelectorAll('[data-id="' + m.replace(/"/g, "") + '"]')];
+          if (!list.length) { try { list = [...document.querySelectorAll(m)]; } catch (error) { list = []; } }
+          for (const e of list) { const r = e.getBoundingClientRect(); if (!r.height) continue; top = Math.min(top, r.top); bottom = Math.max(bottom, r.bottom); }
+        }
+        if (top === Infinity) throw new Error("nothing to clip around: ${targets.join(", ").replace(/"/g, "")}");
+        return { top, bottom, width: document.documentElement.clientWidth, height: document.documentElement.clientHeight };
+      })()`);
+      const y = Math.max(0, Math.floor(box.top - pad));
+      const end = Math.min(box.height, Math.ceil(box.bottom + pad + (below ? 24 : 0)));
+      return { x: 0, y, width: box.width, height: end - y };
+    },
+
+    /**
      * A screenshot of the panel into docs/manual/media/<name>.png. `mark` rings controls (data-ids
      * or CSS selectors) with numbered badges, so a chapter's steps can point at them.
      */
     async shot(name, { mark = [], clip, badges = "corner" } = {}) {
+      // A tool inside a closed menu (D106) is hidden and has no size: open its menu first.
+      const opened = await js(`(() => {
+        const find = (m) => { let e = document.querySelector('[data-id="' + m.replace(/"/g, "") + '"]'); if (!e) { try { e = document.querySelector(m); } catch (error) { e = null; } } return e; };
+        let n = 0;
+        for (const m of ${JSON.stringify(mark)}) {
+          const menu = find(m)?.closest(".menu[hidden]");
+          if (menu) { menu.previousElementSibling.click(); n++; }
+        }
+        return n;
+      })()`);
+      if (opened) await sleep(300);
       await js(`(() => {
         document.querySelectorAll(".lml-manual-mark").forEach((m) => m.remove());
         const marks = ${JSON.stringify(mark)};
@@ -324,9 +355,13 @@ export async function openSession() {
       })()`);
       await sleep(150);
       const params = { format: "png" };
-      if (clip) params.clip = { ...clip, scale: 1 };
+      if (clip) params.clip = { ...(clip.around ? { ...(await s.region(clip.around, { pad: clip.pad, below: badges === "below" })), ...(clip.width ? { width: clip.width } : {}) } : clip), scale: 1 };
       const result = await panel.send("Page.captureScreenshot", params);
       await js(`(document.querySelectorAll(".lml-manual-mark").forEach((m) => m.remove()), true)`);
+      if (opened) {
+        await js(`(document.querySelectorAll(".menu:not([hidden])").forEach((m) => m.previousElementSibling.click()), true)`);
+        await sleep(250);
+      }
       const file = path.join(media, `${name}.png`);
       fs.writeFileSync(file, Buffer.from(result.data, "base64"));
       console.log(`  ${path.relative(root, file)}`);
