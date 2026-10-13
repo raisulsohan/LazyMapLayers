@@ -24,6 +24,12 @@
   box-sizing: border-box;
 }
 
+/* Parts that are folded away stay in the page (tests and scripts still reach them). A class that
+   sets display would otherwise show them. */
+[hidden] {
+  display: none !important;
+}
+
 html,
 body {
   margin: 0;
@@ -217,10 +223,6 @@ select:focus {
   border-radius: var(--radius);
   background: var(--raised);
   box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
-}
-
-.menu[hidden] {
-  display: none;
 }
 
 .menu-item {
@@ -914,6 +916,37 @@ select.compact {
 }
 
 /* Render tab */
+.fold {
+  width: 100%;
+  gap: 6px;
+  padding: 6px 8px;
+  border-radius: 0;
+  border-bottom: 1px solid var(--line);
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.fold:hover:not(:disabled) {
+  background: var(--panel);
+}
+
+.fold .icon {
+  color: var(--muted);
+}
+
+.fold-title {
+  font-weight: 600;
+}
+
+.fold-summary {
+  flex: 1 1 auto;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: var(--muted);
+}
+
 .passes {
   gap: 4px 12px;
 }
@@ -923,8 +956,42 @@ select.compact {
 }
 
 .job {
-  padding: 5px 0 6px;
+  padding: 4px 0;
   border-bottom: 1px solid var(--line);
+}
+
+.job-mark {
+  flex: none;
+  display: flex;
+  color: var(--muted);
+}
+
+.job.failed .job-mark,
+.job.interrupted .job-mark {
+  color: var(--bad);
+}
+
+.job.running .job-mark {
+  color: var(--accent);
+}
+
+.job-meta {
+  flex: none;
+  color: var(--muted);
+  font-size: 10.5px;
+  font-variant-numeric: tabular-nums;
+}
+
+.job.failed .job-meta,
+.job.interrupted .job-meta {
+  color: var(--bad);
+}
+
+/* What a job wants the user to know, under its row, lined up with its name. */
+.job-note {
+  padding: 2px 0 0 18px;
+  font-size: 10.5px;
+  line-height: 1.35;
 }
 
 .job:last-child {
@@ -943,21 +1010,6 @@ select.compact {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
-}
-
-.job-status {
-  color: var(--muted);
-  font-size: 11px;
-}
-
-/* Done is the normal end of a job, so it stays quiet; only trouble gets a colour. */
-.job.done .job-status {
-  color: var(--muted);
-}
-
-.job.failed .job-status,
-.job.interrupted .job-status {
-  color: var(--bad);
 }
 
 .small-button {
@@ -1151,6 +1203,10 @@ select.compact {
   align-items: center;
   gap: 6px;
   padding: 4px 0;
+}
+
+.render-tab > .disk-line {
+  padding: 8px;
 }
 
 /* The feature browser: a long list that scrolls inside the sheet. */

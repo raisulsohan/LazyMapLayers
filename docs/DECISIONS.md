@@ -887,7 +887,7 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
-## D106 — A calmer panel: the tool row becomes two menus (2026-10-13)
+## D106 — A calmer panel: two tool menus and a lighter Render tab (2026-10-13)
 
 - **Why.** A user compared the panel with GEOlayers 3 and found it hard and messy. The tool row held
   seventeen unlabelled controls in one line; on a panel about 390 px wide it ran out of room and cut
@@ -905,6 +905,12 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Same ids.** Each tool keeps its `data-id`, and a closed menu is only hidden, so the in-AE tests
   (which call `click()` on the element) and the scripting of the panel work as before. The manual's
   pictures of the tool row and its captures that mark tool positions need a new capture.
+- **The Render tab (step 3).** The settings fold into one line that names them and open on a
+  click; they stay in the page while folded, like the menus. A render is one row with its frames and
+  time. The queue keeps `stats` and `notes` beside `summary` (which the log and the tests still read),
+  so the tab shows the numbers and the warnings apart without parsing a sentence; only the notes
+  (street detail missing, the map grown, the camera in the mountains, an error) take a line of their
+  own. A render whose map is in another project is shown as waiting for it, not as failed.
 - **Not copied.** The grouping follows what the tools do; names, icons and colours are our own.
 
 ## D105 — TCX import, Connect from a hub, and the borders between areas (2026-10-12)

@@ -12,6 +12,12 @@
   OpenStreetMap, your own drawing, download this area, save as GeoJSON), then **Look**, the basemap
   and the globe. Alt+click and Alt+Shift+click still drop pins, and the menu shows them; while a tool
   is armed, **Add** lights up with its icon (D106).
+- **A lighter Render tab.** The render settings fold into one line that says what they are ("2×
+  supersampling · no motion blur · 2 passes") and open with a click. Each render is one row: a mark,
+  the map, Preview or Final, and its frames and time; what needs you (frames without street detail, a
+  map in another project, an error) is spelled out under it, and the rest waits in the row's tooltip.
+  A render whose map is in another project no longer shows as failed. **Renders on disk** moves to
+  the bottom.
 
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 

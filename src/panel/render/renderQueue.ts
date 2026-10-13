@@ -14,6 +14,10 @@ export type QueueJob = {
   status: QueueStatus;
   progress: RenderProgress | null;
   summary: string | null;
+  /** A finished render's numbers, for the one-line row of the Render tab (D106). */
+  stats?: { frames: number; rendered: number; reused: number; seconds: number; info: string[] };
+  /** What a finished render wants the user to know or act on, one line each (also in summary). */
+  notes?: string[];
   error: string | null;
   addedAt: number;
   finishedAt: number | null;
@@ -37,13 +41,14 @@ export function lackingReason(why: string | null): string {
   return why ? `fetching failed: ${why}` : "";
 }
 
-/** The street detail part of a finished render's summary. */
-export function streetDetailSummary(report: StreetDetailReport | undefined): string {
-  if (!report) return "";
-  const fetched = report.fetched ? ` · street detail: ${report.fetched} tiles fetched (${(report.bytes / 1048576).toFixed(1)} MB)` : "";
-  const lacking = report.lackingText ? ` · ${report.lackingText} lack street detail (${lackingReason(report.why)}) and show what this computer holds; render again online and only those frames are drawn again` : "";
-  const unforeseen = report.unforeseen ? ` · ${report.unforeseen} tiles the frames asked for were not to be had` : "";
-  return `${fetched}${lacking}${unforeseen}`;
+/** The street detail parts of a finished render's summary: what was fetched, and what fell short. */
+export function streetDetailParts(report: StreetDetailReport | undefined): { info: string[]; notes: string[] } {
+  if (!report) return { info: [], notes: [] };
+  const info = report.fetched ? [`street detail: ${report.fetched} tiles fetched (${(report.bytes / 1048576).toFixed(1)} MB)`] : [];
+  const notes: string[] = [];
+  if (report.lackingText) notes.push(`${report.lackingText} lack street detail (${lackingReason(report.why)}) and show what this computer holds; render again online and only those frames are drawn again`);
+  if (report.unforeseen) notes.push(`${report.unforeseen} tiles the frames asked for were not to be had`);
+  return { info, notes };
 }
 
 export function describeSpec(spec: RenderJobSpec): string {
@@ -167,7 +172,7 @@ export class RenderQueue {
   resume(id: string): void {
     const job = this.jobs.find((j) => j.id === id);
     if (!job || job.status === "queued" || job.status === "running") return;
-    Object.assign(job, { status: "queued", progress: null, summary: null, error: null, finishedAt: null });
+    Object.assign(job, { status: "queued", progress: null, summary: null, stats: undefined, notes: undefined, error: null, finishedAt: null });
     // Move it behind jobs that are already waiting.
     this.jobs = [...this.jobs.filter((j) => j !== job), job];
     this.save();
@@ -220,7 +225,13 @@ export class RenderQueue {
           });
           job.status = "done";
           const seconds = (result.totalMs / 1000).toFixed(1);
-          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s${result.grewFrom !== undefined ? ` · the map was ${result.grewFrom.toFixed(1)} s and now runs to the end of its scene` : ""}${result.cameraLifted ? ` · the camera was inside the mountains in ${result.cameraLifted} frames (raise it or lower Terrain Height; pins drift there)` : ""}${streetDetailSummary(result.streetDetail)}`;
+          const detail = streetDetailParts(result.streetDetail);
+          const warnings: string[] = [];
+          if (result.grewFrom !== undefined) warnings.push(`the map was ${result.grewFrom.toFixed(1)} s and now runs to the end of its scene`);
+          if (result.cameraLifted) warnings.push(`the camera was inside the mountains in ${result.cameraLifted} frames (raise it or lower Terrain Height; pins drift there)`);
+          job.stats = { frames: result.frames, rendered: result.rendered, reused: result.reused, seconds: Number(seconds), info: detail.info };
+          job.notes = [...warnings, ...detail.notes];
+          job.summary = `${result.frames} frames: ${result.rendered} rendered, ${result.reused} reused · ${seconds} s${[...warnings, ...detail.info, ...detail.notes].map((part) => ` · ${part}`).join("")}`;
         } catch (error) {
           if (error instanceof RenderCancelled) {
             job.status = "cancelled";

@@ -1,12 +1,14 @@
-// Render settings of the selected map and the render queue.
+// Render settings of the selected map and the render queue: the settings fold into one line, and
+// each job is one row, with only what needs action spelled out under it (D106).
 
 import type { JSX } from "preact";
+import { signal } from "@preact/signals";
 import { PASS_IDS, PASS_INFO } from "../../core/render/passes.ts";
 import { MAP_GONE } from "../render/renderJob.ts";
-import { describeSpec, renderQueue } from "../render/renderQueue.ts";
+import { describeSpec, renderQueue, type QueueJob, type QueueStatus } from "../render/renderQueue.ts";
 import { busy, checkRenderDisk, jobs, removeOldRenders, renderDisk, renderDiskBusy, renderSettings, selected, togglePass, updateRenderSettings } from "../store.ts";
 import { formatBytes } from "../render/renderDisk.ts";
-import { Icon } from "./icons.tsx";
+import { Icon, type IconName } from "./icons.tsx";
 
 /** What the renders take on disk, with the one thing that can safely go: renders of unsaved projects that are gone. */
 function DiskLine(): JSX.Element {
@@ -43,14 +45,119 @@ const STAGE_LABELS = { camera: "Reading camera", detail: "Fetching street detail
 
 const megabytes = (bytes: number) => (bytes / 1048576).toFixed(1);
 
+/** Open while the user works on the settings; folded to one line otherwise. Not saved. */
+const settingsOpen = signal(false);
+
+const STATUS_MARK: Record<QueueStatus, { icon: IconName; text: string }> = {
+  queued: { icon: "clock", text: "Queued" },
+  running: { icon: "play", text: "Rendering" },
+  done: { icon: "check", text: "Done" },
+  failed: { icon: "warning", text: "Failed" },
+  cancelled: { icon: "x", text: "Cancelled" },
+  interrupted: { icon: "warning", text: "Interrupted: After Effects closed while it ran" }
+};
+
+function duration(seconds: number): string {
+  if (seconds < 60) return `${seconds.toFixed(1)} s`;
+  const minutes = Math.floor(seconds / 60);
+  return `${minutes} min ${Math.round(seconds - minutes * 60)} s`;
+}
+
+/** The settings as one line, for the folded header. */
+function settingsLine(settings: typeof renderSettings.value): string {
+  const passes = settings.passes.filter((p) => p !== "base").length;
+  return [
+    settings.supersample > 1 ? `${settings.supersample}× supersampling` : "No supersampling",
+    settings.motionBlur ? `motion blur ${settings.motionBlurSamples}` : "no motion blur",
+    passes ? `${passes} pass${passes === 1 ? "" : "es"}` : "no passes"
+  ].join(" · ");
+}
+
+function JobRow(props: { job: QueueJob }): JSX.Element {
+  const job = props.job;
+  // A job whose map is in another project is not broken; it only waits for that project.
+  const mark = job.missing ? { icon: "x" as IconName, text: "Its map is in another project" } : STATUS_MARK[job.status];
+  const stats = job.stats;
+  const kind = job.spec.quality === "preview" ? "Preview" : "Final";
+  const tooltip = [describeSpec(job.spec), job.summary, ...(stats?.info ?? [])].filter(Boolean).join("\n");
+  return (
+    <div class={`job ${job.missing ? "missing" : job.status}`} title={tooltip}>
+      <div class="job-head">
+        <span class="job-mark" title={mark.text}>
+          <Icon name={mark.icon} size={12} />
+        </span>
+        <span class="job-title">
+          <strong>{job.mapName}</strong> · {kind}
+        </span>
+        {stats && (
+          <span class="job-meta" title={`${stats.rendered} rendered, ${stats.reused} reused`}>
+            {stats.frames} frames · {duration(stats.seconds)}
+          </span>
+        )}
+        {!job.missing && (job.status === "queued" || job.status === "failed" || job.status === "cancelled" || job.status === "interrupted") && <span class="job-meta">{job.status}</span>}
+        {(job.status === "running" || job.status === "queued") && (
+          <button class="small-button" onClick={() => renderQueue.cancel(job.id)}>
+            Cancel
+          </button>
+        )}
+        {!job.missing && (job.status === "interrupted" || job.status === "cancelled" || job.status === "failed") && (
+          <button class="small-button" onClick={() => renderQueue.resume(job.id)} title="Continue; frames already rendered are reused">
+            Resume
+          </button>
+        )}
+        {job.status !== "running" && job.status !== "queued" && (
+          <button class="icon-button flat" onClick={() => renderQueue.remove(job.id)} title="Remove from the list" aria-label="Remove from the list">
+            <Icon name="x" size={12} />
+          </button>
+        )}
+      </div>
+      {job.status === "running" && job.progress && (
+        <div class="progress">
+          <div class="bar" style={{ width: `${Math.round((100 * job.progress.done) / Math.max(1, job.progress.total))}%` }} />
+          <span>
+            {job.progress.stage === "detail"
+              ? `${STAGE_LABELS.detail} ${megabytes(job.progress.done)}/${megabytes(job.progress.total)} MB`
+              : `${STAGE_LABELS[job.progress.stage]} ${job.progress.done}/${job.progress.total} · ${job.progress.rendered} rendered · ${job.progress.reused} reused`}
+          </span>
+        </div>
+      )}
+      {job.notes?.map((note, i) => (
+        <div key={i} class="job-note warning">
+          {note}
+        </div>
+      ))}
+      {!stats && job.summary && <div class="job-note muted">{job.summary}</div>}
+      {job.missing ? (
+        <div class="job-note muted" title={`${MAP_GONE}. Open that project to render it again, or remove this job.`}>
+          Its map is not in the project that is open now
+        </div>
+      ) : (
+        job.error && (
+          <div class="job-note warning" title={job.error}>
+            {job.error}
+          </div>
+        )
+      )}
+    </div>
+  );
+}
+
 export function RenderTab(): JSX.Element {
   const settings = renderSettings.value;
   const entry = selected.value;
+  const open = settingsOpen.value;
   return (
     <div class="render-tab">
       {!entry && <div class="empty muted">Create or select a map to render it.</div>}
       {entry && (
-        <div class="editor flush">
+        <button class={`fold ${open ? "open" : ""}`} data-id="render-settings" aria-expanded={open} onClick={() => (settingsOpen.value = !open)} title="Supersampling, motion blur and passes of this map's renders">
+          <Icon name={open ? "chevronDown" : "chevronRight"} size={11} />
+          <span class="fold-title">Settings</span>
+          {!open && <span class="fold-summary">{settingsLine(settings)}</span>}
+        </button>
+      )}
+      {entry && (
+        <div class="editor flush" hidden={!open}>
           <div class="field-row">
             <label class="num-field grow" title="Each pixel is averaged from several samples on the GPU: smoother lines and text edges">
               <span>Supersampling</span>
@@ -98,52 +205,12 @@ export function RenderTab(): JSX.Element {
           <div>Render preview is fast (half size). Render makes the final frames; only frames that changed are drawn again.</div>
         </div>
       )}
-      <DiskLine />
       <div class="queue">
         {jobs.value.map((job) => (
-          <div key={job.id} class={`job ${job.status}`}>
-            <div class="job-head">
-              <span class="job-title">
-                <strong>{job.mapName}</strong> · {describeSpec(job.spec)}
-              </span>
-              <span class="job-status">{job.status}</span>
-              {(job.status === "running" || job.status === "queued") && (
-                <button class="small-button" onClick={() => renderQueue.cancel(job.id)}>
-                  Cancel
-                </button>
-              )}
-              {!job.missing && (job.status === "interrupted" || job.status === "cancelled" || job.status === "failed") && (
-                <button class="small-button" onClick={() => renderQueue.resume(job.id)} title="Continue; frames already rendered are reused">
-                  Resume
-                </button>
-              )}
-              {job.status !== "running" && job.status !== "queued" && (
-                <button class="small-button" onClick={() => renderQueue.remove(job.id)} title="Remove from the list">
-                  ✕
-                </button>
-              )}
-            </div>
-            {job.status === "running" && job.progress && (
-              <div class="progress">
-                <div class="bar" style={{ width: `${Math.round((100 * job.progress.done) / Math.max(1, job.progress.total))}%` }} />
-                <span>
-                  {job.progress.stage === "detail"
-                    ? `${STAGE_LABELS.detail} ${megabytes(job.progress.done)}/${megabytes(job.progress.total)} MB`
-                    : `${STAGE_LABELS[job.progress.stage]} ${job.progress.done}/${job.progress.total} · ${job.progress.rendered} rendered · ${job.progress.reused} reused`}
-                </span>
-              </div>
-            )}
-            {job.summary && <div class="small muted">{job.summary}</div>}
-            {job.missing ? (
-              <div class="small muted" title="Open the project this map is in to render it again, or remove this job.">
-                {MAP_GONE}. Open that project to render it again, or remove this job.
-              </div>
-            ) : (
-              job.error && <div class="small warning">{job.error}</div>
-            )}
-          </div>
+          <JobRow key={job.id} job={job} />
         ))}
       </div>
+      <DiskLine />
     </div>
   );
 }
