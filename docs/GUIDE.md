@@ -8,7 +8,7 @@ install and a first flight; this is the rest.
 1. **Maps** (the list icon) > **Build the world flight sample**. A scene appears in After Effects with
    a globe, borders drawing on, a flight to Paris and a route to Tokyo.
 2. In the panel, **Preview**. The basemap renders at half size in a few seconds; scrub the timeline.
-3. The **names**: open the Labels sheet (the text icon), keep **Countries, Cities, Seas and rivers,
+3. The **names**: open the Labels sheet (**Add > Auto labels**), keep **Countries, Cities, Seas and rivers,
    Mountains and deserts** on, **Place labels**. Every name is an ordinary text layer.
 4. Your **own place**: type a city or a street in the search box (for a street, **Search
    OpenStreetMap**), then the pin button beside the result.
@@ -82,10 +82,16 @@ are replaced. Double-click a shot to see it; **Update from preview** replaces a 
 **Keyframe view** keys the preview's view at the current time. **Fly here** keys one smooth flight
 from the camera at the current time to the preview (with a duration next to it). **Live link** moves
 the map at the current time while you move the preview. **Match AE** shows the camera of the current
-time in the preview. **3D camera** adds an After Effects camera that matches the map, so your own 3D
+time in the preview. **Add > 3D camera** adds an After Effects camera that matches the map, so your own 3D
 layers sit on the ground.
 
-## The tools (the row of icons)
+## The tools (the Add and Data menus)
+
+The tool row holds two menus. **Add** has what goes on the map: Pin, 3D pin, Callout, Route,
+Highlight countries, Attach your layers, Auto labels, Animate borders and 3D camera. **Data** has what
+comes in or goes out: Import a file, Numbers on the map, Find on OpenStreetMap, Your own drawing,
+Download this area and Save as GeoJSON. While a tool waits for a click on the map, **Add** lights up
+with its icon.
 
 **Pin** and **3D pin**: click the tool, then a place (or Alt+click the map). The layer is named after
 the place - "Pin: Dhaka". A 3D pin lies on the ground under the matched 3D camera.

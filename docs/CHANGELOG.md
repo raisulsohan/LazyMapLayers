@@ -1,6 +1,6 @@
 # Changelog
 
-## Unreleased
+## 1.4.0 — a calmer panel (2026-10-13)
 
 - **A calmer panel.** Text is After Effects' own size, every bar shares one grey, fields sit in dark
   wells and buttons lose their frames; Render is a soft tint instead of a block of blue, and a
