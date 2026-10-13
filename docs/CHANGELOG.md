@@ -1,5 +1,13 @@
 # Changelog
 
+## Unreleased
+
+- **A calmer panel.** Text is After Effects' own size, every bar shares one grey, fields sit in dark
+  wells and buttons lose their frames; Render is a soft tint instead of a block of blue, and a
+  finished job no longer shouts in green. On a narrow panel the tools take a second row instead of
+  cutting off Render and the basemap, and the view numbers move above the map credit instead of
+  running into it.
+
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 
 - **TCX files.** The import button reads TCX files from Garmin and other watches and bike computers.

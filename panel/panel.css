@@ -1,18 +1,22 @@
+/* Calm, After Effects-sized chrome: one grey for every bar, wells for fields, hairlines only where
+   areas meet, and the accent kept for what is on or chosen. */
 :root {
-  --bg: #1e1e1e;
-  --panel: #262626;
-  --raised: #2e2e2e;
-  --line: #383838;
-  --text: #d8d8d8;
-  --muted: #8d8d8d;
+  --bg: #232323;
+  --panel: #2a2a2a;
+  --raised: #2f2f2f;
+  --well: #1b1b1b;
+  --line: #303030;
+  --line-strong: #3d3d3d;
+  --text: #cdcdcd;
+  --muted: #868686;
   --accent: #36b3ff;
   --accent-soft: rgba(54, 179, 255, 0.14);
   --good: #58c27d;
   --bad: #ff6b6b;
   --warn: #f2b84b;
-  --radius: 5px;
+  --radius: 4px;
   font-family: "Segoe UI", system-ui, -apple-system, sans-serif;
-  font-size: 12px;
+  font-size: 11px;
   color: var(--text);
 }
 
@@ -45,7 +49,7 @@ input {
   font: inherit;
   color: var(--text);
   background: var(--raised);
-  border: 1px solid var(--line);
+  border: 1px solid transparent;
   border-radius: var(--radius);
   min-width: 0;
 }
@@ -54,25 +58,31 @@ button {
   display: inline-flex;
   align-items: center;
   gap: 5px;
-  padding: 4px 9px;
+  padding: 3px 8px;
   cursor: pointer;
   white-space: nowrap;
 }
 
 button:hover:not(:disabled) {
-  border-color: var(--accent);
+  background: #383838;
+  color: #fff;
 }
 
 button:disabled {
-  opacity: 0.45;
+  opacity: 0.4;
   cursor: default;
 }
 
+/* The one main action of a screen: a soft tint, not a block of colour. */
 button.primary {
-  background: var(--accent);
-  border-color: var(--accent);
-  color: #06121a;
+  background: rgba(54, 179, 255, 0.2);
+  color: #8fd3ff;
   font-weight: 600;
+}
+
+button.primary:hover:not(:disabled) {
+  background: rgba(54, 179, 255, 0.32);
+  color: #d4efff;
 }
 
 button.danger {
@@ -89,7 +99,13 @@ button.wide {
 
 select,
 input {
-  padding: 3px 6px;
+  padding: 2px 6px;
+  background: var(--well);
+}
+
+select:hover:not(:disabled),
+input:hover:not(:disabled) {
+  border-color: var(--line-strong);
 }
 
 input[type="number"] {
@@ -113,15 +129,14 @@ select:focus {
 }
 
 .icon-button {
-  padding: 4px;
+  padding: 3px;
   background: transparent;
   border-color: transparent;
-  color: #b9b9b9;
+  color: #a6a6a6;
 }
 
 .icon-button:hover:not(:disabled) {
   background: var(--raised);
-  border-color: var(--line);
   color: #fff;
 }
 
@@ -140,15 +155,25 @@ select:focus {
   flex: none;
   display: flex;
   align-items: center;
-  gap: 3px;
-  padding: 4px 6px;
-  border-bottom: 1px solid var(--line);
-  background: var(--panel);
+  gap: 2px;
+  padding: 3px 6px;
+  background: var(--bg);
 }
 
 .bar.header {
   gap: 5px;
-  padding: 5px 6px;
+  padding: 5px 6px 2px;
+}
+
+/* On a narrow panel the tools take a second row instead of running out of sight. */
+.bar.tools {
+  flex-wrap: wrap;
+  row-gap: 1px;
+}
+
+.bar.tools .icon-button .icon {
+  width: 15px;
+  height: 15px;
 }
 
 .bar-title {
@@ -165,15 +190,15 @@ select:focus {
 }
 
 .bar.strip {
-  border-top: 1px solid var(--line);
+  padding: 4px 6px;
 }
 
 .divider {
   flex: none;
   width: 1px;
-  height: 16px;
-  margin: 0 3px;
-  background: var(--line);
+  height: 14px;
+  margin: 0 4px;
+  background: var(--line-strong);
 }
 
 .spacer {
@@ -201,9 +226,14 @@ select.compact {
   display: flex;
   align-items: center;
   gap: 4px;
-  padding: 3px 6px;
-  border-bottom: 1px solid var(--line);
-  background: var(--bg);
+  margin: 2px 6px 6px;
+  padding: 1px 6px;
+  border-radius: var(--radius);
+  background: var(--well);
+}
+
+.search:focus-within {
+  box-shadow: inset 0 0 0 1px var(--accent);
 }
 
 .search-icon {
@@ -314,12 +344,25 @@ select.compact {
   z-index: 5;
   left: 6px;
   bottom: 6px;
-  padding: 2px 6px;
+  padding: 1px 6px;
   border-radius: var(--radius);
-  background: rgba(0, 0, 0, 0.55);
-  font-family: Consolas, monospace;
-  font-size: 10.5px;
+  background: rgba(0, 0, 0, 0.45);
+  color: #a9a9a9;
+  font-size: 10px;
+  font-variant-numeric: tabular-nums;
   pointer-events: none;
+}
+
+/* A narrow preview has no room for the view numbers and the credit on one line: the numbers go
+   above it, and the place name above them. */
+@media (max-width: 480px) {
+  .view-readout {
+    bottom: 26px;
+  }
+
+  .here-readout {
+    bottom: 46px;
+  }
 }
 
 .update-banner {
@@ -377,18 +420,23 @@ select.compact {
   flex: none;
   display: flex;
   gap: 2px;
-  padding: 0 6px;
-  background: var(--panel);
+  padding: 2px 6px 0;
+  background: var(--bg);
   border-bottom: 1px solid var(--line);
 }
 
 .tab {
-  padding: 5px 10px;
+  padding: 4px 10px;
   border: none;
   border-bottom: 2px solid transparent;
   border-radius: 0;
   background: transparent;
   color: var(--muted);
+}
+
+.tab:hover:not(:disabled) {
+  background: transparent;
+  color: var(--text);
 }
 
 .tab.on {
@@ -808,8 +856,9 @@ select.compact {
   font-size: 11px;
 }
 
+/* Done is the normal end of a job, so it stays quiet; only trouble gets a colour. */
 .job.done .job-status {
-  color: var(--good);
+  color: var(--muted);
 }
 
 .job.failed .job-status,
@@ -861,14 +910,23 @@ select.compact {
   gap: 6px;
   padding: 3px 8px;
   border-top: 1px solid var(--line);
-  background: var(--panel);
+  background: var(--bg);
   color: var(--muted);
-  font-size: 11px;
+  font-size: 10.5px;
   cursor: pointer;
 }
 
 .status.ok {
-  color: var(--good);
+  color: var(--text);
+}
+
+.status.ok::before {
+  content: "";
+  flex: none;
+  width: 6px;
+  height: 6px;
+  border-radius: 50%;
+  background: var(--good);
 }
 
 .status.fail {
