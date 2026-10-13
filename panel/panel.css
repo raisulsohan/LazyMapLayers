@@ -176,6 +176,100 @@ select:focus {
   height: 15px;
 }
 
+/* Tool menus (D106): a labelled button and the list of tools under it. */
+.tool-menu {
+  position: relative;
+  flex: none;
+}
+
+.menu-button {
+  gap: 4px;
+  padding: 3px 6px;
+  background: transparent;
+  color: #b4b4b4;
+}
+
+.menu-button:hover:not(:disabled),
+.menu-button.open {
+  background: var(--raised);
+  color: #fff;
+}
+
+.menu-button.active {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+.menu-button .icon:last-child:not(:first-child) {
+  opacity: 0.6;
+}
+
+.menu {
+  position: absolute;
+  z-index: 30;
+  left: 0;
+  top: calc(100% + 3px);
+  display: flex;
+  flex-direction: column;
+  min-width: 210px;
+  padding: 4px;
+  border: 1px solid var(--line-strong);
+  border-radius: var(--radius);
+  background: var(--raised);
+  box-shadow: 0 8px 22px rgba(0, 0, 0, 0.5);
+}
+
+.menu[hidden] {
+  display: none;
+}
+
+.menu-item {
+  gap: 8px;
+  padding: 5px 8px;
+  background: transparent;
+  color: var(--text);
+  text-align: left;
+}
+
+.menu-item:hover:not(:disabled) {
+  background: var(--accent-soft);
+  color: #fff;
+}
+
+.menu-item.divided {
+  margin-top: 5px;
+  position: relative;
+}
+
+.menu-item.divided::before {
+  content: "";
+  position: absolute;
+  left: 6px;
+  right: 6px;
+  top: -3px;
+  height: 1px;
+  background: var(--line-strong);
+}
+
+.menu-item .icon {
+  color: #a6a6a6;
+}
+
+.menu-label {
+  flex: 1 1 auto;
+}
+
+.menu-hint {
+  color: var(--muted);
+  font-size: 10px;
+}
+
+.menu-tick {
+  flex: none;
+  width: 12px;
+  color: var(--accent);
+}
+
 .bar-title {
   font-weight: 600;
   overflow: hidden;

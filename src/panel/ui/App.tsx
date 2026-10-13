@@ -49,12 +49,14 @@ import {
   tab,
   themeId,
   tool,
+  type Tool,
   updateAvailable,
   view, importDrawing } from "../store.ts";
 import { themeById } from "../../core/style/themes.ts";
 import { hasImagery } from "../imagery/packs.ts";
 import { installedWorld } from "../osmTiles.ts";
-import { Icon, IconButton } from "./icons.tsx";
+import { Icon, IconButton, type IconName } from "./icons.tsx";
+import { ToolMenu } from "./ToolMenu.tsx";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
@@ -90,68 +92,110 @@ function Header(): JSX.Element {
   );
 }
 
+const PLACE_TOOLS: Tool[] = ["pin", "pin3d", "callout", "route", "highlight", "attach"];
+const TOOL_ICONS: Record<Tool, IconName> = { none: "pin", pin: "pin", pin3d: "pin3d", callout: "callout", route: "route", highlight: "highlight", attach: "attach" };
+
+/** The tool row (D106): two menus for what goes on the map and what comes in or out, then the look. */
 function ToolRow(): JSX.Element {
   const filePicker = useRef<HTMLInputElement>(null);
   const entry = selected.value;
   const off = busy.value || !entry;
+  const armed = tool.value;
   return (
     <div class="bar tools">
-      <IconButton icon="pin" id="tool-pin" title="Pin: click, then click a place on the map (or Alt+click the map any time)" disabled={off} active={tool.value === "pin"} onClick={() => armTool("pin")} />
-      <IconButton icon="pin3d" id="tool-pin3d" title="3D pin that lies on the ground under the matched 3D camera (or Alt+Shift+click the map)" disabled={off} active={tool.value === "pin3d"} onClick={() => armTool("pin3d")} />
-      <IconButton icon="callout" id="tool-callout" title="Callout: a leader line with a title box next to a place" disabled={off} active={tool.value === "callout"} onClick={() => armTool("callout")} />
-      <IconButton icon="route" id="tool-route" title="Route: a great-circle line between two places that draws on" disabled={off} active={tool.value === "route"} onClick={() => armTool("route")} />
-      <IconButton
-        icon="attach"
-        id="tool-attach"
-        title="Attach your own layers to a place: select them in After Effects, then click the place on the map. They stay on it while the camera moves."
-        disabled={busy.value}
-        active={tool.value === "attach"}
-        onClick={() => armTool("attach")}
+      <ToolMenu
+        id="menu-add"
+        icon={TOOL_ICONS[armed]}
+        label="Add"
+        title="Add to the map: pins, callouts, routes, highlighted countries, your own layers, labels, borders, a 3D camera"
+        armed={PLACE_TOOLS.includes(armed) || labelsSheetOpen.value}
+        items={[
+          { id: "tool-pin", icon: "pin", label: "Pin", hint: "Alt+click", title: "Pin: click, then click a place on the map (or Alt+click the map any time)", disabled: off, on: armed === "pin", onClick: () => armTool("pin") },
+          { id: "tool-pin3d", icon: "pin3d", label: "3D pin", hint: "Alt+Shift+click", title: "3D pin that lies on the ground under the matched 3D camera (or Alt+Shift+click the map)", disabled: off, on: armed === "pin3d", onClick: () => armTool("pin3d") },
+          { id: "tool-callout", icon: "callout", label: "Callout", title: "Callout: a leader line with a title box next to a place", disabled: off, on: armed === "callout", onClick: () => armTool("callout") },
+          { id: "tool-route", icon: "route", label: "Route", title: "Route: a great-circle line between two places that draws on", disabled: off, on: armed === "route", onClick: () => armTool("route") },
+          {
+            id: "tool-highlight",
+            icon: "highlight",
+            label: "Highlight countries",
+            title: "Highlight countries: click, then click countries on the map. They render as their own layer above the basemap. With a year under Historical borders, a click picks what lay there then, and Shift+click every land of its ruling power.",
+            disabled: busy.value,
+            on: armed === "highlight",
+            onClick: () => armTool("highlight")
+          },
+          {
+            id: "tool-attach",
+            icon: "attach",
+            label: "Attach your layers",
+            title: "Attach your own layers to a place: select them in After Effects, then click the place on the map. They stay on it while the camera moves.",
+            disabled: busy.value,
+            on: armed === "attach",
+            onClick: () => armTool("attach")
+          },
+          { id: "tool-labels", icon: "text", label: "Auto labels", title: "Auto labels: country and city names over the whole timeline", disabled: off, on: labelsSheetOpen.value, divider: true, onClick: () => (labelsSheetOpen.value = !labelsSheetOpen.value) },
+          { id: "tool-borders", icon: "borders", label: "Animate borders", title: "Animate borders: country borders draw on over 4 seconds from the current time", disabled: off, onClick: () => void animateBorders() },
+          {
+            id: "tool-camera",
+            icon: "camera",
+            label: "3D camera",
+            title: entry?.hasCamera ? "This map has its matched 3D camera" : "3D camera: an After Effects camera that matches the map, so 3D layers sit on the ground",
+            disabled: off || !!entry?.hasCamera,
+            on: !!entry?.hasCamera,
+            onClick: () => void addCamera()
+          }
+        ]}
       />
-      <IconButton icon="highlight" id="tool-highlight" title="Highlight countries: click, then click countries on the map. They render as their own layer above the basemap. With a year under Historical borders, a click picks what lay there then, and Shift+click every land of its ruling power." disabled={busy.value} active={tool.value === "highlight"} onClick={() => armTool("highlight")} />
-      <IconButton
+      <ToolMenu
+        id="menu-data"
         icon="import"
-        id="tool-import"
-        title="Import a GPX, TCX, KML, KMZ, GeoJSON, CSV or zipped shapefile: draw its lines as routes, run an arrow or the camera along them, pin its places, highlight its areas"
-        disabled={busy.value}
-        active={importSheetOpen.value}
-        onClick={() => {
-          if (imported.value) importSheetOpen.value = !importSheetOpen.value;
-          else filePicker.current?.click();
-        }}
-      />
-      <IconButton
-        icon="pen"
-        id="tool-drawing"
-        title="Your own drawing: draw over the map with the Pen tool (a shape layer or masks), select it, then click. Open paths become routes and closed ones areas that follow the map."
-        disabled={off}
-        onClick={() => void importDrawing()}
-      />
-      <IconButton
-        icon="chart"
-        id="tool-data"
-        title="Numbers on the map: import a CSV with a country column and a column of numbers, and every country is filled with the colour of its step"
-        disabled={busy.value}
-        active={dataSheetOpen.value}
-        onClick={() => {
-          if (dataTable.value) dataSheetOpen.value = !dataSheetOpen.value;
-          else document.querySelector<HTMLInputElement>('input[type="file"]')?.click();
-        }}
-      />
-      <IconButton
-        icon="osm"
-        id="tool-osm"
-        title="Find features on OpenStreetMap: rivers, lakes, parks, islands, airports, district boundaries, buildings - anything named, in the area the preview shows"
-        disabled={busy.value}
-        active={osmSheetOpen.value}
-        onClick={() => (osmSheetOpen.value = !osmSheetOpen.value)}
-      />
-      <IconButton
-        icon="copy"
-        id="export-geojson"
-        title="Save what is on this map (pins, routes, outlines, callouts and highlighted areas) as a GeoJSON file"
-        disabled={busy.value || !selected.value}
-        onClick={() => void exportGeoJson()}
+        label="Data"
+        title="Bring data in and take it out: files, numbers, OpenStreetMap, your own drawing, offline areas, GeoJSON"
+        armed={importSheetOpen.value || dataSheetOpen.value || osmSheetOpen.value}
+        items={[
+          {
+            id: "tool-import",
+            icon: "import",
+            label: imported.value ? "Imported file" : "Import a file…",
+            title: "Import a GPX, TCX, KML, KMZ, GeoJSON, CSV or zipped shapefile: draw its lines as routes, run an arrow or the camera along them, pin its places, highlight its areas",
+            disabled: busy.value,
+            on: importSheetOpen.value,
+            onClick: () => {
+              if (imported.value) importSheetOpen.value = !importSheetOpen.value;
+              else filePicker.current?.click();
+            }
+          },
+          {
+            id: "tool-data",
+            icon: "chart",
+            label: "Numbers on the map",
+            title: "Numbers on the map: import a CSV with a country column and a column of numbers, and every country is filled with the colour of its step",
+            disabled: busy.value,
+            on: dataSheetOpen.value,
+            onClick: () => {
+              if (dataTable.value) dataSheetOpen.value = !dataSheetOpen.value;
+              else filePicker.current?.click();
+            }
+          },
+          {
+            id: "tool-osm",
+            icon: "osm",
+            label: "Find on OpenStreetMap",
+            title: "Find features on OpenStreetMap: rivers, lakes, parks, islands, airports, district boundaries, buildings - anything named, in the area the preview shows",
+            disabled: busy.value,
+            on: osmSheetOpen.value,
+            onClick: () => (osmSheetOpen.value = !osmSheetOpen.value)
+          },
+          {
+            id: "tool-drawing",
+            icon: "pen",
+            label: "Your own drawing",
+            title: "Your own drawing: draw over the map with the Pen tool (a shape layer or masks), select it, then click. Open paths become routes and closed ones areas that follow the map.",
+            disabled: off,
+            onClick: () => void importDrawing()
+          },
+          { id: "download-area", icon: "download", label: "Download this area", title: "Download OpenStreetMap detail for the area in the preview (once, then it works offline)", disabled: busy.value, divider: true, onClick: openRegionSheet },
+          { id: "export-geojson", icon: "copy", label: "Save as GeoJSON", title: "Save what is on this map (pins, routes, outlines, callouts and highlighted areas) as a GeoJSON file", disabled: busy.value || !selected.value, onClick: () => void exportGeoJson() }
+        ]}
       />
       <input
         ref={filePicker}
@@ -165,21 +209,17 @@ function ToolRow(): JSX.Element {
           if (file) void importPicked(file);
         }}
       />
-      <span class="divider" />
-      <IconButton icon="text" id="tool-labels" title="Auto labels: country and city names over the whole timeline" disabled={off} active={labelsSheetOpen.value} onClick={() => (labelsSheetOpen.value = !labelsSheetOpen.value)} />
-      <IconButton icon="borders" id="tool-borders" title="Animate borders: country borders draw on over 4 seconds from the current time" disabled={off} onClick={() => void animateBorders()} />
-      <IconButton
-        icon="camera"
-        id="tool-camera"
-        title={entry?.hasCamera ? "This map has its matched 3D camera" : "3D camera: an After Effects camera that matches the map, so 3D layers sit on the ground"}
-        disabled={off || !!entry?.hasCamera}
-        active={!!entry?.hasCamera}
-        onClick={() => void addCamera()}
-      />
       <span class="spacer" />
-      <IconButton icon="palette" id="look" title="Look: ready looks or your own colours, sky, shaded relief, imagery, terrain, historical borders, scale bar, north arrow and inset map" active={lookSheetOpen.value} onClick={() => (lookSheetOpen.value = !lookSheetOpen.value)} />
+      <button
+        class={`menu-button ${lookSheetOpen.value ? "active" : ""}`}
+        data-id="look"
+        title="Look: ready looks or your own colours, sky, shaded relief, imagery, terrain, historical borders, scale bar, north arrow and inset map"
+        onClick={() => (lookSheetOpen.value = !lookSheetOpen.value)}
+      >
+        <Icon name="palette" size={15} />
+        <span>Look</span>
+      </button>
       <BasemapPicker />
-      <IconButton icon="download" id="download-area" title="Download OpenStreetMap detail for the area in the preview (once, then it works offline)" disabled={busy.value} onClick={openRegionSheet} />
       <IconButton
         icon="globe"
         id="globe"

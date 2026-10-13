@@ -7,6 +7,11 @@
   finished job no longer shouts in green. On a narrow panel the tools take a second row instead of
   cutting off Render and the basemap, and the view numbers move above the map credit instead of
   running into it.
+- **Two menus instead of seventeen buttons.** The tool row now shows **Add** (pins, callouts,
+  routes, highlights, your own layers, labels, borders, the 3D camera) and **Data** (import, numbers,
+  OpenStreetMap, your own drawing, download this area, save as GeoJSON), then **Look**, the basemap
+  and the globe. Alt+click and Alt+Shift+click still drop pins, and the menu shows them; while a tool
+  is armed, **Add** lights up with its icon (D106).
 
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 

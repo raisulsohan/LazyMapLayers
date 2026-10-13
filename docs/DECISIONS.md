@@ -887,6 +887,26 @@ Short records of choices that change or extend `docs/PLAN.md`. Newest last.
 - **Tested.** The unit test that rebuilds every bundled look from its own colours covers them; TH1
   renders all twelve into the contact sheet.
 
+## D106 — A calmer panel: the tool row becomes two menus (2026-10-13)
+
+- **Why.** A user compared the panel with GEOlayers 3 and found it hard and messy. The tool row held
+  seventeen unlabelled controls in one line; on a panel about 390 px wide it ran out of room and cut
+  off Render and the basemap. Step 1 (c7d72b5) calmed the look in CSS alone; this is step 2.
+- **Decision.** The row keeps four things in sight: **Add** and **Data**, two labelled menus, then
+  **Look**, the basemap and the globe.
+  - **Add**: Pin, 3D pin, Callout, Route, Highlight countries, Attach your layers; under a line,
+    Auto labels, Animate borders, 3D camera. Everything that puts something on the map.
+  - **Data**: Import a file, Numbers on the map, Find on OpenStreetMap, Your own drawing; under a
+    line, Download this area, Save as GeoJSON. Everything that comes in or goes out.
+- **What stays quick.** Alt+click still drops a pin and Alt+Shift+click a 3D pin; the menu shows
+  these next to the tools. While a tool is armed, the Add button lights up and wears that tool's
+  icon, so the armed state is never hidden inside a closed menu. An open sheet lights its menu the
+  same way.
+- **Same ids.** Each tool keeps its `data-id`, and a closed menu is only hidden, so the in-AE tests
+  (which call `click()` on the element) and the scripting of the panel work as before. The manual's
+  pictures of the tool row and its captures that mark tool positions need a new capture.
+- **Not copied.** The grouping follows what the tools do; names, icons and colours are our own.
+
 ## D105 — TCX import, Connect from a hub, and the borders between areas (2026-10-12)
 
 - **Why.** The File import and Feature browser rows of COMPARISON.md: GEOlayers 3 reads TCX, and its
