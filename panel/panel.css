@@ -1086,6 +1086,24 @@ select.compact {
   white-space: nowrap;
 }
 
+/* The author's credit on the status line, a link to the manual. */
+.made-by {
+  flex: none;
+  color: var(--muted);
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.made-by-name {
+  color: #ff8a3d;
+  font-weight: 600;
+}
+
+.made-by:hover .made-by-name {
+  color: #ffb07a;
+  text-decoration: underline;
+}
+
 .log {
   flex: 0 0 auto;
   max-height: 34%;

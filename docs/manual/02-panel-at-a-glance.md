@@ -135,8 +135,9 @@ All of these are in [chapter 8](08-quick-camera.md).
 
 ## 8. The status line and the log
 
-The bottom line repeats the last thing the panel did, in green when it worked and in red when it
-did not. Click it to open the whole log:
+The bottom line repeats the last thing the panel did, with a green dot when it worked and in red
+when it did not. Click it to open the whole log. At its right end, **Created by Raisul Sohan** opens
+this manual in your browser.
 
 ![The log, opened from the status line](media/02-log.png)
 

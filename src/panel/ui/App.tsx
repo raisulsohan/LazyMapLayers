@@ -57,6 +57,7 @@ import { hasImagery } from "../imagery/packs.ts";
 import { installedWorld } from "../osmTiles.ts";
 import { Icon, IconButton, type IconName } from "./icons.tsx";
 import { ToolMenu } from "./ToolMenu.tsx";
+import { openUrl } from "../cep.ts";
 import { RenderTab } from "./RenderTab.tsx";
 import { BasemapPicker, MapsScreen, NewMapScreen, SettingsScreen } from "./Screens.tsx";
 import { SearchBar } from "./SearchBar.tsx";
@@ -257,6 +258,8 @@ function Strip(): JSX.Element {
   );
 }
 
+const MANUAL_URL = "https://raisulsohan.com/en/portfolio/lazymaplayers/documentation/manual/";
+
 function StatusLine(): JSX.Element {
   const lines = logLines.value;
   const last = lines[lines.length - 1];
@@ -283,6 +286,19 @@ function StatusLine(): JSX.Element {
         ) : (
           <span class="status-text">{busy.value ? "Working…" : last?.text ?? hostInfo.value}</span>
         )}
+        <a
+          class="made-by"
+          data-id="made-by"
+          href={MANUAL_URL}
+          title="The LazyMapLayers manual on raisulsohan.com (opens in your browser)"
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            openUrl(MANUAL_URL);
+          }}
+        >
+          Created by <span class="made-by-name">Raisul Sohan</span>
+        </a>
         {p?.cancel && (
           <button
             class="small-button"
