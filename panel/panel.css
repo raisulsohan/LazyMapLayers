@@ -171,6 +171,32 @@ select:focus {
   padding: 5px 6px 2px;
 }
 
+/* The manual, beside the map's name: always in sight, quiet until pointed at. */
+.manual-link {
+  flex: none;
+  display: inline-flex;
+  align-items: center;
+  gap: 4px;
+  margin-left: 2px;
+  padding: 2px 6px;
+  border-radius: var(--radius);
+  color: #9a9a9a;
+  text-decoration: none;
+  white-space: nowrap;
+}
+
+.manual-link:hover {
+  background: var(--accent-soft);
+  color: var(--accent);
+}
+
+/* A very narrow panel keeps the book and lets the words go. */
+@media (max-width: 340px) {
+  .manual-link span {
+    display: none;
+  }
+}
+
 /* On a narrow panel the tools take a second row instead of running out of sight. */
 .bar.tools {
   flex-wrap: wrap;

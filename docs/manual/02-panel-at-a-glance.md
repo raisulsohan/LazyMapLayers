@@ -25,9 +25,11 @@ does starts from one of eight areas. This chapter names each one, so the rest of
    See [chapter 4](04-maps-screen.md).
 2. **Map settings** (the sliders icon): the map's name, its basemap and the globe. It only shows
    once a map is selected. See [chapter 5](05-map-settings.md).
-3. **Preview**: renders the basemap at half size without supersampling. Fast, for checking the
+3. **Full manual** (the book): opens this manual in your browser. Point at it for a reminder of what
+   it holds.
+4. **Preview**: renders the basemap at half size without supersampling. Fast, for checking the
    timing.
-4. **Render**: renders at full quality with the settings of the Render tab. Only frames that changed
+5. **Render**: renders at full quality with the settings of the Render tab. Only frames that changed
    since the last render are drawn again.
 
 The name between the two icons is the selected map. When no map exists yet, the two render

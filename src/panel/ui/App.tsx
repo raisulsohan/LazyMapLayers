@@ -74,6 +74,20 @@ function Header(): JSX.Element {
         {entry ? entry.mapCompName : "LazyMapLayers"}
       </span>
       {entry && <IconButton icon="sliders" title="Map settings: name, basemap, globe" id="settings" onClick={() => (screen.value = "settings")} />}
+      {/* Next to the name, where the eye starts: always there, quiet until pointed at. */}
+      <a
+        class="manual-link"
+        data-id="header-manual"
+        href={MANUAL_URL}
+        title="Want to know every tool of LazyMapLayers inside out? Follow this link to the full manual: a chapter for every option, with pictures from After Effects (opens in your browser)."
+        onClick={(e) => {
+          e.preventDefault();
+          openUrl(MANUAL_URL);
+        }}
+      >
+        <Icon name="book" size={13} />
+        <span>Full manual</span>
+      </a>
       <span class="spacer" />
       {entry ? (
         <>

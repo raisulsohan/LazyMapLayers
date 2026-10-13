@@ -22,8 +22,9 @@
   about (both ends of every route, every pin, callout and attached layer, each by the nearest city
   within 50 km) and removes every other label in one undo step: a flight from Paris to Tokyo keeps
   Paris and Tokyo (D107).
-- **Created by Raisul Sohan** at the right end of the status line, and **Manual** under Maps >
-  About, open the manual on raisulsohan.com in your browser.
+- **Full manual** beside the map's name at the top of the panel, **Created by Raisul Sohan** at the
+  right end of the status line, and **Manual** under Maps > About open the manual on
+  raisulsohan.com in your browser.
 
 ## 1.3.0 — TCX import, lines from a hub, borders as lines (2026-10-12)
 

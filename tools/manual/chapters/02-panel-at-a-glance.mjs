@@ -7,7 +7,7 @@ export async function run(s) {
   await s.idle();
   await s.view({ center: { lat: 30, lng: 20 }, zoom: 2.3, bearing: 0, pitch: 0 });
   await s.shot("02-panel-overview", { mark: [".bar.header", ".bar.tools", ".search", ".map-wrap", ".view-readout", ".bar.strip", ".tabs", "status"] });
-  await s.shot("02-header", { mark: ["maps", "settings", "render-preview", "render"], clip: { around: [".bar.header"] }, badges: "below" });
+  await s.shot("02-header", { mark: ["maps", "settings", "header-manual", "render-preview", "render"], clip: { around: [".bar.header"] }, badges: "below" });
   // The tool row: two menus (D106), then the look, the basemap and the globe.
   await s.shot("02-tool-row", { mark: ["menu-add", "menu-data", "look", "basemap", "globe"], clip: { around: [".bar.tools"] }, badges: "below" });
   await s.shot("02-menu-add", {
